@@ -337,6 +337,8 @@ model WorkoutExerciseItem {
   sets        Int    @default(3)
   reps        Int    @default(10)
   restSeconds Int    @default(60)
+  weightKg    Float? // streefgewicht (optioneel)
+  notes       String? // opmerking bij de oefening (optioneel)
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)

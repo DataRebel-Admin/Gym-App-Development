@@ -74,6 +74,8 @@ export default async function MemberSchemaPage({
               sets: it.sets,
               reps: it.reps,
               restSeconds: it.restSeconds,
+              weightKg: it.weightKg,
+              notes: it.notes ?? "",
             }))}
             availableExercises={exercises}
           />

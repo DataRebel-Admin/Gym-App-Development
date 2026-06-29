@@ -34,6 +34,8 @@ export default async function TemplateEditPage({
     sets: it.sets,
     reps: it.reps,
     restSeconds: it.restSeconds,
+    weightKg: it.weightKg,
+    notes: it.notes ?? "",
   }));
 
   return (

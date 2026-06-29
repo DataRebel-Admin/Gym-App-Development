@@ -14,6 +14,8 @@ const itemSchema = z.object({
   sets: z.number().int().min(1).max(20),
   reps: z.number().int().min(1).max(100),
   restSeconds: z.number().int().min(0).max(600),
+  weightKg: z.number().min(0).max(1000).nullable().optional(),
+  notes: z.string().trim().max(280).nullable().optional(),
 });
 const itemsSchema = z.array(itemSchema).max(50);
 
@@ -76,6 +78,8 @@ export async function saveSchema(
         sets: it.sets,
         reps: it.reps,
         restSeconds: it.restSeconds,
+        weightKg: it.weightKg ?? null,
+        notes: it.notes?.trim() ? it.notes.trim() : null,
       })),
     }),
   ]);
@@ -158,6 +162,8 @@ export async function assignFromTemplate(formData: FormData) {
             sets: it.sets,
             reps: it.reps,
             restSeconds: it.restSeconds,
+            weightKg: it.weightKg,
+            notes: it.notes,
           })),
         },
       },
