@@ -1,7 +1,7 @@
 -- GymRebel — Row-Level Security policies (handmatige migratie).
 --
 -- Toepassen:
---   Development : npm run db:rls   (of: npx prisma db execute --file prisma/migrations/manual/rls.sql --schema prisma/schema.prisma)
+--   Development : npm run db:rls   (of: npx prisma db execute --file prisma/sql/rls.sql --schema prisma/schema.prisma)
 --   Productie/CI: als aparte stap ná `prisma migrate deploy`.
 --
 -- Werking: elke tenant-scoped tabel krijgt een policy `tenant_isolation` die

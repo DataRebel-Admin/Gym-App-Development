@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireMember, getMemberHistory } from "@/lib/member";
 import { HistoryChart } from "./history-chart";
 
@@ -22,6 +23,19 @@ export default async function MemberHistoryPage() {
           Gewichtsprogressie
         </h2>
         <HistoryChart series={series} />
+        {series.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {series.map((s) => (
+              <Link
+                key={s.exerciseId}
+                href={`/member/history/exercise/${s.exerciseId}`}
+                className="rounded-full border border-neutral-200 px-3 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
+              >
+                {s.name} →
+              </Link>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-2">

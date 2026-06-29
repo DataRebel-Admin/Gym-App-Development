@@ -131,8 +131,9 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
-De row-level-security policies staan in `prisma/migrations/manual/rls.sql`.
-- **Development**: handmatig toepassen na een schema-migratie met
-  `psql "$DIRECT_URL" -f prisma/migrations/manual/rls.sql`.
+De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,
+anders ziet `prisma migrate` het als een migratie).
+- **Development**: toepassen met `npm run db:rls` (na een schema-migratie).
 - **Productie/CI**: als aparte stap in de deploy-pipeline draaien na `prisma migrate deploy`.
-- Elke query zet de tenant-context via `SET app.current_tenant = '<slug>'` (zie `lib/db.ts`).
+- Elke query zet de tenant-context via `set_config('app.current_tenant', ...)` (zie
+  `lib/tenant-db.ts`).
