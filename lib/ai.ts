@@ -1,11 +1,17 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { applySafetyGuardrail, SAFETY_FALLBACK } from "@/lib/ai-guardrail";
 
-// Default op het meest capabele model; overschrijfbaar via env (bv. een
-// goedkoper/sneller model zoals claude-haiku-4-5) — dat is een keuze van de
-// eigenaar, niet van de code.
-const MODEL = process.env.AI_MODEL ?? "claude-opus-4-8";
+// Welke AI-provider gebruiken we? Omschakelbaar via env zonder code-wijziging.
+//   AI_PROVIDER=anthropic  → Claude (default; EU data-residency via inference_geo)
+//   AI_PROVIDER=openai     → OpenAI / ChatGPT
+const PROVIDER = (process.env.AI_PROVIDER ?? "anthropic").toLowerCase();
+
+// Modellen per provider (overschrijfbaar; AI_MODEL blijft als legacy-fallback voor Claude).
+const ANTHROPIC_MODEL =
+  process.env.ANTHROPIC_MODEL ?? process.env.AI_MODEL ?? "claude-opus-4-8";
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o";
 
 export type AssistantContext = {
   tenantName: string;
@@ -16,8 +22,9 @@ export type AssistantContext = {
     | null;
 };
 
-/** Is de Anthropic-API geconfigureerd? */
+/** Is de actieve AI-provider geconfigureerd (juiste API-key aanwezig)? */
 export function aiConfigured(): boolean {
+  if (PROVIDER === "openai") return Boolean(process.env.OPENAI_API_KEY);
   return Boolean(process.env.ANTHROPIC_API_KEY);
 }
 
@@ -49,6 +56,46 @@ function buildSystemPrompt(ctx: AssistantContext): string {
   ].join("\n");
 }
 
+/** Claude (Anthropic). Retourneert de tekst, of null bij een safety-refusal. */
+async function askAnthropic(
+  question: string,
+  system: string
+): Promise<string | null> {
+  const client = new Anthropic();
+  const response = await client.messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: 1024,
+    system,
+    messages: [{ role: "user", content: question }],
+    // EU data-residency (GymRebel-eis: geen data buiten de EU).
+    inference_geo: "eu",
+  } as Anthropic.MessageCreateParamsNonStreaming);
+
+  if (response.stop_reason === "refusal") return null;
+
+  return response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n");
+}
+
+/** OpenAI / ChatGPT (chat completions). */
+async function askOpenAI(question: string, system: string): Promise<string> {
+  // OPENAI_BASE_URL maakt een EU/Azure-endpoint mogelijk (data-residency).
+  const client = new OpenAI(
+    process.env.OPENAI_BASE_URL ? { baseURL: process.env.OPENAI_BASE_URL } : {}
+  );
+  const completion = await client.chat.completions.create({
+    model: OPENAI_MODEL,
+    max_tokens: 1024,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: question },
+    ],
+  });
+  return completion.choices[0]?.message?.content ?? "";
+}
+
 export async function askGymAssistant(
   question: string,
   ctx: AssistantContext
@@ -57,26 +104,17 @@ export async function askGymAssistant(
     return "De AI-assistent is nog niet geconfigureerd. Vraag de eigenaar om een API-sleutel in te stellen.";
   }
 
+  const system = buildSystemPrompt(ctx);
+
   try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 1024,
-      system: buildSystemPrompt(ctx),
-      messages: [{ role: "user", content: question }],
-      // EU data-residency (GymRebel-eis: geen data buiten de EU).
-      inference_geo: "eu",
-    } as Anthropic.MessageCreateParamsNonStreaming);
-
-    if (response.stop_reason === "refusal") {
-      return SAFETY_FALLBACK;
+    let text: string;
+    if (PROVIDER === "openai") {
+      text = await askOpenAI(question, system);
+    } else {
+      const result = await askAnthropic(question, system);
+      if (result === null) return SAFETY_FALLBACK; // Claude safety-refusal
+      text = result;
     }
-
-    const text = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
-
     return applySafetyGuardrail(text);
   } catch {
     return "Er ging iets mis met de assistent. Probeer het later opnieuw.";
