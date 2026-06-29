@@ -4,7 +4,7 @@ GymRebel is een multitenant SaaS-app voor sportscholen. Elke sportschool is een 
 
 ## Stack
 
-- **Framework**: Next.js 15 (App Router, React Server Components)
+- **Framework**: Next.js 16 (App Router, React Server Components) — `create-next-app@latest` leverde 16; functioneel gelijk aan de gids (App Router/RSC)
 - **Taal**: TypeScript (strict mode)
 - **Styling**: Tailwind CSS v4
 - **Database**: PostgreSQL via Prisma ORM

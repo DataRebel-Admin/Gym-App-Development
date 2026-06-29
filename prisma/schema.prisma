@@ -1,0 +1,14 @@
+// GymRebel Prisma schema — zie CLAUDE.md voor architectuur-principes.
+// Modellen worden toegevoegd in prompt 02 (multitenant fundament).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // DIRECT_URL wordt gebruikt voor migraties wanneer DATABASE_URL een
+  // connection pooler is (bv. Neon/Vercel Postgres).
+  directUrl = env("DIRECT_URL")
+}

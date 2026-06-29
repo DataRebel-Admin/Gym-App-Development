@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/*
+ * GymRebel — tijdelijk neutraal palet (zwart / wit / accent-oranje).
+ * De accent- en merk-waarden zijn CSS custom properties zodat ze later
+ * per tenant runtime overschreven kunnen worden door de <ThemeProvider>
+ * (zie prompt 04 — whitelabel theming).
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+
+  /* Neutraal grijs-palet */
+  --neutral-50: #fafafa;
+  --neutral-100: #f5f5f5;
+  --neutral-200: #e5e5e5;
+  --neutral-500: #737373;
+  --neutral-700: #404040;
+  --neutral-900: #171717;
+
+  /* Tenant-overschrijfbaar: standaard GymRebel accent-oranje */
+  --tenant-accent: #e84b1f;
+  --tenant-accent-foreground: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-900: var(--neutral-900);
+
+  /* Gebruik als bg-accent / text-accent / border-accent */
+  --color-accent: var(--tenant-accent);
+  --color-accent-foreground: var(--tenant-accent-foreground);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
