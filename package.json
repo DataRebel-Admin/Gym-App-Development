@@ -14,7 +14,8 @@
     "db:reset": "prisma migrate reset",
     "db:rls": "prisma db execute --file prisma/sql/rls.sql --schema prisma/schema.prisma",
     "media:upload": "node scripts/upload-media.mjs",
-    "data:import": "node scripts/import-exercises.mjs"
+    "data:import": "node scripts/import-exercises.mjs",
+    "data:link": "node scripts/link-catalog.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.107.0",
