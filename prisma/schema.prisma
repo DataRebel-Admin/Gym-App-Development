@@ -148,14 +148,44 @@ model Exercise {
   description  String?
   targetMuscle String?
   machineId    String? // nullable: lichaamsgewicht-oefeningen hebben geen machine
+  catalogId    String? // optioneel: link naar de globale ExerciseCatalog (bron van media/instructies)
 
   tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   machine            Machine?              @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  catalog            ExerciseCatalog?      @relation(fields: [catalogId], references: [id], onDelete: SetNull)
   workoutItems       WorkoutExerciseItem[]
   performanceEntries PerformanceEntry[]
 
   @@index([tenantId])
   @@index([machineId])
+  @@index([catalogId])
+}
+
+// Globale oefeningen-catalogus (externe dataset, 1.324 records). NIET tenant-scoped
+// en GEEN RLS — net als Tenant/Auth-tabellen. Dit is de bron van waarheid voor
+// media, spiergroepen en (meertalige) instructies; tenants cureren hun eigen
+// selectie via Exercise.catalogId. Gevuld door scripts/import-exercises.mjs.
+model ExerciseCatalog {
+  id               String   @id
+  name             String
+  category         String
+  bodyPart         String   @map("body_part")
+  equipment        String
+  target           String
+  muscleGroup      String?  @map("muscle_group")
+  secondaryMuscles String[] @map("secondary_muscles")
+  instructions     Json // { en, es, it, tr, nl } — vrije tekst per taal
+  instructionSteps Json?    @map("instruction_steps") // { en: [...], ..., nl: [...] }
+  imageUrl         String   @map("image_url")
+  gifUrl           String   @map("gif_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  exercises Exercise[]
+
+  @@index([category])
+  @@index([equipment])
+  @@index([target])
+  @@map("exercise_catalog")
 }
 
 model WorkoutTemplate {
