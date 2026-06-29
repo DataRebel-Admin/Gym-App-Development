@@ -200,6 +200,44 @@ async function seedActivity(
   console.log(`  ↳ activiteit ${slug}: ${sessions} sessies, ${entries} entries`);
 }
 
+/** Wijs een lid een (gekloond, lid-specifiek) schema toe op basis van een template. */
+async function seedAssignment(
+  slug: string,
+  memberEmail: string,
+  templateName: string
+) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const member = await prisma.user.findFirst({
+    where: { tenantId: tenant.id, email: memberEmail, role: "MEMBER" },
+  });
+  const source = await prisma.workoutTemplate.findFirst({
+    where: { tenantId: tenant.id, isLibrary: true, name: templateName },
+    include: { items: { orderBy: { order: "asc" } } },
+  });
+  if (!member || !source) return;
+
+  await prisma.workoutTemplate.create({
+    data: {
+      tenantId: tenant.id,
+      name: source.name,
+      description: source.description,
+      isLibrary: false,
+      assignedWorkouts: { create: { tenantId: tenant.id, userId: member.id } },
+      items: {
+        create: source.items.map((it) => ({
+          tenantId: tenant.id,
+          exerciseId: it.exerciseId,
+          order: it.order,
+          sets: it.sets,
+          reps: it.reps,
+          restSeconds: it.restSeconds,
+        })),
+      },
+    },
+  });
+  console.log(`  ↳ schema toegewezen: ${memberEmail} ← ${templateName}`);
+}
+
 async function main() {
   // Tenant 1 — rijke demo.
   await seedTenant({
@@ -291,6 +329,10 @@ async function main() {
   // Trainingsactiviteit voor het owner-dashboard (laatste ~12 weken).
   await seedActivity("fitpower", { days: 84, trainProbability: 0.5 });
   await seedActivity("ironhouse", { days: 30, trainProbability: 0.45 });
+
+  // Toegewezen schema's zodat de member-views data tonen.
+  await seedAssignment("fitpower", "sven@fitpower.nl", "Full Body Start");
+  await seedAssignment("fitpower", "lisa@fitpower.nl", "Cardio + Core");
 }
 
 main()
