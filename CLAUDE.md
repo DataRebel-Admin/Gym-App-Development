@@ -77,6 +77,23 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   `WorkoutSession`.
 - **MachineType is een enum** (`CARDIO | KRACHT | VRIJE_GEWICHTEN | OVERIG`) i.p.v. een
   vrij tekstveld.
+- **Geen route-groups voor member/owner.** Route-groups `(member)`/`(owner)` verschijnen
+  niet in de URL → twee home-pagina's zouden beide op `/` botsen. We gebruiken echte
+  segmenten: member-area op **`/member/*`**, owner-area op **`/owner/*`**. De gids-notatie
+  `/app/(member)` lees je dus als `/member`.
+- **Middleware heet `proxy.ts`** (Next 16 hernoemde `middleware.ts` → `proxy.ts`).
+- **Auth = tenant-scoped magic link (Auth.js v5, JWT-sessies).**
+  - `auth.config.ts` = edge-veilige gedeelde config (callbacks `authorized`/`jwt`/`session`),
+    gebruikt door `proxy.ts`. `auth.ts` = volledige instantie (adapter + Nodemailer).
+  - `lib/auth-adapter.ts` overschrijft `getUserByEmail` zodat lookups tenant-scoped zijn
+    (tenant-slug uit cookie `gymrebel-auth-tenant`, gezet door de login-action).
+  - De `signIn`-callback weigert e-mailadressen zonder `tenantId` (onbekend of verkeerde
+    tenant) — draait in fase 1 (geen link verstuurd) én fase 2 (callback). Invite-only:
+    leden worden door de owner aangemaakt, nooit auto-provisioned bij login.
+  - **Dev**: magic link wordt naar de server-console geprint (geen echte mail). Productie:
+    later een echte SMTP/Resend-transport in `sendVerificationRequest`.
+  - Auth.js infra-tabellen (`Account`, `Session`, `VerificationToken`) hebben **geen**
+    `tenantId`/RLS — het zijn framework-tabellen.
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 

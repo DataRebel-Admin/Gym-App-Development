@@ -1,4 +1,13 @@
-export default function Home() {
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+
+export default async function Home() {
+  // Na login landt de magic link hier; stuur door op basis van rol.
+  const session = await auth();
+  if (session?.user) {
+    redirect(session.user.role === "OWNER" ? "/owner" : "/member");
+  }
+
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
       <span className="mb-6 inline-block h-3 w-3 rounded-full bg-accent" />
