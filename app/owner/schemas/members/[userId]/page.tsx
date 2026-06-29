@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { SchemaEditor, type EditorItem } from "@/components/schema-editor";
+import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import {
   assignFromTemplate,
   startEmptySchema,
@@ -27,7 +27,12 @@ export default async function MemberSchemaPage({
     include: {
       template: {
         include: {
-          items: { orderBy: { order: "asc" }, include: { exercise: true } },
+          days: {
+            orderBy: { order: "asc" },
+            include: {
+              items: { orderBy: { order: "asc" }, include: { exercise: true } },
+            },
+          },
         },
       },
     },
@@ -67,21 +72,30 @@ export default async function MemberSchemaPage({
             templateId={template.id}
             initialName={template.name}
             initialDescription={template.description ?? ""}
-            initialItems={template.items.map<EditorItem>((it) => ({
-              key: it.id,
-              exerciseId: it.exerciseId,
-              exerciseName: it.exercise.name,
-              sets: it.sets,
-              reps: it.reps,
-              restSeconds: it.restSeconds,
+            initialDays={template.days.map<EditorDay>((d) => ({
+              key: d.id,
+              name: d.name,
+              items: d.items.map((it) => ({
+                key: it.id,
+                exerciseId: it.exerciseId,
+                exerciseName: it.exercise.name,
+                sets: it.sets,
+                reps: it.reps,
+                restSeconds: it.restSeconds,
+                weightKg: it.weightKg,
+                notes: it.notes ?? "",
+              })),
             }))}
             availableExercises={exercises}
           />
 
           <section className="flex max-w-3xl items-center justify-between rounded-xl border border-neutral-200 p-4">
-            <span className="text-sm text-neutral-500">
-              Schema vervangen of verwijderen
-            </span>
+            <a
+              href={`/owner/schemas/members/${member.id}/pdf`}
+              className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              ⬇ Exporteer als PDF
+            </a>
             <form action={removeAssignment}>
               <input type="hidden" name="userId" value={member.id} />
               <button

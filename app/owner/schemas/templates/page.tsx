@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { createTemplate } from "../actions";
+import { createTemplate, duplicateTemplate } from "../actions";
 
 export default async function TemplatesPage() {
   const owner = await requireOwner();
@@ -44,13 +44,21 @@ export default async function TemplatesPage() {
                   {t.name}
                 </td>
                 <td className="px-4 py-2 text-neutral-700">{t._count.items}</td>
-                <td className="px-4 py-2 text-right">
-                  <Link
-                    href={`/owner/schemas/templates/${t.id}`}
-                    className="text-accent hover:underline"
-                  >
-                    Bewerken
-                  </Link>
+                <td className="px-4 py-2">
+                  <div className="flex items-center justify-end gap-3">
+                    <form action={duplicateTemplate}>
+                      <input type="hidden" name="id" value={t.id} />
+                      <button type="submit" className="text-neutral-500 hover:text-neutral-900">
+                        Dupliceren
+                      </button>
+                    </form>
+                    <Link
+                      href={`/owner/schemas/templates/${t.id}`}
+                      className="text-accent hover:underline"
+                    >
+                      Bewerken
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

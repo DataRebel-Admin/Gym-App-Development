@@ -14,8 +14,14 @@ const itemSchema = z.object({
   sets: z.number().int().min(1).max(20),
   reps: z.number().int().min(1).max(100),
   restSeconds: z.number().int().min(0).max(600),
+  weightKg: z.number().min(0).max(1000).nullable().optional(),
+  notes: z.string().trim().max(280).nullable().optional(),
 });
-const itemsSchema = z.array(itemSchema).max(50);
+const daySchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  items: z.array(itemSchema).max(50),
+});
+const daysSchema = z.array(daySchema).max(14);
 
 /** Valideer dat alle exerciseIds tot deze tenant horen. */
 async function assertExercisesInTenant(tenantId: string, ids: string[]) {
@@ -40,11 +46,11 @@ export async function saveSchema(
 
   if (!name) return { error: "Naam is verplicht" };
 
-  let items;
+  let days;
   try {
-    items = itemsSchema.parse(JSON.parse(String(formData.get("items") ?? "[]")));
+    days = daysSchema.parse(JSON.parse(String(formData.get("days") ?? "[]")));
   } catch {
-    return { error: "Ongeldige oefeningenlijst" };
+    return { error: "Ongeldige schema-indeling" };
   }
 
   const template = await prisma.workoutTemplate.findFirst({
@@ -55,7 +61,7 @@ export async function saveSchema(
   try {
     await assertExercisesInTenant(
       owner.tenantId,
-      items.map((i) => i.exerciseId)
+      days.flatMap((d) => d.items.map((i) => i.exerciseId))
     );
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Validatiefout" };
@@ -66,18 +72,33 @@ export async function saveSchema(
       where: { id: template.id },
       data: { name, description: description || null },
     }),
+    // Items en dagen volledig vervangen (items cascaden via day-FK, maar we
+    // ruimen expliciet op voor items zonder dag).
     prisma.workoutExerciseItem.deleteMany({ where: { templateId: template.id } }),
-    prisma.workoutExerciseItem.createMany({
-      data: items.map((it, idx) => ({
-        tenantId: owner.tenantId,
-        templateId: template.id,
-        exerciseId: it.exerciseId,
-        order: idx,
-        sets: it.sets,
-        reps: it.reps,
-        restSeconds: it.restSeconds,
-      })),
-    }),
+    prisma.workoutDay.deleteMany({ where: { templateId: template.id } }),
+    ...days.map((d, dayIdx) =>
+      prisma.workoutDay.create({
+        data: {
+          tenantId: owner.tenantId,
+          templateId: template.id,
+          order: dayIdx,
+          name: d.name,
+          items: {
+            create: d.items.map((it, idx) => ({
+              tenantId: owner.tenantId,
+              templateId: template.id,
+              exerciseId: it.exerciseId,
+              order: idx,
+              sets: it.sets,
+              reps: it.reps,
+              restSeconds: it.restSeconds,
+              weightKg: it.weightKg ?? null,
+              notes: it.notes?.trim() ? it.notes.trim() : null,
+            })),
+          },
+        },
+      })
+    ),
   ]);
 
   revalidatePath("/owner/schemas");
@@ -122,6 +143,82 @@ async function clearAssignment(tenantId: string, userId: string) {
   return ops;
 }
 
+type SourceTemplate = {
+  name: string;
+  description: string | null;
+  days: {
+    order: number;
+    name: string;
+    items: {
+      exerciseId: string;
+      order: number;
+      sets: number;
+      reps: number;
+      restSeconds: number;
+      weightKg: number | null;
+      notes: string | null;
+    }[];
+  }[];
+};
+
+const sourceInclude = {
+  days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } },
+} as const;
+
+/** Kloon (binnen een transactie) een bron-template naar een nieuw lid-schema +
+ *  wijs het toe. Vervangt het bestaande lid-schema. */
+async function assignTemplateToUser(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  userId: string,
+  source: SourceTemplate
+) {
+  const existing = await tx.assignedWorkout.findFirst({
+    where: { tenantId, userId },
+    include: { template: true },
+  });
+  if (existing) {
+    await tx.assignedWorkout.delete({ where: { id: existing.id } });
+    if (existing.template && !existing.template.isLibrary) {
+      await tx.workoutTemplate.delete({ where: { id: existing.template.id } });
+    }
+  }
+
+  const tpl = await tx.workoutTemplate.create({
+    data: {
+      tenantId,
+      name: source.name,
+      description: source.description,
+      isLibrary: false,
+      assignedWorkouts: { create: { tenantId, userId } },
+    },
+  });
+
+  for (const d of source.days) {
+    await tx.workoutDay.create({
+      data: {
+        tenantId,
+        templateId: tpl.id,
+        order: d.order,
+        name: d.name,
+        items: {
+          create: d.items.map((it) => ({
+            tenantId,
+            templateId: tpl.id,
+            exerciseId: it.exerciseId,
+            order: it.order,
+            sets: it.sets,
+            reps: it.reps,
+            restSeconds: it.restSeconds,
+            weightKg: it.weightKg,
+            notes: it.notes,
+          })),
+        },
+      },
+    });
+  }
+}
+
 /** Kopieer een library-template naar een lid-specifiek schema en wijs het toe. */
 export async function assignFromTemplate(formData: FormData) {
   const owner = await requireOwner();
@@ -135,37 +232,94 @@ export async function assignFromTemplate(formData: FormData) {
 
   const source = await prisma.workoutTemplate.findFirst({
     where: { id: sourceId, tenantId: owner.tenantId },
-    include: { items: { orderBy: { order: "asc" } } },
+    include: sourceInclude,
   });
   if (!source) redirect(`/owner/schemas/members/${userId}`);
 
-  const clearOps = await clearAssignment(owner.tenantId, userId);
-
-  await prisma.$transaction([
-    ...clearOps,
-    prisma.workoutTemplate.create({
-      data: {
-        tenantId: owner.tenantId,
-        name: source.name,
-        description: source.description,
-        isLibrary: false,
-        assignedWorkouts: { create: { tenantId: owner.tenantId, userId } },
-        items: {
-          create: source.items.map((it) => ({
-            tenantId: owner.tenantId,
-            exerciseId: it.exerciseId,
-            order: it.order,
-            sets: it.sets,
-            reps: it.reps,
-            restSeconds: it.restSeconds,
-          })),
-        },
-      },
-    }),
-  ]);
+  await prisma.$transaction((tx) =>
+    assignTemplateToUser(tx, owner.tenantId, userId, source)
+  );
 
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
+}
+
+/** Wijs één library-template tegelijk toe aan meerdere leden (G3c). */
+export async function assignTemplateToMembers(formData: FormData) {
+  const owner = await requireOwner();
+  const sourceId = String(formData.get("sourceTemplateId") ?? "");
+  const userIds = formData.getAll("userIds").map(String).filter(Boolean);
+  if (!sourceId || userIds.length === 0) return;
+
+  const source = await prisma.workoutTemplate.findFirst({
+    where: { id: sourceId, tenantId: owner.tenantId, isLibrary: true },
+    include: sourceInclude,
+  });
+  if (!source) return;
+
+  // Alleen geldige leden van deze tenant.
+  const members = await prisma.user.findMany({
+    where: { id: { in: userIds }, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
+    select: { id: true },
+  });
+
+  for (const m of members) {
+    await prisma.$transaction((tx) =>
+      assignTemplateToUser(tx, owner.tenantId, m.id, source)
+    );
+  }
+
+  revalidatePath("/owner/schemas/templates");
+}
+
+/** Dupliceer een library-template (incl. dagen + oefeningen) (G3c). */
+export async function duplicateTemplate(formData: FormData) {
+  const owner = await requireOwner();
+  const sourceId = String(formData.get("id") ?? "");
+
+  const source = await prisma.workoutTemplate.findFirst({
+    where: { id: sourceId, tenantId: owner.tenantId, isLibrary: true },
+    include: sourceInclude,
+  });
+  if (!source) redirect("/owner/schemas/templates");
+
+  const copy = await prisma.$transaction(async (tx) => {
+    const tpl = await tx.workoutTemplate.create({
+      data: {
+        tenantId: owner.tenantId,
+        name: `${source.name} (kopie)`,
+        description: source.description,
+        isLibrary: true,
+      },
+    });
+    for (const d of source.days) {
+      await tx.workoutDay.create({
+        data: {
+          tenantId: owner.tenantId,
+          templateId: tpl.id,
+          order: d.order,
+          name: d.name,
+          items: {
+            create: d.items.map((it) => ({
+              tenantId: owner.tenantId,
+              templateId: tpl.id,
+              exerciseId: it.exerciseId,
+              order: it.order,
+              sets: it.sets,
+              reps: it.reps,
+              restSeconds: it.restSeconds,
+              weightKg: it.weightKg,
+              notes: it.notes,
+            })),
+          },
+        },
+      });
+    }
+    return tpl;
+  });
+
+  revalidatePath("/owner/schemas/templates");
+  redirect(`/owner/schemas/templates/${copy.id}`);
 }
 
 /** Start een leeg lid-specifiek schema voor een lid. */

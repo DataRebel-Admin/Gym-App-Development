@@ -13,24 +13,27 @@ export async function requireMember() {
   return { ...session.user, tenantId: session.user.tenantId };
 }
 
-/** Het actief toegewezen schema van een lid (incl. oefeningen). */
+/** Het actief toegewezen schema van een lid (incl. dagen + oefeningen). */
 export async function getAssignedSchema(memberId: string, tenantId: string) {
+  const itemInclude = {
+    orderBy: { order: "asc" },
+    include: {
+      exercise: {
+        include: {
+          machine: true,
+          catalog: { select: { gifUrl: true, imageUrl: true } },
+        },
+      },
+    },
+  } as const;
+
   return prisma.assignedWorkout.findFirst({
     where: { tenantId, userId: memberId },
     include: {
       template: {
         include: {
-          items: {
-            orderBy: { order: "asc" },
-            include: {
-              exercise: {
-                include: {
-                  machine: true,
-                  catalog: { select: { gifUrl: true, imageUrl: true } },
-                },
-              },
-            },
-          },
+          days: { orderBy: { order: "asc" }, include: { items: itemInclude } },
+          items: itemInclude,
         },
       },
     },
