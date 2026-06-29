@@ -9,6 +9,7 @@ import {
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Field, Input, Select } from "@/components/ui/field";
 import { buttonClasses } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import { MemberAddForm } from "./member-add-form";
 import {
   setMemberRole,
@@ -40,10 +41,17 @@ const STATUSES: InviteStatus[] = [
 
 const rowBtn = "rounded-lg border border-border-strong px-2 py-1 text-xs hover:bg-neutral-50";
 
+function buildQuery(base: Record<string, string | undefined>, overrides: Record<string, string>) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries({ ...base, ...overrides })) if (v) params.set(k, v);
+  const s = params.toString();
+  return s ? `?${s}` : "";
+}
+
 export default async function OwnerMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; sort?: string; archived?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; sort?: string; archived?: string; page?: string }>;
 }) {
   const owner = await requireOwner();
   const sp = await searchParams;
@@ -53,8 +61,9 @@ export default async function OwnerMembersPage({
     status: STATUSES.includes(sp.status as InviteStatus) ? (sp.status as InviteStatus) : undefined,
     sort: sp.sort === "created" || sp.sort === "status" ? sp.sort : "name",
     includeArchived: sp.archived === "1",
+    page: Math.max(1, Number(sp.page ?? "1") || 1),
   };
-  const members = await listMembers(owner.tenantId, opts);
+  const { rows: members, page, totalPages } = await listMembers(owner.tenantId, opts);
 
   return (
     <div className="flex flex-col gap-6 px-6 py-8">
@@ -175,12 +184,14 @@ export default async function OwnerMembersPage({
                                 {m.active ? "Deactiveer" : "Activeer"}
                               </button>
                             </form>
-                            <form action={deleteMember}>
-                              <input type="hidden" name="userId" value={m.id} />
-                              <button type="submit" className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
-                                Verwijder
-                              </button>
-                            </form>
+                            <ConfirmButton
+                              action={deleteMember}
+                              fields={{ userId: m.id }}
+                              label="Verwijder"
+                              triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                              title="Lid verwijderen?"
+                              message={`Weet je zeker dat je ${m.name ?? m.email} definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt — overweeg archiveren.`}
+                            />
                           </>
                         ) : (
                           <span className="text-xs text-neutral-400">(jij)</span>
@@ -194,6 +205,26 @@ export default async function OwnerMembersPage({
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-center gap-4 text-sm">
+          {page > 1 ? (
+            <Link href={`/owner/members${buildQuery(sp, { page: String(page - 1) })}`} className="rounded-lg border border-border-strong px-3 py-1.5 hover:bg-neutral-50">
+              ← Vorige
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-border px-3 py-1.5 text-neutral-300">← Vorige</span>
+          )}
+          <span className="text-neutral-500">Pagina {page} / {totalPages}</span>
+          {page < totalPages ? (
+            <Link href={`/owner/members${buildQuery(sp, { page: String(page + 1) })}`} className="rounded-lg border border-border-strong px-3 py-1.5 hover:bg-neutral-50">
+              Volgende →
+            </Link>
+          ) : (
+            <span className="rounded-lg border border-border px-3 py-1.5 text-neutral-300">Volgende →</span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

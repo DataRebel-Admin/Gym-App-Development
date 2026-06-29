@@ -45,6 +45,15 @@ export type MemberListOptions = {
   role?: Role;
   sort?: "name" | "created" | "status";
   includeArchived?: boolean;
+  page?: number;
+  pageSize?: number;
+};
+
+export type MemberListResult = {
+  rows: MemberRow[];
+  total: number;
+  page: number;
+  totalPages: number;
 };
 
 const STATUS_ORDER: Record<InviteStatus, number> = {
@@ -54,11 +63,15 @@ const STATUS_ORDER: Record<InviteStatus, number> = {
   GEACTIVEERD: 3,
 };
 
-/** Leden van een tenant met afgeleide uitnodigingsstatus, gefilterd/gesorteerd. */
+/**
+ * Leden van een tenant met afgeleide uitnodigingsstatus, gepagineerd op DB-niveau
+ * (schaalt naar duizenden leden). Let op: een status-filter werkt binnen de pagina
+ * (de status is afgeleid en niet DB-queryable).
+ */
 export async function listMembers(
   tenantId: string,
   opts: MemberListOptions = {}
-): Promise<MemberRow[]> {
+): Promise<MemberListResult> {
   const where: Prisma.UserWhereInput = {
     tenantId,
     role: { in: ["TENANT_ADMIN", "TENANT_MEMBER"] },
@@ -74,9 +87,19 @@ export async function listMembers(
       : {}),
   };
 
-  const [users, invitations] = await Promise.all([
+  const pageSize = opts.pageSize ?? 25;
+  const page = Math.max(1, opts.page ?? 1);
+  const sort = opts.sort ?? "name";
+  const orderBy: Prisma.UserOrderByWithRelationInput =
+    sort === "created" ? { createdAt: "desc" } : { name: "asc" };
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
     prisma.user.findMany({
       where,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       select: {
         id: true,
         email: true,
@@ -88,12 +111,12 @@ export async function listMembers(
         emailVerified: true,
       },
     }),
-    prisma.invitation.findMany({
-      where: { tenantId },
-      select: { email: true, acceptedAt: true, expiresAt: true },
-    }),
   ]);
 
+  const invitations = await prisma.invitation.findMany({
+    where: { tenantId, email: { in: users.map((u) => u.email) } },
+    select: { email: true, acceptedAt: true, expiresAt: true },
+  });
   const inviteByEmail = new Map(invitations.map((i) => [i.email, i]));
 
   let rows: MemberRow[] = users.map((u) => ({
@@ -108,14 +131,8 @@ export async function listMembers(
   }));
 
   if (opts.status) rows = rows.filter((r) => r.inviteStatus === opts.status);
+  if (sort === "status")
+    rows.sort((a, b) => STATUS_ORDER[a.inviteStatus] - STATUS_ORDER[b.inviteStatus]);
 
-  const sort = opts.sort ?? "name";
-  rows.sort((a, b) => {
-    if (sort === "created") return b.createdAt.getTime() - a.createdAt.getTime();
-    if (sort === "status")
-      return STATUS_ORDER[a.inviteStatus] - STATUS_ORDER[b.inviteStatus];
-    return (a.name ?? a.email).localeCompare(b.name ?? b.email);
-  });
-
-  return rows;
+  return { rows, total, page, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 }

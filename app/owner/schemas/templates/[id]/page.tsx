@@ -5,6 +5,7 @@ import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { deleteTemplate, duplicateTemplate } from "../../actions";
 import { AssignMembersForm } from "./assign-members";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 
 export default async function TemplateEditPage({
   params,
@@ -91,15 +92,14 @@ export default async function TemplateEditPage({
 
       <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-red-200 p-5">
         <h2 className="text-sm font-semibold text-red-700">Verwijderen</h2>
-        <form action={deleteTemplate}>
-          <input type="hidden" name="id" value={template.id} />
-          <button
-            type="submit"
-            className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-          >
-            Template verwijderen
-          </button>
-        </form>
+        <ConfirmButton
+          action={deleteTemplate}
+          fields={{ id: template.id }}
+          label="Template verwijderen"
+          triggerClassName="self-start rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+          title="Template verwijderen?"
+          message="Weet je zeker dat je deze template wilt verwijderen? Toegewezen lid-schema's blijven bestaan."
+        />
       </section>
     </div>
   );
