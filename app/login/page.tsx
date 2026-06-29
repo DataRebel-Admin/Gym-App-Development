@@ -1,17 +1,11 @@
 import { LoginForm } from "./login-form";
-import { DEV_FALLBACK_TENANT } from "@/lib/constants";
-import { prisma } from "@/lib/db";
+import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ tenant?: string }>;
-}) {
-  const { tenant: tenantParam } = await searchParams;
-  const slug = tenantParam ?? DEV_FALLBACK_TENANT;
-
-  // Toon de tenant-naam als die bestaat (puur informatief op de loginpagina).
-  const tenant = await prisma.tenant.findUnique({ where: { slug } });
+export default async function LoginPage() {
+  // Tenant komt uit de proxy-header (subdomein of ?tenant), niet rechtstreeks
+  // uit de query — zo werkt zowel productie (subdomein) als dev (?tenant).
+  const slug = await getTenantSlug();
+  const tenant = await getCurrentTenant();
 
   return (
     <main className="flex flex-1 items-center justify-center px-6">

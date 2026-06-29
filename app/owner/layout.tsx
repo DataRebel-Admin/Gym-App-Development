@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
+import { getCurrentTenant } from "@/lib/tenant";
 import { LogoutButton } from "@/components/ui/logout-button";
 
 export default async function OwnerLayout({
@@ -12,12 +13,14 @@ export default async function OwnerLayout({
   if (!session?.user) redirect("/login");
   if (session.user.role !== "OWNER") redirect("/member");
 
+  const tenant = await getCurrentTenant();
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="flex items-center justify-between border-b border-neutral-200 px-6 py-3">
         <div className="flex items-center gap-6">
           <Link href="/owner" className="font-semibold text-neutral-900">
-            GymRebel
+            {tenant?.name ?? "GymRebel"}
           </Link>
           <nav className="flex items-center gap-4 text-sm text-neutral-500">
             <Link href="/owner" className="hover:text-neutral-900">
