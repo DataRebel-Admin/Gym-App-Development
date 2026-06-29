@@ -12,22 +12,39 @@ export type ChecklistItem = {
   thumbUrl: string | null;
 };
 
-export function SchemaChecklist({ items }: { items: ChecklistItem[] }) {
+export type ChecklistDay = { name: string; items: ChecklistItem[] };
+
+export function SchemaChecklist({
+  items,
+  days,
+}: {
+  items?: ChecklistItem[];
+  days?: ChecklistDay[];
+}) {
   const [done, setDone] = useState<Record<string, boolean>>({});
 
   function toggle(id: string) {
     setDone((d) => ({ ...d, [id]: !d[id] }));
   }
 
-  const completed = items.filter((i) => done[i.id]).length;
+  // Normaliseer naar dagen (val terug op één naamloze "dag" voor platte lijsten).
+  const groups: ChecklistDay[] =
+    days && days.length > 0 ? days : [{ name: "", items: items ?? [] }];
+  const allItems = groups.flatMap((g) => g.items);
+  const completed = allItems.filter((i) => done[i.id]).length;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5">
       <p className="text-sm text-neutral-500">
-        {completed}/{items.length} afgevinkt
+        {completed}/{allItems.length} afgevinkt
       </p>
-      <ul className="flex flex-col gap-2">
-        {items.map((it) => {
+      {groups.map((group, gi) => (
+        <div key={gi} className="flex flex-col gap-2">
+          {group.name ? (
+            <h3 className="text-sm font-semibold text-neutral-900">{group.name}</h3>
+          ) : null}
+          <ul className="flex flex-col gap-2">
+        {group.items.map((it) => {
           const isDone = Boolean(done[it.id]);
           return (
             <li key={it.id}>
@@ -81,7 +98,9 @@ export function SchemaChecklist({ items }: { items: ChecklistItem[] }) {
             </li>
           );
         })}
-      </ul>
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }

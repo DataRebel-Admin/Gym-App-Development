@@ -64,6 +64,7 @@ model Tenant {
   machines          Machine[]
   exercises         Exercise[]
   templates         WorkoutTemplate[]
+  workoutDays       WorkoutDay[]
   workoutItems      WorkoutExerciseItem[]
   assignedWorkouts  AssignedWorkout[]
   sessions          WorkoutSession[]
@@ -322,10 +323,27 @@ model WorkoutTemplate {
   updatedAt   DateTime @updatedAt
 
   tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  days             WorkoutDay[]
   items            WorkoutExerciseItem[]
   assignedWorkouts AssignedWorkout[]
 
   @@index([tenantId])
+}
+
+// Trainingsdag binnen een schema (schema → dagen → oefeningen).
+model WorkoutDay {
+  id         String @id @default(cuid())
+  tenantId   String
+  templateId String
+  order      Int    @default(0)
+  name       String @default("Dag 1")
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  items    WorkoutExerciseItem[]
+
+  @@index([tenantId])
+  @@index([templateId])
 }
 
 model WorkoutExerciseItem {
@@ -333,6 +351,7 @@ model WorkoutExerciseItem {
   tenantId    String
   templateId  String
   exerciseId  String
+  dayId       String? // trainingsdag binnen het schema (na backfill altijd gezet)
   order       Int    @default(0)
   sets        Int    @default(3)
   reps        Int    @default(10)
@@ -342,10 +361,12 @@ model WorkoutExerciseItem {
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  day      WorkoutDay?     @relation(fields: [dayId], references: [id], onDelete: Cascade)
   exercise Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([templateId])
+  @@index([dayId])
   @@index([exerciseId])
 }
 

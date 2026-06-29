@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { SchemaEditor, type EditorItem } from "@/components/schema-editor";
+import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { deleteTemplate } from "../../actions";
 
 export default async function TemplateEditPage({
@@ -16,7 +16,12 @@ export default async function TemplateEditPage({
   const template = await prisma.workoutTemplate.findFirst({
     where: { id, tenantId: owner.tenantId, isLibrary: true },
     include: {
-      items: { orderBy: { order: "asc" }, include: { exercise: true } },
+      days: {
+        orderBy: { order: "asc" },
+        include: {
+          items: { orderBy: { order: "asc" }, include: { exercise: true } },
+        },
+      },
     },
   });
   if (!template) notFound();
@@ -27,15 +32,19 @@ export default async function TemplateEditPage({
     select: { id: true, name: true, targetMuscle: true },
   });
 
-  const initialItems: EditorItem[] = template.items.map((it) => ({
-    key: it.id,
-    exerciseId: it.exerciseId,
-    exerciseName: it.exercise.name,
-    sets: it.sets,
-    reps: it.reps,
-    restSeconds: it.restSeconds,
-    weightKg: it.weightKg,
-    notes: it.notes ?? "",
+  const initialDays: EditorDay[] = template.days.map((d) => ({
+    key: d.id,
+    name: d.name,
+    items: d.items.map((it) => ({
+      key: it.id,
+      exerciseId: it.exerciseId,
+      exerciseName: it.exercise.name,
+      sets: it.sets,
+      reps: it.reps,
+      restSeconds: it.restSeconds,
+      weightKg: it.weightKg,
+      notes: it.notes ?? "",
+    })),
   }));
 
   return (
@@ -51,7 +60,7 @@ export default async function TemplateEditPage({
         templateId={template.id}
         initialName={template.name}
         initialDescription={template.description ?? ""}
-        initialItems={initialItems}
+        initialDays={initialDays}
         availableExercises={exercises}
       />
 

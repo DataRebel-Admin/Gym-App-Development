@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { SchemaEditor, type EditorItem } from "@/components/schema-editor";
+import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import {
   assignFromTemplate,
   startEmptySchema,
@@ -27,7 +27,12 @@ export default async function MemberSchemaPage({
     include: {
       template: {
         include: {
-          items: { orderBy: { order: "asc" }, include: { exercise: true } },
+          days: {
+            orderBy: { order: "asc" },
+            include: {
+              items: { orderBy: { order: "asc" }, include: { exercise: true } },
+            },
+          },
         },
       },
     },
@@ -67,15 +72,19 @@ export default async function MemberSchemaPage({
             templateId={template.id}
             initialName={template.name}
             initialDescription={template.description ?? ""}
-            initialItems={template.items.map<EditorItem>((it) => ({
-              key: it.id,
-              exerciseId: it.exerciseId,
-              exerciseName: it.exercise.name,
-              sets: it.sets,
-              reps: it.reps,
-              restSeconds: it.restSeconds,
-              weightKg: it.weightKg,
-              notes: it.notes ?? "",
+            initialDays={template.days.map<EditorDay>((d) => ({
+              key: d.id,
+              name: d.name,
+              items: d.items.map((it) => ({
+                key: it.id,
+                exerciseId: it.exerciseId,
+                exerciseName: it.exercise.name,
+                sets: it.sets,
+                reps: it.reps,
+                restSeconds: it.restSeconds,
+                weightKg: it.weightKg,
+                notes: it.notes ?? "",
+              })),
             }))}
             availableExercises={exercises}
           />

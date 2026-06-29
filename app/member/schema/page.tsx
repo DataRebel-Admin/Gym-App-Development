@@ -1,6 +1,34 @@
 import { requireMember, getAssignedSchema } from "@/lib/member";
-import { SchemaChecklist, type ChecklistItem } from "./schema-checklist";
+import {
+  SchemaChecklist,
+  type ChecklistItem,
+  type ChecklistDay,
+} from "./schema-checklist";
 import { startSession } from "./actions";
+
+type ItemWithRel = {
+  id: string;
+  sets: number;
+  reps: number;
+  restSeconds: number;
+  exercise: {
+    name: string;
+    machine: { name: string } | null;
+    catalog: { imageUrl: string | null; gifUrl: string | null } | null;
+  };
+};
+
+function toChecklistItem(it: ItemWithRel): ChecklistItem {
+  return {
+    id: it.id,
+    exerciseName: it.exercise.name,
+    machineName: it.exercise.machine?.name ?? null,
+    sets: it.sets,
+    reps: it.reps,
+    restSeconds: it.restSeconds,
+    thumbUrl: it.exercise.catalog?.imageUrl ?? it.exercise.catalog?.gifUrl ?? null,
+  };
+}
 
 export default async function MemberSchemaPage() {
   const member = await requireMember();
@@ -18,15 +46,13 @@ export default async function MemberSchemaPage() {
     );
   }
 
-  const items: ChecklistItem[] = schema.items.map((it) => ({
-    id: it.id,
-    exerciseName: it.exercise.name,
-    machineName: it.exercise.machine?.name ?? null,
-    sets: it.sets,
-    reps: it.reps,
-    restSeconds: it.restSeconds,
-    thumbUrl: it.exercise.catalog?.imageUrl ?? it.exercise.catalog?.gifUrl ?? null,
+  // Toon per dag wanneer er dagen zijn; anders één platte lijst.
+  const days: ChecklistDay[] = schema.days.map((d) => ({
+    name: d.name,
+    items: d.items.map(toChecklistItem),
   }));
+  const flatItems: ChecklistItem[] = schema.items.map(toChecklistItem);
+  const multiDay = days.length > 1;
 
   return (
     <div className="flex flex-1 flex-col gap-5 px-5 py-8">
@@ -39,7 +65,11 @@ export default async function MemberSchemaPage() {
         ) : null}
       </div>
 
-      <SchemaChecklist items={items} />
+      {multiDay ? (
+        <SchemaChecklist days={days} />
+      ) : (
+        <SchemaChecklist items={flatItems} />
+      )}
 
       <form action={startSession}>
         <button

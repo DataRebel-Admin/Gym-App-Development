@@ -34,6 +34,15 @@ export default auth((req) => {
       loginUrl.searchParams.set("tenant", slug);
       return NextResponse.redirect(loginUrl);
     }
+    // Onbekende/verouderde rol (bv. een oude cookie met de oude rolnamen
+    // OWNER/MEMBER van vóór de hernoeming) → terug naar /login i.p.v. eindeloos
+    // bouncen tussen /owner en /member. Breekt de redirect-loop.
+    const KNOWN_ROLES = ["SUPERADMIN", "TENANT_ADMIN", "TENANT_MEMBER"];
+    if (!KNOWN_ROLES.includes(user.role as string)) {
+      const loginUrl = new URL("/login", nextUrl);
+      loginUrl.searchParams.set("tenant", slug);
+      return NextResponse.redirect(loginUrl);
+    }
     // SUPERADMIN hoort op /admin; weg uit tenant-areas (voorkomt redirect-loop).
     if (onAdmin && user.role !== "SUPERADMIN") {
       return NextResponse.redirect(new URL("/", nextUrl));
