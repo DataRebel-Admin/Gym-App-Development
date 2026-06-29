@@ -32,6 +32,9 @@ export default async function OwnerLayout({
             <Link href="/owner/schemas" className="hover:text-neutral-900">
               Schema&apos;s
             </Link>
+            <Link href="/owner/insights" className="hover:text-neutral-900">
+              Inzichten
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">

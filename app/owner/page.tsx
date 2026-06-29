@@ -1,21 +1,85 @@
-import { auth } from "@/auth";
+import Link from "next/link";
+import { requireOwner } from "@/lib/owner";
+import { getDashboardStats } from "@/lib/insights";
+import { SessionsBarChart } from "@/components/charts/sessions-bar-chart";
+import { SessionsLineChart } from "@/components/charts/sessions-line-chart";
 
-export default async function OwnerHome() {
-  const session = await auth();
-  const name = session?.user.name ?? "eigenaar";
+function Panel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-5">
+      <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function UsageList({
+  items,
+}: {
+  items: { name: string; sessions: number }[];
+}) {
+  if (items.length === 0) {
+    return <p className="text-sm text-neutral-500">Nog geen gebruik.</p>;
+  }
+  return (
+    <ul className="flex flex-col gap-1.5 text-sm">
+      {items.map((m) => (
+        <li key={m.name} className="flex justify-between">
+          <span className="text-neutral-900">{m.name}</span>
+          <span className="text-neutral-500">{m.sessions} sessies</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export default async function OwnerDashboard() {
+  const owner = await requireOwner();
+  const stats = await getDashboardStats(owner.tenantId);
 
   return (
-    <div className="flex flex-1 flex-col gap-4 px-6 py-10">
-      <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-        Welkom, {name}
-      </h1>
-      <p className="text-neutral-500">
-        Beheer je machines en schema&apos;s, en bekijk gebruiksinzichten.
-      </p>
-      <p className="text-sm text-neutral-500">
-        (Machinebeheer, schema&apos;s en het dashboard volgen in fase 2 — prompts
-        05–07.)
-      </p>
+    <div className="flex flex-col gap-6 px-6 py-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+          Dashboard
+        </h1>
+        <Link
+          href="/owner/insights"
+          className="text-sm text-accent hover:underline"
+        >
+          Diepere inzichten →
+        </Link>
+      </div>
+
+      <section className="rounded-xl border border-neutral-200 p-5">
+        <p className="text-sm text-neutral-500">Actieve leden vandaag</p>
+        <p className="mt-1 text-3xl font-semibold text-neutral-900">
+          {stats.activeToday}
+        </p>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Panel title="Top 5 machines (deze week)">
+          <UsageList items={stats.topMachines} />
+        </Panel>
+        <Panel title="Minst gebruikt (deze maand)">
+          <UsageList items={stats.bottomMachines} />
+        </Panel>
+      </div>
+
+      <Panel title="Sessies per weekdag (laatste 30 dagen)">
+        <SessionsBarChart data={stats.perWeekday} />
+      </Panel>
+
+      <Panel title="Sessies per week (laatste 12 weken)">
+        <SessionsLineChart data={stats.perWeek} />
+      </Panel>
     </div>
   );
 }

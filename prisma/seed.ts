@@ -131,6 +131,75 @@ async function seedTenant(spec: TenantSpec) {
   );
 }
 
+function pickRandom<T>(arr: T[], n: number): T[] {
+  const copy = [...arr];
+  const out: T[] = [];
+  while (out.length < n && copy.length > 0) {
+    out.push(copy.splice(Math.floor(Math.random() * copy.length), 1)[0]);
+  }
+  return out;
+}
+
+/**
+ * Genereer trainingsactiviteit (WorkoutSessions + PerformanceEntries) over de
+ * laatste `days` dagen, zodat het owner-dashboard zinvolle cijfers toont.
+ */
+async function seedActivity(
+  slug: string,
+  opts: { days: number; trainProbability: number }
+) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const members = await prisma.user.findMany({
+    where: { tenantId: tenant.id, role: "MEMBER" },
+  });
+  const exercises = await prisma.exercise.findMany({
+    where: { tenantId: tenant.id },
+  });
+  if (members.length === 0 || exercises.length === 0) return;
+
+  const now = new Date();
+  let sessions = 0;
+  let entries = 0;
+
+  for (let d = 0; d < opts.days; d++) {
+    const day = new Date(now);
+    day.setDate(now.getDate() - d);
+    for (const member of members) {
+      if (Math.random() > opts.trainProbability) continue;
+
+      const startedAt = new Date(day);
+      startedAt.setHours(
+        8 + Math.floor(Math.random() * 12),
+        Math.floor(Math.random() * 60),
+        0,
+        0
+      );
+      const endedAt = new Date(startedAt.getTime() + (30 + Math.random() * 40) * 60000);
+
+      const session = await prisma.workoutSession.create({
+        data: { tenantId: tenant.id, userId: member.id, startedAt, endedAt },
+      });
+      sessions++;
+
+      const picks = pickRandom(exercises, 3 + Math.floor(Math.random() * 3));
+      const rows = picks.flatMap((ex) => {
+        const baseWeight = ex.machineId ? 20 + Math.random() * 40 : 0;
+        return Array.from({ length: 3 }, (_, i) => ({
+          tenantId: tenant.id,
+          sessionId: session.id,
+          exerciseId: ex.id,
+          setNumber: i + 1,
+          reps: 8 + Math.floor(Math.random() * 8),
+          weightKg: Math.round(baseWeight),
+        }));
+      });
+      await prisma.performanceEntry.createMany({ data: rows });
+      entries += rows.length;
+    }
+  }
+  console.log(`  ↳ activiteit ${slug}: ${sessions} sessies, ${entries} entries`);
+}
+
 async function main() {
   // Tenant 1 — rijke demo.
   await seedTenant({
@@ -218,6 +287,10 @@ async function main() {
       },
     ],
   });
+
+  // Trainingsactiviteit voor het owner-dashboard (laatste ~12 weken).
+  await seedActivity("fitpower", { days: 84, trainProbability: 0.5 });
+  await seedActivity("ironhouse", { days: 30, trainProbability: 0.45 });
 }
 
 main()
