@@ -56,6 +56,21 @@ model Tenant {
   assignedWorkouts  AssignedWorkout[]
   sessions          WorkoutSession[]
   performanceEntries PerformanceEntry[]
+  aiUsages          AiUsage[]
+}
+
+// Eén rij per AI-assistent-vraag — voor rate-limiting (per lid/dag) en
+// kostenmonitoring (per tenant/maand).
+model AiUsage {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model User {

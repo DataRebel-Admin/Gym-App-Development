@@ -54,7 +54,8 @@ We bouwen GEEN: ledenadministratie/CRM, betalingen, social feed, voedingsadvies,
 
 ## Open beslissingen (kunnen veranderen)
 
-- AI provider: nog te kiezen tussen OpenAI en Anthropic (beide via EU endpoint)
+- AI provider: **gekozen — Anthropic Claude** (`@anthropic-ai/sdk`), EU data-residency
+  via `inference_geo: "eu"`. Model default `claude-opus-4-8`, overschrijfbaar met `AI_MODEL`.
 - QR formaat: eigen of standaard (GS1)
 - Video hosting: eigen Blob of Mux/Vimeo
 

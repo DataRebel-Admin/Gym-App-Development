@@ -28,7 +28,8 @@ DECLARE
     'WorkoutExerciseItem',
     'AssignedWorkout',
     'WorkoutSession',
-    'PerformanceEntry'
+    'PerformanceEntry',
+    'AiUsage'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

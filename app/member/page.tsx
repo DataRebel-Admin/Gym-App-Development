@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { requireMember, getAssignedSchema } from "@/lib/member";
+import { getCurrentTenant } from "@/lib/tenant";
+import { AssistantWidget } from "@/components/assistant-widget";
 
 export default async function MemberHome() {
   const member = await requireMember();
-  const assignment = await getAssignedSchema(member.id, member.tenantId);
+  const [assignment, tenant] = await Promise.all([
+    getAssignedSchema(member.id, member.tenantId),
+    getCurrentTenant(),
+  ]);
   const schema = assignment?.template;
 
   return (
@@ -48,6 +53,8 @@ export default async function MemberHome() {
       >
         📷 Scan machine
       </Link>
+
+      {tenant?.aiEnabled ? <AssistantWidget /> : null}
     </div>
   );
 }

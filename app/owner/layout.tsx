@@ -35,6 +35,9 @@ export default async function OwnerLayout({
             <Link href="/owner/insights" className="hover:text-neutral-900">
               Inzichten
             </Link>
+            <Link href="/owner/settings" className="hover:text-neutral-900">
+              Instellingen
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">
