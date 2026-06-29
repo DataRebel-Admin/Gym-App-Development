@@ -90,9 +90,12 @@ export default async function MemberSchemaPage({
           />
 
           <section className="flex max-w-3xl items-center justify-between rounded-xl border border-neutral-200 p-4">
-            <span className="text-sm text-neutral-500">
-              Schema vervangen of verwijderen
-            </span>
+            <a
+              href={`/owner/schemas/members/${member.id}/pdf`}
+              className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              ⬇ Exporteer als PDF
+            </a>
             <form action={removeAssignment}>
               <input type="hidden" name="userId" value={member.id} />
               <button
