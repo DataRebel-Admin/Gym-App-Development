@@ -1,0 +1,111 @@
+"use server";
+
+import { z } from "zod";
+import { randomBytes } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { requireOwner } from "@/lib/owner";
+import { uploadMachineImage } from "@/lib/blob";
+import { MACHINE_TYPES } from "@/lib/machine";
+
+export type MachineFormState = { error?: string };
+
+const machineSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1, "Naam is verplicht"),
+  type: z.enum(MACHINE_TYPES),
+  description: z.string().trim().optional(),
+  instructionsMd: z.string().optional(),
+  videoUrl: z
+    .string()
+    .trim()
+    .url("Ongeldige video-URL")
+    .optional()
+    .or(z.literal("")),
+});
+
+function qrToken(): string {
+  return randomBytes(8).toString("hex"); // 16 hex-chars
+}
+
+export async function saveMachine(
+  _prev: MachineFormState,
+  formData: FormData
+): Promise<MachineFormState> {
+  const owner = await requireOwner();
+
+  const parsed = machineSchema.safeParse({
+    id: formData.get("id") || undefined,
+    name: formData.get("name"),
+    type: formData.get("type"),
+    description: formData.get("description") || undefined,
+    instructionsMd: formData.get("instructionsMd") || undefined,
+    videoUrl: formData.get("videoUrl") || "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+  }
+  const data = parsed.data;
+
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: { slug: true },
+  });
+  if (!tenant) return { error: "Tenant niet gevonden" };
+
+  const photo = formData.get("photo");
+  const imageUrl = await uploadMachineImage(
+    photo instanceof File ? photo : null,
+    tenant.slug
+  );
+
+  let machineId = data.id;
+
+  if (data.id) {
+    // Update — gescoped op tenant zodat een owner alleen eigen machines wijzigt.
+    const result = await prisma.machine.updateMany({
+      where: { id: data.id, tenantId: owner.tenantId },
+      data: {
+        name: data.name,
+        type: data.type,
+        description: data.description ?? null,
+        instructionsMd: data.instructionsMd ?? null,
+        videoUrl: data.videoUrl || null,
+        ...(imageUrl ? { imageUrl } : {}),
+      },
+    });
+    if (result.count === 0) return { error: "Machine niet gevonden" };
+  } else {
+    const created = await prisma.machine.create({
+      data: {
+        tenantId: owner.tenantId,
+        name: data.name,
+        type: data.type,
+        description: data.description ?? null,
+        instructionsMd: data.instructionsMd ?? null,
+        videoUrl: data.videoUrl || null,
+        imageUrl: imageUrl ?? null,
+        qrToken: qrToken(),
+      },
+    });
+    machineId = created.id;
+  }
+
+  revalidatePath("/owner/machines");
+  redirect(`/owner/machines/${machineId}`);
+}
+
+export async function deleteMachine(formData: FormData) {
+  const owner = await requireOwner();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await prisma.machine.deleteMany({
+    where: { id, tenantId: owner.tenantId },
+  });
+
+  revalidatePath("/owner/machines");
+  redirect("/owner/machines");
+}
