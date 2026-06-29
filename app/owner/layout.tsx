@@ -35,6 +35,9 @@ export default async function OwnerLayout({
             <Link href="/owner/schemas" className="hover:text-neutral-900">
               Schema&apos;s
             </Link>
+            <Link href="/owner/members" className="hover:text-neutral-900">
+              Leden
+            </Link>
             <Link href="/owner/insights" className="hover:text-neutral-900">
               Inzichten
             </Link>

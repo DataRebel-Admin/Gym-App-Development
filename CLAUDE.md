@@ -182,6 +182,36 @@ meertalige instructies) is dé bron van waarheid voor oefening-content. Media st
   de volledige set. Afmaken: Translator-tier **S1** + `npm run data:import` (hervat).
 - **Licentie**: dataset-media is **non-commercieel** — vervangen vóór commercieel gebruik.
 
+### Superadmin + RBAC (platform-laag)
+
+Drie rollen (`enum Role`): **SUPERADMIN** (platform, `tenantId == null`), **TENANT_ADMIN**
+(voorheen OWNER) en **TENANT_MEMBER** (voorheen MEMBER). De enum-waarden zijn hernoemd
+met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superadmin_rbac`).
+
+- **RBAC code-gedefinieerd** in `lib/rbac.ts`: `can(role, permission)` + permissiemap;
+  `assertTenantAccess(user, tenantId)` (SUPERADMIN mag cross-tenant, rest alleen eigen tenant).
+  Later naar een DB-backed model te tillen zonder de call-sites te wijzigen.
+- **Guards**: `requireSuperadmin()` (lib/superadmin.ts) voor `/admin`; `requireOwner()`/
+  `requireMember()` narrowen `tenantId` naar `string` (tenant-gebruikers hebben altijd een tenant).
+- **Auth**: `User.tenantId` is nullable (NULL voor superadmin; globaal uniek e-mailadres via
+  partial index). De adapter zoekt zonder tenant-cookie een SUPERADMIN; `signIn` weigert
+  gedeactiveerde accounts én gebruikers van inactieve/verwijderde tenants. `proxy.ts` bewaakt
+  `/admin` (alleen SUPERADMIN) en voorkomt redirect-loops.
+- **Superadmin-area `/admin`**: dashboard, tenants-CRUD (`/admin/tenants`, soft-delete via
+  `deletedAt`), huisstijl-editor (accent/secundair/logo/favicon/font — runtime in `app/layout.tsx`),
+  ledenbeheer + uitnodigingen per tenant, globale gebruikers (`/admin/users`), audit-viewer
+  (`/admin/audit`).
+- **Tenant-admin** beheert eigen leden op `/owner/members` (uitnodigen, rol, (de)activeren,
+  verwijderen — niet zichzelf). Server-actions zijn gescoped op `owner.tenantId`.
+- **Invitations**: `Invitation`-model (token + 7d vervaldatum); mail naar server-console in dev
+  (`lib/invitation.ts`, net als de magic link). Publieke accept-flow `/invite/[token]` maakt/
+  heractiveert de gebruiker en stuurt door naar de tenant-login.
+- **Audit logging** (`lib/audit.ts` → `AuditLog`-model, géén FK's = forensisch): elke
+  beheermutatie logt `tenant.*`, `branding.update`, `user.invite*`, `user.role.change`,
+  `user.(de)activate`, `user.delete`.
+- **Tenant-isolatie** blijft primair via expliciete `tenantId`-filters (+ RLS-backstop);
+  superadmin gebruikt bewust de base `prisma` achter `requireSuperadmin()`.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,
