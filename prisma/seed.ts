@@ -330,13 +330,13 @@ async function main() {
   await prisma.user.deleteMany({ where: { role: Role.SUPERADMIN } });
   await prisma.user.create({
     data: {
-      email: "superadmin@gymrebel.app",
+      email: "admin@datarebel.nl",
       name: "Platform Beheer",
       role: Role.SUPERADMIN,
       tenantId: null,
     },
   });
-  console.log("✓ superadmin@gymrebel.app (geen tenant)");
+  console.log("✓ admin@datarebel.nl (geen tenant)");
 
   // Tenant 1 — rijke demo.
   await seedTenant({
