@@ -106,3 +106,66 @@ export async function getMemberHistory(
     series,
   };
 }
+
+export type ExerciseProgress = {
+  name: string;
+  points: { date: string; weight: number; oneRm: number }[];
+  sessions: { date: Date; maxWeight: number; sets: number }[];
+};
+
+/** Progressie van één oefening voor een lid: max gewicht + geschatte 1RM per sessie. */
+export async function getExerciseProgress(
+  memberId: string,
+  tenantId: string,
+  exerciseId: string
+): Promise<ExerciseProgress | null> {
+  const exercise = await prisma.exercise.findFirst({
+    where: { id: exerciseId, tenantId },
+    select: { name: true },
+  });
+  if (!exercise) return null;
+
+  const entries = await prisma.performanceEntry.findMany({
+    where: { tenantId, exerciseId, session: { userId: memberId } },
+    orderBy: { session: { startedAt: "asc" } },
+    select: {
+      reps: true,
+      weightKg: true,
+      sessionId: true,
+      session: { select: { startedAt: true } },
+    },
+  });
+
+  type S = { date: Date; maxWeight: number; bestOneRm: number; sets: number };
+  const bySession = new Map<string, S>();
+  for (const e of entries) {
+    const s = bySession.get(e.sessionId) ?? {
+      date: e.session.startedAt,
+      maxWeight: 0,
+      bestOneRm: 0,
+      sets: 0,
+    };
+    s.maxWeight = Math.max(s.maxWeight, e.weightKg);
+    // Epley-schatting voor 1RM.
+    s.bestOneRm = Math.max(s.bestOneRm, e.weightKg * (1 + e.reps / 30));
+    s.sets += 1;
+    bySession.set(e.sessionId, s);
+  }
+
+  const chronological = [...bySession.values()].sort(
+    (a, b) => a.date.getTime() - b.date.getTime()
+  );
+
+  return {
+    name: exercise.name,
+    points: chronological.map((s) => ({
+      date: `${s.date.getDate()}/${s.date.getMonth() + 1}`,
+      weight: s.maxWeight,
+      oneRm: Math.round(s.bestOneRm),
+    })),
+    sessions: [...bySession.values()]
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 20)
+      .map((s) => ({ date: s.date, maxWeight: s.maxWeight, sets: s.sets })),
+  };
+}

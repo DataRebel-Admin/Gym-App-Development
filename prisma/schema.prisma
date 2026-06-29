@@ -238,6 +238,8 @@ model PerformanceEntry {
   session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 
+  // Eén entry per set binnen een sessie+oefening (maakt upsert mogelijk).
+  @@unique([sessionId, exerciseId, setNumber])
   @@index([tenantId])
   @@index([sessionId])
   @@index([exerciseId])

@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { SchemaChecklist, type ChecklistItem } from "./schema-checklist";
+import { startSession } from "./actions";
 
 export default async function MemberSchemaPage() {
   const member = await requireMember();
@@ -40,12 +40,14 @@ export default async function MemberSchemaPage() {
 
       <SchemaChecklist items={items} />
 
-      <Link
-        href="/member/schema/active"
-        className="mt-2 rounded-2xl bg-accent px-6 py-5 text-center text-lg font-semibold text-accent-foreground active:opacity-90"
-      >
-        Start training
-      </Link>
+      <form action={startSession}>
+        <button
+          type="submit"
+          className="mt-2 w-full rounded-2xl bg-accent px-6 py-5 text-center text-lg font-semibold text-accent-foreground active:opacity-90"
+        >
+          Start training
+        </button>
+      </form>
     </div>
   );
 }
