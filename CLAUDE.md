@@ -113,6 +113,21 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   Vandaag is isolatie primair applicatie-side (expliciete `tenantId` + tenant-scoped client).
 - **Seed heeft 2 tenants**: `fitpower` (oranje, NL, rijk) en `ironhouse` (blauw, EN, compact).
   `sven@fitpower.nl` bestaat in beide tenants (demonstreert e-mail uniek per tenant).
+  De seed genereert ook **trainingsactiviteit** (sessies + prestaties, laatste ~12 weken)
+  zodat het owner-dashboard cijfers heeft.
+
+### Fase 2 (owner-functionaliteit, prompts 05–07)
+
+- **`requireOwner()`** (lib/owner.ts) = guard voor alle owner-pagina's/actions; queries en
+  mutaties zijn gescoped op `owner.tenantId` (app-side isolatie; RLS is de backstop).
+- **Lid-schema-model**: een toegewezen schema is een eigen **niet-library `WorkoutTemplate`**
+  (met eigen items) waarnaar `AssignedWorkout` verwijst. "Kopieer & wijs toe" kloont een
+  library-template; verwijderen ruimt de kloon op. Eén actief schema per lid.
+- **Foto-upload** via Vercel Blob werkt alleen met `BLOB_READ_WRITE_TOKEN`; zonder token
+  degradeert create/update netjes (geen foto). QR-download is client-side (`qrcode`).
+- **Insights** (lib/insights.ts): server-side aggregaties met `unstable_cache` (revalidate
+  300s), gekeyed op `tenantId`. Charts via **recharts** in client-componenten; de
+  staaf-/lijnkleur gebruikt `var(--tenant-accent)`.
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
