@@ -16,26 +16,8 @@ export const authConfig = {
   },
   providers: [], // worden in auth.ts toegevoegd (Nodemailer)
   callbacks: {
-    /** Route-bescherming voor de middleware. */
-    authorized({ auth, request: { nextUrl } }) {
-      const user = auth?.user;
-      const { pathname } = nextUrl;
-      const onOwner = pathname.startsWith("/owner");
-      const onMember = pathname.startsWith("/member");
-
-      if (!onOwner && !onMember) return true; // publieke routes
-
-      if (!user) return false; // niet ingelogd → redirect naar /login
-
-      // Strikt gescheiden rollen.
-      if (onOwner && user.role !== "OWNER") {
-        return Response.redirect(new URL("/member", nextUrl));
-      }
-      if (onMember && user.role !== "MEMBER") {
-        return Response.redirect(new URL("/owner", nextUrl));
-      }
-      return true;
-    },
+    // Rol-bescherming wordt afgehandeld in proxy.ts (daar kunnen we ook de
+    // tenant-header zetten), niet via een `authorized`-callback.
 
     /** Zet onze velden op het JWT-token bij login. */
     jwt({ token, user }) {

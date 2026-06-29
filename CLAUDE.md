@@ -94,6 +94,25 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
     later een echte SMTP/Resend-transport in `sendVerificationRequest`.
   - Auth.js infra-tabellen (`Account`, `Session`, `VerificationToken`) hebben **geen**
     `tenantId`/RLS — het zijn framework-tabellen.
+- **Tenant-resolutie (prompt 04).** `proxy.ts` lost de tenant op (subdomein of `?tenant`)
+  via `lib/tenant-resolve.ts` en zet `x-tenant-slug` als request-header. Server Components
+  lezen die via `lib/tenant.ts` (`getCurrentTenant()`, per-request `cache()`). Client
+  Components via `useTenant()` (`components/tenant-provider.tsx`).
+- **Whitelabel theming.** De root-layout injecteert `--tenant-accent` (uit `tenant.accentColor`)
+  als inline CSS-var op `<body>`; `bg-accent`/`text-accent` kleuren daardoor per tenant.
+  `<html lang>` volgt `tenant.locale`.
+- **RLS-runtime.** `lib/tenant-db.ts` (`getTenantDb()` / `tenantDbFor(id)`) is een Prisma
+  `$extends`-client die elke operatie in één transactie wrapt met
+  `set_config('app.current_tenant', id, true)`. Gebruik deze voor tenant-business-data.
+  De auth-adapter en `getCurrentTenant` gebruiken bewust de base `prisma` (Tenant/Auth-tabellen
+  hebben geen RLS).
+- **RLS-enforcement caveat (geverifieerd).** Neon's `neondb_owner` heeft `rolbypassrls=true`
+  → omzeilt RLS altijd, ook met FORCE. De policy zelf is correct bewezen met een tijdelijke
+  niet-bypass rol (fitpower=4, ironhouse=2, onbekend=0). Voor échte DB-enforcement in
+  productie: aparte app-rol zonder BYPASSRLS + `FORCE ROW LEVEL SECURITY` (zie rls.sql).
+  Vandaag is isolatie primair applicatie-side (expliciete `tenantId` + tenant-scoped client).
+- **Seed heeft 2 tenants**: `fitpower` (oranje, NL, rijk) en `ironhouse` (blauw, EN, compact).
+  `sven@fitpower.nl` bestaat in beide tenants (demonstreert e-mail uniek per tenant).
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
