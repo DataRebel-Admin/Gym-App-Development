@@ -59,21 +59,68 @@ model Tenant {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String
-  name      String?
-  role      Role     @default(MEMBER)
-  tenantId  String
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  email         String
+  emailVerified DateTime? // vereist door de Auth.js adapter
+  name          String?
+  image         String? // vereist door de Auth.js adapter
+  role          Role      @default(MEMBER)
+  tenantId      String
+  createdAt     DateTime  @default(now())
 
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignedWorkouts AssignedWorkout[]
   sessions         WorkoutSession[]
+  accounts         Account[] // Auth.js (OAuth, later)
+  authSessions     Session[] // Auth.js DB-sessies (we gebruiken jwt, maar model vereist)
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
-  // emailadres hebben.
+  // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
   @@unique([tenantId, email])
   @@index([tenantId])
+}
+
+// --- Auth.js (NextAuth v5) infra-tabellen ---
+// Géén tenantId/RLS: dit zijn framework-tabellen, geen tenant-business-data.
+// De Prisma-adapter maakt deze rijen aan zonder tenant-context.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model Machine {
