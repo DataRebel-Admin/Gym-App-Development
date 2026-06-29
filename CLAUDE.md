@@ -129,6 +129,19 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   300s), gekeyed op `tenantId`. Charts via **recharts** in client-componenten; de
   staaf-/lijnkleur gebruikt `var(--tenant-accent)`.
 
+### Fase 3 (member-functionaliteit, prompts 08–10)
+
+- **`requireMember()`** (lib/member.ts) = guard; member-area is mobile-first (`max-w-md`,
+  onderbalk-nav). Een lid heeft één `AssignedWorkout` → niet-library template met items.
+- **Tracking**: `PerformanceEntry` heeft `@@unique([sessionId, exerciseId, setNumber])` zodat
+  per-set opslaan via **upsert** kan. `saveSet` is een server-action die optimistisch vanuit
+  de client wordt aangeroepen (`useTransition`). `startSession`/`endSession` zijn form-actions.
+- **`/m/[qrToken]`** is een publieke (niet-auth) maar **tenant-scoped** route; 404 als de QR
+  niet bij de actieve tenant hoort. Toont altijd de veiligheidsmelding "Twijfel? Vraag een
+  trainer." Ingelogde leden zien "Voeg toe aan mijn schema" (dedupliceert oefeningen).
+- **QR-scanner** gebruikt `html5-qrcode` (dynamic import, camera). Progressie-grafieken &
+  dashboards: `recharts`. 1RM-schatting via Epley.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,
