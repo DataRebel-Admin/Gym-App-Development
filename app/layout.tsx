@@ -39,17 +39,24 @@ export default async function RootLayout({
       }
     : null;
 
-  // Whitelabel: injecteer de tenant-accentkleur als CSS custom property zodat
-  // alle `bg-accent` / `text-accent` utilities runtime per tenant kleuren.
-  const themeStyle = tenant?.accentColor
-    ? ({ "--tenant-accent": tenant.accentColor } as CSSProperties)
-    : undefined;
+  // Whitelabel: injecteer de tenant-huisstijl als CSS custom properties zodat
+  // `bg-accent`/`text-accent` (+ secondary/font) runtime per tenant kleuren.
+  const vars: Record<string, string> = {};
+  if (tenant?.accentColor) vars["--tenant-accent"] = tenant.accentColor;
+  if (tenant?.secondaryColor) vars["--tenant-secondary"] = tenant.secondaryColor;
+  // Eigen lettertype overschrijft de default (Geist) alleen als de tenant 'm zet.
+  if (tenant?.fontFamily) vars["fontFamily"] = tenant.fontFamily;
+  const themeStyle =
+    Object.keys(vars).length > 0 ? (vars as CSSProperties) : undefined;
 
   return (
     <html
       lang={LOCALE_LANG[tenant?.locale ?? "NL"] ?? "nl"}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      {tenant?.faviconUrl ? (
+        <link rel="icon" href={tenant.faviconUrl} />
+      ) : null}
       <body className="min-h-full flex flex-col" style={themeStyle}>
         <TenantProvider tenant={tenantInfo}>{children}</TenantProvider>
       </body>
