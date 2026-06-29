@@ -19,7 +19,18 @@ export default async function MachinePublicPage({
 
   const machine = await prisma.machine.findFirst({
     where: { qrToken, tenantId: tenant.id },
-    include: { exercises: { select: { id: true, name: true } } },
+    include: {
+      exercises: {
+        select: {
+          id: true,
+          name: true,
+          targetMuscle: true,
+          catalog: {
+            select: { gifUrl: true, imageUrl: true, target: true },
+          },
+        },
+      },
+    },
   });
   if (!machine) notFound();
 
@@ -82,6 +93,49 @@ export default async function MachinePublicPage({
               className="h-full w-full"
             />
           </div>
+        ) : null}
+
+        {machine.exercises.length > 0 ? (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-neutral-900">
+              Oefeningen op dit apparaat
+            </h2>
+            <ul className="flex flex-col gap-2">
+              {machine.exercises.map((ex) => {
+                const thumb = ex.catalog?.imageUrl ?? ex.catalog?.gifUrl ?? null;
+                const muscle = ex.targetMuscle ?? ex.catalog?.target ?? null;
+                return (
+                  <li
+                    key={ex.id}
+                    className="flex items-center gap-3 rounded-xl border border-neutral-200 px-3 py-2"
+                  >
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt=""
+                        aria-hidden
+                        loading="lazy"
+                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 shrink-0 rounded-lg bg-neutral-100" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-medium capitalize text-neutral-900">
+                        {ex.name}
+                      </p>
+                      {muscle ? (
+                        <p className="truncate text-xs capitalize text-neutral-500">
+                          {muscle}
+                        </p>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         ) : null}
 
         {canAdd ? (
