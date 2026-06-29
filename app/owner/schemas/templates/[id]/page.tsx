@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
-import { deleteTemplate } from "../../actions";
+import { deleteTemplate, duplicateTemplate } from "../../actions";
+import { AssignMembersForm } from "./assign-members";
 
 export default async function TemplateEditPage({
   params,
@@ -30,6 +31,12 @@ export default async function TemplateEditPage({
     where: { tenantId: owner.tenantId },
     orderBy: { name: "asc" },
     select: { id: true, name: true, targetMuscle: true },
+  });
+
+  const members = await prisma.user.findMany({
+    where: { tenantId: owner.tenantId, role: "TENANT_MEMBER", archivedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true },
   });
 
   const initialDays: EditorDay[] = template.days.map((d) => ({
@@ -64,7 +71,25 @@ export default async function TemplateEditPage({
         availableExercises={exercises}
       />
 
-      <section className="flex max-w-3xl flex-col gap-3 rounded-xl border border-red-200 p-5">
+      <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+        <h2 className="text-sm font-semibold text-neutral-900">Toewijzen aan leden</h2>
+        <AssignMembersForm templateId={template.id} members={members} />
+      </section>
+
+      <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Dupliceren</h2>
+          <p className="text-sm text-neutral-500">Maak een kopie van dit schema (incl. dagen).</p>
+        </div>
+        <form action={duplicateTemplate}>
+          <input type="hidden" name="id" value={template.id} />
+          <button type="submit" className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+            Dupliceren
+          </button>
+        </form>
+      </section>
+
+      <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-red-200 p-5">
         <h2 className="text-sm font-semibold text-red-700">Verwijderen</h2>
         <form action={deleteTemplate}>
           <input type="hidden" name="id" value={template.id} />
