@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
+import { MotionProvider } from "@/components/motion/motion-provider";
+import { ToastProvider } from "@/components/ui/toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,6 +15,14 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Display-font voor headings (vet, sportief). Tenant fontFamily-override
+// blijft leidend voor de body-tekst.
+const displayFont = Space_Grotesk({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -52,13 +62,17 @@ export default async function RootLayout({
   return (
     <html
       lang={LOCALE_LANG[tenant?.locale ?? "NL"] ?? "nl"}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
       {tenant?.faviconUrl ? (
         <link rel="icon" href={tenant.faviconUrl} />
       ) : null}
       <body className="min-h-full flex flex-col" style={themeStyle}>
-        <TenantProvider tenant={tenantInfo}>{children}</TenantProvider>
+        <MotionProvider>
+          <ToastProvider>
+            <TenantProvider tenant={tenantInfo}>{children}</TenantProvider>
+          </ToastProvider>
+        </MotionProvider>
       </body>
     </html>
   );

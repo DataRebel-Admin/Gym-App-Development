@@ -39,12 +39,23 @@ async function machineSessionCounts(
   return byMachine;
 }
 
+export type RecentActivity = {
+  id: string;
+  member: string;
+  startedAt: string; // ISO
+  exercises: number;
+};
+
 export type DashboardStats = {
   activeToday: number;
+  memberCount: number;
+  sessionsThisWeek: number;
+  machineCount: number;
   topMachines: { name: string; sessions: number }[];
   bottomMachines: { name: string; sessions: number }[];
   perWeekday: { day: string; sessies: number }[];
   perWeek: { label: string; sessies: number }[];
+  recent: RecentActivity[];
 };
 
 async function computeDashboard(tenantId: string): Promise<DashboardStats> {
@@ -60,6 +71,32 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
     distinct: ["userId"],
     select: { userId: true },
   });
+
+  // KPI's: ledenaantal, sessies deze week, recente activiteit.
+  const [memberCount, sessionsThisWeek, recentSessions] = await Promise.all([
+    prisma.user.count({ where: { tenantId, role: "TENANT_MEMBER", active: true } }),
+    prisma.workoutSession.count({
+      where: { tenantId, startedAt: { gte: daysAgo(7) } },
+    }),
+    prisma.workoutSession.findMany({
+      where: { tenantId },
+      orderBy: { startedAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        startedAt: true,
+        user: { select: { name: true, email: true } },
+        _count: { select: { performanceEntries: true } },
+      },
+    }),
+  ]);
+
+  const recent: RecentActivity[] = recentSessions.map((s) => ({
+    id: s.id,
+    member: s.user?.name ?? s.user?.email ?? "Onbekend lid",
+    startedAt: s.startedAt.toISOString(),
+    exercises: s._count.performanceEntries,
+  }));
 
   // Top 5 deze week.
   const weekCounts = await machineSessionCounts(tenantId, daysAgo(7));
@@ -107,10 +144,14 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
 
   return {
     activeToday: activeRows.length,
+    memberCount,
+    sessionsThisWeek,
+    machineCount: machines.length,
     topMachines,
     bottomMachines,
     perWeekday,
     perWeek,
+    recent,
   };
 }
 

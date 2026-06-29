@@ -15,15 +15,20 @@ export default async function Home() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-      <span className="mb-6 inline-block h-3 w-3 rounded-full bg-accent" />
-      <h1 className="text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl">
+    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
+      {/* Zachte accent-gloed op de achtergrond */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-40 left-1/2 size-[36rem] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
+        style={{ background: "var(--accent-gradient)" }}
+      />
+      <span className="mb-6 flex size-14 items-center justify-center rounded-2xl bg-accent-gradient text-2xl font-bold text-accent-foreground shadow-accent">
+        G
+      </span>
+      <h1 className="font-display text-4xl font-bold tracking-tight text-neutral-900 sm:text-6xl">
         GymRebel
       </h1>
       <p className="mt-4 max-w-md text-lg text-neutral-500">
-        Onder constructie — we bouwen iets goeds.
-      </p>
-      <p className="mt-2 text-sm text-neutral-500">
         Slimmer trainen in jouw sportschool.
       </p>
     </main>

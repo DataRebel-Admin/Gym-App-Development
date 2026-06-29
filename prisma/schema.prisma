@@ -147,6 +147,9 @@ model User {
   role          Role      @default(TENANT_MEMBER)
   active        Boolean   @default(true) // account geactiveerd/gedeactiveerd
   tenantId      String? // NULL voor SUPERADMIN (transcendeert tenants)
+  // Persoonlijke owner-dashboard indeling (widget-volgorde + zichtbaarheid).
+  // null = standaard-layout. Geen RLS-impact (kolom op bestaand model).
+  dashboardLayout Json?
   createdAt     DateTime  @default(now())
 
   tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)

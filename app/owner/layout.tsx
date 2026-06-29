@@ -2,7 +2,20 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
-import { LogoutButton } from "@/components/ui/logout-button";
+import { OwnerNav, type NavLink } from "@/components/nav/owner-nav";
+import { UserMenu } from "@/components/nav/user-menu";
+import { PageTransition } from "@/components/motion/page-transition";
+
+const LINKS: NavLink[] = [
+  { href: "/owner", label: "Dashboard" },
+  { href: "/owner/machines", label: "Machines" },
+  { href: "/owner/exercises", label: "Oefeningen" },
+  { href: "/owner/schemas", label: "Schema's" },
+  { href: "/owner/members", label: "Leden" },
+  { href: "/owner/insights", label: "Inzichten" },
+  { href: "/owner/rooster", label: "Rooster" },
+  { href: "/owner/settings", label: "Instellingen" },
+];
 
 export default async function OwnerLayout({
   children,
@@ -17,46 +30,38 @@ export default async function OwnerLayout({
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-center justify-between border-b border-neutral-200 px-6 py-3">
-        <div className="flex items-center gap-6">
-          <Link href="/owner" className="font-semibold text-neutral-900">
-            {tenant?.name ?? "GymRebel"}
-          </Link>
-          <nav className="flex items-center gap-4 text-sm text-neutral-500">
-            <Link href="/owner" className="hover:text-neutral-900">
-              Dashboard
+      <header className="sticky top-0 z-40 border-b border-border bg-surface-1/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
+          <div className="flex items-center gap-6 overflow-x-auto">
+            <Link
+              href="/owner"
+              className="flex shrink-0 items-center gap-2 font-display text-lg font-bold text-neutral-900"
+            >
+              {tenant?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tenant.logoUrl}
+                  alt=""
+                  className="h-7 w-7 rounded-md object-contain"
+                />
+              ) : (
+                <span className="flex size-7 items-center justify-center rounded-md bg-accent-gradient text-sm text-accent-foreground">
+                  {(tenant?.name ?? "G").charAt(0)}
+                </span>
+              )}
+              {tenant?.name ?? "GymRebel"}
             </Link>
-            <Link href="/owner/machines" className="hover:text-neutral-900">
-              Machines
-            </Link>
-            <Link href="/owner/exercises" className="hover:text-neutral-900">
-              Oefeningen
-            </Link>
-            <Link href="/owner/schemas" className="hover:text-neutral-900">
-              Schema&apos;s
-            </Link>
-            <Link href="/owner/members" className="hover:text-neutral-900">
-              Leden
-            </Link>
-            <Link href="/owner/insights" className="hover:text-neutral-900">
-              Inzichten
-            </Link>
-            <Link href="/owner/rooster" className="hover:text-neutral-900">
-              Rooster
-            </Link>
-            <Link href="/owner/settings" className="hover:text-neutral-900">
-              Instellingen
-            </Link>
-          </nav>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-neutral-500">
-            {session.user.name ?? session.user.email}
-          </span>
-          <LogoutButton />
+            <OwnerNav links={LINKS} />
+          </div>
+          <UserMenu
+            name={session.user.name ?? null}
+            email={session.user.email ?? null}
+          />
         </div>
       </header>
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1">
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   );
 }
