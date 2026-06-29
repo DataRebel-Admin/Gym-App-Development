@@ -1,5 +1,11 @@
 // GymRebel Prisma schema — zie CLAUDE.md voor architectuur-principes.
-// Modellen worden toegevoegd in prompt 02 (multitenant fundament).
+//
+// Multitenant: élk model behalve Tenant heeft een `tenantId` + relatie naar
+// Tenant en een @@index([tenantId]). RLS-policies (prompt 04) zorgen voor
+// daadwerkelijke isolatie op DB-niveau.
+//
+// NB: het trainings-sessiemodel heet `WorkoutSession` (niet `Session`) om
+// botsing met het Auth.js `Session`-model (prompt 03) te voorkomen.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,4 +17,181 @@ datasource db {
   // DIRECT_URL wordt gebruikt voor migraties wanneer DATABASE_URL een
   // connection pooler is (bv. Neon/Vercel Postgres).
   directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  MEMBER
+  OWNER
+}
+
+enum Locale {
+  NL
+  EN
+  FY
+}
+
+enum MachineType {
+  CARDIO
+  KRACHT
+  VRIJE_GEWICHTEN
+  OVERIG
+}
+
+model Tenant {
+  id          String   @id @default(cuid())
+  slug        String   @unique // subdomein, bv. "fitpower"
+  name        String
+  logoUrl     String?
+  accentColor String? // hex, bv. "#E84B1F"
+  locale      Locale   @default(NL)
+  aiEnabled   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users             User[]
+  machines          Machine[]
+  exercises         Exercise[]
+  templates         WorkoutTemplate[]
+  workoutItems      WorkoutExerciseItem[]
+  assignedWorkouts  AssignedWorkout[]
+  sessions          WorkoutSession[]
+  performanceEntries PerformanceEntry[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String
+  name      String?
+  role      Role     @default(MEMBER)
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedWorkouts AssignedWorkout[]
+  sessions         WorkoutSession[]
+
+  // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
+  // emailadres hebben.
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Machine {
+  id             String      @id @default(cuid())
+  tenantId       String
+  name           String
+  type           MachineType @default(OVERIG)
+  description    String?
+  instructionsMd String?     @db.Text
+  videoUrl       String?
+  imageUrl       String?
+  qrToken        String      @unique
+  createdAt      DateTime    @default(now())
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exercises Exercise[]
+
+  @@index([tenantId])
+}
+
+model Exercise {
+  id           String  @id @default(cuid())
+  tenantId     String
+  name         String
+  description  String?
+  targetMuscle String?
+  machineId    String? // nullable: lichaamsgewicht-oefeningen hebben geen machine
+
+  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  machine            Machine?              @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  workoutItems       WorkoutExerciseItem[]
+  performanceEntries PerformanceEntry[]
+
+  @@index([tenantId])
+  @@index([machineId])
+}
+
+model WorkoutTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isLibrary   Boolean  @default(false) // true = zichtbaar als herbruikbare template
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items            WorkoutExerciseItem[]
+  assignedWorkouts AssignedWorkout[]
+
+  @@index([tenantId])
+}
+
+model WorkoutExerciseItem {
+  id          String @id @default(cuid())
+  tenantId    String
+  templateId  String
+  exerciseId  String
+  order       Int    @default(0)
+  sets        Int    @default(3)
+  reps        Int    @default(10)
+  restSeconds Int    @default(60)
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exercise Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([templateId])
+  @@index([exerciseId])
+}
+
+model AssignedWorkout {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String // MEMBER aan wie het schema is toegewezen
+  templateId String? // nullable wanneer handmatig gebouwd
+  customName String? // naam bij handmatig opgebouwd schema
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model WorkoutSession {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  performanceEntries PerformanceEntry[]
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model PerformanceEntry {
+  id         String  @id @default(cuid())
+  tenantId   String
+  sessionId  String
+  exerciseId String
+  setNumber  Int
+  reps       Int
+  weightKg   Float
+  notes      String?
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([sessionId])
+  @@index([exerciseId])
 }
