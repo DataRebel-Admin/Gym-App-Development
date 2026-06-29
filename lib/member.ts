@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
-/** Vereist een ingelogde MEMBER; retourneert de session-user. */
+/** Vereist een ingelogde TENANT_MEMBER; retourneert de session-user met een
+ *  gegarandeerd niet-null `tenantId`. */
 export async function requireMember() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "MEMBER") redirect("/owner");
-  return session.user;
+  if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
+  if (!session.user.tenantId) redirect("/login");
+  return { ...session.user, tenantId: session.user.tenantId };
 }
 
 /** Het actief toegewezen schema van een lid (incl. oefeningen). */

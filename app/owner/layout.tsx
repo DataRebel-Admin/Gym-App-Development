@@ -11,7 +11,7 @@ export default async function OwnerLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/member");
+  if (session.user.role !== "TENANT_ADMIN") redirect("/member");
 
   const tenant = await getCurrentTenant();
 
@@ -34,6 +34,9 @@ export default async function OwnerLayout({
             </Link>
             <Link href="/owner/schemas" className="hover:text-neutral-900">
               Schema&apos;s
+            </Link>
+            <Link href="/owner/members" className="hover:text-neutral-900">
+              Leden
             </Link>
             <Link href="/owner/insights" className="hover:text-neutral-900">
               Inzichten

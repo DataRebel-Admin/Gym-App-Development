@@ -6,7 +6,7 @@ export default async function MembersPage() {
   const owner = await requireOwner();
 
   const members = await prisma.user.findMany({
-    where: { tenantId: owner.tenantId, role: "MEMBER" },
+    where: { tenantId: owner.tenantId, role: "TENANT_MEMBER" },
     orderBy: { name: "asc" },
     include: {
       assignedWorkouts: {

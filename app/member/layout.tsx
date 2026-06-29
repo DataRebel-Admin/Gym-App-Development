@@ -20,7 +20,7 @@ export default async function MemberLayout({
   const session = await auth();
   // Verdediging in de diepte (de middleware beschermt deze routes ook al).
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "MEMBER") redirect("/owner");
+  if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
 
   const tenant = await getCurrentTenant();
 

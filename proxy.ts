@@ -23,20 +23,28 @@ export default auth((req) => {
   // 2) Rol-bescherming.
   const user = req.auth?.user;
   const { pathname } = nextUrl;
+  const onAdmin = pathname.startsWith("/admin");
   const onOwner = pathname.startsWith("/owner");
   const onMember = pathname.startsWith("/member");
 
-  if (onOwner || onMember) {
+  if (onAdmin || onOwner || onMember) {
     if (!user) {
       const loginUrl = new URL("/login", nextUrl);
       loginUrl.searchParams.set("callbackUrl", nextUrl.href);
       loginUrl.searchParams.set("tenant", slug);
       return NextResponse.redirect(loginUrl);
     }
-    if (onOwner && user.role !== "OWNER") {
+    // SUPERADMIN hoort op /admin; weg uit tenant-areas (voorkomt redirect-loop).
+    if (onAdmin && user.role !== "SUPERADMIN") {
+      return NextResponse.redirect(new URL("/", nextUrl));
+    }
+    if (user.role === "SUPERADMIN" && (onOwner || onMember)) {
+      return NextResponse.redirect(new URL("/admin", nextUrl));
+    }
+    if (onOwner && user.role !== "TENANT_ADMIN") {
       return NextResponse.redirect(new URL("/member", nextUrl));
     }
-    if (onMember && user.role !== "MEMBER") {
+    if (onMember && user.role !== "TENANT_MEMBER") {
       return NextResponse.redirect(new URL("/owner", nextUrl));
     }
   }
