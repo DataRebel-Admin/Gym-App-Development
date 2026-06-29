@@ -130,6 +130,19 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   300s), gekeyed op `tenantId`. Charts via **recharts** in client-componenten; de
   staaf-/lijnkleur gebruikt `var(--tenant-accent)`.
 
+### Fase 4 (optionele uitbreidingen, prompts 11–13)
+
+- **AI-assistent (prompt 11)**: `lib/ai.ts` = Anthropic Claude (`@anthropic-ai/sdk`),
+  EU-data via `inference_geo: "eu"`, model via `AI_MODEL` (default `claude-opus-4-8`).
+  Verplichte safety-fallback in `lib/ai-guardrail.ts`. Per tenant aan/uit (`Tenant.aiEnabled`,
+  owner `/settings`). Rate-limit 20/dag/lid via `AiUsage`-model. Widget alleen op `/member`
+  bij aiEnabled. Zonder API-key degradeert het netjes.
+- **Rooster (prompt 12)**: `GroupClass`/`ClassSession`/`ClassEnrollment`. Aanmelden is
+  atomair (transactie respecteert `maxParticipants`); `@@unique([sessionId, userId])`.
+- **PDF (prompt 13)**: `/member/schema/pdf` route-handler rendert met **pdf-lib**
+  (geen native deps, betrouwbaarder in Next dan @react-pdf/renderer) en streamt als download.
+- **Niet gebouwd (bewust)**: prompt 14 (i18n) — op verzoek overgeslagen.
+
 ### Fase 3 (member-functionaliteit, prompts 08–10)
 
 - **`requireMember()`** (lib/member.ts) = guard; member-area is mobile-first (`max-w-md`,
