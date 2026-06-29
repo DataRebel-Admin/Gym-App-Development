@@ -47,6 +47,10 @@ async function seedTenant(spec: TenantSpec) {
   });
 
   // Idempotent: ruim bestaande child-data op in FK-volgorde.
+  await prisma.classEnrollment.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.classSession.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.groupClass.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.aiUsage.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.performanceEntry.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.workoutSession.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.assignedWorkout.deleteMany({ where: { tenantId: tenant.id } });
@@ -238,6 +242,69 @@ async function seedAssignment(
   console.log(`  ↳ schema toegewezen: ${memberEmail} ← ${templateName}`);
 }
 
+function futureDate(daysAhead: number, hour: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  d.setHours(hour, 0, 0, 0);
+  return d;
+}
+
+/** Groepslessen + sessies; vult één les vol om de capaciteit te demonstreren. */
+async function seedRooster(slug: string) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const lisa = await prisma.user.findFirst({
+    where: { tenantId: tenant.id, email: "lisa@fitpower.nl", role: "MEMBER" },
+  });
+
+  // Spinning — max 1, en meteen vol (Lisa aangemeld) om "vol" te tonen.
+  const spinning = await prisma.groupClass.create({
+    data: {
+      tenantId: tenant.id,
+      name: "Spinning",
+      instructorName: "Eva",
+      maxParticipants: 1,
+      sessions: {
+        create: [
+          {
+            tenantId: tenant.id,
+            startsAt: futureDate(1, 18),
+            endsAt: futureDate(1, 19),
+            location: "Zaal 1",
+          },
+        ],
+      },
+    },
+    include: { sessions: true },
+  });
+  if (lisa) {
+    await prisma.classEnrollment.create({
+      data: {
+        tenantId: tenant.id,
+        sessionId: spinning.sessions[0].id,
+        userId: lisa.id,
+      },
+    });
+  }
+
+  // Yoga — ruime capaciteit, twee sessies.
+  await prisma.groupClass.create({
+    data: {
+      tenantId: tenant.id,
+      name: "Yoga",
+      instructorName: "Noa",
+      maxParticipants: 12,
+      sessions: {
+        create: [
+          { tenantId: tenant.id, startsAt: futureDate(2, 9), endsAt: futureDate(2, 10), location: "Studio" },
+          { tenantId: tenant.id, startsAt: futureDate(4, 19), endsAt: futureDate(4, 20), location: "Studio" },
+        ],
+      },
+    },
+  });
+
+  console.log(`  ↳ rooster ${slug}: 2 lessen, 3 sessies (Spinning is vol)`);
+}
+
 async function main() {
   // Tenant 1 — rijke demo.
   await seedTenant({
@@ -333,6 +400,9 @@ async function main() {
   // Toegewezen schema's zodat de member-views data tonen.
   await seedAssignment("fitpower", "sven@fitpower.nl", "Full Body Start");
   await seedAssignment("fitpower", "lisa@fitpower.nl", "Cardio + Core");
+
+  // Groepslessen.
+  await seedRooster("fitpower");
 }
 
 main()

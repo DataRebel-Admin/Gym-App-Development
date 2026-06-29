@@ -35,6 +35,9 @@ export default async function OwnerLayout({
             <Link href="/owner/insights" className="hover:text-neutral-900">
               Inzichten
             </Link>
+            <Link href="/owner/rooster" className="hover:text-neutral-900">
+              Rooster
+            </Link>
             <Link href="/owner/settings" className="hover:text-neutral-900">
               Instellingen
             </Link>
