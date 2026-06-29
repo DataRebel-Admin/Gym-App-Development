@@ -146,6 +146,7 @@ model User {
   image         String? // vereist door de Auth.js adapter
   role          Role      @default(TENANT_MEMBER)
   active        Boolean   @default(true) // account geactiveerd/gedeactiveerd
+  archivedAt    DateTime? // gearchiveerd lid (uit actieve roster, niet verwijderd)
   tenantId      String? // NULL voor SUPERADMIN (transcendeert tenants)
   // Persoonlijke owner-dashboard indeling (widget-volgorde + zichtbaarheid).
   // null = standaard-layout. Geen RLS-impact (kolom op bestaand model).
