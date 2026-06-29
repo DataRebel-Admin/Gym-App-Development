@@ -4,6 +4,19 @@ import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { setTenantStatus, deleteTenant } from "../actions";
 import { TenantEditForm, TenantBrandingForm } from "./tenant-edit-forms";
+import {
+  inviteToTenant,
+  revokeInvitation,
+  setMemberRole,
+  setMemberActive,
+  deleteMember,
+} from "./user-actions";
+
+const ROLE_LABEL: Record<string, string> = {
+  SUPERADMIN: "Superadmin",
+  TENANT_ADMIN: "Tenant-admin",
+  TENANT_MEMBER: "Lid",
+};
 
 function Card({
   title,
@@ -39,6 +52,19 @@ export default async function TenantDetailPage({
     where: { id, deletedAt: null },
   });
   if (!tenant) notFound();
+
+  const [users, invitations] = await Promise.all([
+    prisma.user.findMany({
+      where: { tenantId: tenant.id },
+      orderBy: [{ role: "asc" }, { name: "asc" }],
+      select: { id: true, email: true, name: true, role: true, active: true },
+    }),
+    prisma.invitation.findMany({
+      where: { tenantId: tenant.id, acceptedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, email: true, role: true, expiresAt: true },
+    }),
+  ]);
 
   const active = tenant.status === "ACTIVE";
 
@@ -115,6 +141,106 @@ export default async function TenantDetailPage({
             </button>
           </form>
         </div>
+      </Card>
+
+      <Card title="Gebruikers" description="Rollen wijzigen, accounts (de)activeren of verwijderen.">
+        {users.length === 0 ? (
+          <p className="text-sm text-neutral-500">Nog geen gebruikers.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-neutral-100">
+            {users.map((u) => (
+              <li key={u.id} className="flex flex-wrap items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-neutral-900">
+                    {u.name ?? u.email}
+                    {!u.active ? (
+                      <span className="ml-2 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600">
+                        gedeactiveerd
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="truncate text-xs text-neutral-500">{u.email}</p>
+                </div>
+                <form action={setMemberRole} className="flex items-center gap-1">
+                  <input type="hidden" name="tenantId" value={tenant.id} />
+                  <input type="hidden" name="userId" value={u.id} />
+                  <select
+                    name="role"
+                    defaultValue={u.role}
+                    className="rounded-lg border border-neutral-300 px-2 py-1 text-sm"
+                  >
+                    <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
+                    <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
+                  </select>
+                  <button type="submit" className="rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                    Wijzig
+                  </button>
+                </form>
+                <form action={setMemberActive}>
+                  <input type="hidden" name="tenantId" value={tenant.id} />
+                  <input type="hidden" name="userId" value={u.id} />
+                  <input type="hidden" name="active" value={u.active ? "false" : "true"} />
+                  <button type="submit" className="rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                    {u.active ? "Deactiveren" : "Activeren"}
+                  </button>
+                </form>
+                <form action={deleteMember}>
+                  <input type="hidden" name="tenantId" value={tenant.id} />
+                  <input type="hidden" name="userId" value={u.id} />
+                  <button type="submit" className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
+                    Verwijder
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card title="Uitnodigingen" description="Nodig een gebruiker uit per e-mail. De link verschijnt in de server-console (dev).">
+        <form action={inviteToTenant} className="flex flex-wrap items-end gap-2">
+          <input type="hidden" name="tenantId" value={tenant.id} />
+          <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
+            E-mail
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="naam@voorbeeld.nl"
+              className="w-64 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
+            Rol
+            <select name="role" defaultValue="TENANT_MEMBER" className="rounded-lg border border-neutral-300 px-3 py-2 text-sm">
+              <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
+              <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
+            </select>
+          </label>
+          <button type="submit" className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+            Uitnodigen
+          </button>
+        </form>
+
+        {invitations.length > 0 ? (
+          <ul className="flex flex-col divide-y divide-neutral-100">
+            {invitations.map((inv) => (
+              <li key={inv.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="text-neutral-700">
+                  {inv.email}{" "}
+                  <span className="text-xs text-neutral-400">· {ROLE_LABEL[inv.role]}</span>
+                </span>
+                <form action={revokeInvitation}>
+                  <input type="hidden" name="tenantId" value={tenant.id} />
+                  <input type="hidden" name="invitationId" value={inv.id} />
+                  <button type="submit" className="text-xs text-neutral-400 hover:text-red-600">
+                    Intrekken
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </Card>
     </div>
   );
