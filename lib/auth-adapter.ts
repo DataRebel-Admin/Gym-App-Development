@@ -31,7 +31,14 @@ export function TenantPrismaAdapter(): Adapter {
 
     async getUserByEmail(email): Promise<AdapterUser | null> {
       const tenantId = await currentTenantId();
-      if (!tenantId) return null;
+
+      // Geen tenant-context (login op /admin of root) → SUPERADMIN globaal zoeken.
+      if (!tenantId) {
+        const superadmin = await prisma.user.findFirst({
+          where: { email, tenantId: null, role: "SUPERADMIN" },
+        });
+        return (superadmin as AdapterUser | null) ?? null;
+      }
 
       const user = await prisma.user.findUnique({
         where: { tenantId_email: { tenantId, email } },

@@ -38,7 +38,7 @@ export default async function MachinePublicPage({
   const session = await auth();
   let canAdd = false;
   if (
-    session?.user?.role === "MEMBER" &&
+    session?.user?.role === "TENANT_MEMBER" &&
     session.user.tenantId === tenant.id &&
     machine.exercises.length > 0
   ) {

@@ -11,7 +11,7 @@ export default async function OwnerLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "OWNER") redirect("/member");
+  if (session.user.role !== "TENANT_ADMIN") redirect("/member");
 
   const tenant = await getCurrentTenant();
 

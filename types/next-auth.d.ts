@@ -2,25 +2,28 @@ import type { Role } from "@prisma/client";
 import type { DefaultSession } from "next-auth";
 
 // Breidt de Auth.js-types uit met onze multitenant-velden (role, tenantId).
+// tenantId is null voor SUPERADMIN (transcendeert tenants).
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
       role: Role;
-      tenantId: string;
+      tenantId: string | null;
     } & DefaultSession["user"];
   }
 
   interface User {
     role: Role;
-    tenantId: string;
+    tenantId: string | null;
+    active?: boolean;
   }
 }
 
 declare module "next-auth/adapters" {
   interface AdapterUser {
     role: Role;
-    tenantId: string;
+    tenantId: string | null;
+    active?: boolean;
   }
 }
 
@@ -30,6 +33,6 @@ declare module "@auth/core/jwt" {
   interface JWT {
     id: string;
     role: Role;
-    tenantId: string;
+    tenantId: string | null;
   }
 }

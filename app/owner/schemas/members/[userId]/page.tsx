@@ -18,7 +18,7 @@ export default async function MemberSchemaPage({
   const owner = await requireOwner();
 
   const member = await prisma.user.findFirst({
-    where: { id: userId, tenantId: owner.tenantId, role: "MEMBER" },
+    where: { id: userId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
   });
   if (!member) notFound();
 

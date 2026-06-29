@@ -129,7 +129,7 @@ export async function assignFromTemplate(formData: FormData) {
   const sourceId = String(formData.get("sourceTemplateId") ?? "");
 
   const member = await prisma.user.findFirst({
-    where: { id: userId, tenantId: owner.tenantId, role: "MEMBER" },
+    where: { id: userId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
   });
   if (!member) redirect("/owner/schemas/members");
 
@@ -174,7 +174,7 @@ export async function startEmptySchema(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
 
   const member = await prisma.user.findFirst({
-    where: { id: userId, tenantId: owner.tenantId, role: "MEMBER" },
+    where: { id: userId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
   });
   if (!member) redirect("/owner/schemas/members");
 

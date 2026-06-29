@@ -5,7 +5,13 @@ export default async function Home() {
   // Na login landt de magic link hier; stuur door op basis van rol.
   const session = await auth();
   if (session?.user) {
-    redirect(session.user.role === "OWNER" ? "/owner" : "/member");
+    redirect(
+      session.user.role === "SUPERADMIN"
+        ? "/admin"
+        : session.user.role === "TENANT_ADMIN"
+          ? "/owner"
+          : "/member"
+    );
   }
 
   return (

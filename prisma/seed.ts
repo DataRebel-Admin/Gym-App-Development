@@ -63,11 +63,11 @@ async function seedTenant(spec: TenantSpec) {
 
   // Gebruikers.
   await prisma.user.create({
-    data: { tenantId: tenant.id, role: Role.OWNER, ...spec.owner },
+    data: { tenantId: tenant.id, role: Role.TENANT_ADMIN, ...spec.owner },
   });
   await Promise.all(
     spec.members.map((m) =>
-      prisma.user.create({ data: { tenantId: tenant.id, role: Role.MEMBER, ...m } })
+      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_MEMBER, ...m } })
     )
   );
 
@@ -174,7 +174,7 @@ async function seedActivity(
 ) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
   const members = await prisma.user.findMany({
-    where: { tenantId: tenant.id, role: "MEMBER" },
+    where: { tenantId: tenant.id, role: "TENANT_MEMBER" },
   });
   const exercises = await prisma.exercise.findMany({
     where: { tenantId: tenant.id },
@@ -232,7 +232,7 @@ async function seedAssignment(
 ) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
   const member = await prisma.user.findFirst({
-    where: { tenantId: tenant.id, email: memberEmail, role: "MEMBER" },
+    where: { tenantId: tenant.id, email: memberEmail, role: "TENANT_MEMBER" },
   });
   const source = await prisma.workoutTemplate.findFirst({
     where: { tenantId: tenant.id, isLibrary: true, name: templateName },
@@ -273,7 +273,7 @@ function futureDate(daysAhead: number, hour: number): Date {
 async function seedRooster(slug: string) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
   const lisa = await prisma.user.findFirst({
-    where: { tenantId: tenant.id, email: "lisa@fitpower.nl", role: "MEMBER" },
+    where: { tenantId: tenant.id, email: "lisa@fitpower.nl", role: "TENANT_MEMBER" },
   });
 
   // Spinning — max 1, en meteen vol (Lisa aangemeld) om "vol" te tonen.
@@ -326,6 +326,18 @@ async function seedRooster(slug: string) {
 }
 
 async function main() {
+  // SUPERADMIN — platform-beheerder, geen tenant (transcendeert tenants).
+  await prisma.user.deleteMany({ where: { role: Role.SUPERADMIN } });
+  await prisma.user.create({
+    data: {
+      email: "superadmin@gymrebel.app",
+      name: "Platform Beheer",
+      role: Role.SUPERADMIN,
+      tenantId: null,
+    },
+  });
+  console.log("✓ superadmin@gymrebel.app (geen tenant)");
+
   // Tenant 1 — rijke demo.
   await seedTenant({
     slug: "fitpower",

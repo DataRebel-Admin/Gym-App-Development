@@ -39,9 +39,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * wanneer onze tenant-scoped getUserByEmail een echte gebruiker vond.
      */
     signIn({ user }) {
-      if (!user || !("tenantId" in user) || !user.tenantId) {
-        return false;
-      }
+      if (!user) return false;
+      // Gedeactiveerde accounts mogen niet inloggen.
+      if ("active" in user && user.active === false) return false;
+      // SUPERADMIN heeft geen tenantId maar mag inloggen.
+      if ("role" in user && user.role === "SUPERADMIN") return true;
+      // Tenant-gebruikers: alleen met een geldige tenant-koppeling.
+      if (!("tenantId" in user) || !user.tenantId) return false;
       return true;
     },
   },

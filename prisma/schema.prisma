@@ -20,8 +20,14 @@ datasource db {
 }
 
 enum Role {
-  MEMBER
-  OWNER
+  SUPERADMIN // platform-beheerder, transcendeert tenants (tenantId == null)
+  TENANT_ADMIN // sportschooleigenaar/beheerder (voorheen OWNER)
+  TENANT_MEMBER // sporter (voorheen MEMBER)
+}
+
+enum TenantStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum Locale {
@@ -42,12 +48,18 @@ model Tenant {
   slug        String   @unique // subdomein, bv. "fitpower"
   name        String
   logoUrl     String?
-  accentColor String? // hex, bv. "#E84B1F"
-  locale      Locale   @default(NL)
-  aiEnabled   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  accentColor String? // primaire kleur (hex), bv. "#E84B1F"
+  secondaryColor String? // secundaire kleur (hex)
+  faviconUrl  String?
+  fontFamily  String? // optioneel; CSS font-family naam
+  locale      Locale       @default(NL)
+  status      TenantStatus @default(ACTIVE)
+  aiEnabled   Boolean      @default(false)
+  deletedAt   DateTime? // soft-delete; null = actief bestaand
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
+  invitations       Invitation[]
   users             User[]
   machines          Machine[]
   exercises         Exercise[]
@@ -132,11 +144,12 @@ model User {
   emailVerified DateTime? // vereist door de Auth.js adapter
   name          String?
   image         String? // vereist door de Auth.js adapter
-  role          Role      @default(MEMBER)
-  tenantId      String
+  role          Role      @default(TENANT_MEMBER)
+  active        Boolean   @default(true) // account geactiveerd/gedeactiveerd
+  tenantId      String? // NULL voor SUPERADMIN (transcendeert tenants)
   createdAt     DateTime  @default(now())
 
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignedWorkouts AssignedWorkout[]
   sessions         WorkoutSession[]
   classEnrollments ClassEnrollment[]
@@ -145,8 +158,46 @@ model User {
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
+  // SUPERADMIN (tenantId NULL) is globaal uniek via een partial index (zie migratie).
   @@unique([tenantId, email])
   @@index([tenantId])
+}
+
+// Uitnodiging om als gebruiker bij een tenant te komen (e-mail + token).
+model Invitation {
+  id          String    @id @default(cuid())
+  tenantId    String
+  email       String
+  role        Role      @default(TENANT_MEMBER)
+  token       String    @unique
+  expiresAt   DateTime
+  invitedById String? // User.id van de uitnodiger (superadmin of tenant-admin)
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([token])
+}
+
+// Audit log van beheertaken. Bewust GEEN FK naar Tenant/User (forensisch: blijft
+// bestaan na verwijdering). tenantId NULL = platform-niveau (bv. tenant aanmaken).
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorEmail String?
+  actorRole  Role?
+  tenantId   String?
+  action     String // bv. "tenant.create", "branding.update", "user.role.change"
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
 }
 
 // --- Auth.js (NextAuth v5) infra-tabellen ---
