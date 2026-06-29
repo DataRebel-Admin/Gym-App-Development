@@ -20,7 +20,14 @@ export async function getAssignedSchema(memberId: string, tenantId: string) {
         include: {
           items: {
             orderBy: { order: "asc" },
-            include: { exercise: { include: { machine: true } } },
+            include: {
+              exercise: {
+                include: {
+                  machine: true,
+                  catalog: { select: { gifUrl: true, imageUrl: true } },
+                },
+              },
+            },
           },
         },
       },

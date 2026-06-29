@@ -9,6 +9,7 @@ export type ChecklistItem = {
   sets: number;
   reps: number;
   restSeconds: number;
+  thumbUrl: string | null;
 };
 
 export function SchemaChecklist({ items }: { items: ChecklistItem[] }) {
@@ -49,6 +50,17 @@ export function SchemaChecklist({ items }: { items: ChecklistItem[] }) {
                 >
                   {isDone ? "✓" : ""}
                 </span>
+                {it.thumbUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={it.thumbUrl}
+                    alt=""
+                    aria-hidden
+                    className={`h-10 w-10 shrink-0 rounded-lg object-cover ${
+                      isDone ? "opacity-40" : ""
+                    }`}
+                  />
+                ) : null}
                 <span className="flex-1">
                   <span
                     className={`block font-medium ${
