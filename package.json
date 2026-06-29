@@ -17,6 +17,7 @@
     "data:import": "node scripts/import-exercises.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.107.0",
     "@auth/prisma-adapter": "^2.11.2",
     "@azure/storage-blob": "^12.33.0",
     "@dnd-kit/core": "^6.3.1",
