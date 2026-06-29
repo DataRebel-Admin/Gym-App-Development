@@ -156,6 +156,32 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
 - **QR-scanner** gebruikt `html5-qrcode` (dynamic import, camera). Progressie-grafieken &
   dashboards: `recharts`. 1RM-schatting via Epley.
 
+### Oefeningen-catalogus (externe dataset — leidende structuur)
+
+Een externe dataset van **1.324 oefeningen** (rijke metadata, thumbnail + animatie,
+meertalige instructies) is dé bron van waarheid voor oefening-content. Media staat op
+**Azure Blob** (`datarebel`/`exercise-media`, publieke blob-read); metadata in Postgres.
+
+- **`ExerciseCatalog`** (`@@map("exercise_catalog")`) = globaal, **géén `tenantId`/RLS**
+  (zoals Tenant/Auth-tabellen). Velden: category/bodyPart/equipment/target/muscleGroup/
+  secondaryMuscles + `instructions`/`instructionSteps` (Json per taal) + image/gif-URL.
+- **Tenant-`Exercise` cureert**: nieuw veld `catalogId String?` (nullable → eigen
+  oefeningen blijven mogelijk). `name`/`description`/`targetMuscle` zijn overrides; media,
+  spiergroepen en instructies komen uit de catalogus. Downstream FK's
+  (`WorkoutExerciseItem`, `PerformanceEntry`) blijven naar tenant-`Exercise` wijzen.
+- **Resolver `lib/exercise.ts`** (`getExerciseDetail`) merget Exercise + catalogus en kiest
+  taal op `tenant.locale` met **EN-fallback** (dataset heeft en/es/it/tr + deels nl).
+- **Owner**: `/owner/exercises` doorzoekt de catalogus (filters + paginering) en voegt
+  items toe als tenant-`Exercise`; `suggestMachineType()` (lib/machine.ts) stelt een
+  MachineType voor, owner kiest de machine. **Member**: detailpagina + machine-QR-pagina
+  tonen gif/stappen/spieren (altijd met "raadpleeg een professional"-melding).
+- **Scripts** (`scripts/`, idempotent): `media:upload` (Azure), `data:import`
+  (catalogus + en→nl vertaling via Azure Translator), `data:link` (naam-koppeling).
+  Seed koppelt demo-oefeningen via `catalogName` (exacte, lowercase catalogus-naam).
+- **Vertaalstand**: nl-instructies zijn deels gevuld; Azure **F0** throttelt te hard voor
+  de volledige set. Afmaken: Translator-tier **S1** + `npm run data:import` (hervat).
+- **Licentie**: dataset-media is **non-commercieel** — vervangen vóór commercieel gebruik.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,

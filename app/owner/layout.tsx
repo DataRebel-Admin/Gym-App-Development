@@ -29,6 +29,9 @@ export default async function OwnerLayout({
             <Link href="/owner/machines" className="hover:text-neutral-900">
               Machines
             </Link>
+            <Link href="/owner/exercises" className="hover:text-neutral-900">
+              Oefeningen
+            </Link>
             <Link href="/owner/schemas" className="hover:text-neutral-900">
               Schema&apos;s
             </Link>

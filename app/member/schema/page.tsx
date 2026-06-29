@@ -25,6 +25,7 @@ export default async function MemberSchemaPage() {
     sets: it.sets,
     reps: it.reps,
     restSeconds: it.restSeconds,
+    thumbUrl: it.exercise.catalog?.imageUrl ?? it.exercise.catalog?.gifUrl ?? null,
   }));
 
   return (

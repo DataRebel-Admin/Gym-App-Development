@@ -12,6 +12,7 @@ type ExerciseSpec = {
   name: string;
   targetMuscle: string;
   machine: string | null; // machine-naam binnen dezelfde tenant, of null (lichaamsgewicht)
+  catalogName?: string; // exacte naam in ExerciseCatalog (lowercase) → koppelt media/instructies
 };
 
 type TemplateSpec = {
@@ -87,6 +88,22 @@ async function seedTenant(spec: TenantSpec) {
   );
   const machineByName = new Map(machines.map((m) => [m.name, m]));
 
+  // Koppel-namen → catalogId (één query). Verrijkt de seed-oefeningen met
+  // catalogus-media/instructies zonder de NL-namen te verliezen.
+  const wantedCatalog = spec.exercises
+    .map((e) => e.catalogName)
+    .filter((n): n is string => Boolean(n));
+  const catalogItems =
+    wantedCatalog.length > 0
+      ? await prisma.exerciseCatalog.findMany({
+          where: { name: { in: wantedCatalog } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const catalogIdByName = new Map(
+    catalogItems.map((c) => [c.name.toLowerCase(), c.id])
+  );
+
   // Oefeningen.
   const exercises = await Promise.all(
     spec.exercises.map((e) =>
@@ -96,6 +113,9 @@ async function seedTenant(spec: TenantSpec) {
           name: e.name,
           targetMuscle: e.targetMuscle,
           machineId: e.machine ? machineByName.get(e.machine)?.id ?? null : null,
+          catalogId: e.catalogName
+            ? catalogIdByName.get(e.catalogName.toLowerCase()) ?? null
+            : null,
           description: `${e.name} — gericht op ${e.targetMuscle.toLowerCase()}.`,
         },
       })
@@ -328,14 +348,14 @@ async function main() {
     exercises: [
       { name: "Hardlopen", targetMuscle: "Cardio", machine: "Loopband" },
       { name: "Crosstrainen", targetMuscle: "Cardio", machine: "Crosstrainer" },
-      { name: "Beenpers", targetMuscle: "Quadriceps", machine: "Beenpers" },
-      { name: "Lat pulldown", targetMuscle: "Latissimus", machine: "Lat pulldown" },
-      { name: "Bankdrukken", targetMuscle: "Borst", machine: "Halterbank" },
-      { name: "Biceps curl", targetMuscle: "Biceps", machine: "Halterbank" },
-      { name: "Squat", targetMuscle: "Benen", machine: null },
-      { name: "Push-up", targetMuscle: "Borst", machine: null },
-      { name: "Plank", targetMuscle: "Core", machine: null },
-      { name: "Lunges", targetMuscle: "Benen", machine: null },
+      { name: "Beenpers", targetMuscle: "Quadriceps", machine: "Beenpers", catalogName: "lever alternate leg press" },
+      { name: "Lat pulldown", targetMuscle: "Latissimus", machine: "Lat pulldown", catalogName: "cable lat pulldown full range of motion" },
+      { name: "Bankdrukken", targetMuscle: "Borst", machine: "Halterbank", catalogName: "barbell bench press" },
+      { name: "Biceps curl", targetMuscle: "Biceps", machine: "Halterbank", catalogName: "dumbbell biceps curl" },
+      { name: "Squat", targetMuscle: "Benen", machine: null, catalogName: "dumbbell squat" },
+      { name: "Push-up", targetMuscle: "Borst", machine: null, catalogName: "push-up" },
+      { name: "Plank", targetMuscle: "Core", machine: null, catalogName: "front plank with twist" },
+      { name: "Lunges", targetMuscle: "Benen", machine: null, catalogName: "dumbbell lunge" },
     ],
     templates: [
       {
@@ -377,8 +397,8 @@ async function main() {
     ],
     exercises: [
       { name: "Rowing", targetMuscle: "Back", machine: "Rowing machine" },
-      { name: "Barbell squat", targetMuscle: "Legs", machine: "Squat rack" },
-      { name: "Burpee", targetMuscle: "Full body", machine: null },
+      { name: "Barbell squat", targetMuscle: "Legs", machine: "Squat rack", catalogName: "barbell full squat" },
+      { name: "Burpee", targetMuscle: "Full body", machine: null, catalogName: "burpee" },
     ],
     templates: [
       {
