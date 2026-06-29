@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { setTenantStatus, deleteTenant } from "../actions";
 import { TenantEditForm, TenantBrandingForm } from "./tenant-edit-forms";
+import { ConfirmButton } from "@/components/ui/confirm-button";
 import {
   inviteToTenant,
   revokeInvitation,
@@ -131,15 +132,15 @@ export default async function TenantDetailPage({
               {active ? "Deactiveren" : "Activeren"}
             </button>
           </form>
-          <form action={deleteTenant}>
-            <input type="hidden" name="id" value={tenant.id} />
-            <button
-              type="submit"
-              className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-            >
-              Verwijderen (soft-delete)
-            </button>
-          </form>
+          <ConfirmButton
+            action={deleteTenant}
+            fields={{ id: tenant.id }}
+            label="Verwijderen (soft-delete)"
+            triggerClassName="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+            title={`${tenant.name} verwijderen?`}
+            message="De tenant wordt gemarkeerd als verwijderd en gedeactiveerd. Gebruikers kunnen niet meer inloggen."
+            confirmLabel="Verwijderen"
+          />
         </div>
       </Card>
 
