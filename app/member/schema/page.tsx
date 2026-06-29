@@ -48,6 +48,13 @@ export default async function MemberSchemaPage() {
           Start training
         </button>
       </form>
+
+      <a
+        href="/member/schema/pdf"
+        className="rounded-2xl border border-neutral-200 px-6 py-3 text-center text-sm font-medium text-neutral-700 active:bg-neutral-50"
+      >
+        ⬇ Download als PDF
+      </a>
     </div>
   );
 }
