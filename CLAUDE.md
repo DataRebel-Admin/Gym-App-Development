@@ -62,6 +62,22 @@ We bouwen GEEN: ledenadministratie/CRM, betalingen, social feed, voedingsadvies,
 
 Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). Deze codebase moet whitelabel-flexibel blijven — geen GymRebel-branding hardcoded.
 
+## Implementatie-notities (afwijkingen t.o.v. de gids)
+
+- **Next.js 16** i.p.v. 15 — `create-next-app@latest` leverde 16. App Router/RSC identiek.
+- **Prisma vastgepind op v6** (`prisma` + `@prisma/client` = 6.19.3, exact). Prisma 7
+  verwijdert `url`/`directUrl` uit het schema en vereist driver-adapters; dat botst met
+  de gids (klassieke `@prisma/client`, RLS via query-context). Niet upgraden zonder reden.
+- **Env voor Prisma CLI**: geladen via `import "dotenv/config"` in `prisma.config.ts`.
+  `DATABASE_URL` + `DIRECT_URL` staan in `.env`.
+- **Seed-config**: staat in `prisma.config.ts` onder `migrations.seed` (niet in
+  `package.json#prisma`). Draaien met `npm run db:seed`.
+- **Trainings-sessiemodel heet `WorkoutSession`** (niet `Session`) om botsing met het
+  Auth.js `Session`-model (prompt 03) te voorkomen. `PerformanceEntry.session` →
+  `WorkoutSession`.
+- **MachineType is een enum** (`CARDIO | KRACHT | VRIJE_GEWICHTEN | OVERIG`) i.p.v. een
+  vrij tekstveld.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/migrations/manual/rls.sql`.
