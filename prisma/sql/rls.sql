@@ -29,7 +29,10 @@ DECLARE
     'AssignedWorkout',
     'WorkoutSession',
     'PerformanceEntry',
-    'AiUsage'
+    'AiUsage',
+    'GroupClass',
+    'ClassSession',
+    'ClassEnrollment'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

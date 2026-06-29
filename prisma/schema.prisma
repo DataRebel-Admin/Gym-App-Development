@@ -57,6 +57,9 @@ model Tenant {
   sessions          WorkoutSession[]
   performanceEntries PerformanceEntry[]
   aiUsages          AiUsage[]
+  groupClasses      GroupClass[]
+  classSessions     ClassSession[]
+  classEnrollments  ClassEnrollment[]
 }
 
 // Eén rij per AI-assistent-vraag — voor rate-limiting (per lid/dag) en
@@ -73,6 +76,56 @@ model AiUsage {
   @@index([userId, createdAt])
 }
 
+// --- Groepslessen / rooster (prompt 12) ---
+
+model GroupClass {
+  id              String   @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  instructorName  String?
+  maxParticipants Int      @default(12)
+  createdAt       DateTime @default(now())
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions ClassSession[]
+
+  @@index([tenantId])
+}
+
+model ClassSession {
+  id       String   @id @default(cuid())
+  tenantId String
+  classId  String
+  startsAt DateTime
+  endsAt   DateTime
+  location String?
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupClass  GroupClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  enrollments ClassEnrollment[]
+
+  @@index([tenantId, startsAt])
+  @@index([classId])
+}
+
+model ClassEnrollment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  sessionId  String
+  userId     String
+  enrolledAt DateTime @default(now())
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Eén aanmelding per lid per sessie.
+  @@unique([sessionId, userId])
+  @@index([tenantId])
+  @@index([userId])
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String
@@ -86,6 +139,7 @@ model User {
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignedWorkouts AssignedWorkout[]
   sessions         WorkoutSession[]
+  classEnrollments ClassEnrollment[]
   accounts         Account[] // Auth.js (OAuth, later)
   authSessions     Session[] // Auth.js DB-sessies (we gebruiken jwt, maar model vereist)
 
