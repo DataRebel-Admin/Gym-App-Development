@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getAccountUser } from "@/lib/account";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { PasswordForm } from "./password-form";
 import { TwoFactor } from "./two-factor";
 import { logoutAllDevices } from "../security-actions";

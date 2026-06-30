@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAccount } from "@/lib/account";
+import { requireAccount, getUserBadge } from "@/lib/account";
 import { UserMenu } from "@/components/nav/user-menu";
 import { AccountNav, type AccountNavItem } from "@/components/account/account-nav";
 import { PageTransition } from "@/components/motion/page-transition";
@@ -21,6 +21,7 @@ export default async function AccountLayout({
   children: React.ReactNode;
 }) {
   const me = await requireAccount();
+  const badge = await getUserBadge(me.id);
   const role = me.role;
   const back =
     role === "SUPERADMIN" ? "/admin" : role === "TENANT_ADMIN" ? "/owner" : "/member";
@@ -39,8 +40,8 @@ export default async function AccountLayout({
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-surface-0">
-      <header className="sticky top-0 z-40 border-b border-border bg-surface-1/80 backdrop-blur">
+    <div className="flex min-h-full flex-col">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <Link href={back} className="flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900">
             ← Terug
@@ -48,7 +49,11 @@ export default async function AccountLayout({
           <span className="font-display text-base font-bold text-neutral-900">
             Accountinstellingen
           </span>
-          <UserMenu name={me.name ?? null} email={me.email ?? null} />
+          <UserMenu
+            name={badge?.name ?? me.name ?? null}
+            email={badge?.email ?? me.email ?? null}
+            image={badge?.image ?? null}
+          />
         </div>
       </header>
 

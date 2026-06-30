@@ -88,17 +88,26 @@ export async function updateAvatar(
 ): Promise<AccountFormState> {
   const session = await requireAccount();
   const file = formData.get("avatar");
-  const url = await uploadAvatar(file instanceof File ? file : null, session.id);
-  if (!url) return { error: "Upload niet beschikbaar (geen Blob-token) of geen bestand." };
+  const result = await uploadAvatar(file instanceof File ? file : null, session.id);
+  if ("error" in result) {
+    const messages: Record<typeof result.error, string> = {
+      "no-file": "Kies eerst een afbeelding.",
+      "bad-type": "Alleen afbeeldingen zijn toegestaan.",
+      "too-large": "De afbeelding is te groot (max. 5 MB).",
+      failed: "Uploaden mislukt. Probeer het opnieuw.",
+    };
+    return { error: messages[result.error] };
+  }
 
-  await prisma.user.update({ where: { id: session.id }, data: { image: url } });
+  await prisma.user.update({ where: { id: session.id }, data: { image: result.url } });
   await audit("profile.avatar", {
     actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),
     tenantId: session.tenantId ?? null,
     targetType: "User",
     targetId: session.id,
   });
-  revalidatePath("/account");
+  // "layout" → ook de header-pill (UserMenu in de layout) toont meteen de nieuwe foto.
+  revalidatePath("/account", "layout");
   return { ok: true };
 }
 

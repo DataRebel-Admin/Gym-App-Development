@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -9,6 +10,19 @@ export async function requireAccount() {
   if (!session?.user?.id) redirect("/login");
   return session.user;
 }
+
+/**
+ * Lichte header-/menu-data (naam, e-mail, profielfoto) van een gebruiker —
+ * **vers uit de DB**. De JWT bevat geen `image`, en uit de DB lezen voorkomt een
+ * verouderde avatar na een upload. Per request gecachet, dus meerdere callers
+ * binnen één render raken de DB één keer.
+ */
+export const getUserBadge = cache((id: string) =>
+  prisma.user.findUnique({
+    where: { id },
+    select: { name: true, email: true, image: true },
+  })
+);
 
 const ACCOUNT_SELECT = {
   id: true,

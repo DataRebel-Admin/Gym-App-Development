@@ -1,5 +1,5 @@
 import { getAccountUser } from "@/lib/account";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { ConsentsForm } from "./privacy-form";
 import { requestAccountDeletion } from "../actions";
