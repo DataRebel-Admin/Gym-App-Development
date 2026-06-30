@@ -57,7 +57,7 @@ async function notifySchemaAssigned(
       if (prefAllows(m.notificationPrefs, "schemas", "email")) {
         await sendEmail({
           to: m.email,
-          message: schemaAssignedMessage({
+          message: await schemaAssignedMessage({
             branding,
             recipientName: m.name,
             schemaName,

@@ -295,6 +295,60 @@ enum AuditStatus {
   FAILED
 }
 
+// --- E-mailtemplatebeheer (Superadmin) ---
+// Globale platform-tabel (géén tenantId/RLS, zoals AuditLog/ExerciseCatalog): de
+// content is bron voor álle tenants; de gebrande shell + branding worden per
+// tenant runtime toegevoegd (zie lib/email/template-render.ts). Editbaar concept
+// + gepubliceerde snapshot; de app verstuurt de gepubliceerde versie en valt
+// terug op de hardgecodeerde composers in lib/email/messages.ts.
+
+enum EmailTemplateStatus {
+  DRAFT // er staan onuitgegeven concept-wijzigingen klaar
+  PUBLISHED // concept == gepubliceerde inhoud (live)
+}
+
+model EmailTemplate {
+  id      String @id @default(cuid())
+  key     String // bv. "magicLink", "invite", "welcome" — zie lib/email/template-defaults.ts
+  locale  Locale @default(NL)
+
+  // Werk-concept (autosave):
+  subject   String
+  preheader String?
+  bodyHtml  String  @db.Text
+
+  // Gepubliceerde snapshot — dít verstuurt de app:
+  publishedSubject   String?
+  publishedPreheader String?
+  publishedBodyHtml  String?   @db.Text
+  publishedAt        DateTime?
+
+  status         EmailTemplateStatus @default(DRAFT)
+  updatedById    String?
+  updatedByEmail String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  versions EmailTemplateVersion[]
+
+  @@unique([key, locale])
+}
+
+model EmailTemplateVersion {
+  id          String        @id @default(cuid())
+  templateId  String
+  template    EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  subject     String
+  preheader   String?
+  bodyHtml    String        @db.Text
+  note        String? // opmerking van de auteur bij publicatie
+  authorId    String?
+  authorEmail String?
+  createdAt   DateTime      @default(now())
+
+  @@index([templateId, createdAt])
+}
+
 // --- Auth.js (NextAuth v5) infra-tabellen ---
 // Géén tenantId/RLS: dit zijn framework-tabellen, geen tenant-business-data.
 // De Prisma-adapter maakt deze rijen aan zonder tenant-context.

@@ -308,6 +308,49 @@ huisstijl + verzending blijven gedeeld.
   (`app/owner/schemas/actions.ts` → `notifySchemaAssigned`). Nieuwe-flow-sends zijn
   best-effort (try/catch, vóór een eventuele `redirect`) — breken de actie nooit.
 
+### E-mailtemplatebeheer (Superadmin, DB-backed, geen redeploy)
+
+De Superadmin beheert álle systeemmails op **`/admin/email-templates`** (overzicht +
+split-screen editor) — bewerken, live previewen, testen, publiceren — zónder herdeploy.
+**Bewerk-scope = content + onderwerp**: alleen `bodyHtml`/`subject`/`preheader` zijn
+editbaar; de gebrande shell (header/footer/kleuren/logo) blijft per tenant runtime
+toegevoegd door `renderEmailLayout` — branding kan dus niet stuk en blijft whitelabel.
+
+- **Registry** `lib/email/template-defaults.ts` (géén `server-only`; ook client-bruikbaar)
+  = bron van waarheid: per `EmailTemplateKey` één record met `name`, `description`,
+  `reason` (footer), `hasTrigger`, `placeholders[]` en default `subject`/`preheader`/
+  `bodyHtml` (met `{{placeholders}}`). **Nieuw e-mailtype = één record hier** (+ evt. een
+  call-site die `composeFromTemplate(key, …)` aanroept). 6 live types + `notification`/
+  `system` (gedefinieerd, nog geen trigger). Globale placeholders (`{{gymName}}`,
+  `{{currentYear}}`, `{{accentColor}}`, `{{accentText}}`, `{{logoUrl}}`, `{{supportEmail}}`)
+  komen uit de tenant-branding zodat content-only templates tóch de accentkleur volgen.
+- **Render/fallback** `lib/email/template-render.ts` (`composeFromTemplate`,
+  `renderTemplateMessage`, `renderPlaceholders`, `buildBrandingData`): substitueert
+  placeholders (HTML-context → `escapeHtml`, subject/preheader → plat) en wikkelt in de
+  layout. **DB wint bij publicatie, hardgecodeerde composer is de fallback**: de 6 composers
+  in `lib/email/messages.ts` zijn nu **async** en proberen eerst de gepubliceerde
+  DB-template; zonder publicatie valt 'ie terug op de bestaande opbouw (niets breekt). Alle
+  6 call-sites kregen `await`.
+- **Opslag** `lib/email/template-store.ts`: `EmailTemplate` (`@@unique([key, locale])`,
+  concept-velden + `published*`-snapshot) + `EmailTemplateVersion` (geschiedenis).
+  **Globale tabel, géén tenantId/RLS** (zoals AuditLog/ExerciseCatalog). Lui geseed uit de
+  registry (idempotente `upsert`). Locale-veld is voorbereid; nu alleen `NL` gevuld
+  (EN/FY-fallback → NL in `composeFromTemplate`).
+- **Validatie** `lib/email/template-validate.ts` (puur): onbekende placeholder/leeg
+  subject-body → **error** (blokkeert publiceren), ontbrekende verplichte placeholder →
+  waarschuwing. Server dwingt af in `publishTemplate`; editor toont live.
+- **UI** `app/admin/email-templates/`: overzicht (`page.tsx`), editor-pagina (`[key]/page.tsx`)
+  + client-editor (`[key]/editor.tsx`) met **CodeMirror 6** (`@uiw/react-codemirror` +
+  `@codemirror/lang-html`, dynamic `ssr:false` in `code-editor.tsx`; zoek/vervang +
+  undo/redo via `basicSetup`), placeholder-invoegchips, autosave-concept, **live preview**
+  in een sandboxed `<iframe srcDoc>` (device-toggle desktop/tablet/mobiel + tenant-selector
+  → echte huisstijl + testgegevens-toggle), publiceren (bevestiging + versie), testmail
+  (eigen adres + tenant) en versiegeschiedenis met herstellen.
+- **Server-actions** `[key]/actions.ts` (`requireSuperadmin` + Zod): `saveDraft`,
+  `renderPreview`, `publishTemplate`, `restoreVersion`, `resetToDefault`, `sendTestEmail`.
+- **Audit**: nieuwe categorie `email` in `lib/audit-actions.ts` + acties
+  `email.template.update/publish/restore/reset` en `email.test.send` (platform-niveau).
+
 ### Foutpagina's (premium error-architectuur)
 
 Eén config-gedreven systeem zodat een gebruiker nooit een kale framework-fout

@@ -95,7 +95,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const branding = await loadTenantBrandingBySlug(slug);
         await sendEmail({
           to: identifier,
-          message: magicLinkMessage({ branding, url }),
+          message: await magicLinkMessage({ branding, url }),
           devLink: url,
         });
       },

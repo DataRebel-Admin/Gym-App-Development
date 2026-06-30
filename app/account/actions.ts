@@ -151,7 +151,7 @@ export async function requestEmailChange(
   // De bevestiging gaat naar het nieuwe adres (dat de gebruiker moet bevestigen).
   await sendEmail({
     to: newEmail,
-    message: emailChangeMessage({ branding, url, newEmail }),
+    message: await emailChangeMessage({ branding, url, newEmail }),
     devLink: url,
   });
 

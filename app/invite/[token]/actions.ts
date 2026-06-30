@@ -77,7 +77,7 @@ export async function acceptInvitation(formData: FormData) {
     const loginUrl = `${await origin()}/login?tenant=${invite.tenant.slug}`;
     await sendEmail({
       to: invite.email,
-      message: welcomeMessage({ branding, recipientName, loginUrl }),
+      message: await welcomeMessage({ branding, recipientName, loginUrl }),
       devLink: loginUrl,
     });
   } catch (err) {

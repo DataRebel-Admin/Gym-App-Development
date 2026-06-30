@@ -30,7 +30,7 @@ export async function sendInviteEmail(opts: {
   const branding = await loadTenantBranding(opts.tenantId);
   await sendEmail({
     to: opts.email,
-    message: inviteMessage({ branding, acceptUrl: opts.acceptUrl }),
+    message: await inviteMessage({ branding, acceptUrl: opts.acceptUrl }),
     devLink: opts.acceptUrl,
   });
 }

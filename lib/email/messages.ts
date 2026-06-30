@@ -9,6 +9,12 @@ import {
   emailParagraph,
   escapeHtml,
 } from "@/lib/email/components";
+import { composeFromTemplate } from "@/lib/email/template-render";
+
+/** Eerste woord van een naam (voor de {{firstName}}-placeholder). "" indien leeg. */
+function firstNameOf(name: string | null | undefined): string {
+  return name?.trim().split(/\s+/)[0] ?? "";
+}
 
 /**
  * E-mail-composers. Elke functie levert een volledige `EmailMessage`
@@ -54,11 +60,19 @@ function textFrame(branding: EmailBranding, body: string, reason: string): strin
 
 // ── Magic link (inloglink) ──────────────────────────────────────────────────
 
-export function magicLinkMessage(opts: {
+export async function magicLinkMessage(opts: {
   branding: EmailBranding;
   url: string;
-}): EmailMessage {
+}): Promise<EmailMessage> {
   const { branding, url } = opts;
+  const fromDb = await composeFromTemplate({
+    key: "magicLink",
+    locale: branding.locale,
+    branding,
+    data: { loginLink: url },
+  });
+  if (fromDb) return fromDb;
+
   const reason = `Je ontvangt deze e-mail omdat er een inloglink is aangevraagd voor je account bij ${branding.name}.`;
   const contentHtml = [
     emailHeading(`Inloggen bij ${branding.name}`),
@@ -89,11 +103,19 @@ export function magicLinkMessage(opts: {
 
 // ── Uitnodiging ─────────────────────────────────────────────────────────────
 
-export function inviteMessage(opts: {
+export async function inviteMessage(opts: {
   branding: EmailBranding;
   acceptUrl: string;
-}): EmailMessage {
+}): Promise<EmailMessage> {
   const { branding, acceptUrl } = opts;
+  const fromDb = await composeFromTemplate({
+    key: "invite",
+    locale: branding.locale,
+    branding,
+    data: { activationLink: acceptUrl },
+  });
+  if (fromDb) return fromDb;
+
   const reason = `Je ontvangt deze e-mail omdat ${branding.name} je heeft uitgenodigd voor een account.`;
   const contentHtml = [
     emailHeading(`Uitnodiging voor ${branding.name}`),
@@ -126,12 +148,20 @@ export function inviteMessage(opts: {
 
 // ── E-mailadres wijzigen ────────────────────────────────────────────────────
 
-export function emailChangeMessage(opts: {
+export async function emailChangeMessage(opts: {
   branding: EmailBranding;
   url: string;
   newEmail: string;
-}): EmailMessage {
+}): Promise<EmailMessage> {
   const { branding, url, newEmail } = opts;
+  const fromDb = await composeFromTemplate({
+    key: "emailChange",
+    locale: branding.locale,
+    branding,
+    data: { confirmLink: url, newEmail },
+  });
+  if (fromDb) return fromDb;
+
   const reason = `Je ontvangt deze e-mail omdat er is gevraagd om het e-mailadres van je ${branding.name}-account te wijzigen.`;
   const contentHtml = [
     emailHeading("Bevestig je nieuwe e-mailadres"),
@@ -164,12 +194,20 @@ export function emailChangeMessage(opts: {
 
 // ── Welkom / account geactiveerd ────────────────────────────────────────────
 
-export function welcomeMessage(opts: {
+export async function welcomeMessage(opts: {
   branding: EmailBranding;
   recipientName?: string | null;
   loginUrl: string;
-}): EmailMessage {
+}): Promise<EmailMessage> {
   const { branding, recipientName, loginUrl } = opts;
+  const fromDb = await composeFromTemplate({
+    key: "welcome",
+    locale: branding.locale,
+    branding,
+    data: { firstName: firstNameOf(recipientName), loginLink: loginUrl },
+  });
+  if (fromDb) return fromDb;
+
   const reason = `Je ontvangt deze e-mail omdat je account bij ${branding.name} zojuist is geactiveerd.`;
   const contentHtml = [
     emailHeading(`Welkom bij ${branding.name}!`),
@@ -200,12 +238,20 @@ export function welcomeMessage(opts: {
 
 // ── Wachtwoord gewijzigd (beveiligingsmelding) ──────────────────────────────
 
-export function passwordChangedMessage(opts: {
+export async function passwordChangedMessage(opts: {
   branding: EmailBranding;
   recipientName?: string | null;
   securityUrl: string;
-}): EmailMessage {
+}): Promise<EmailMessage> {
   const { branding, recipientName, securityUrl } = opts;
+  const fromDb = await composeFromTemplate({
+    key: "passwordChanged",
+    locale: branding.locale,
+    branding,
+    data: { firstName: firstNameOf(recipientName), securityLink: securityUrl },
+  });
+  if (fromDb) return fromDb;
+
   const reason = `Je ontvangt deze e-mail omdat het wachtwoord van je ${branding.name}-account is gewijzigd.`;
   const contentHtml = [
     emailHeading("Je wachtwoord is gewijzigd"),
@@ -241,13 +287,25 @@ export function passwordChangedMessage(opts: {
 
 // ── Nieuw trainingsschema toegewezen ────────────────────────────────────────
 
-export function schemaAssignedMessage(opts: {
+export async function schemaAssignedMessage(opts: {
   branding: EmailBranding;
   recipientName?: string | null;
   schemaName: string;
   viewUrl: string;
-}): EmailMessage {
+}): Promise<EmailMessage> {
   const { branding, recipientName, schemaName, viewUrl } = opts;
+  const fromDb = await composeFromTemplate({
+    key: "schemaAssigned",
+    locale: branding.locale,
+    branding,
+    data: {
+      firstName: firstNameOf(recipientName),
+      workoutName: schemaName,
+      schemaLink: viewUrl,
+    },
+  });
+  if (fromDb) return fromDb;
+
   const reason = `Je ontvangt deze e-mail omdat ${branding.name} een trainingsschema aan je heeft toegewezen.`;
   const contentHtml = [
     emailHeading("Je hebt een nieuw trainingsschema"),

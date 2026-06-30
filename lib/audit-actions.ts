@@ -14,6 +14,7 @@ export type AuditCategory =
   | "exercises"
   | "machines"
   | "tenant"
+  | "email"
   | "auth";
 
 export type AuditActionDef = {
@@ -41,6 +42,7 @@ export const CATEGORY_META: Record<
   exercises: { label: "Oefeningen", icon: "🏋️", tone: "warning" },
   machines: { label: "Machines", icon: "⚙️", tone: "neutral" },
   tenant: { label: "Tenant", icon: "🏢", tone: "neutral" },
+  email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
 };
 
@@ -58,6 +60,8 @@ export function categoryFromAction(action: string): AuditCategory {
       return "machines";
     case "auth":
       return "auth";
+    case "email":
+      return "email";
     case "tenant":
     case "branding":
     default:
@@ -249,6 +253,33 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
   "tenant.delete": {
     category: "tenant", label: "Tenant verwijderd", icon: "🗑️", tone: "danger",
     sentence: ({ actor }) => `${actor} heeft een tenant verwijderd`,
+  },
+
+  // --- E-mailtemplates (Superadmin) ---
+  "email.template.update": {
+    category: "email", label: "Template-concept opgeslagen", icon: "✏️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het concept van template '${s(meta, "name") ?? s(meta, "key") ?? ""}' opgeslagen`.trim(),
+  },
+  "email.template.publish": {
+    category: "email", label: "Template gepubliceerd", icon: "🚀", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft template '${s(meta, "name") ?? s(meta, "key") ?? ""}' gepubliceerd`.trim(),
+  },
+  "email.template.restore": {
+    category: "email", label: "Versie hersteld", icon: "↩️", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een eerdere versie van '${s(meta, "name") ?? s(meta, "key") ?? ""}' hersteld`.trim(),
+  },
+  "email.template.reset": {
+    category: "email", label: "Standaard hersteld", icon: "♻️", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft template '${s(meta, "name") ?? s(meta, "key") ?? ""}' teruggezet naar de standaard`.trim(),
+  },
+  "email.test.send": {
+    category: "email", label: "Testmail verzonden", icon: "📨", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een testmail '${s(meta, "name") ?? s(meta, "key") ?? ""}' verstuurd naar ${s(meta, "to") ?? "een adres"}`,
   },
 
   // --- Auth ---

@@ -8,9 +8,9 @@ import {
   Thead,
   Th,
   Tbody,
-  Tr,
   Td,
 } from "@/components/ui/table";
+import { TableRowLink } from "@/components/ui/table-row-link";
 
 export const metadata = { title: "Tenants" };
 
@@ -60,7 +60,11 @@ export default async function TenantsPage() {
             </Thead>
             <Tbody>
               {tenants.map((t) => (
-                <Tr key={t.id}>
+                <TableRowLink
+                  key={t.id}
+                  href={`/admin/tenants/${t.id}`}
+                  label={`Tenant ${t.name} beheren`}
+                >
                   <Td>
                     <span className="flex items-center gap-2">
                       <span
@@ -78,14 +82,11 @@ export default async function TenantsPage() {
                   </Td>
                   <Td className="text-neutral-500">{t._count.users}</Td>
                   <Td className="text-right">
-                    <Link
-                      href={`/admin/tenants/${t.id}`}
-                      className="text-sm font-medium text-accent hover:underline"
-                    >
+                    <span className="text-sm font-medium text-accent" aria-hidden>
                       Beheren →
-                    </Link>
+                    </span>
                   </Td>
-                </Tr>
+                </TableRowLink>
               ))}
             </Tbody>
           </Table>

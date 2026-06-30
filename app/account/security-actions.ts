@@ -81,7 +81,7 @@ export async function setPassword(
       const branding = await loadTenantBranding(me.tenantId);
       await sendEmail({
         to: me.email,
-        message: passwordChangedMessage({
+        message: await passwordChangedMessage({
           branding,
           recipientName: me.name,
           securityUrl: `${await origin()}/account/beveiliging`,
