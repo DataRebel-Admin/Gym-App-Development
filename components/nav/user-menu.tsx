@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { logout } from "@/app/login/actions";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 
@@ -41,6 +42,13 @@ export function UserMenu({
               <p className="truncate text-xs text-neutral-500">{email}</p>
             ) : null}
           </div>
+          <div className="my-1 h-px bg-border" />
+          <Link
+            href="/account"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100"
+          >
+            Accountinstellingen
+          </Link>
           <div className="my-1 h-px bg-border" />
           <form action={logout}>
             <DropdownItem type="submit" className="text-red-600 hover:bg-red-50">
