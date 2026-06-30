@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { inviteMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
+import { shouldNotifyByEmail } from "@/lib/notifications";
 
 /** 32-hex-karakter uitnodigingstoken. */
 export function inviteToken(): string {
@@ -52,11 +53,16 @@ export async function createInvitation(opts: {
     update: { role: opts.role, token, expiresAt: inviteExpiry(), invitedById: opts.invitedById, acceptedAt: null },
     create: { tenantId: opts.tenantId, email: opts.email, role: opts.role, token, expiresAt: inviteExpiry(), invitedById: opts.invitedById },
   });
-  await sendInviteEmail({
-    email: opts.email,
-    tenantId: opts.tenantId,
-    acceptUrl: `${opts.origin}/invite/${token}`,
-  });
+  // De uitnodiging (token) wordt altijd aangemaakt; de e-mail respecteert de
+  // meldingsvoorkeur van een bestaand account. Een nieuw lid heeft nog geen
+  // voorkeuren → standaard wél versturen.
+  if (await shouldNotifyByEmail(opts.tenantId, opts.email, "invitations")) {
+    await sendInviteEmail({
+      email: opts.email,
+      tenantId: opts.tenantId,
+      acceptUrl: `${opts.origin}/invite/${token}`,
+    });
+  }
 }
 
 export type PendingInviteStatus = "VERZONDEN" | "VERLOPEN";

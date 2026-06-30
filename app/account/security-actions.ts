@@ -13,6 +13,7 @@ import { passwordStrength } from "@/lib/password-strength";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { passwordChangedMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
+import { prefAllows } from "@/lib/notifications";
 
 async function origin(): Promise<string> {
   const h = await headers();
@@ -50,7 +51,7 @@ export async function setPassword(
 
   const me = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { passwordHash: true, email: true, name: true, role: true, tenantId: true },
+    select: { passwordHash: true, email: true, name: true, role: true, tenantId: true, notificationPrefs: true },
   });
   if (!me) return { error: "Account niet gevonden" };
 
@@ -73,19 +74,22 @@ export async function setPassword(
     targetId: session.id,
   });
 
-  // Beveiligingsmelding (best-effort — breekt het opslaan niet).
-  try {
-    const branding = await loadTenantBranding(me.tenantId);
-    await sendEmail({
-      to: me.email,
-      message: passwordChangedMessage({
-        branding,
-        recipientName: me.name,
-        securityUrl: `${await origin()}/account/beveiliging`,
-      }),
-    });
-  } catch (err) {
-    console.error("✗ Wachtwoord-melding mislukt:", (err as Error).message);
+  // Beveiligingsmelding (best-effort — breekt het opslaan niet). Respecteert de
+  // meldingsvoorkeur (categorie: beveiliging); standaard staat e-mail aan.
+  if (prefAllows(me.notificationPrefs, "security", "email")) {
+    try {
+      const branding = await loadTenantBranding(me.tenantId);
+      await sendEmail({
+        to: me.email,
+        message: passwordChangedMessage({
+          branding,
+          recipientName: me.name,
+          securityUrl: `${await origin()}/account/beveiliging`,
+        }),
+      });
+    } catch (err) {
+      console.error("✗ Wachtwoord-melding mislukt:", (err as Error).message);
+    }
   }
 
   revalidatePath("/account/beveiliging");
