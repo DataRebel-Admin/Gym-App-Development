@@ -11,7 +11,7 @@ import { audit } from "@/lib/audit";
 import { verifyPassword, verifyTotp } from "@/lib/security";
 import { resolveLoginUser } from "@/lib/login-user";
 import { verifyLoginChallenge } from "@/lib/login-challenge";
-import { devLoginEnabled } from "@/lib/dev-login";
+import { demoLoginEnabled } from "@/lib/demo-login";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
 import { loadTenantBrandingBySlug } from "@/lib/email/branding";
 import { magicLinkMessage } from "@/lib/email/messages";
@@ -50,18 +50,18 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_I
   );
 }
 
-// Dev-only: wachtwoordloze login voor demo-accounts (zie lib/dev-login.ts).
-// Wordt NIET geregistreerd in productie of zonder DEV_LOGIN="true".
-const devProviders: NextAuthConfig["providers"] = [];
-if (devLoginEnabled()) {
-  devProviders.push(
+// Wachtwoordloze login voor demo-accounts (zie lib/demo-login.ts). Wordt alleen
+// geregistreerd wanneer DEMO_LOGIN="true" (ook in productie — bewust voor demo's).
+const demoProviders: NextAuthConfig["providers"] = [];
+if (demoLoginEnabled()) {
+  demoProviders.push(
     Credentials({
-      id: "dev-login",
-      name: "Developer login",
+      id: "demo-login",
+      name: "Demo login",
       credentials: { email: {} },
       async authorize(creds) {
-        // Tweede slot op de deur: nooit autoriseren als dev-login uit staat.
-        if (!devLoginEnabled()) return null;
+        // Tweede slot op de deur: nooit autoriseren als demo-login uit staat.
+        if (!demoLoginEnabled()) return null;
         const email = String(creds?.email ?? "").toLowerCase().trim();
         if (!email) return null;
         // Tenant-scoped resolutie via de login-cookie (zoals de wachtwoord-login).
@@ -156,7 +156,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       },
     }),
     ...oauthProviders,
-    ...devProviders,
+    ...demoProviders,
   ],
   callbacks: {
     ...authConfig.callbacks,

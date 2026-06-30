@@ -1,17 +1,20 @@
 import "server-only";
 
 /**
- * Developer-login: alleen voor lokaal testen. Toont op de inlogpagina een
- * snel-inlog-paneel met alle demo-accounts (uit de seed) zodat elke rol &
- * sportschool zonder wachtwoord/magic link te testen is.
+ * Demo-login: een snel-inlog-paneel op de inlogpagina met alle demo-accounts
+ * (uit de seed), zodat elke rol & sportschool zonder wachtwoord of magic link
+ * te proberen is — handig voor lokaal testen én voor demo's van de
+ * gepubliceerde versie.
  *
- * DUBBEL beveiligd: werkt nooit in productie. Zelfs als DEV_LOGIN per ongeluk
- * op "true" staat in een productie-omgeving, blokkeert de NODE_ENV-check het.
+ * Geactiveerd met DEMO_LOGIN="true" (ook in productie, bewust).
+ *
+ * ⚠️ LET OP — dit omzeilt de authenticatie volledig: iedereen die de
+ * inlogpagina bereikt kan als élk demo-account inloggen, inclusief de
+ * superadmin (volledige platformtoegang). Zet dit alleen aan op een demo-/
+ * testomgeving en uit zodra er echte gebruikers of data in de omgeving staan.
  */
-export function devLoginEnabled(): boolean {
-  return (
-    process.env.NODE_ENV !== "production" && process.env.DEV_LOGIN === "true"
-  );
+export function demoLoginEnabled(): boolean {
+  return process.env.DEMO_LOGIN === "true";
 }
 
 export type DemoAccount = {

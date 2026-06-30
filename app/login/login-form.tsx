@@ -5,10 +5,10 @@ import {
   requestMagicLink,
   loginWithPassword,
   oauthSignIn,
-  devSignIn,
+  demoSignIn,
   type LoginState,
 } from "./actions";
-import type { DemoAccount } from "@/lib/dev-login";
+import type { DemoAccount } from "@/lib/demo-login";
 import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -16,11 +16,11 @@ import { cn } from "@/lib/cn";
 export function LoginForm({
   tenant,
   oauth,
-  devAccounts,
+  demoAccounts,
 }: {
   tenant: string;
   oauth?: { google: boolean; microsoft: boolean };
-  devAccounts?: DemoAccount[] | null;
+  demoAccounts?: DemoAccount[] | null;
 }) {
   const [mode, setMode] = useState<"link" | "password">("link");
   const [linkState, linkAction, linkPending] = useActionState<LoginState, FormData>(requestMagicLink, {});
@@ -94,15 +94,15 @@ export function LoginForm({
         </form>
       )}
 
-      {devAccounts && devAccounts.length > 0 ? (
-        <DevPanel accounts={devAccounts} />
+      {demoAccounts && demoAccounts.length > 0 ? (
+        <DemoPanel accounts={demoAccounts} />
       ) : null}
     </div>
   );
 }
 
-/** Dev-only snel-inlog-paneel: subtiel ingeklapt; één klik logt in als demo-account. */
-function DevPanel({ accounts }: { accounts: DemoAccount[] }) {
+/** Demo snel-inlog-paneel: subtiel ingeklapt; één klik logt in als demo-account. */
+function DemoPanel({ accounts }: { accounts: DemoAccount[] }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-1 border-t border-border pt-3">
@@ -113,14 +113,14 @@ function DevPanel({ accounts }: { accounts: DemoAccount[] }) {
         className="mx-auto flex items-center gap-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:text-neutral-600 focus-ring"
       >
         <WrenchIcon />
-        Developer-login
+        Demo-login
         <ChevronIcon open={open} />
       </button>
 
       {open ? (
         <div className="mt-2.5 flex flex-col gap-1.5">
           {accounts.map((a) => (
-            <form key={`${a.tenant ?? "_"}:${a.email}`} action={devSignIn}>
+            <form key={`${a.tenant ?? "_"}:${a.email}`} action={demoSignIn}>
               <input type="hidden" name="email" value={a.email} />
               <input type="hidden" name="tenant" value={a.tenant ?? ""} />
               <button

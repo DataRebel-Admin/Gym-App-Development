@@ -1,7 +1,7 @@
 import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
 import { oauthEnabled } from "@/lib/oauth";
-import { devLoginEnabled, DEMO_ACCOUNTS } from "@/lib/dev-login";
+import { demoLoginEnabled, DEMO_ACCOUNTS } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
 
 export const metadata = { title: "Inloggen" };
@@ -18,7 +18,7 @@ export default async function LoginPage() {
   const slug = await getTenantSlug();
   const tenant = await getCurrentTenant();
   const oauth = oauthEnabled();
-  const devAccounts = devLoginEnabled() ? DEMO_ACCOUNTS : null;
+  const demoAccounts = demoLoginEnabled() ? DEMO_ACCOUNTS : null;
 
   const name = tenant?.name ?? "GymRebel";
   const initial = name.charAt(0).toUpperCase();
@@ -127,7 +127,7 @@ export default async function LoginPage() {
             </p>
           </div>
 
-          <LoginForm tenant={slug} oauth={oauth} devAccounts={devAccounts} />
+          <LoginForm tenant={slug} oauth={oauth} demoAccounts={demoAccounts} />
 
           {!tenant ? (
             <p className="mt-4 text-center text-xs text-neutral-500">

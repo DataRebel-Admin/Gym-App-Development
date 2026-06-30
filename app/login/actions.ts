@@ -17,7 +17,7 @@ import {
   DEV_FALLBACK_TENANT,
   TWO_FACTOR_CHALLENGE_COOKIE,
 } from "@/lib/constants";
-import { devLoginEnabled } from "@/lib/dev-login";
+import { demoLoginEnabled } from "@/lib/demo-login";
 
 const requestSchema = z.object({
   email: z.string().email("Ongeldig e-mailadres"),
@@ -227,13 +227,13 @@ export async function oauthSignIn(formData: FormData) {
 }
 
 /**
- * Developer-login: log direct in als een demo-account, zonder wachtwoord of
- * magic link. Uitsluitend actief wanneer DEV_LOGIN aanstaat én niet in productie
- * (zie devLoginEnabled). Zet de tenant-cookie zodat de tenant-scoped resolutie
+ * Demo-login: log direct in als een demo-account, zonder wachtwoord of magic
+ * link. Uitsluitend actief wanneer DEMO_LOGIN="true" (ook in productie — zie
+ * demoLoginEnabled). Zet de tenant-cookie zodat de tenant-scoped resolutie
  * (en de signIn-callback) het juiste account vinden — net als de OAuth-flow.
  */
-export async function devSignIn(formData: FormData) {
-  if (!devLoginEnabled()) return;
+export async function demoSignIn(formData: FormData) {
+  if (!demoLoginEnabled()) return;
   const email = String(formData.get("email") ?? "").toLowerCase().trim();
   const tenant = String(formData.get("tenant") ?? "");
   if (!email) return;
@@ -252,9 +252,9 @@ export async function devSignIn(formData: FormData) {
   }
 
   try {
-    await signIn("dev-login", { email, redirectTo: "/" });
+    await signIn("demo-login", { email, redirectTo: "/" });
   } catch (e) {
-    // Mislukte dev-login (bv. seed niet gedraaid) → netjes terug naar /login.
+    // Mislukte demo-login (bv. seed niet gedraaid) → netjes terug naar /login.
     if (e instanceof AuthError) redirect("/login?devError=1");
     throw e; // NEXT_REDIRECT bij succes
   }
