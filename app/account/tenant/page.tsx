@@ -6,6 +6,8 @@ function asRecord(v: unknown): Record<string, string> | null {
   return v && typeof v === "object" ? (v as Record<string, string>) : null;
 }
 
+export const metadata = { title: "Tenant" };
+
 export default async function AccountTenantPage() {
   const owner = await requireOwner();
   const tenant = await prisma.tenant.findUniqueOrThrow({

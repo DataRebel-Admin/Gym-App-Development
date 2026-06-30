@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { createTemplate, duplicateTemplate } from "../actions";
 
+export const metadata = { title: "Schemasjablonen" };
+
 export default async function TemplatesPage() {
   const owner = await requireOwner();
 

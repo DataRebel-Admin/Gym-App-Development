@@ -1,3 +1,5 @@
+export const metadata = { title: "Controleer je e-mail" };
+
 export default function CheckEmailPage() {
   return (
     <main className="flex flex-1 items-center justify-center px-6 text-center">

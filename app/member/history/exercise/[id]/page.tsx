@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMember, getExerciseProgress } from "@/lib/member";
@@ -18,6 +19,19 @@ const LANG_LABEL: Record<string, string> = {
   tr: "Turks",
   nl: "Nederlands",
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const tenant = await getCurrentTenant();
+  const detail = tenant
+    ? await getExerciseDetail(id, tenant.id, tenant.locale ?? "NL")
+    : null;
+  return { title: detail ? `${detail.name} | Oefening` : "Oefening" };
+}
 
 export default async function ExerciseProgressPage({
   params,

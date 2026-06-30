@@ -3,6 +3,8 @@ import { requireOwner } from "@/lib/owner";
 import { blobConfigured } from "@/lib/blob";
 import { MachineForm } from "../machine-form";
 
+export const metadata = { title: "Nieuwe machine" };
+
 export default async function NewMachinePage() {
   await requireOwner();
 

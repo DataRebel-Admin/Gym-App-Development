@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 
+export const metadata = { title: "Schema's per lid" };
+
 export default async function MembersPage() {
   const owner = await requireOwner();
 

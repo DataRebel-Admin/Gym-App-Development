@@ -89,7 +89,7 @@ export function ProfileForm({ user }: { user: Profile }) {
               type="file"
               name="avatar"
               accept="image/*"
-              className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-neutral-700"
+              className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background hover:file:opacity-90"
             />
             <Button type="submit" size="sm" variant="outline" loading={uploading}>
               Uploaden

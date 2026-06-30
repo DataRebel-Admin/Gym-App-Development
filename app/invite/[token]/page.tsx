@@ -6,6 +6,8 @@ const ROLE_LABEL: Record<string, string> = {
   TENANT_MEMBER: "lid",
 };
 
+export const metadata = { title: "Uitnodiging" };
+
 export default async function InviteAcceptPage({
   params,
 }: {

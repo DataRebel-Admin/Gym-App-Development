@@ -1,6 +1,8 @@
 import { getAccountUser } from "@/lib/account";
 import { ProfileForm } from "./profile-form";
 
+export const metadata = { title: "Profiel" };
+
 export default async function AccountProfilePage() {
   const user = await getAccountUser();
 

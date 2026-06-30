@@ -28,6 +28,8 @@ function buildQuery(base: SearchParams, overrides: Partial<SearchParams>): strin
   return s ? `?${s}` : "";
 }
 
+export const metadata = { title: "Oefeningen" };
+
 export default async function OwnerExercisesPage({
   searchParams,
 }: {

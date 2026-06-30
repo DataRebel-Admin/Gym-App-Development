@@ -20,6 +20,8 @@ const SEC_LABEL: Record<string, string> = {
   "email.change.confirmed": "E-mail gewijzigd",
 };
 
+export const metadata = { title: "Beveiliging" };
+
 export default async function SecurityPage() {
   const user = await getAccountUser();
   const hasPassword = Boolean((await prisma.user.findUnique({

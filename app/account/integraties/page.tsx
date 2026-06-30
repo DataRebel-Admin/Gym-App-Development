@@ -30,6 +30,8 @@ function Row({
   );
 }
 
+export const metadata = { title: "Integraties" };
+
 export default async function IntegrationsPage() {
   const user = await getAccountUser();
   const tenant = await getCurrentTenant();

@@ -27,6 +27,7 @@ export {
   Trophy,
   Target,
   Plus,
+  Minus,
   Pencil,
   Trash2,
   Search,
@@ -35,8 +36,16 @@ export {
   ChevronRight,
   ChevronLeft,
   ChevronDown,
+  ChevronUp,
   X,
   Check,
+  Play,
+  Pause,
+  RotateCcw,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  Vibrate,
   LogOut,
   Sun,
   Moon,
@@ -48,6 +57,8 @@ export {
   Eye,
   EyeOff,
   ArrowUpRight,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 
 export type { LucideIcon } from "lucide-react";

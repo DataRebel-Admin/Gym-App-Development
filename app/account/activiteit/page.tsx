@@ -27,6 +27,8 @@ function label(action: string) {
   return ACTION_LABEL[action] ?? action;
 }
 
+export const metadata = { title: "Activiteit" };
+
 export default async function ActivityPage() {
   const me = await getAccountUser();
 

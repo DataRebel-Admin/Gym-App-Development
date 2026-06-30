@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { deriveInviteStatus, INVITE_STATUS_LABEL, type InviteStatus } from "@/lib/members";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
@@ -18,6 +20,23 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   month: "long",
   year: "numeric",
 });
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ userId: string }>;
+}): Promise<Metadata> {
+  const { userId } = await params;
+  const tenant = await getCurrentTenant();
+  const member = tenant
+    ? await prisma.user.findFirst({
+        where: { id: userId, tenantId: tenant.id },
+        select: { name: true, email: true },
+      })
+    : null;
+  const label = member?.name ?? member?.email ?? "Lid";
+  return { title: `${label} | Lid` };
+}
 
 export default async function MemberDetailPage({
   params,

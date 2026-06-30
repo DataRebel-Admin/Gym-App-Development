@@ -7,9 +7,11 @@ import {
   serializeAuditRows,
 } from "@/lib/audit-query";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { AuditFilters } from "@/components/audit/audit-filters";
 import { AuditList } from "@/components/audit/audit-list";
+
+export const metadata = { title: "Audit logs" };
 
 export default async function OwnerAuditPage({
   searchParams,

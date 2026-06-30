@@ -1,4 +1,5 @@
 import { requireMember, getAssignedSchema } from "@/lib/member";
+import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import {
   SchemaChecklist,
   type ChecklistItem,
@@ -30,6 +31,8 @@ function toChecklistItem(it: ItemWithRel): ChecklistItem {
   };
 }
 
+export const metadata = { title: "Mijn schema" };
+
 export default async function MemberSchemaPage() {
   const member = await requireMember();
   const assignment = await getAssignedSchema(member.id, member.tenantId);
@@ -55,14 +58,17 @@ export default async function MemberSchemaPage() {
   const multiDay = days.length > 1;
 
   return (
-    <div className="flex flex-1 flex-col gap-5 px-5 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-          {schema.name}
-        </h1>
-        {schema.description ? (
-          <p className="mt-1 text-sm text-neutral-500">{schema.description}</p>
-        ) : null}
+    <Fullscreenable className="flex flex-1 flex-col gap-5 px-5 py-8">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+            {schema.name}
+          </h1>
+          {schema.description ? (
+            <p className="mt-1 text-sm text-neutral-500">{schema.description}</p>
+          ) : null}
+        </div>
+        <FullscreenButton />
       </div>
 
       {multiDay ? (
@@ -86,6 +92,6 @@ export default async function MemberSchemaPage() {
       >
         ⬇ Download als PDF
       </a>
-    </div>
+    </Fullscreenable>
   );
 }

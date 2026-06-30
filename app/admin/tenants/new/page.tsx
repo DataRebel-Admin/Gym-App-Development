@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { TenantCreateForm } from "./tenant-create-form";
 
+export const metadata = { title: "Nieuwe tenant" };
+
 export default async function NewTenantPage() {
   await requireSuperadmin();
 

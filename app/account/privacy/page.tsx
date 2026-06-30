@@ -6,6 +6,8 @@ import { requestAccountDeletion } from "../actions";
 
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" });
 
+export const metadata = { title: "Privacy" };
+
 export default async function PrivacyPage() {
   const user = await getAccountUser();
   const consents =

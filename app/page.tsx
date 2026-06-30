@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
+export const metadata = { title: "Welkom" };
+
 export default async function Home() {
   // Na login landt de magic link hier; stuur door op basis van rol.
   const session = await auth();

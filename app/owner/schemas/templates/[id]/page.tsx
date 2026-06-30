@@ -1,11 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { deleteTemplate, duplicateTemplate } from "../../actions";
 import { AssignMembersForm } from "./assign-members";
 import { ConfirmButton } from "@/components/ui/confirm-button";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const tenant = await getCurrentTenant();
+  const template = tenant
+    ? await prisma.workoutTemplate.findFirst({
+        where: { id, tenantId: tenant.id, isLibrary: true },
+        select: { name: true },
+      })
+    : null;
+  return { title: template ? `${template.name} | Sjabloon` : "Sjabloon" };
+}
 
 export default async function TemplateEditPage({
   params,

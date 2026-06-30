@@ -236,6 +236,19 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
   ouder dan `AUDIT_RETENTION_DAYS` (default 365) naar `./audit-archive/*.csv` en verwijdert ze.
   In productie als cron-stap draaien (zoals `db:rls`).
 
+### Paginatitels & favicon (Metadata API)
+
+- **Centraal** via Next's Metadata API. `lib/metadata.ts` (`rootMetadata`) wordt als
+  `generateMetadata` vanuit `app/layout.tsx` gebruikt en zet één `title.template`:
+  `"%s | <tenant> · GymRebel"` (whitelabel — suffix volgt `tenant.name`; zonder tenant alleen
+  `GymRebel`). **Nieuwe pagina = één regel**: `export const metadata = { title: "Leden" };`
+  (statisch) of een `generateMetadata` die `{ title: "<naam> | <context>" }` teruggeeft
+  (dynamisch, bijv. `"Jan de Vries | Lid"`). Next wikkelt dat automatisch in het sjabloon.
+  Niet de suffix per pagina hardcoden.
+- **Favicon** komt ook uit `rootMetadata`: `tenant.faviconUrl` → anders `tenant.logoUrl` →
+  anders het bestand `app/favicon.ico`. Per request (per tenant) server-rendered, dus wisselt
+  mee bij tenant-switch.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,

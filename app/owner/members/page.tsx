@@ -60,6 +60,8 @@ function buildQuery(base: Record<string, string | undefined>, overrides: Record<
   return s ? `?${s}` : "";
 }
 
+export const metadata = { title: "Leden" };
+
 export default async function OwnerMembersPage({
   searchParams,
 }: {

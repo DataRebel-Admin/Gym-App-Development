@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOwner } from "@/lib/owner";
 import { getMachineInsights } from "@/lib/insights";
 import { SectionHeading } from "@/components/ui/section-heading";
+import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import {
   TableWrap,
   Table,
@@ -33,6 +34,8 @@ function Trend({ pct }: { pct: number | null }) {
   );
 }
 
+export const metadata = { title: "Inzichten" };
+
 export default async function InsightsPage({
   searchParams,
 }: {
@@ -45,25 +48,28 @@ export default async function InsightsPage({
   const rows = await getMachineInsights(owner.tenantId, period);
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
+    <Fullscreenable className="flex flex-col gap-6 px-6 py-8">
       <SectionHeading
         title="Inzichten"
         description="Machinegebruik en trends over de gekozen periode."
         action={
-          <div className="flex gap-1 rounded-xl border border-border bg-surface-0 p-1 text-sm">
-            {PERIODS.map((p) => (
-              <Link
-                key={p}
-                href={`/owner/insights?period=${p}`}
-                className={`rounded-lg px-3 py-1 font-medium transition-colors ${
-                  p === period
-                    ? "bg-surface-1 text-neutral-900 shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-900"
-                }`}
-              >
-                {p} dagen
-              </Link>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 rounded-xl border border-border bg-surface-0 p-1 text-sm">
+              {PERIODS.map((p) => (
+                <Link
+                  key={p}
+                  href={`/owner/insights?period=${p}`}
+                  className={`rounded-lg px-3 py-1 font-medium transition-colors ${
+                    p === period
+                      ? "bg-surface-1 text-neutral-900 shadow-sm"
+                      : "text-neutral-500 hover:text-neutral-900"
+                  }`}
+                >
+                  {p} dagen
+                </Link>
+              ))}
+            </div>
+            <FullscreenButton />
           </div>
         }
       />
@@ -103,6 +109,6 @@ export default async function InsightsPage({
         Trend vergelijkt de gekozen periode met de voorgaande periode van gelijke
         lengte. Cijfers verversen elke 5 minuten.
       </p>
-    </div>
+    </Fullscreenable>
   );
 }

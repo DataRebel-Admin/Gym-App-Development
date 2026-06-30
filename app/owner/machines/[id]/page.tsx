@@ -1,12 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { blobConfigured } from "@/lib/blob";
 import { machinePublicUrl } from "@/lib/machine";
 import { MachineForm } from "../machine-form";
 import { deleteMachine } from "../actions";
 import { DownloadQrButton } from "@/components/ui/download-qr-button";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const tenant = await getCurrentTenant();
+  const machine = tenant
+    ? await prisma.machine.findFirst({
+        where: { id, tenantId: tenant.id },
+        select: { name: true },
+      })
+    : null;
+  return { title: machine ? `${machine.name} | Apparaat` : "Apparaat" };
+}
 
 export default async function MachineDetailPage({
   params,

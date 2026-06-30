@@ -26,6 +26,8 @@ const ROLE_TONE: Record<string, BadgeTone> = {
   TENANT_MEMBER: "neutral",
 };
 
+export const metadata = { title: "Gebruikers" };
+
 export default async function AdminUsersPage({
   searchParams,
 }: {

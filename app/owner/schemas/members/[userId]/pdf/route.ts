@@ -31,7 +31,15 @@ export async function GET(
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: owner.tenantId },
-    select: { name: true, accentColor: true, logoUrl: true },
+    select: {
+      name: true,
+      accentColor: true,
+      secondaryColor: true,
+      logoUrl: true,
+      website: true,
+      contactEmail: true,
+      contactPhone: true,
+    },
   });
 
   const days: SchemaPdfDay[] = tpl.days.map((d) => ({
@@ -42,6 +50,7 @@ export async function GET(
       sets: it.sets,
       reps: it.reps,
       weightKg: it.weightKg,
+      restSeconds: it.restSeconds,
       notes: it.notes,
     })),
   }));
@@ -49,10 +58,17 @@ export async function GET(
   const pdf = await buildSchemaPdf({
     tenantName: tenant?.name ?? "GymRebel",
     accentColor: tenant?.accentColor ?? null,
+    secondaryColor: tenant?.secondaryColor ?? null,
     logoUrl: tenant?.logoUrl ?? null,
     memberName: member.name ?? member.email ?? "Lid",
+    trainerName: owner.name ?? null,
     schemaName: tpl.name,
+    intro: tpl.description,
     version: VERSION_FMT.format(tpl.updatedAt),
+    createdAt: tpl.createdAt,
+    website: tenant?.website ?? null,
+    contactEmail: tenant?.contactEmail ?? null,
+    contactPhone: tenant?.contactPhone ?? null,
     days,
   });
 

@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import {
@@ -8,6 +10,23 @@ import {
   startEmptySchema,
   removeAssignment,
 } from "../../actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ userId: string }>;
+}): Promise<Metadata> {
+  const { userId } = await params;
+  const tenant = await getCurrentTenant();
+  const member = tenant
+    ? await prisma.user.findFirst({
+        where: { id: userId, tenantId: tenant.id, role: "TENANT_MEMBER" },
+        select: { name: true, email: true },
+      })
+    : null;
+  const label = member?.name ?? member?.email ?? "Lid";
+  return { title: `${label} | Schema` };
+}
 
 export default async function MemberSchemaPage({
   params,

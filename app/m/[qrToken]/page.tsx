@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Markdown from "react-markdown";
 import { prisma } from "@/lib/db";
@@ -5,6 +6,22 @@ import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { machineTypeLabel } from "@/lib/machine";
 import { addMachineToSchema } from "./actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ qrToken: string }>;
+}): Promise<Metadata> {
+  const { qrToken } = await params;
+  const tenant = await getCurrentTenant();
+  const machine = tenant
+    ? await prisma.machine.findFirst({
+        where: { qrToken, tenantId: tenant.id },
+        select: { name: true },
+      })
+    : null;
+  return { title: machine ? `${machine.name} | Apparaat` : "Apparaat" };
+}
 
 export default async function MachinePublicPage({
   params,

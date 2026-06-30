@@ -9,6 +9,8 @@ function startOfMonth(): Date {
   return d;
 }
 
+export const metadata = { title: "Instellingen" };
+
 export default async function SettingsPage() {
   const owner = await requireOwner();
 

@@ -1,10 +1,28 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { AddSessionForm } from "../class-forms";
 import { deleteClass, deleteSession } from "../actions";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const tenant = await getCurrentTenant();
+  const groupClass = tenant
+    ? await prisma.groupClass.findFirst({
+        where: { id, tenantId: tenant.id },
+        select: { name: true },
+      })
+    : null;
+  return { title: groupClass ? `${groupClass.name} | Les` : "Les" };
+}
 
 export default async function ClassDetailPage({
   params,

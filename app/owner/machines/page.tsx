@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { MachinesTable, type MachineRow } from "./machines-table";
 
+export const metadata = { title: "Apparatuur" };
+
 export default async function MachinesPage() {
   const owner = await requireOwner();
 

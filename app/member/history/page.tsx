@@ -8,6 +8,8 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   month: "short",
 });
 
+export const metadata = { title: "Geschiedenis" };
+
 export default async function MemberHistoryPage() {
   const member = await requireMember();
   const { sessions, series } = await getMemberHistory(member.id, member.tenantId);

@@ -12,6 +12,8 @@ import {
   Td,
 } from "@/components/ui/table";
 
+export const metadata = { title: "Tenants" };
+
 export default async function TenantsPage() {
   await requireSuperadmin();
 

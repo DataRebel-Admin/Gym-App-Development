@@ -18,6 +18,8 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+export const metadata = { title: "Dashboard" };
+
 export default async function AdminDashboard() {
   await requireSuperadmin();
 

@@ -86,6 +86,71 @@ export async function saveSet(
   return { ok: true };
 }
 
+const noteSchema = z.object({
+  sessionId: z.string().min(1),
+  exerciseId: z.string().min(1),
+  notes: z.string().max(500),
+});
+
+/**
+ * Sla een opmerking bij een oefening op. De notitie hangt aan de laagste
+ * bestaande set-entry van de oefening in deze sessie; bestaat die nog niet, dan
+ * komt er één lege entry (reps/gewicht 0). Zo blijft de notitie behouden los van
+ * het afvinken van losse sets.
+ */
+export async function saveExerciseNote(
+  input: z.infer<typeof noteSchema>
+): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const parsed = noteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, exerciseId, notes } = parsed.data;
+
+  const session = await prisma.workoutSession.findFirst({
+    where: {
+      id: sessionId,
+      tenantId: member.tenantId,
+      userId: member.id,
+      endedAt: null,
+    },
+    select: { id: true },
+  });
+  if (!session) return { ok: false };
+
+  const exercise = await prisma.exercise.findFirst({
+    where: { id: exerciseId, tenantId: member.tenantId },
+    select: { id: true },
+  });
+  if (!exercise) return { ok: false };
+
+  const existing = await prisma.performanceEntry.findFirst({
+    where: { sessionId, exerciseId },
+    orderBy: { setNumber: "asc" },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.performanceEntry.update({
+      where: { id: existing.id },
+      data: { notes },
+    });
+  } else {
+    await prisma.performanceEntry.create({
+      data: {
+        tenantId: member.tenantId,
+        sessionId,
+        exerciseId,
+        setNumber: 1,
+        reps: 0,
+        weightKg: 0,
+        notes,
+      },
+    });
+  }
+
+  return { ok: true };
+}
+
 /** Sluit de sessie af (zet endedAt) en ga naar de historie. */
 export async function endSession(formData: FormData) {
   const member = await requireMember();

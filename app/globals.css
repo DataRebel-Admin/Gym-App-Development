@@ -239,6 +239,29 @@ body {
   animation: shimmer 1.6s infinite;
 }
 
+/* Volledig-scherm container (zie components/ui/fullscreen.tsx).
+   Geeft het element in fullscreen de app-achtergrond i.p.v. de zwarte
+   browser-default, maakt het scrollbaar en vult de hele hoogte. */
+.fs-target:fullscreen,
+.fs-target:-webkit-full-screen {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--surface-0);
+  color: var(--foreground);
+}
+/* Subtiele intro bij het in-schakelen (reduced-motion neutraliseert dit). */
+.fs-target:fullscreen {
+  animation: fs-in var(--dur, 0.22s) var(--ease-out, ease-out);
+}
+@keyframes fs-in {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Custom scrollbar */
 * {
   scrollbar-width: thin;

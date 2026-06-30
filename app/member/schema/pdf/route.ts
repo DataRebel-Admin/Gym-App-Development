@@ -29,6 +29,7 @@ export async function GET() {
       sets: it.sets,
       reps: it.reps,
       weightKg: it.weightKg,
+      restSeconds: it.restSeconds,
       notes: it.notes,
     })),
   }));
@@ -41,11 +42,17 @@ export async function GET() {
   const pdf = await buildSchemaPdf({
     tenantName: tenant?.name ?? "GymRebel",
     accentColor: tenant?.accentColor ?? null,
+    secondaryColor: tenant?.secondaryColor ?? null,
     logoUrl: tenant?.logoUrl ?? null,
     memberName: member.name ?? member.email ?? "Lid",
     schemaName: tpl.name,
+    intro: tpl.description,
     version: VERSION_FMT.format(tpl.updatedAt),
+    createdAt: tpl.createdAt,
     onlineUrl,
+    website: tenant?.website ?? null,
+    contactEmail: tenant?.contactEmail ?? null,
+    contactPhone: tenant?.contactPhone ?? null,
     days,
   });
 

@@ -2,6 +2,8 @@ import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
 import { oauthEnabled } from "@/lib/oauth";
 
+export const metadata = { title: "Inloggen" };
+
 export default async function LoginPage() {
   // Tenant komt uit de proxy-header (subdomein of ?tenant), niet rechtstreeks
   // uit de query — zo werkt zowel productie (subdomein) als dev (?tenant).

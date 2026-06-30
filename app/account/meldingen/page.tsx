@@ -1,6 +1,8 @@
 import { getAccountUser } from "@/lib/account";
 import { NotificationsForm } from "./notifications-form";
 
+export const metadata = { title: "Meldingen" };
+
 export default async function NotificationsPage() {
   const user = await getAccountUser();
   const initial =

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { enroll, unenroll } from "./actions";
 
+export const metadata = { title: "Rooster" };
+
 export default async function MemberRoosterPage() {
   const member = await requireMember();
 

@@ -1,9 +1,9 @@
-import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getTheme } from "@/lib/theme";
+import { rootMetadata } from "@/lib/metadata";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -26,10 +26,8 @@ const displayFont = Space_Grotesk({
   weight: ["500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "GymRebel",
-  description: "Slimmer trainen in jouw sportschool.",
-};
+// Titel-sjabloon + dynamische favicon (per tenant). Zie lib/metadata.ts.
+export const generateMetadata = rootMetadata;
 
 const LOCALE_LANG: Record<string, string> = { NL: "nl", EN: "en", FY: "fy" };
 
@@ -66,9 +64,6 @@ export default async function RootLayout({
       data-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
-      {tenant?.faviconUrl ? (
-        <link rel="icon" href={tenant.faviconUrl} />
-      ) : null}
       <body className="min-h-full flex flex-col" style={themeStyle}>
         <MotionProvider>
           <ToastProvider>

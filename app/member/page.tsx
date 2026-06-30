@@ -4,6 +4,8 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { AssistantWidget } from "@/components/assistant-widget";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 
+export const metadata = { title: "Mijn training" };
+
 export default async function MemberHome() {
   const member = await requireMember();
   const [assignment, tenant] = await Promise.all([

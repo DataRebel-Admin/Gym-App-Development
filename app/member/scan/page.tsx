@@ -1,6 +1,8 @@
 import { requireMember } from "@/lib/member";
 import { QrScanner } from "@/components/qr-scanner";
 
+export const metadata = { title: "Scannen" };
+
 export default async function ScanPage() {
   await requireMember();
 

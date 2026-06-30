@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -41,6 +42,19 @@ function Card({
       {children}
     </section>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const tenant = await prisma.tenant.findFirst({
+    where: { id, deletedAt: null },
+    select: { name: true },
+  });
+  return { title: tenant ? `${tenant.name} | Tenant` : "Tenant" };
 }
 
 export default async function TenantDetailPage({

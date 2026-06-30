@@ -4,6 +4,8 @@ import { requireOwner } from "@/lib/owner";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
 
+export const metadata = { title: "Rooster" };
+
 export default async function RoosterPage() {
   const owner = await requireOwner();
 
