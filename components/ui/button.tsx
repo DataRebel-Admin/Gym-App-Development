@@ -1,45 +1,18 @@
 "use client";
 
 import { m } from "motion/react";
-import { cn } from "@/lib/cn";
 import { tap } from "@/components/motion/variants";
+import {
+  buttonClasses,
+  type ButtonVariant,
+  type ButtonSize,
+} from "@/components/ui/button-classes";
 
-export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "outline"
-  | "ghost"
-  | "danger";
-export type ButtonSize = "sm" | "md" | "lg";
-
-const base =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-ring disabled:pointer-events-none disabled:opacity-50 select-none";
-
-const variants: Record<ButtonVariant, string> = {
-  primary:
-    "bg-accent-gradient text-accent-foreground shadow-sm hover:shadow-accent",
-  secondary: "bg-neutral-900 text-white hover:bg-neutral-700",
-  outline:
-    "border border-border-strong bg-surface-1 text-neutral-900 hover:bg-neutral-50",
-  ghost: "text-neutral-700 hover:bg-neutral-100",
-  danger: "bg-red-600 text-white hover:bg-red-700",
-};
-
-const sizes: Record<ButtonSize, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
-};
-
-/** Gedeelde knop-klassen — ook bruikbaar voor <Link>-CTA's. */
-export function buttonClasses(opts?: {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  className?: string;
-}) {
-  const { variant = "primary", size = "md", className } = opts ?? {};
-  return cn(base, variants[variant], sizes[size], className);
-}
+export {
+  buttonClasses,
+  type ButtonVariant,
+  type ButtonSize,
+} from "@/components/ui/button-classes";
 
 export function Button({
   variant = "primary",

@@ -7,6 +7,7 @@ import { UserMenu } from "@/components/nav/user-menu";
 import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { getUserTenants } from "@/lib/tenants";
 import { PageTransition } from "@/components/motion/page-transition";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const LINKS: TopNavLink[] = [
   { href: "/owner", label: "Dashboard", iconPath: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" },
@@ -60,10 +61,13 @@ export default async function OwnerLayout({
             <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
             <TopNav links={LINKS} rootHref="/owner" layoutId="owner-nav-active" />
           </div>
-          <UserMenu
-            name={session.user.name ?? null}
-            email={session.user.email ?? null}
-          />
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
+            <UserMenu
+              name={session.user.name ?? null}
+              email={session.user.email ?? null}
+            />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1">

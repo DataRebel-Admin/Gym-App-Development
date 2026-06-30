@@ -1,20 +1,28 @@
 import { cn } from "@/lib/cn";
 
+export type CardVariant = "default" | "elevated" | "glass" | "interactive";
+
+const cardVariants: Record<CardVariant, string> = {
+  default: "border border-border bg-surface-1 shadow-sm",
+  elevated: "border border-border bg-surface-1 shadow-md",
+  glass: "border border-border/70 glass shadow-md",
+  interactive:
+    "border border-border bg-surface-1 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-border-strong",
+};
+
 /**
  * Basale kaart-primitief. Server-compatibel (geen client-JS).
- * Voor hover-lift met animatie: gebruik MotionCard (client) waar nodig.
+ * `variant`: default | elevated | glass | interactive (hover-lift).
  */
 export function Card({
   className,
+  variant = "default",
   children,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: { variant?: CardVariant } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn(
-        "rounded-2xl border border-border bg-surface-1 shadow-sm",
-        className
-      )}
+      className={cn("rounded-2xl", cardVariants[variant], className)}
       {...props}
     >
       {children}

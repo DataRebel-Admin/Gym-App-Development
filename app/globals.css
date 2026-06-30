@@ -69,6 +69,51 @@
   --dur-slow: 320ms;
 
   --ring: var(--accent-ring);
+
+  --glass: color-mix(in srgb, var(--surface-1) 70%, transparent);
+  --shimmer-tint: rgb(255 255 255 / 0.6);
+}
+
+/*
+ * Donker thema (premium, default). Wordt geactiveerd via data-theme="dark" op
+ * <html> (server-side gezet uit de cookie → no-flash). De neutral-ramp wordt
+ * geïnverteerd zodat bestaande text-neutral-900 / bg-neutral-100-klassen
+ * automatisch correct flippen. Accenten blijven de tenant-kleur (poppen op donker).
+ */
+:root[data-theme="dark"] {
+  --background: #0a0b0d;
+  --foreground: #f4f4f5;
+
+  /* Geïnverteerde neutral-ramp: 900 = bijna-wit (tekst), 50/100 = donkere vlakken */
+  --neutral-50: #1a1c20;
+  --neutral-100: #202329;
+  --neutral-200: #2a2e35;
+  --neutral-300: #3a3f47;
+  --neutral-400: #71757d;
+  --neutral-500: #9ca3af;
+  --neutral-700: #d4d4d8;
+  --neutral-900: #f4f4f5;
+
+  --surface-0: #0a0b0d;
+  --surface-1: #131418;
+  --surface-2: #1b1d22;
+  --border: #272a31;
+  --border-strong: #363a42;
+  --muted-foreground: #9ca3af;
+
+  --tenant-secondary: color-mix(in srgb, var(--tenant-accent) 70%, #ffffff);
+  --accent-soft: color-mix(in srgb, var(--tenant-accent) 22%, transparent);
+  --accent-soft-strong: color-mix(in srgb, var(--tenant-accent) 34%, transparent);
+  --accent-ring: color-mix(in srgb, var(--tenant-accent) 55%, transparent);
+
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 6px 18px -4px rgb(0 0 0 / 0.55), 0 2px 8px -2px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 18px 40px -10px rgb(0 0 0 / 0.65), 0 8px 16px -8px rgb(0 0 0 / 0.5);
+  --shadow-accent: 0 10px 36px -8px color-mix(in srgb, var(--tenant-accent) 55%, transparent);
+
+  --glass: color-mix(in srgb, var(--surface-1) 62%, transparent);
+  --shimmer-tint: rgb(255 255 255 / 0.06);
 }
 
 @theme inline {
@@ -116,11 +161,33 @@
   --font-display: var(--font-display), var(--font-geist-sans);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 body {
   background: var(--surface-0);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color var(--dur) var(--ease-out),
+    color var(--dur) var(--ease-out);
+}
+
+/* Glas-effect (header/overlays): translucent surface + blur */
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+/* Radiale accent-gloed achter hero's/secties */
+.bg-glow {
+  background: radial-gradient(
+    120% 120% at 50% 0%,
+    color-mix(in srgb, var(--tenant-accent) 22%, transparent) 0%,
+    transparent 60%
+  );
 }
 
 /* Display-typografie: vette, strakke headings */
@@ -166,7 +233,7 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    rgb(255 255 255 / 0.55),
+    var(--shimmer-tint),
     transparent
   );
   animation: shimmer 1.6s infinite;

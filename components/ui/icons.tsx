@@ -1,0 +1,53 @@
+/**
+ * Gecureerde icon-set (lucide-react) — één plek zodat stijl/keuze consistent
+ * blijft en eenvoudig te vervangen is. Gebruik: `import { Dumbbell } from "@/components/ui/icons"`.
+ * Standaard stroke 1.9 (sluit aan op TopNav/MemberNav). Override met className/size.
+ */
+export {
+  Dumbbell,
+  Activity,
+  Flame,
+  Users,
+  UserPlus,
+  Calendar,
+  CalendarDays,
+  ClipboardList,
+  LayoutDashboard,
+  LineChart,
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  Settings,
+  ScrollText,
+  QrCode,
+  Dumbbell as Weight,
+  Zap,
+  Heart,
+  Timer,
+  Trophy,
+  Target,
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Filter,
+  Download,
+  ChevronRight,
+  ChevronLeft,
+  ChevronDown,
+  X,
+  Check,
+  LogOut,
+  Sun,
+  Moon,
+  Bell,
+  MapPin,
+  Clock,
+  Sparkles,
+  GripVertical,
+  Eye,
+  EyeOff,
+  ArrowUpRight,
+} from "lucide-react";
+
+export type { LucideIcon } from "lucide-react";

@@ -7,6 +7,7 @@ import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { getUserTenants } from "@/lib/tenants";
 import { MemberNav } from "@/components/nav/member-nav";
 import { PageTransition } from "@/components/motion/page-transition";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function MemberLayout({
   children,
@@ -47,10 +48,13 @@ export default async function MemberLayout({
         </Link>
         <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
         </div>
-        <UserMenu
-          name={session.user.name ?? null}
-          email={session.user.email ?? null}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
+          <UserMenu
+            name={session.user.name ?? null}
+            email={session.user.email ?? null}
+          />
+        </div>
       </header>
 
       <main className="flex flex-1 flex-col pb-24">
