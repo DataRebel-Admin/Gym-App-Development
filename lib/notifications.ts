@@ -77,3 +77,91 @@ export async function shouldNotifyByEmail(
   });
   return prefAllows(user?.notificationPrefs, category, channel);
 }
+
+// --- In-app meldingen --------------------------------------------------------
+
+type InAppInput = {
+  userId: string;
+  tenantId: string | null;
+  category: NotificationCategory;
+  title: string;
+  body?: string | null;
+  link?: string | null;
+};
+
+/**
+ * Maakt direct een in-app melding aan, **zonder** voorkeurs-check — voor
+ * verzendpaden die de prefs al hebben opgehaald (gate dan zelf met `prefAllows`,
+ * kanaal "inApp"). Faalt nooit hard.
+ */
+export async function createInAppNotification(input: InAppInput): Promise<void> {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: input.userId,
+        tenantId: input.tenantId,
+        category: input.category,
+        title: input.title,
+        body: input.body ?? null,
+        link: input.link ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("[notifications] kon in-app melding niet aanmaken:", err);
+  }
+}
+
+/**
+ * Maakt een in-app melding aan mits de gebruiker het in-app-kanaal voor deze
+ * categorie aan heeft staan. Voor call-sites die de prefs nog niet hebben.
+ */
+export async function notifyInApp(input: InAppInput): Promise<void> {
+  if (!(await shouldNotify(input.userId, input.category, "inApp"))) return;
+  await createInAppNotification(input);
+}
+
+export type NotificationItem = {
+  id: string;
+  category: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read: boolean;
+  createdAt: string;
+};
+
+/** Ongelezen-teller + recente meldingen voor de bel in de navigatie. */
+export async function getNotificationOverview(
+  userId: string,
+  take = 15
+): Promise<{ unreadCount: number; items: NotificationItem[] }> {
+  const [unreadCount, rows] = await Promise.all([
+    prisma.notification.count({ where: { userId, readAt: null } }),
+    prisma.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        id: true,
+        category: true,
+        title: true,
+        body: true,
+        link: true,
+        readAt: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+  return {
+    unreadCount,
+    items: rows.map((r) => ({
+      id: r.id,
+      category: r.category,
+      title: r.title,
+      body: r.body,
+      link: r.link,
+      read: r.readAt !== null,
+      createdAt: r.createdAt.toISOString(),
+    })),
+  };
+}

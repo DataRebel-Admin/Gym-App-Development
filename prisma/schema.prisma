@@ -92,6 +92,29 @@ model Tenant {
   groupClasses      GroupClass[]
   classSessions     ClassSession[]
   classEnrollments  ClassEnrollment[]
+  notifications     Notification[]
+}
+
+// In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een
+// SUPERADMIN (zonder tenant) een melding kan krijgen. Beveiliging loopt via de
+// verplichte `userId`-filter in alle queries (zoals de andere user-scoped data).
+model Notification {
+  id        String    @id @default(cuid())
+  tenantId  String?
+  userId    String
+  category  String // bv. "schemas", "security" — matcht een meldingscategorie
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@index([tenantId])
 }
 
 // Eén rij per AI-assistent-vraag — voor rate-limiting (per lid/dag) en
@@ -203,6 +226,7 @@ model User {
   accounts         Account[] // Auth.js (OAuth, later)
   authSessions     Session[] // Auth.js DB-sessies (we gebruiken jwt, maar model vereist)
   userSessions     UserSession[] // device/sessie-registratie
+  notifications    Notification[]
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.

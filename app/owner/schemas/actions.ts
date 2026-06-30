@@ -11,7 +11,7 @@ import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { schemaAssignedMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
-import { prefAllows } from "@/lib/notifications";
+import { prefAllows, createInAppNotification } from "@/lib/notifications";
 
 export type SchemaSaveState = { error?: string; ok?: boolean };
 
@@ -37,23 +37,35 @@ async function notifySchemaAssigned(
       loadTenantBranding(tenantId),
       prisma.user.findMany({
         where: { id: { in: userIds }, tenantId, role: "TENANT_MEMBER", active: true },
-        select: { email: true, name: true, notificationPrefs: true },
+        select: { id: true, email: true, name: true, notificationPrefs: true },
       }),
       origin().then((o) => `${o}/member/schema`),
     ]);
     for (const m of members) {
-      // Respecteer de meldingsvoorkeur van het lid (categorie: schema's).
-      if (!prefAllows(m.notificationPrefs, "schemas", "email")) continue;
-      await sendEmail({
-        to: m.email,
-        message: schemaAssignedMessage({
-          branding,
-          recipientName: m.name,
-          schemaName,
-          viewUrl,
-        }),
-        devLink: viewUrl,
-      });
+      // In-app melding (kanaal "inApp") en e-mail (kanaal "email") staan los van
+      // elkaar — respecteer beide voorkeuren onder categorie "schema's".
+      if (prefAllows(m.notificationPrefs, "schemas", "inApp")) {
+        await createInAppNotification({
+          userId: m.id,
+          tenantId,
+          category: "schemas",
+          title: "Nieuw trainingsschema",
+          body: `Je traint nu met '${schemaName}'.`,
+          link: "/member/schema",
+        });
+      }
+      if (prefAllows(m.notificationPrefs, "schemas", "email")) {
+        await sendEmail({
+          to: m.email,
+          message: schemaAssignedMessage({
+            branding,
+            recipientName: m.name,
+            schemaName,
+            viewUrl,
+          }),
+          devLink: viewUrl,
+        });
+      }
     }
   } catch (err) {
     console.error("✗ Schema-toewijzing mail mislukt:", (err as Error).message);

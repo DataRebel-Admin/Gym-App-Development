@@ -4,8 +4,10 @@ import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getUserTenants } from "@/lib/tenants";
 import { getUserBadge } from "@/lib/account";
+import { getNotificationOverview } from "@/lib/notifications";
 import { MemberNav } from "@/components/nav/member-nav";
 import { MemberDrawer } from "@/components/nav/member-drawer";
+import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { MemberOnboarding } from "@/components/member/onboarding";
 
@@ -21,6 +23,7 @@ export default async function MemberLayout({
 
   const tenant = await getCurrentTenant();
   const badge = await getUserBadge(session.user.id);
+  const notifications = await getNotificationOverview(session.user.id);
   const tenants = session.user.email
     ? await getUserTenants(session.user.email)
     : [];
@@ -46,13 +49,19 @@ export default async function MemberLayout({
           )}
           <span className="truncate">{tenant?.name ?? "GymRebel"}</span>
         </Link>
-        <MemberDrawer
-          name={badge?.name ?? session.user.name ?? null}
-          email={badge?.email ?? session.user.email ?? null}
-          image={badge?.image ?? null}
-          tenants={tenants}
-          currentSlug={tenant?.slug ?? null}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          <NotificationBell
+            unreadCount={notifications.unreadCount}
+            items={notifications.items}
+          />
+          <MemberDrawer
+            name={badge?.name ?? session.user.name ?? null}
+            email={badge?.email ?? session.user.email ?? null}
+            image={badge?.image ?? null}
+            tenants={tenants}
+            currentSlug={tenant?.slug ?? null}
+          />
+        </div>
       </header>
 
       <main className="flex flex-1 flex-col pb-24">

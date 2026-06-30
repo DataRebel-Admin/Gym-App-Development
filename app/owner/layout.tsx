@@ -7,6 +7,8 @@ import { UserMenu } from "@/components/nav/user-menu";
 import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { getUserTenants } from "@/lib/tenants";
 import { getUserBadge } from "@/lib/account";
+import { getNotificationOverview } from "@/lib/notifications";
+import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -81,6 +83,7 @@ export default async function OwnerLayout({
 
   const tenant = await getCurrentTenant();
   const badge = await getUserBadge(session.user.id);
+  const notifications = await getNotificationOverview(session.user.id);
   const tenants = session.user.email
     ? await getUserTenants(session.user.email)
     : [];
@@ -112,6 +115,10 @@ export default async function OwnerLayout({
             <OwnerNav entries={NAV} rootHref="/owner" />
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <NotificationBell
+              unreadCount={notifications.unreadCount}
+              items={notifications.items}
+            />
             <ThemeToggle />
             <UserMenu
               name={badge?.name ?? session.user.name ?? null}

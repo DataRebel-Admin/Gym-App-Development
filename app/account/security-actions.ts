@@ -13,7 +13,7 @@ import { passwordStrength } from "@/lib/password-strength";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { passwordChangedMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
-import { prefAllows } from "@/lib/notifications";
+import { prefAllows, createInAppNotification } from "@/lib/notifications";
 
 async function origin(): Promise<string> {
   const h = await headers();
@@ -90,6 +90,18 @@ export async function setPassword(
     } catch (err) {
       console.error("✗ Wachtwoord-melding mislukt:", (err as Error).message);
     }
+  }
+
+  // In-app melding (los van het e-mailkanaal; categorie: beveiliging).
+  if (prefAllows(me.notificationPrefs, "security", "inApp")) {
+    await createInAppNotification({
+      userId: session.id,
+      tenantId: me.tenantId,
+      category: "security",
+      title: "Wachtwoord gewijzigd",
+      body: "Je wachtwoord is zojuist aangepast. Was jij dit niet? Beveilig direct je account.",
+      link: "/account/beveiliging",
+    });
   }
 
   revalidatePath("/account/beveiliging");
