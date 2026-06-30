@@ -53,8 +53,11 @@ export function categoryFromAction(action: string): AuditCategory {
   const prefix = action.split(".")[0];
   switch (prefix) {
     case "user":
+    case "coachnote":
+    case "coach":
       return "members";
     case "schema":
+    case "request":
       return "schemas";
     case "exercise":
       return "exercises";
@@ -138,6 +141,34 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
   "user.invite.accept": {
     category: "members", label: "Uitnodiging geaccepteerd", icon: "🎉", tone: "success",
     sentence: ({ actor }) => `${actor} heeft zich geactiveerd`,
+  },
+  "user.permissions.change": {
+    category: "members", label: "Rechten aangepast", icon: "🛡️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de rechten van ${s(meta, "email") ?? "een medewerker"} aangepast`,
+  },
+
+  // --- Coachnotities ---
+  "coachnote.add": {
+    category: "members", label: "Coachnotitie toegevoegd", icon: "📝", tone: "success",
+    sentence: ({ actor }) => `${actor} heeft een coachnotitie toegevoegd`,
+  },
+  "coachnote.update": {
+    category: "members", label: "Coachnotitie bijgewerkt", icon: "✏️", tone: "accent",
+    sentence: ({ actor }) => `${actor} heeft een coachnotitie bijgewerkt`,
+  },
+  "coachnote.delete": {
+    category: "members", label: "Coachnotitie verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor }) => `${actor} heeft een coachnotitie verwijderd`,
+  },
+  "coach.assign": {
+    category: "members", label: "Coach toegewezen", icon: "🤝", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "member") ?? "een lid"} aan een coach toegewezen`,
+  },
+  "coach.unassign": {
+    category: "members", label: "Coach-koppeling verwijderd", icon: "✂️", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft een coach-koppeling verwijderd`,
   },
 
   // --- Trainingsschema's ---
@@ -242,6 +273,27 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "schemas", label: "Wijziging in master toegepast", icon: "⬆️", tone: "success",
     sentence: ({ actor, meta }) =>
       `${actor} heeft een veelvoorkomende aanpassing in master '${s(meta, "name") ?? ""}' toegepast`.trim(),
+  },
+
+  // --- Schema-aanvragen (sporter → coach) ---
+  "request.submit": {
+    category: "schemas", label: "Schema-aanvraag ingediend", icon: "📨", tone: "accent",
+    sentence: ({ meta }) =>
+      `${s(meta, "member") ?? "Een lid"} heeft een nieuw trainingsschema aangevraagd`,
+  },
+  "request.status.change": {
+    category: "schemas", label: "Aanvraagstatus gewijzigd", icon: "🔁", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een schema-aanvraag op '${s(meta, "status") ?? "?"}' gezet`,
+  },
+  "request.schema.link": {
+    category: "schemas", label: "Aanvraag gekoppeld aan schema", icon: "🔗", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een schema-aanvraag van ${s(meta, "member") ?? "een lid"} afgerond met een schema`,
+  },
+  "request.cancel": {
+    category: "schemas", label: "Schema-aanvraag geannuleerd", icon: "✖️", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft een schema-aanvraag geannuleerd`,
   },
 
   // --- Oefeningen ---

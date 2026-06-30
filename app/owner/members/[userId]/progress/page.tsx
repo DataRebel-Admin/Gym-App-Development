@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { MemberProfileTabs } from "@/components/members/profile-tabs";
 import { ProgressDeltas } from "@/components/progress/progress-deltas";
@@ -28,7 +28,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ userId: string }>;
 }): Promise<Metadata> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const { userId } = await params;
   const member = await loadMember(owner.tenantId, userId);
   const label = member?.name ?? member?.email ?? "Lid";
@@ -40,7 +40,7 @@ export default async function MemberProgressPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const { userId } = await params;
   const member = await loadMember(owner.tenantId, userId);
   if (!member) notFound();
@@ -70,7 +70,12 @@ export default async function MemberProgressPage({
         <p className="mt-1 text-sm text-neutral-500">Voortgang & lichaamsmetingen</p>
       </div>
 
-      <MemberProfileTabs userId={userId} active="progress" />
+      <MemberProfileTabs
+        userId={userId}
+        active="progress"
+        canMeasure
+        canNotes={owner.permissions.has("coachnotes:manage")}
+      />
 
       <div className="flex flex-wrap gap-2">
         <Link href={`${baseHref}/new`} className={buttonClasses({ size: "md" })}>

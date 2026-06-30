@@ -1,9 +1,12 @@
 import type { CSSProperties } from "react";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getResolvedTheme } from "@/lib/theme";
 import { rootMetadata } from "@/lib/metadata";
+import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -29,16 +32,16 @@ const displayFont = Space_Grotesk({
 // Titel-sjabloon + dynamische favicon (per tenant). Zie lib/metadata.ts.
 export const generateMetadata = rootMetadata;
 
-const LOCALE_LANG: Record<string, string> = { NL: "nl", EN: "en", FY: "fy" };
-
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [tenant, theme] = await Promise.all([
+  const [tenant, theme, locale, messages] = await Promise.all([
     getCurrentTenant(),
     getResolvedTheme(),
+    getLocale(),
+    getMessages(),
   ]);
 
   const tenantInfo: TenantInfo | null = tenant
@@ -61,18 +64,23 @@ export default async function RootLayout({
   const themeStyle =
     Object.keys(vars).length > 0 ? (vars as CSSProperties) : undefined;
 
+  // `<html lang>` volgt de actieve UI-locale (niet langer de tenant-taal).
+  const htmlLang = isLocale(locale) ? LOCALE_META[locale].bcp47 : "nl-NL";
+
   return (
     <html
-      lang={LOCALE_LANG[tenant?.locale ?? "NL"] ?? "nl"}
+      lang={htmlLang}
       data-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" style={themeStyle}>
-        <MotionProvider>
-          <ToastProvider>
-            <TenantProvider tenant={tenantInfo}>{children}</TenantProvider>
-          </ToastProvider>
-        </MotionProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <MotionProvider>
+            <ToastProvider>
+              <TenantProvider tenant={tenantInfo}>{children}</TenantProvider>
+            </ToastProvider>
+          </MotionProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

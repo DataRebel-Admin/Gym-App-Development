@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { getAssignedSchema } from "@/lib/member";
 import { buildSchemaPdf, type SchemaPdfDay } from "@/lib/schema-pdf";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
@@ -15,7 +15,7 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const { userId } = await params;
 
   const member = await prisma.user.findFirst({

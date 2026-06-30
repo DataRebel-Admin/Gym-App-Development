@@ -22,6 +22,7 @@ datasource db {
 enum Role {
   SUPERADMIN // platform-beheerder, transcendeert tenants (tenantId == null)
   TENANT_ADMIN // sportschooleigenaar/beheerder (voorheen OWNER)
+  TENANT_STAFF // sportschoolmedewerker/coach (permissie-gestuurd, tenant-gebonden)
   TENANT_MEMBER // sporter (voorheen MEMBER)
 }
 
@@ -76,6 +77,26 @@ enum WorkoutTemplateKind {
   DAY
 }
 
+// Doel van een schema-aanvraag door een sporter.
+enum SchemaRequestGoal {
+  MUSCLE // spiermassa opbouwen
+  WEIGHT_LOSS // afvallen
+  CONDITION // conditie verbeteren
+  REHAB // revalidatie
+  STRENGTH // krachttraining
+  OTHER // anders (zie beschrijving)
+}
+
+// Levenscyclus van een schema-aanvraag (sporter → coach → oplevering).
+enum SchemaRequestStatus {
+  NEW // ingediend, nog niet opgepakt
+  IN_PROGRESS // coach is ermee bezig
+  SCHEMA_CREATED // schema gemaakt, nog niet afgerond
+  COMPLETED // afgerond (schema staat klaar voor het lid)
+  REJECTED // afgewezen door de coach
+  CANCELLED // geannuleerd door het lid
+}
+
 model Tenant {
   id          String   @id @default(cuid())
   slug        String   @unique // subdomein, bv. "fitpower"
@@ -123,6 +144,9 @@ model Tenant {
   measurements      Measurement[]
   measurementPhotos MeasurementPhoto[]
   memberGoals       MemberGoal[]
+  schemaRequests    SchemaRequest[]
+  coachNotes        CoachNote[]
+  coachAssignments  CoachAssignment[]
 }
 
 // In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een
@@ -343,6 +367,9 @@ model User {
   locale        Locale? // persoonlijke taal (override op tenant.locale)
   preferences   Json? // persoonlijke voorkeuren (thema, dichtheid, datum/tijd-notatie, …)
   notificationPrefs Json? // per categorie × kanaal (e-mail/in-app/push)
+  // Per-medewerker permissie-override (TENANT_STAFF). null = role-default.
+  // Vorm: Record<Permission, boolean> — zie lib/rbac.ts.
+  permissions   Json?
   consents      Json? // privacy-toestemmingen (bv. marketing)
   deletionRequestedAt DateTime? // verzoek tot accountverwijdering
   // --- Beveiliging ---
@@ -371,6 +398,11 @@ model User {
   pushSubscriptions PushSubscription[]
   measurements     Measurement[] @relation("MemberMeasurements")
   goals            MemberGoal[]  @relation("MemberGoals")
+  schemaRequests   SchemaRequest[]
+  coachNotes         CoachNote[] @relation("CoachNoteMember") // notities óver dit lid
+  authoredCoachNotes CoachNote[] @relation("CoachNoteAuthor") // notities geschreven door deze medewerker
+  coachingMembers    CoachAssignment[] @relation("CoachAssignmentCoach") // leden die deze coach begeleidt
+  assignedCoaches    CoachAssignment[] @relation("CoachAssignmentMember") // coaches van dit lid
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
@@ -628,6 +660,70 @@ model ExerciseCatalog {
   @@index([equipment])
   @@index([target])
   @@map("exercise_catalog")
+}
+
+// Aanvraag van een sporter voor een (nieuw/aangepast) trainingsschema. Tenant-
+// scoped business-data (RLS, zie prisma/sql/rls.sql). Vormt samen met de
+// schema-toewijzing een complete workflow van aanvraag tot oplevering.
+model SchemaRequest {
+  id                   String              @id @default(cuid())
+  tenantId             String
+  userId               String // sporter die de aanvraag indient
+  goal                 SchemaRequestGoal
+  description          String?             @db.Text // vrije toelichting op het doel
+  preferredStart       DateTime? // gewenste startdatum (optioneel)
+  notes                String?             @db.Text // extra opmerkingen
+  status               SchemaRequestStatus @default(NEW)
+  handledById          String? // User.id van de owner/admin die de aanvraag oppakte
+  resolvedAssignmentId String? // gekoppelde AssignedWorkout bij oplevering (optioneel)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([userId])
+}
+
+// Coachnotitie over een lid, geschreven door een medewerker/eigenaar. Tenant-
+// scoped business-data (RLS, zie prisma/sql/rls.sql).
+model CoachNote {
+  id        String   @id @default(cuid())
+  tenantId  String
+  memberId  String // lid waarover de notitie gaat
+  authorId  String // medewerker/eigenaar die de notitie schreef
+  body      String   @db.Text
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  member User   @relation("CoachNoteMember", fields: [memberId], references: [id], onDelete: Cascade)
+  author User   @relation("CoachNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, memberId])
+  @@index([authorId])
+}
+
+// Koppeling tussen een coach (medewerker/eigenaar) en een lid dat hij/zij begeleidt.
+// Many-to-many: een lid kan meerdere coaches hebben en omgekeerd. Tenant-scoped
+// business-data (RLS, zie prisma/sql/rls.sql).
+model CoachAssignment {
+  id           String   @id @default(cuid())
+  tenantId     String
+  coachId      String // medewerker/eigenaar die begeleidt
+  memberId     String // het lid
+  assignedById String? // wie de koppeling maakte
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  coach  User   @relation("CoachAssignmentCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  member User   @relation("CoachAssignmentMember", fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, coachId, memberId])
+  @@index([tenantId, coachId])
+  @@index([tenantId, memberId])
 }
 
 model WorkoutTemplate {

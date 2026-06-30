@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { blobConfigured } from "@/lib/blob";
 import {
   CustomExerciseForm,
@@ -40,7 +40,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const ex = await loadExercise(id, owner.tenantId);
   return { title: ex ? `${ex.name} | Eigen` : "Oefening | Eigen" };
 }
@@ -51,7 +51,7 @@ export default async function EditCustomExercisePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const ex = await loadExercise(id, owner.tenantId);
   if (!ex) notFound();
 

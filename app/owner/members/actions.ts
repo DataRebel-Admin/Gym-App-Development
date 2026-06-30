@@ -5,10 +5,12 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { createInvitation } from "@/lib/invitation";
+import { notifyInApp } from "@/lib/notifications";
 
-const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_MEMBER"]);
+const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_STAFF", "TENANT_MEMBER"]);
 
 async function origin(): Promise<string> {
   const h = await headers();
@@ -202,6 +204,123 @@ export async function archiveMember(formData: FormData) {
 
 export async function unarchiveMember(formData: FormData) {
   await setArchived(String(formData.get("userId") ?? ""), false);
+}
+
+/** Koppel een coach (medewerker/eigenaar) aan een lid en informeer de coach. */
+export async function assignCoach(formData: FormData) {
+  const owner = await requireOwner();
+  const parsed = z
+    .object({ memberId: z.string().min(1), coachId: z.string().min(1) })
+    .safeParse({ memberId: formData.get("memberId"), coachId: formData.get("coachId") });
+  if (!parsed.success) return;
+  const { memberId, coachId } = parsed.data;
+
+  const [member, coach] = await Promise.all([
+    prisma.user.findFirst({
+      where: { id: memberId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
+      select: { id: true, name: true, email: true },
+    }),
+    prisma.user.findFirst({
+      where: { id: coachId, tenantId: owner.tenantId, role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] } },
+      select: { id: true },
+    }),
+  ]);
+  if (!member || !coach) return;
+
+  // Idempotent: dubbele koppeling bestaat niet (unieke index).
+  const existing = await prisma.coachAssignment.findUnique({
+    where: { tenantId_coachId_memberId: { tenantId: owner.tenantId, coachId, memberId } },
+    select: { id: true },
+  });
+  if (!existing) {
+    await prisma.coachAssignment.create({
+      data: { tenantId: owner.tenantId, coachId, memberId, assignedById: owner.id },
+    });
+    await audit("coach.assign", {
+      actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: memberId,
+      metadata: { coachId, member: member.name ?? member.email },
+    });
+    // "Lid toegewezen" — informeer de coach (respecteert meldingsvoorkeuren).
+    await notifyInApp({
+      userId: coachId,
+      tenantId: owner.tenantId,
+      category: "new_members",
+      title: "Nieuw lid toegewezen",
+      body: `${member.name ?? member.email} is aan jou toegewezen als coach.`,
+      link: `/owner/members/${memberId}`,
+    });
+  }
+
+  revalidatePath(`/owner/members/${memberId}`);
+}
+
+/** Verwijder een coach-koppeling van een lid. */
+export async function unassignCoach(formData: FormData) {
+  const owner = await requireOwner();
+  const memberId = String(formData.get("memberId") ?? "");
+  const coachId = String(formData.get("coachId") ?? "");
+  if (!memberId || !coachId) return;
+
+  const res = await prisma.coachAssignment.deleteMany({
+    where: { tenantId: owner.tenantId, memberId, coachId },
+  });
+  if (res.count > 0) {
+    await audit("coach.unassign", {
+      actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: memberId,
+      metadata: { coachId },
+    });
+  }
+  revalidatePath(`/owner/members/${memberId}`);
+}
+
+/**
+ * Een medewerker koppelt zichzelf als coach aan een lid. Vereist dat de eigenaar
+ * de permissie `members:assign-self` heeft aangezet voor deze medewerker. De
+ * coach kan uitsluitend zichzelf koppelen (coachId wordt geforceerd op me.id).
+ */
+export async function selfAssignCoach(formData: FormData) {
+  const me = await requirePermission("members:assign-self");
+  const memberId = String(formData.get("memberId") ?? "");
+  if (!memberId) return;
+
+  const member = await prisma.user.findFirst({
+    where: { id: memberId, tenantId: me.tenantId, role: "TENANT_MEMBER" },
+    select: { id: true },
+  });
+  if (!member) return;
+
+  const existing = await prisma.coachAssignment.findUnique({
+    where: { tenantId_coachId_memberId: { tenantId: me.tenantId, coachId: me.id, memberId } },
+    select: { id: true },
+  });
+  if (!existing) {
+    await prisma.coachAssignment.create({
+      data: { tenantId: me.tenantId, coachId: me.id, memberId, assignedById: me.id },
+    });
+    await audit("coach.assign", {
+      actor: me, tenantId: me.tenantId, targetType: "User", targetId: memberId,
+      metadata: { coachId: me.id, self: true },
+    });
+  }
+  revalidatePath(`/owner/members/${memberId}`);
+}
+
+/** Een medewerker koppelt zichzelf los als coach van een lid. */
+export async function selfUnassignCoach(formData: FormData) {
+  const me = await requirePermission("members:assign-self");
+  const memberId = String(formData.get("memberId") ?? "");
+  if (!memberId) return;
+
+  const res = await prisma.coachAssignment.deleteMany({
+    where: { tenantId: me.tenantId, memberId, coachId: me.id },
+  });
+  if (res.count > 0) {
+    await audit("coach.unassign", {
+      actor: me, tenantId: me.tenantId, targetType: "User", targetId: memberId,
+      metadata: { coachId: me.id, self: true },
+    });
+  }
+  revalidatePath(`/owner/members/${memberId}`);
 }
 
 /** (Her)verstuur een uitnodiging — werkt ook voor 'niet uitgenodigd' en 'verlopen'. */

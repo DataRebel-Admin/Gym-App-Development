@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { setAiEnabled } from "./actions";
+import { TenantContactForm, type ContactInitial } from "@/components/tenant-contact-form";
 
 function startOfMonth(): Date {
   const d = new Date();
@@ -16,8 +17,41 @@ export default async function SettingsPage() {
 
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: owner.tenantId },
-    select: { name: true, aiEnabled: true },
+    select: {
+      name: true,
+      aiEnabled: true,
+      addressLine: true,
+      postalCode: true,
+      city: true,
+      country: true,
+      contactPhone: true,
+      contactEmail: true,
+      website: true,
+      openingHours: true,
+      socials: true,
+    },
   });
+
+  const asMap = (v: unknown): Record<string, string> => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+    const out: Record<string, string> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      if (typeof val === "string") out[k] = val;
+    }
+    return out;
+  };
+
+  const contactInitial: ContactInitial = {
+    addressLine: tenant.addressLine ?? "",
+    postalCode: tenant.postalCode ?? "",
+    city: tenant.city ?? "",
+    country: tenant.country ?? "",
+    contactPhone: tenant.contactPhone ?? "",
+    contactEmail: tenant.contactEmail ?? "",
+    website: tenant.website ?? "",
+    hours: asMap(tenant.openingHours),
+    socials: asMap(tenant.socials),
+  };
 
   const questionsThisMonth = await prisma.aiUsage.count({
     where: { tenantId: owner.tenantId, createdAt: { gte: startOfMonth() } },
@@ -69,6 +103,18 @@ export default async function SettingsPage() {
           </span>{" "}
           <span className="text-neutral-500">(voor kostenmonitoring)</span>
         </div>
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Contactgegevens</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Deze gegevens zijn voor je leden zichtbaar op hun{" "}
+            <span className="font-medium text-neutral-900">Sportschool</span>-pagina.
+            Lege velden worden niet getoond.
+          </p>
+        </div>
+        <TenantContactForm initial={contactInitial} />
       </section>
     </div>
   );

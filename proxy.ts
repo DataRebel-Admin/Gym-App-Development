@@ -2,7 +2,13 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { resolveTenantSlug } from "@/lib/tenant-resolve";
-import { TENANT_HEADER, PATHNAME_HEADER, AUTH_TENANT_COOKIE } from "@/lib/constants";
+import {
+  TENANT_HEADER,
+  PATHNAME_HEADER,
+  AUTH_TENANT_COOKIE,
+  LOCALE_COOKIE,
+} from "@/lib/constants";
+import { localeFromEnum } from "@/lib/i18n/config";
 
 // Edge-veilige proxy/middleware: lost de tenant op (subdomein of ?tenant),
 // zet die als header voor de Server Components, en dwingt rol-toegang af op
@@ -39,7 +45,7 @@ export default auth((req) => {
     // Onbekende/verouderde rol (bv. een oude cookie met de oude rolnamen
     // OWNER/MEMBER van vóór de hernoeming) → terug naar /login i.p.v. eindeloos
     // bouncen tussen /owner en /member. Breekt de redirect-loop.
-    const KNOWN_ROLES = ["SUPERADMIN", "TENANT_ADMIN", "TENANT_MEMBER"];
+    const KNOWN_ROLES = ["SUPERADMIN", "TENANT_ADMIN", "TENANT_STAFF", "TENANT_MEMBER"];
     if (!KNOWN_ROLES.includes(user.role as string)) {
       const loginUrl = new URL("/login", nextUrl);
       loginUrl.searchParams.set("tenant", slug);
@@ -52,7 +58,9 @@ export default auth((req) => {
     if (user.role === "SUPERADMIN" && (onOwner || onMember)) {
       return NextResponse.redirect(new URL("/admin", nextUrl));
     }
-    if (onOwner && user.role !== "TENANT_ADMIN") {
+    // /owner is een gedeelde tenant-werkruimte: eigenaar én medewerker mogen erin.
+    // Per-pagina permissie-gating gebeurt server-side (lib/staff.ts).
+    if (onOwner && user.role !== "TENANT_ADMIN" && user.role !== "TENANT_STAFF") {
       return NextResponse.redirect(new URL("/member", nextUrl));
     }
     if (onMember && user.role !== "TENANT_MEMBER") {
@@ -60,7 +68,22 @@ export default auth((req) => {
     }
   }
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  // 3) Taal-sync: heeft de ingelogde gebruiker een persoonlijke taalvoorkeur
+  //    maar nog geen locale-cookie (eerste request na login via magic link /
+  //    OAuth / wachtwoord), zet 'm dan zodat de UI in de juiste taal laadt.
+  //    De switcher en de profielpagina blijven de cookie daarna beheren.
+  if (user?.locale && !req.cookies.get(LOCALE_COOKIE)) {
+    response.cookies.set(LOCALE_COOKIE, localeFromEnum(user.locale), {
+      maxAge: 60 * 60 * 24 * 365,
+      path: "/",
+      sameSite: "lax",
+      httpOnly: false,
+    });
+  }
+
+  return response;
 });
 
 export const config = {

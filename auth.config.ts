@@ -27,6 +27,9 @@ export const authConfig = {
         token.role = user.role;
         token.tenantId = user.tenantId;
         if (user.email) token.email = user.email;
+        // Persoonlijke taalvoorkeur meenemen zodat de middleware bij een
+        // volgende login automatisch de juiste taal-cookie kan zetten.
+        if ("locale" in user) token.locale = user.locale ?? null;
       }
       if (trigger === "update") {
         const sw = (session as { tenantSwitch?: { id: string; tenantId: string; role: typeof token.role; email?: string } } | null)?.tenantSwitch;
@@ -46,6 +49,7 @@ export const authConfig = {
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.tenantId = token.tenantId;
+        session.user.locale = token.locale ?? null;
         if (token.email) session.user.email = token.email;
       }
       return session;

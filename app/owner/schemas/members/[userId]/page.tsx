@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
@@ -51,7 +51,7 @@ export default async function MemberSchemaPage({
   params: Promise<{ userId: string }>;
 }) {
   const { userId } = await params;
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
 
   const member = await prisma.user.findFirst({
     where: { id: userId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },

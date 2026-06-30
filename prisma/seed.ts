@@ -50,6 +50,7 @@ type TenantSpec = {
   locale: Locale;
   aiEnabled?: boolean;
   owner: { email: string; name: string };
+  staff?: { email: string; name: string }[];
   members: { email: string; name: string }[];
   machines: { name: string; type: MachineType; description: string }[];
   exercises: ExerciseSpec[];
@@ -155,6 +156,11 @@ async function seedTenant(spec: TenantSpec) {
   await prisma.user.create({
     data: { tenantId: tenant.id, role: Role.TENANT_ADMIN, ...spec.owner },
   });
+  await Promise.all(
+    (spec.staff ?? []).map((s) =>
+      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_STAFF, ...s } })
+    )
+  );
   await Promise.all(
     spec.members.map((m) =>
       prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_MEMBER, ...m } })
@@ -512,6 +518,7 @@ async function main() {
     accentColor: "#E84B1F",
     locale: Locale.NL,
     owner: { email: "owner@fitpower.nl", name: "Bea Eigenaar" },
+    staff: [{ email: "coach@fitpower.nl", name: "Coen Coach" }],
     members: [
       { email: "sven@fitpower.nl", name: "Sven Sporter" },
       { email: "lisa@fitpower.nl", name: "Lisa Lifter" },

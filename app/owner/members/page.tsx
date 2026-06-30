@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import {
   listMembers,
   INVITE_STATUS_LABEL,
@@ -38,6 +38,7 @@ import {
 
 const ROLE_LABEL: Record<string, string> = {
   TENANT_ADMIN: "Beheerder",
+  TENANT_STAFF: "Medewerker",
   TENANT_MEMBER: "Lid",
 };
 
@@ -69,56 +70,85 @@ export const metadata = { title: "Leden" };
 export default async function OwnerMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; sort?: string; archived?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; sort?: string; archived?: string; page?: string; mine?: string }>;
 }) {
-  const owner = await requireOwner();
+  const me = await requirePermission("members:view");
+  const isAdmin = me.role === "TENANT_ADMIN";
   const sp = await searchParams;
 
+  const mineOnly = sp.mine === "1";
   const opts: MemberListOptions = {
     q: sp.q || undefined,
     status: STATUSES.includes(sp.status as InviteStatus) ? (sp.status as InviteStatus) : undefined,
     sort: sp.sort === "created" || sp.sort === "status" ? sp.sort : "name",
     includeArchived: sp.archived === "1",
+    coachId: mineOnly ? me.id : undefined,
     page: Math.max(1, Number(sp.page ?? "1") || 1),
   };
   const [{ rows: members, page, totalPages }, pendingInvites] = await Promise.all([
-    listMembers(owner.tenantId, opts),
-    listPendingInvitations({ tenantId: owner.tenantId }),
+    listMembers(me.tenantId, opts),
+    // Medewerkers hoeven geen uitstaande uitnodigingen te zien (administratief).
+    isAdmin ? listPendingInvitations({ tenantId: me.tenantId }) : Promise.resolve([]),
   ]);
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
-        title="Leden & beheerders"
-        description="Beheer wie toegang heeft tot jouw sportschool."
+        title={isAdmin ? "Leden & beheerders" : "Leden"}
+        description={
+          isAdmin
+            ? "Beheer wie toegang heeft tot jouw sportschool."
+            : "Bekijk leden, open hun profiel en volg de voortgang."
+        }
       />
 
-      <Card className="flex flex-col gap-3 p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-neutral-900">Nieuw lid toevoegen</h2>
-          <Link
-            href="/owner/members/import"
-            className={buttonClasses({ variant: "outline", size: "sm" })}
-          >
-            📥 Bulk importeren
-          </Link>
-        </div>
-        <MemberAddForm />
-      </Card>
+      {/* Mijn leden ↔ Alle leden (coach-koppeling) */}
+      <div className="flex w-fit gap-1 rounded-xl border border-border bg-surface-1 p-1 text-sm">
+        <Link
+          href="/owner/members"
+          className={`rounded-lg px-3 py-1.5 font-medium ${!mineOnly ? "bg-accent text-accent-foreground shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+        >
+          Alle leden
+        </Link>
+        <Link
+          href="/owner/members?mine=1"
+          className={`rounded-lg px-3 py-1.5 font-medium ${mineOnly ? "bg-accent text-accent-foreground shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+        >
+          Mijn leden
+        </Link>
+      </div>
 
-      <section className="flex flex-col gap-3">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-neutral-900">Uitstaande uitnodigingen</h2>
-          {pendingInvites.length > 0 ? (
-            <span className="text-xs text-neutral-500">{pendingInvites.length} openstaand</span>
-          ) : null}
-        </div>
-        <PendingInvitationsTable
-          rows={pendingInvites}
-          resendAction={resendMemberInviteById}
-          revokeAction={revokeMemberInvite}
-        />
-      </section>
+      {/* Ledenadministratie is exclusief voor de eigenaar. */}
+      {isAdmin ? (
+        <>
+          <Card className="flex flex-col gap-3 p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-neutral-900">Nieuw lid toevoegen</h2>
+              <Link
+                href="/owner/members/import"
+                className={buttonClasses({ variant: "outline", size: "sm" })}
+              >
+                📥 Bulk importeren
+              </Link>
+            </div>
+            <MemberAddForm />
+          </Card>
+
+          <section className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-sm font-semibold text-neutral-900">Uitstaande uitnodigingen</h2>
+              {pendingInvites.length > 0 ? (
+                <span className="text-xs text-neutral-500">{pendingInvites.length} openstaand</span>
+              ) : null}
+            </div>
+            <PendingInvitationsTable
+              rows={pendingInvites}
+              resendAction={resendMemberInviteById}
+              revokeAction={revokeMemberInvite}
+            />
+          </section>
+        </>
+      ) : null}
 
       {/* Zoeken / filteren / sorteren */}
       <form method="get" className="flex flex-wrap items-end gap-3">
@@ -160,7 +190,7 @@ export default async function OwnerMembersPage({
           <p className="py-8 text-center text-sm text-neutral-500">Geen leden gevonden.</p>
         ) : (
           members.map((m) => {
-            const self = m.id === owner.id;
+            const self = m.id === me.id;
             const canInvite = m.inviteStatus !== "GEACTIVEERD";
             return (
               <div
@@ -186,12 +216,18 @@ export default async function OwnerMembersPage({
                 ) : !m.active ? (
                   <Badge tone="warning" className="mt-2">gedeactiveerd</Badge>
                 ) : null}
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <MemberRoleForm id={m.id} role={m.role} />
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <MemberActions m={m} self={self} canInvite={canInvite} />
-                </div>
+                {isAdmin ? (
+                  <>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <MemberRoleForm id={m.id} role={m.role} />
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <MemberActions m={m} self={self} canInvite={canInvite} />
+                    </div>
+                  </>
+                ) : (
+                  <Badge tone="neutral" className="mt-3">{ROLE_LABEL[m.role] ?? m.role}</Badge>
+                )}
               </div>
             );
           })
@@ -206,19 +242,19 @@ export default async function OwnerMembersPage({
               <Th>Lid</Th>
               <Th>Status</Th>
               <Th>Rol</Th>
-              <Th className="text-right">Acties</Th>
+              {isAdmin ? <Th className="text-right">Acties</Th> : null}
             </tr>
           </Thead>
           <Tbody>
             {members.length === 0 ? (
               <Tr>
-                <Td colSpan={4} className="py-8 text-center text-neutral-500">
+                <Td colSpan={isAdmin ? 4 : 3} className="py-8 text-center text-neutral-500">
                   Geen leden gevonden.
                 </Td>
               </Tr>
             ) : (
               members.map((m) => {
-                const self = m.id === owner.id;
+                const self = m.id === me.id;
                 const canInvite = m.inviteStatus !== "GEACTIVEERD";
                 return (
                   <Tr key={m.id} className={m.archivedAt ? "opacity-60" : undefined}>
@@ -247,13 +283,19 @@ export default async function OwnerMembersPage({
                       </Badge>
                     </Td>
                     <Td>
-                      <MemberRoleForm id={m.id} role={m.role} />
+                      {isAdmin ? (
+                        <MemberRoleForm id={m.id} role={m.role} />
+                      ) : (
+                        <Badge tone="neutral">{ROLE_LABEL[m.role] ?? m.role}</Badge>
+                      )}
                     </Td>
-                    <Td>
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        <MemberActions m={m} self={self} canInvite={canInvite} />
-                      </div>
-                    </Td>
+                    {isAdmin ? (
+                      <Td>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <MemberActions m={m} self={self} canInvite={canInvite} />
+                        </div>
+                      </Td>
+                    ) : null}
                   </Tr>
                 );
               })

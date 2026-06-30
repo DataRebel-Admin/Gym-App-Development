@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { deleteTemplate, duplicateTemplate } from "../../actions";
 import { SchemaAssignPanel } from "@/components/schema-assign-panel";
@@ -38,7 +38,7 @@ export default async function TemplateEditPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
 
   const template = await prisma.workoutTemplate.findFirst({
     where: { id, tenantId: owner.tenantId, isLibrary: true },

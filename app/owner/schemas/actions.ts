@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
@@ -61,7 +61,7 @@ export async function saveSchema(
   _prev: SchemaSaveState,
   formData: FormData
 ): Promise<SchemaSaveState> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const templateId = String(formData.get("templateId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -152,7 +152,7 @@ export async function saveSchema(
 
 /** Maak een lege library-template (schema of dag) en ga naar de edit-pagina. */
 export async function createTemplate(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const kind = String(formData.get("kind") ?? "SCHEMA") === "DAY" ? "DAY" : "SCHEMA";
   const created = await prisma.workoutTemplate.create({
     data: {
@@ -173,7 +173,7 @@ export async function createTemplate(formData: FormData) {
 }
 
 export async function deleteTemplate(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const id = String(formData.get("id") ?? "");
   const existing = await prisma.workoutTemplate.findFirst({
     where: { id, tenantId: owner.tenantId, isLibrary: true },
@@ -356,7 +356,7 @@ export async function assignSchemaChunk(
   userIds: string[],
   rawOptions: AssignOptions
 ): Promise<AssignChunkResult> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const empty: AssignChunkResult = { assigned: 0, reassigned: 0, scheduled: 0, drafted: 0 };
 
   const parsed = assignOptionsSchema.safeParse(rawOptions);
@@ -485,7 +485,7 @@ export async function assignSchemaChunk(
 /** Kopieer een library-template naar een lid-specifiek schema en publiceer het
  *  direct (per-lid-pagina, eenvoudige flow). */
 export async function assignFromTemplate(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const userId = String(formData.get("userId") ?? "");
   const sourceId = String(formData.get("sourceTemplateId") ?? "");
 
@@ -539,7 +539,7 @@ export async function assignFromTemplate(formData: FormData) {
 
 /** Dupliceer een library-template (incl. dagen + oefeningen) (G3c). */
 export async function duplicateTemplate(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const sourceId = String(formData.get("id") ?? "");
 
   const source = await prisma.workoutTemplate.findFirst({
@@ -602,7 +602,7 @@ export async function duplicateTemplate(formData: FormData) {
 /** Start een leeg lid-specifiek schema voor een lid (direct gepubliceerd, geen
  *  melding — er staat nog niets in). Archiveert een vorig actief schema. */
 export async function startEmptySchema(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const userId = String(formData.get("userId") ?? "");
 
   const member = await prisma.user.findFirst({
@@ -653,7 +653,7 @@ async function findAssignment(tenantId: string, userId: string, assignmentId?: s
 
 /** Publiceer een concept- of gepland schema nu (zichtbaar + melding). */
 export async function publishAssignment(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const userId = String(formData.get("userId") ?? "");
   const assignmentId = String(formData.get("assignmentId") ?? "");
 
@@ -691,7 +691,7 @@ export async function publishAssignment(formData: FormData) {
 
 /** Archiveer een toewijzing (uit de actieve roster, behoudt historie). */
 export async function archiveAssignment(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const userId = String(formData.get("userId") ?? "");
   const assignmentId = String(formData.get("assignmentId") ?? "");
 
@@ -715,7 +715,7 @@ export async function archiveAssignment(formData: FormData) {
 
 /** Verwijder een toewijzing volledig (+ lid-specifieke template-kloon). */
 export async function removeAssignment(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const userId = String(formData.get("userId") ?? "");
   const assignmentId = String(formData.get("assignmentId") ?? "");
 
@@ -866,7 +866,7 @@ async function applyMasterEntry(
  * `one` (één entry via `entryId`), `dismiss` (negeren — erken de master-staat).
  */
 export async function syncAssignment(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const userId = String(formData.get("userId") ?? "");
   const assignmentId = String(formData.get("assignmentId") ?? "");
   const mode = String(formData.get("mode") ?? "");
@@ -1004,7 +1004,7 @@ export type BulkResult = { updated: number; skipped: number; error?: string };
  * te roepen vanuit de client → echte voortgangsbalk, schaalbaar.
  */
 export async function bulkEditChunk(userIds: string[], rawOp: BulkOp): Promise<BulkResult> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const parsed = bulkOpSchema.safeParse(rawOp);
   if (!parsed.success) return { updated: 0, skipped: 0, error: "Ongeldige bewerking" };
   const op = parsed.data;
@@ -1121,7 +1121,7 @@ export async function bulkEditChunk(userIds: string[], rawOp: BulkOp): Promise<B
  * leden re-synchroniseren. Bumpt master.updatedAt → "Sync beschikbaar".
  */
 export async function applyMasterSuggestion(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const masterId = String(formData.get("masterId") ?? "");
   const suggestionId = String(formData.get("suggestionId") ?? "");
   const back = `/owner/schemas/templates/${masterId}`;

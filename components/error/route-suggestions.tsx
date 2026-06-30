@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { m } from "motion/react";
 import { Search, ArrowUpRight, ChevronRight, X } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
@@ -24,6 +25,7 @@ const AUTO_REDIRECT_SECONDS = 4;
 export function RouteSuggestions({ role }: { role: DashRole | null }) {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useTranslations("errors.suggestions");
 
   const [tenantQuery, setTenantQuery] = useState("");
   useEffect(() => {
@@ -84,15 +86,16 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
           className="mb-4 rounded-xl border border-accent/30 bg-accent-soft p-3"
         >
           <p className="text-sm text-neutral-700">
-            Bedoelde je{" "}
-            <span className="font-semibold text-neutral-900">
-              {best.route.label}
-            </span>
-            ?
+            {t.rich("didYouMean", {
+              label: best.route.label,
+              b: (c) => (
+                <span className="font-semibold text-neutral-900">{c}</span>
+              ),
+            })}
           </p>
           <div className="mt-2 flex items-center justify-between gap-2">
             <span className="text-xs text-neutral-500">
-              Je wordt over {seconds}s doorgestuurd…
+              {t("redirectingIn", { seconds })}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -101,13 +104,13 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
                 className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-neutral-500 hover:bg-neutral-100"
               >
                 <X className="size-3.5" />
-                Annuleer
+                {t("cancel")}
               </button>
               <Link
                 href={withTenant(best.route.href)}
                 className="inline-flex items-center gap-1 rounded-lg bg-accent-gradient px-2.5 py-1 text-xs font-semibold text-accent-foreground"
               >
-                Ga er nu heen
+                {t("goNow")}
                 <ArrowUpRight className="size-3.5" />
               </Link>
             </div>
@@ -129,11 +132,12 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
           className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-0 p-3 transition-colors hover:border-border-strong"
         >
           <span className="text-sm text-neutral-700">
-            Bedoelde je{" "}
-            <span className="font-semibold text-neutral-900">
-              {best.route.label}
-            </span>
-            ?
+            {t.rich("didYouMean", {
+              label: best.route.label,
+              b: (c) => (
+                <span className="font-semibold text-neutral-900">{c}</span>
+              ),
+            })}
           </span>
           <ChevronRight className="size-4 shrink-0 text-neutral-400" />
         </Link>
@@ -149,15 +153,15 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
             setQuery(e.target.value);
             if (!cancelled) setCancelled(true); // typen = handmatige intentie
           }}
-          placeholder="Zoek een pagina…"
+          placeholder={t("searchPlaceholder")}
           className="h-10 w-full rounded-xl border border-border bg-surface-0 pl-9 pr-3 text-sm text-neutral-900 placeholder:text-neutral-400 focus-ring"
-          aria-label="Zoek een pagina"
+          aria-label={t("searchAria")}
         />
       </label>
 
       {/* Quick links / zoekresultaten */}
       <p className="mt-4 mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        {query.trim() ? "Resultaten" : "Populaire pagina's"}
+        {query.trim() ? t("results") : t("popularPages")}
       </p>
       {filtered.length > 0 ? (
         <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
@@ -178,7 +182,7 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
         </ul>
       ) : (
         <p className="px-1 py-2 text-sm text-neutral-500">
-          Geen pagina gevonden voor “{query.trim()}”.
+          {t("noPageFound", { query: query.trim() })}
         </p>
       )}
     </div>

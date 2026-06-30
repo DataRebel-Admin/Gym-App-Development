@@ -1,7 +1,8 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { getTranslations } from "next-intl/server";
+import { requireTenantUser } from "@/lib/staff";
 import { getCurrentTenant } from "@/lib/tenant";
+import { Badge } from "@/components/ui/badge";
 import { OwnerNav, type OwnerNavEntry } from "@/components/nav/owner-nav";
 import { SideNavDrawer } from "@/components/nav/side-nav-drawer";
 import { UserMenu } from "@/components/nav/user-menu";
@@ -24,70 +25,101 @@ const ICON_MEMBERS =
 const ICON_ROOSTER =
   "M3 9h18M7 3v4M17 3v4M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z";
 const ICON_INSIGHTS = "M3 3v18h18M7 15l3-3 3 3 5-6";
+const ICON_REQUESTS =
+  "M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z";
 const ICON_AUDIT =
   "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 13h6M9 17h4";
+const ICON_STAFF =
+  "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6";
 
-const NAV: OwnerNavEntry[] = [
-  {
-    type: "link",
-    href: "/owner",
-    label: "Dashboard",
-    iconPath: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
-  },
-  {
-    type: "group",
-    key: "aanbod",
-    label: "Aanbod",
-    iconPath: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6",
-    items: [
-      { href: "/owner/machines", label: "Machines", iconPath: ICON_MACHINES, description: "Toestellen & QR-codes" },
-      { href: "/owner/exercises", label: "Oefeningen", iconPath: ICON_EXERCISES, description: "Catalogus & eigen oefeningen" },
-      { href: "/owner/schemas", label: "Schema's", iconPath: ICON_SCHEMAS, description: "Trainingsschema's bouwen & toewijzen" },
-    ],
-  },
-  {
-    type: "group",
-    key: "leden",
-    label: "Leden & rooster",
-    iconPath: ICON_MEMBERS,
-    items: [
-      { href: "/owner/members", label: "Leden", iconPath: ICON_MEMBERS, description: "Ledenbeheer & uitnodigingen" },
-      { href: "/owner/rooster", label: "Rooster", iconPath: ICON_ROOSTER, description: "Groepslessen & inschrijvingen" },
-    ],
-  },
-  {
-    type: "group",
-    key: "analyse",
-    label: "Analyse",
-    iconPath: ICON_INSIGHTS,
-    items: [
-      { href: "/owner/insights", label: "Inzichten", iconPath: ICON_INSIGHTS, description: "Statistieken & trends" },
-      { href: "/owner/audit", label: "Audit log", iconPath: ICON_AUDIT, description: "Activiteitenlogboek" },
-    ],
-  },
-  {
-    type: "link",
-    href: "/owner/settings",
-    label: "Instellingen",
-    iconPath: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
-  },
-];
+type NavTranslator = Awaited<ReturnType<typeof getTranslations<"nav.owner">>>;
+
+function buildNav(t: NavTranslator): OwnerNavEntry[] {
+  return [
+    {
+      type: "link",
+      href: "/owner",
+      label: t("dashboard"),
+      iconPath: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+    },
+    {
+      type: "group",
+      key: "aanbod",
+      label: t("offer"),
+      iconPath: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6",
+      items: [
+        { href: "/owner/machines", label: t("machines"), iconPath: ICON_MACHINES, description: t("machinesDesc"), adminOnly: true },
+        { href: "/owner/exercises", label: t("exercises"), iconPath: ICON_EXERCISES, description: t("exercisesDesc"), permission: "exercises:manage" },
+        { href: "/owner/schemas", label: t("schemas"), iconPath: ICON_SCHEMAS, description: t("schemasDesc"), permission: "schemas:manage" },
+      ],
+    },
+    {
+      type: "group",
+      key: "leden",
+      label: t("membersRooster"),
+      iconPath: ICON_MEMBERS,
+      items: [
+        { href: "/owner/members", label: t("members"), iconPath: ICON_MEMBERS, description: t("membersDesc"), permission: "members:view" },
+        { href: "/owner/staff", label: t("staff"), iconPath: ICON_STAFF, description: t("staffDesc"), adminOnly: true },
+        { href: "/owner/requests", label: t("requests"), iconPath: ICON_REQUESTS, description: t("requestsDesc"), permission: "schemas:manage" },
+        { href: "/owner/rooster", label: t("rooster"), iconPath: ICON_ROOSTER, description: t("roosterDesc"), permission: "schedule:manage" },
+      ],
+    },
+    {
+      type: "group",
+      key: "analyse",
+      label: t("analysis"),
+      iconPath: ICON_INSIGHTS,
+      items: [
+        { href: "/owner/insights", label: t("insights"), iconPath: ICON_INSIGHTS, description: t("insightsDesc"), adminOnly: true },
+        { href: "/owner/audit", label: t("audit"), iconPath: ICON_AUDIT, description: t("auditDesc"), adminOnly: true },
+      ],
+    },
+    {
+      type: "link",
+      href: "/owner/settings",
+      label: t("settings"),
+      iconPath: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+      adminOnly: true,
+    },
+  ];
+}
+
+/**
+ * Filtert de navigatie op de effectieve permissies van de gebruiker. De eigenaar
+ * ziet alles; een medewerker ziet alleen niet-gegate items + items waarvoor 'ie de
+ * permissie heeft. `adminOnly`-items blijven exclusief voor de eigenaar. Lege
+ * groepen vallen weg (geen verborgen-functionaliteit-fouten).
+ */
+function filterNav(
+  entries: OwnerNavEntry[],
+  isAdmin: boolean,
+  permissions: Set<string>
+): OwnerNavEntry[] {
+  const allowed = (g: { permission?: string; adminOnly?: boolean }) =>
+    g.adminOnly ? isAdmin : g.permission ? isAdmin || permissions.has(g.permission) : true;
+  return entries.flatMap<OwnerNavEntry>((entry) => {
+    if (entry.type === "link") return allowed(entry) ? [entry] : [];
+    const items = entry.items.filter(allowed);
+    return items.length ? [{ ...entry, items }] : [];
+  });
+}
 
 export default async function OwnerLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  if (session.user.role !== "TENANT_ADMIN") redirect("/member");
+  const user = await requireTenantUser();
+  const isAdmin = user.role === "TENANT_ADMIN";
+
+  const tNav = await getTranslations("nav.owner");
+  const NAV = filterNav(buildNav(tNav), isAdmin, user.permissions as Set<string>);
 
   const tenant = await getCurrentTenant();
-  const badge = await getUserBadge(session.user.id);
-  const notifications = await getNotificationOverview(session.user.id);
-  const tenants = session.user.email
-    ? await getUserTenants(session.user.email)
-    : [];
+  const badge = await getUserBadge(user.id);
+  const notifications = await getNotificationOverview(user.id);
+  const tenants = user.email ? await getUserTenants(user.email) : [];
 
   return (
     <div className="flex min-h-full flex-col">
@@ -99,8 +131,8 @@ export default async function OwnerLayout({
               rootHref="/owner"
               brand={{ name: tenant?.name ?? "GymRebel", logoUrl: tenant?.logoUrl ?? null }}
               profile={{
-                name: badge?.name ?? session.user.name ?? null,
-                email: badge?.email ?? session.user.email ?? null,
+                name: badge?.name ?? user.name ?? null,
+                email: badge?.email ?? user.email ?? null,
                 image: badge?.image ?? null,
               }}
               tenants={tenants}
@@ -125,6 +157,9 @@ export default async function OwnerLayout({
               )}
               <span className="truncate">{tenant?.name ?? "GymRebel"}</span>
             </Link>
+            <Badge tone={isAdmin ? "accent" : "neutral"} className="hidden shrink-0 sm:inline-flex">
+              {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
+            </Badge>
             <div className="hidden items-center gap-4 lg:flex">
               <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
               <OwnerNav entries={NAV} rootHref="/owner" />
@@ -138,8 +173,8 @@ export default async function OwnerLayout({
             <div className="hidden items-center gap-2 lg:flex">
               <ThemeToggle />
               <UserMenu
-                name={badge?.name ?? session.user.name ?? null}
-                email={badge?.email ?? session.user.email ?? null}
+                name={badge?.name ?? user.name ?? null}
+                email={badge?.email ?? user.email ?? null}
                 image={badge?.image ?? null}
               />
             </div>

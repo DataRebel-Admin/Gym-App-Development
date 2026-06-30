@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { requireAccount, getUserBadge } from "@/lib/account";
 import { UserMenu } from "@/components/nav/user-menu";
 import { AccountNav, type AccountNavItem } from "@/components/account/account-nav";
@@ -13,6 +14,7 @@ const ICON = {
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
   building: "M3 21h18M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M19 21V9h1M9 8h2M9 12h2M9 16h2",
   plug: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
+  globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18",
 };
 
 export default async function AccountLayout({
@@ -22,21 +24,23 @@ export default async function AccountLayout({
 }) {
   const me = await requireAccount();
   const badge = await getUserBadge(me.id);
+  const t = await getTranslations("account");
   const role = me.role;
   const back =
     role === "SUPERADMIN" ? "/admin" : role === "TENANT_ADMIN" ? "/owner" : "/member";
 
   // Tabs groeien mee terwijl de secties landen.
   const items: AccountNavItem[] = [
-    { href: "/account", label: "Profiel", iconPath: ICON.profile },
-    { href: "/account/beveiliging", label: "Beveiliging", iconPath: ICON.shield },
-    { href: "/account/meldingen", label: "Meldingen", iconPath: ICON.bell },
-    { href: "/account/privacy", label: "Privacy", iconPath: ICON.privacy },
-    { href: "/account/integraties", label: "Integraties", iconPath: ICON.plug },
-    { href: "/account/activiteit", label: "Activiteit", iconPath: ICON.activity },
+    { href: "/account", label: t("nav.profile"), iconPath: ICON.profile },
+    { href: "/account/beveiliging", label: t("nav.security"), iconPath: ICON.shield },
+    { href: "/account/meldingen", label: t("nav.notifications"), iconPath: ICON.bell },
+    { href: "/account/taal", label: t("language.navLabel"), iconPath: ICON.globe },
+    { href: "/account/privacy", label: t("nav.privacy"), iconPath: ICON.privacy },
+    { href: "/account/integraties", label: t("nav.integrations"), iconPath: ICON.plug },
+    { href: "/account/activiteit", label: t("nav.activity"), iconPath: ICON.activity },
   ];
   if (role === "TENANT_ADMIN") {
-    items.push({ href: "/account/tenant", label: "Sportschool", iconPath: ICON.building });
+    items.push({ href: "/account/tenant", label: t("nav.gym"), iconPath: ICON.building });
   }
 
   return (
@@ -44,10 +48,10 @@ export default async function AccountLayout({
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <Link href={back} className="flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900">
-            ← Terug
+            ← {t("back")}
           </Link>
           <span className="font-display text-base font-bold text-neutral-900">
-            Accountinstellingen
+            {t("title")}
           </span>
           <UserMenu
             name={badge?.name ?? me.name ?? null}

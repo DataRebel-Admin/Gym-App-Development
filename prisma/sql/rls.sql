@@ -36,7 +36,10 @@ DECLARE
     'PushSubscription',
     'Measurement',
     'MeasurementPhoto',
-    'MemberGoal'
+    'MemberGoal',
+    'SchemaRequest',
+    'CoachNote',
+    'CoachAssignment'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

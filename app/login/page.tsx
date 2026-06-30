@@ -1,27 +1,28 @@
+import { getTranslations } from "next-intl/server";
 import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
 import { oauthEnabled } from "@/lib/oauth";
 import { demoLoginEnabled, DEMO_ACCOUNTS } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 
-export const metadata = { title: "Inloggen" };
-
-const HIGHLIGHTS = [
-  "Jouw schema, altijd bij de hand",
-  "Scan een apparaat, zie direct de oefening",
-  "Volg je voortgang per training",
-];
+export async function generateMetadata() {
+  const t = await getTranslations("auth");
+  return { title: t("metaTitle") };
+}
 
 export default async function LoginPage() {
   // Tenant komt uit de proxy-header (subdomein of ?tenant), niet rechtstreeks
   // uit de query — zo werkt zowel productie (subdomein) als dev (?tenant).
   const slug = await getTenantSlug();
   const tenant = await getCurrentTenant();
+  const t = await getTranslations("auth");
   const oauth = oauthEnabled();
   const demoAccounts = demoLoginEnabled() ? DEMO_ACCOUNTS : null;
 
   const name = tenant?.name ?? "GymRebel";
   const initial = name.charAt(0).toUpperCase();
+  const highlights = [t("highlight1"), t("highlight2"), t("highlight3")];
 
   return (
     // Gecentreerd op de geanimeerde, gebrande pagina-achtergrond (--app-bg).
@@ -70,15 +71,15 @@ export default async function LoginPage() {
 
           <div className="relative max-w-md">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-accent-foreground/70">
-              Welkom terug
+              {t("welcomeBack")}
             </p>
             <h2 className="mt-4 font-display text-4xl font-bold leading-[1.1] tracking-tight xl:text-[2.75rem]">
-              Train slimmer.
+              {t("heroLine1")}
               <br />
-              Houd je voortgang vast.
+              {t("heroLine2")}
             </h2>
             <ul className="mt-10 space-y-4">
-              {HIGHLIGHTS.map((line) => (
+              {highlights.map((line) => (
                 <li key={line} className="flex items-center gap-3 text-sm font-medium">
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">
                     <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden>
@@ -119,11 +120,14 @@ export default async function LoginPage() {
               </span>
             )}
             <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-              Inloggen
+              {t("title")}
             </h1>
             <p className="mt-1.5 text-sm text-neutral-500">
-              Welkom terug bij{" "}
-              <span className="font-medium text-neutral-700">{name}</span>.
+              {t.rich("subtitle", {
+                name: () => (
+                  <span className="font-medium text-neutral-700">{name}</span>
+                ),
+              })}
             </p>
           </div>
 
@@ -131,9 +135,16 @@ export default async function LoginPage() {
 
           {!tenant ? (
             <p className="mt-4 text-center text-xs text-neutral-500">
-              Onbekende sportschool &ldquo;{slug}&rdquo;.
+              {t("unknownGym", { slug })}
             </p>
           ) : null}
+
+          {/* Subtiele taalwisselaar — ook vóór het inloggen beschikbaar. */}
+          <div className="mt-6 flex justify-center border-t border-border pt-5">
+            <div className="w-44">
+              <LanguageSwitcher variant="menu" />
+            </div>
+          </div>
         </div>
       </Reveal>
     </main>

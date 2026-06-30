@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { m } from "motion/react";
 import { cn } from "@/lib/cn";
 import { Dumbbell, Trophy, Plus, Minus, RotateCcw, ChevronRight } from "@/components/ui/icons";
+import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import type { ActiveExercise, SetValue } from "./active-session";
-
-const dateFmt = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short" });
 
 /** Compacte weergave "100 kg × 10". Bodyweight (0 kg) toont alleen reps. */
 function fmtSet(s: { reps: number; weightKg: number }): string {
@@ -28,6 +28,7 @@ function BigStepper({
   placeholder?: string;
   onChange: (next: string) => void;
 }) {
+  const t = useTranslations("member.active");
   function bump(delta: number) {
     const cur = Number(value || placeholder || 0);
     const next = Math.max(0, Math.round((cur + delta) * 100) / 100);
@@ -41,7 +42,7 @@ function BigStepper({
       <div className="flex w-full items-center gap-1.5">
         <button
           type="button"
-          aria-label={`${unit} omlaag`}
+          aria-label={t("unitDown", { unit })}
           onClick={() => bump(-step)}
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl font-bold text-neutral-600 active:scale-90"
         >
@@ -58,7 +59,7 @@ function BigStepper({
         />
         <button
           type="button"
-          aria-label={`${unit} omhoog`}
+          aria-label={t("unitUp", { unit })}
           onClick={() => bump(step)}
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl font-bold text-neutral-600 active:scale-90"
         >
@@ -98,6 +99,12 @@ export function ExerciseBlock({
   onNoteChange: (value: string) => void;
   onNoteBlur: () => void;
 }) {
+  const t = useTranslations("member.active");
+  const locale = useLocale();
+  const dateFmt = new Intl.DateTimeFormat(
+    (isLocale(locale) ? LOCALE_META[locale] : LOCALE_META.nl).bcp47,
+    { day: "numeric", month: "short" },
+  );
   const [showNote, setShowNote] = useState(Boolean(note));
   const doneCount = sets.filter((s) => s.done).length;
   const allDone = doneCount === sets.length;
@@ -125,7 +132,7 @@ export function ExerciseBlock({
       <Link
         href={`/member/history/exercise/${exercise.exerciseId}`}
         className="flex items-start gap-3 rounded-xl transition-opacity active:opacity-70"
-        aria-label={`Bekijk uitleg van ${exercise.name}`}
+        aria-label={t("viewExplanationOf", { name: exercise.name })}
       >
         {exercise.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -143,7 +150,7 @@ export function ExerciseBlock({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-neutral-500">
-              {doneCount}/{sets.length} sets
+              {t("setsCount", { done: doneCount, total: sets.length })}
             </span>
             {isPr ? (
               <m.span
@@ -151,7 +158,7 @@ export function ExerciseBlock({
                 animate={{ scale: 1, opacity: 1 }}
                 className="inline-flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-foreground"
               >
-                <Trophy className="size-3" /> Nieuwe PR
+                <Trophy className="size-3" /> {t("newPr")}
               </m.span>
             ) : null}
           </div>
@@ -159,14 +166,14 @@ export function ExerciseBlock({
             {exercise.name}
           </h2>
           <p className="mt-0.5 text-xs text-neutral-500">
-            doel: {exercise.sets} × {exercise.targetReps}
-            {exercise.targetWeightKg ? ` · ${exercise.targetWeightKg} kg` : ""}
-            {exercise.tempo ? ` · tempo ${exercise.tempo}` : ""}
+            {t("target", { sets: exercise.sets, reps: exercise.targetReps })}
+            {exercise.targetWeightKg ? t("targetWeight", { weight: exercise.targetWeightKg }) : ""}
+            {exercise.tempo ? t("targetTempo", { tempo: exercise.tempo }) : ""}
             {exercise.machineName ? ` · ${exercise.machineName}` : ""}
           </p>
         </div>
         <span className="mt-0.5 flex shrink-0 items-center gap-0.5 text-xs font-medium text-neutral-400">
-          uitleg
+          {t("explanation")}
           <ChevronRight className="size-4" />
         </span>
       </Link>
@@ -177,7 +184,7 @@ export function ExerciseBlock({
           <RotateCcw className="mt-0.5 size-3.5 shrink-0 text-neutral-400" />
           <p className="text-xs text-neutral-600">
             <span className="font-semibold text-neutral-700">
-              Vorige keer ({dateFmt.format(new Date(exercise.previous.date))})
+              {t("lastTime", { date: dateFmt.format(new Date(exercise.previous.date)) })}
             </span>
             <span className="text-neutral-400"> · </span>
             {exercise.previous.sets.map((s) => fmtSet(s)).join(" · ")}
@@ -205,7 +212,7 @@ export function ExerciseBlock({
               {removable ? (
                 <button
                   type="button"
-                  aria-label={`Set ${setNumber} verwijderen`}
+                  aria-label={t("removeSet", { number: setNumber })}
                   onClick={() => onRemoveSet(setNumber)}
                   className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-1 text-neutral-500 shadow-sm active:scale-90"
                 >
@@ -219,14 +226,14 @@ export function ExerciseBlock({
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <BigStepper
                     value={s.kg}
-                    unit="kg"
+                    unit={t("kg")}
                     step={2.5}
                     placeholder={prev && prev.weightKg > 0 ? String(prev.weightKg) : undefined}
                     onChange={(v) => onChangeSet(setNumber, "kg", v)}
                   />
                   <BigStepper
                     value={s.reps}
-                    unit="reps"
+                    unit={t("reps")}
                     step={1}
                     placeholder={prev ? String(prev.reps) : undefined}
                     onChange={(v) => onChangeSet(setNumber, "reps", v)}
@@ -234,7 +241,7 @@ export function ExerciseBlock({
                 </div>
                 <button
                   type="button"
-                  aria-label={s.done ? `Set ${setNumber} ongedaan maken` : `Set ${setNumber} afvinken`}
+                  aria-label={s.done ? t("undoSet", { number: setNumber }) : t("checkSet", { number: setNumber })}
                   aria-pressed={s.done}
                   onClick={() => onToggleSet(setNumber)}
                   className={cn(
@@ -263,7 +270,7 @@ export function ExerciseBlock({
           onClick={onAddSet}
           className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
         >
-          <Plus className="size-4" /> Set toevoegen
+          <Plus className="size-4" /> {t("addSet")}
         </button>
       ) : null}
 
@@ -275,7 +282,7 @@ export function ExerciseBlock({
           onBlur={onNoteBlur}
           rows={2}
           maxLength={500}
-          placeholder="Opmerking (bijv. voelde zwaar, let op vorm)…"
+          placeholder={t("notePlaceholder")}
           className="w-full rounded-xl border border-border bg-surface-0 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent"
         />
       ) : (
@@ -284,7 +291,7 @@ export function ExerciseBlock({
           onClick={() => setShowNote(true)}
           className="self-start text-sm font-medium text-neutral-500 active:text-neutral-900"
         >
-          ＋ Opmerking toevoegen
+          {t("addNote")}
         </button>
       )}
     </div>

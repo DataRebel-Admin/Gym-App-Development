@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { WorkoutTemplate } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { createTemplate, duplicateTemplate } from "../actions";
 
 export const metadata = { title: "Schemasjablonen" };
@@ -62,7 +62,7 @@ function TemplateTable({
 }
 
 export default async function TemplatesPage() {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
 
   const templates = await prisma.workoutTemplate.findMany({
     where: { tenantId: owner.tenantId, isLibrary: true },

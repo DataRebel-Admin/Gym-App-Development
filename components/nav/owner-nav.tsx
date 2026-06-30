@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/cn";
+import type { Permission } from "@/lib/rbac";
 
 export type OwnerNavItem = {
   href: string;
@@ -13,10 +14,21 @@ export type OwnerNavItem = {
   iconPath?: string;
   /** Korte omschrijving in het mega-menu-paneel. */
   description?: string;
+  /** Vereiste permissie om dit item te tonen (medewerker). Leeg = altijd zichtbaar. */
+  permission?: Permission;
+  /** Uitsluitend voor de eigenaar (TENANT_ADMIN); verborgen voor medewerkers. */
+  adminOnly?: boolean;
 };
 
 export type OwnerNavEntry =
-  | { type: "link"; href: string; label: string; iconPath?: string }
+  | {
+      type: "link";
+      href: string;
+      label: string;
+      iconPath?: string;
+      permission?: Permission;
+      adminOnly?: boolean;
+    }
   | {
       type: "group";
       key: string;

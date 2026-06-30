@@ -337,3 +337,78 @@ export async function schemaAssignedMessage(opts: {
     ),
   };
 }
+
+// ── Schema-aanvraag ontvangen (naar de coach/owner) ─────────────────────────
+
+export async function schemaRequestReceivedMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  memberName: string;
+  goalLabel: string;
+  description?: string | null;
+  manageUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, memberName, goalLabel, description, manageUrl } = opts;
+  const reason = `Je ontvangt deze e-mail omdat een lid van ${branding.name} een trainingsschema heeft aangevraagd.`;
+  const contentHtml = [
+    emailHeading("Nieuwe schema-aanvraag"),
+    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(
+      `<strong>${escapeHtml(memberName)}</strong> heeft een nieuw trainingsschema aangevraagd. Doel: <strong>${escapeHtml(goalLabel)}</strong>.`
+    ),
+    description?.trim() ? emailParagraph(`"${escapeHtml(description.trim())}"`) : "",
+    emailButton(manageUrl, "Aanvraag bekijken", branding),
+    emailLinkFallback(manageUrl),
+  ].join("");
+  return {
+    subject: `Schema-aanvraag van ${memberName}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${memberName} vraagt een trainingsschema aan (${goalLabel}).`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      `Nieuwe schema-aanvraag\n\n${greeting(recipientName)}\n\n${memberName} heeft een nieuw trainingsschema aangevraagd. Doel: ${goalLabel}.${
+        description?.trim() ? `\n\n"${description.trim()}"` : ""
+      }\n\nBekijk de aanvraag:\n${manageUrl}`,
+      reason
+    ),
+  };
+}
+
+// ── Status schema-aanvraag gewijzigd (naar de sporter) ──────────────────────
+
+export async function schemaRequestStatusMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  statusLabel: string;
+  viewUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, statusLabel, viewUrl } = opts;
+  const reason = `Je ontvangt deze e-mail omdat de status van je schema-aanvraag bij ${branding.name} is gewijzigd.`;
+  const contentHtml = [
+    emailHeading("Update over je schema-aanvraag"),
+    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(
+      `De status van je trainingsschema-aanvraag is nu: <strong>${escapeHtml(statusLabel)}</strong>.`
+    ),
+    emailButton(viewUrl, "Bekijk je aanvraag", branding),
+    emailLinkFallback(viewUrl),
+  ].join("");
+  return {
+    subject: `Je schema-aanvraag: ${statusLabel}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `Nieuwe status: ${statusLabel}.`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      `Update over je schema-aanvraag\n\n${greeting(recipientName)}\n\nDe status van je aanvraag is nu: ${statusLabel}.\n\nBekijk je aanvraag:\n${viewUrl}`,
+      reason
+    ),
+  };
+}

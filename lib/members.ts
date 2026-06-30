@@ -43,6 +43,8 @@ export type MemberListOptions = {
   q?: string;
   status?: InviteStatus;
   role?: Role;
+  /** Beperk tot leden die door deze coach worden begeleid ("Mijn leden"). */
+  coachId?: string;
   sort?: "name" | "created" | "status";
   includeArchived?: boolean;
   page?: number;
@@ -77,6 +79,7 @@ export async function listMembers(
     role: { in: ["TENANT_ADMIN", "TENANT_MEMBER"] },
     ...(opts.includeArchived ? {} : { archivedAt: null }),
     ...(opts.role ? { role: opts.role } : {}),
+    ...(opts.coachId ? { assignedCoaches: { some: { tenantId, coachId: opts.coachId } } } : {}),
     ...(opts.q
       ? {
           OR: [

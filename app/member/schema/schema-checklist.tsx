@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ProgressRing } from "@/components/ui/progress-ring";
 
 export type ChecklistItem = {
@@ -23,6 +24,7 @@ export function SchemaChecklist({
   items?: ChecklistItem[];
   days?: ChecklistDay[];
 }) {
+  const t = useTranslations("member.checklist");
   const [done, setDone] = useState<Record<string, boolean>>({});
 
   function toggle(id: string) {
@@ -48,11 +50,11 @@ export function SchemaChecklist({
         <div>
           <p className="font-display text-lg font-bold text-neutral-900">
             {completed === allItems.length && allItems.length > 0
-              ? "Helemaal klaar! 💪"
-              : "Jouw voortgang"}
+              ? t("allDone")
+              : t("yourProgress")}
           </p>
           <p className="text-sm text-neutral-500">
-            {completed}/{allItems.length} oefeningen afgevinkt
+            {t("checkedOff", { completed, total: allItems.length })}
           </p>
         </div>
       </div>
@@ -63,7 +65,7 @@ export function SchemaChecklist({
           ) : null}
           {group.notes ? (
             <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-neutral-600">
-              <span className="font-semibold text-accent">Tip: </span>
+              <span className="font-semibold text-accent">{t("tip")}</span>
               {group.notes}
             </p>
           ) : null}

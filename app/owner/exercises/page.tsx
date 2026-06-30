@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { Badge } from "@/components/ui/badge";
 import { EXERCISE_DIFFICULTY_LABELS } from "@/lib/exercise-meta";
 import { buildCatalogWhere, myEquipmentValues, type CatalogFilter } from "@/lib/catalog";
@@ -40,7 +40,7 @@ export default async function OwnerExercisesPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const sp = await searchParams;
   const tab: TabKey = sp.tab === "eigen" ? "eigen" : "standaard";
 

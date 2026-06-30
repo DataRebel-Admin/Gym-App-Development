@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import {
   listMeasurements,
@@ -42,7 +42,7 @@ async function fetchImageBytes(url: string): Promise<Uint8Array | null> {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const { userId } = await params;
 
   const member = await prisma.user.findFirst({

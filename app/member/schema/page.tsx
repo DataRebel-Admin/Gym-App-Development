@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dumbbell, Play, Download, CalendarDays, QrCode } from "@/components/ui/icons";
+import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList } from "@/components/ui/icons";
 import {
   SchemaChecklist,
   type ChecklistItem,
@@ -43,11 +44,17 @@ function toChecklistItem(it: ItemWithRel): ChecklistItem {
   };
 }
 
-export const metadata = { title: "Mijn schema" };
+export async function generateMetadata() {
+  const t = await getTranslations("member.schema");
+  return { title: t("metaTitle") };
+}
 
 export default async function MemberSchemaPage() {
   const member = await requireMember();
-  const assignment = await getAssignedSchema(member.id, member.tenantId);
+  const [assignment, t] = await Promise.all([
+    getAssignedSchema(member.id, member.tenantId),
+    getTranslations("member.schema"),
+  ]);
   const schema = assignment?.template;
   const isNew = assignment ? assignment.seenAt === null : false;
   const trainerMessage = assignment?.trainerMessage?.trim() || null;
@@ -57,15 +64,23 @@ export default async function MemberSchemaPage() {
       <div className="flex flex-1 flex-col justify-center px-5 py-10">
         <EmptyState
           icon={<Dumbbell className="size-8 text-accent" />}
-          title="Nog geen trainingsschema"
-          description="Je trainer stelt een schema voor je samen. Zodra het klaarstaat, vind je het hier — klaar om af te vinken. Verken intussen de apparaten in je sportschool."
+          title={t("emptyTitle")}
+          description={t("emptyDesc")}
           action={
-            <Link
-              href="/member/scan"
-              className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
-            >
-              <QrCode className="size-4" /> Scan een machine
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href="/member/requests"
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+              >
+                <ClipboardList className="size-4" /> {t("requestSchema")}
+              </Link>
+              <Link
+                href="/member/scan"
+                className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+              >
+                <QrCode className="size-4" /> {t("scanMachine")}
+              </Link>
+            </div>
           }
         />
       </div>
@@ -92,7 +107,7 @@ export default async function MemberSchemaPage() {
             </h1>
             {isNew ? (
               <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent-foreground">
-                Nieuw
+                {t("newBadge")}
               </span>
             ) : null}
           </div>
@@ -101,11 +116,11 @@ export default async function MemberSchemaPage() {
           ) : null}
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
-              <Dumbbell className="size-3.5 text-accent" /> {schema.items.length} oefeningen
+              <Dumbbell className="size-3.5 text-accent" /> {t("exercisesCount", { count: schema.items.length })}
             </span>
             {multiDay ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
-                <CalendarDays className="size-3.5 text-accent" /> {days.length} dagen
+                <CalendarDays className="size-3.5 text-accent" /> {t("daysCount", { count: days.length })}
               </span>
             ) : null}
           </div>
@@ -116,7 +131,7 @@ export default async function MemberSchemaPage() {
       {trainerMessage ? (
         <div className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-            Bericht van je trainer
+            {t("trainerMessage")}
           </p>
           <p className="mt-1 text-sm text-neutral-700">{trainerMessage}</p>
         </div>
@@ -125,7 +140,7 @@ export default async function MemberSchemaPage() {
       {schema.coachNote ? (
         <div className="rounded-2xl border border-border bg-surface-1 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Coach-notitie
+            {t("coachNote")}
           </p>
           <p className="mt-1 text-sm text-neutral-700">{schema.coachNote}</p>
         </div>
@@ -142,7 +157,7 @@ export default async function MemberSchemaPage() {
           type="submit"
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-5 text-center text-lg font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
         >
-          <Play className="size-5 fill-current" /> Start training
+          <Play className="size-5 fill-current" /> {t("startTraining")}
         </button>
       </form>
 
@@ -150,7 +165,7 @@ export default async function MemberSchemaPage() {
         href="/member/schema/pdf"
         className="flex items-center justify-center gap-2 rounded-2xl border border-border px-6 py-3 text-center text-sm font-medium text-neutral-700 active:bg-surface-2"
       >
-        <Download className="size-4" /> Download als PDF
+        <Download className="size-4" /> {t("downloadPdf")}
       </a>
     </Fullscreenable>
   );

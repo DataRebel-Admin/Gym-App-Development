@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/cn";
 
@@ -250,6 +251,7 @@ function RoundButton({
  * onderbalk.
  */
 export function FloatingTimer({ timer }: { timer: RestTimer }) {
+  const t = useTranslations("member.active");
   const [showSettings, setShowSettings] = useState(false);
 
   const big = timer.kind === "countdown" ? timer.remaining : timer.elapsed;
@@ -290,10 +292,10 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
               <div className="flex flex-col">
                 <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
                   {timer.finished
-                    ? "Rust klaar 💪"
+                    ? t("restDone")
                     : timer.kind === "countdown"
-                      ? "Rust"
-                      : "Stopwatch"}
+                      ? t("rest")
+                      : t("stopwatch")}
                 </span>
                 <span
                   className={cn(
@@ -309,13 +311,13 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
                 {timer.kind === "countdown" ? (
                   <>
                     <RoundButton
-                      label="15 seconden minder"
+                      label={t("secondsLess")}
                       onClick={() => timer.addTime(-15)}
                     >
                       −15
                     </RoundButton>
                     <RoundButton
-                      label="15 seconden meer"
+                      label={t("secondsMore")}
                       onClick={() => timer.addTime(15)}
                     >
                       +15
@@ -324,15 +326,15 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
                 ) : null}
                 {!timer.finished ? (
                   <RoundButton
-                    label={timer.running ? "Pauzeer" : "Hervat"}
+                    label={timer.running ? t("pause") : t("resume")}
                     onClick={timer.toggleRun}
                     variant="accent"
                   >
                     {timer.running ? "❚❚" : "▶"}
                   </RoundButton>
                 ) : null}
-                <RoundButton label="Sluit timer" onClick={timer.dismiss}>
-                  {timer.finished ? "Klaar" : "✕"}
+                <RoundButton label={t("closeTimer")} onClick={timer.dismiss}>
+                  {timer.finished ? t("ready") : "✕"}
                 </RoundButton>
               </div>
             </div>
@@ -343,14 +345,14 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
                 onClick={() => setShowSettings((s) => !s)}
                 className="text-xs font-medium text-neutral-500 active:text-neutral-900"
               >
-                ⚙ Instellingen
+                ⚙ {t("settings")}
               </button>
               <button
                 type="button"
                 onClick={timer.startStopwatch}
                 className="text-xs font-medium text-neutral-500 active:text-neutral-900"
               >
-                ⏱ Stopwatch
+                ⏱ {t("stopwatch")}
               </button>
             </div>
 
@@ -372,12 +374,12 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
                           onClick={() => timer.startRest(p)}
                           className="rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-neutral-700 active:scale-95"
                         >
-                          {p}s rust
+                          {t("restPreset", { seconds: p })}
                         </button>
                       ))}
                     </div>
                     <label className="flex items-center justify-between text-sm text-neutral-700">
-                      Geluid bij einde
+                      {t("soundOnEnd")}
                       <input
                         type="checkbox"
                         checked={timer.soundOn}
@@ -386,7 +388,7 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
                       />
                     </label>
                     <label className="flex items-center justify-between text-sm text-neutral-700">
-                      Trilling bij einde
+                      {t("vibrateOnEnd")}
                       <input
                         type="checkbox"
                         checked={timer.vibrateOn}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { MeasurementForm } from "@/components/progress/measurement-form";
 import { createMeasurement } from "../actions";
 
@@ -12,7 +12,7 @@ export default async function NewMeasurementPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const { userId } = await params;
   const member = await prisma.user.findFirst({
     where: { id: userId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },

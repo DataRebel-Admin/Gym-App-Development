@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember, getMemberHistory } from "@/lib/member";
 import { getMemberStats, getRecentSessions } from "@/lib/member-stats";
+import { LOCALE_META, type AppLocale } from "@/lib/i18n/config";
+import { formatNumber } from "@/lib/i18n/format";
 import { HistoryChart } from "./history-chart";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { StatCard } from "@/components/ui/stat-card";
@@ -16,26 +19,36 @@ import {
   ChevronRight,
 } from "@/components/ui/icons";
 
-const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
+export async function generateMetadata() {
+  const t = await getTranslations("member.history");
+  return { title: t("metaTitle") };
+}
 
-export const metadata = { title: "Geschiedenis" };
-
-function fmtDuration(sec: number) {
+function fmtDuration(
+  sec: number,
+  t: Awaited<ReturnType<typeof getTranslations<"member.history">>>,
+) {
   const m = Math.round(sec / 60);
-  return m >= 60 ? `${Math.floor(m / 60)}u ${m % 60}m` : `${m}m`;
+  return m >= 60
+    ? t("durationHm", { hours: Math.floor(m / 60), minutes: m % 60 })
+    : t("durationM", { minutes: m });
 }
 
 export default async function MemberHistoryPage() {
   const member = await requireMember();
-  const [{ series }, stats, sessions] = await Promise.all([
+  const [{ series }, stats, sessions, t, locale] = await Promise.all([
     getMemberHistory(member.id, member.tenantId),
     getMemberStats(member.id, member.tenantId),
     getRecentSessions(member.id, member.tenantId, 20),
+    getTranslations("member.history"),
+    getLocale(),
   ]);
+
+  const dateFmt = new Intl.DateTimeFormat(LOCALE_META[locale as AppLocale].bcp47, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 
   const totalHours = Math.round((stats.totalDurationSec / 3600) * 10) / 10;
   const hasActivity = stats.totalWorkouts > 0;
@@ -44,23 +57,23 @@ export default async function MemberHistoryPage() {
     <Reveal stagger className="flex flex-1 flex-col gap-6 px-5 py-8">
       <RevealItem>
         <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-          Historie
+          {t("title")}
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">Jouw voortgang in cijfers.</p>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </RevealItem>
 
       {!hasActivity ? (
         <RevealItem>
           <EmptyState
             icon={<Activity className="size-7 text-accent" />}
-            title="Nog geen trainingen"
-            description="Zodra je je eerste training logt, verschijnen hier je records, streak en voortgangsgrafieken."
+            title={t("emptyTitle")}
+            description={t("emptyDesc")}
             action={
               <Link
                 href="/member/schema"
                 className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
               >
-                Start training
+                {t("startTraining")}
               </Link>
             }
           />
@@ -69,16 +82,16 @@ export default async function MemberHistoryPage() {
         <>
           {/* KPI's */}
           <RevealItem className="grid grid-cols-2 gap-3">
-            <StatCard label="Trainingen" value={stats.totalWorkouts} icon={<Activity className="size-4" />} hint="totaal" />
-            <StatCard label="Streak" value={stats.currentStreakWeeks} suffix=" wk" icon={<Flame className="size-4" />} hint={`langste ${stats.longestStreakWeeks} wk`} />
-            <StatCard label="Volume" value={stats.totalVolume} suffix=" kg" icon={<Dumbbell className="size-4" />} hint="totaal getild" />
-            <StatCard label="Trainingstijd" value={totalHours} suffix=" u" icon={<Clock className="size-4" />} hint="totaal" />
+            <StatCard label={t("kpiWorkouts")} value={stats.totalWorkouts} icon={<Activity className="size-4" />} hint={t("kpiTotal")} />
+            <StatCard label={t("kpiStreak")} value={stats.currentStreakWeeks} suffix={t("weekSuffix")} icon={<Flame className="size-4" />} hint={t("kpiStreakHint", { count: stats.longestStreakWeeks })} />
+            <StatCard label={t("kpiVolume")} value={stats.totalVolume} suffix=" kg" icon={<Dumbbell className="size-4" />} hint={t("kpiVolumeHint")} />
+            <StatCard label={t("kpiTime")} value={totalHours} suffix={t("hourSuffix")} icon={<Clock className="size-4" />} hint={t("kpiTotal")} />
           </RevealItem>
 
           {/* Consistentie-heatmap */}
           <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Consistentie · laatste 16 weken
+              {t("consistency")}
             </p>
             <TrainingHeatmap days={stats.heatmap} />
           </RevealItem>
@@ -86,7 +99,7 @@ export default async function MemberHistoryPage() {
           {/* Weekvolume */}
           <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
             <p className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Weekvolume · laatste 12 weken
+              {t("weekVolume")}
             </p>
             <MiniBarChart
               data={stats.weekVolume.map((w) => ({ label: w.label, value: w.volume }))}
@@ -98,7 +111,7 @@ export default async function MemberHistoryPage() {
           {stats.records.length > 0 ? (
             <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
               <p className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-                <Trophy className="size-4 text-accent" /> Persoonlijke records
+                <Trophy className="size-4 text-accent" /> {t("prTitle")}
               </p>
               <ul className="flex flex-col gap-2">
                 {stats.records.slice(0, 6).map((r) => (
@@ -128,7 +141,7 @@ export default async function MemberHistoryPage() {
           {series.length > 0 ? (
             <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
               <p className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-                Gewichtsprogressie per oefening
+                {t("weightProgress")}
               </p>
               <HistoryChart series={series} />
             </RevealItem>
@@ -137,10 +150,10 @@ export default async function MemberHistoryPage() {
           {/* Eerdere sessies als kaarten */}
           <RevealItem className="flex flex-col gap-3">
             <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-              Eerdere sessies
+              {t("pastSessions")}
             </p>
             {sessions.length === 0 ? (
-              <p className="text-sm text-neutral-500">Nog geen afgeronde sessies.</p>
+              <p className="text-sm text-neutral-500">{t("noPastSessions")}</p>
             ) : (
               <ul className="flex flex-col gap-2.5">
                 {sessions.map((s) => (
@@ -150,20 +163,20 @@ export default async function MemberHistoryPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-display font-bold capitalize text-neutral-900">
-                        {DATE_FMT.format(s.startedAt)}
+                        {dateFmt.format(s.startedAt)}
                       </span>
                       <span className="text-xs text-neutral-500">
-                        {s.exerciseCount} oef · {fmtDuration(s.durationSec)}
+                        {t("sessionMeta", { count: s.exerciseCount, duration: fmtDuration(s.durationSec, t) })}
                       </span>
                     </div>
                     <div className="mt-2 flex items-center gap-4 text-sm text-neutral-600">
                       <span className="inline-flex items-center gap-1">
                         <Dumbbell className="size-3.5 text-accent" />
-                        {s.totalVolume.toLocaleString("nl-NL")} kg
+                        {formatNumber(s.totalVolume, locale as AppLocale)} kg
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Activity className="size-3.5 text-accent" />
-                        {s.totalSets} sets
+                        {t("setsCount", { count: s.totalSets })}
                       </span>
                     </div>
                     {s.muscles.length > 0 ? (

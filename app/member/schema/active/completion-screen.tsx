@@ -2,16 +2,22 @@
 
 import { m, useReducedMotion } from "motion/react";
 import { useFormStatus } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
 import { endSession } from "../actions";
 import { Trophy, Flame, Check, Dumbbell, Clock, Target } from "@/components/ui/icons";
+import { type AppLocale, isLocale } from "@/lib/i18n/config";
+import { formatNumber } from "@/lib/i18n/format";
 
-function fmtDuration(totalSec: number) {
+type ActiveT = ReturnType<typeof useTranslations<"member.active">>;
+
+function fmtDuration(totalSec: number, t: ActiveT) {
   const mm = Math.floor(totalSec / 60);
   const ss = totalSec % 60;
-  return mm > 0 ? `${mm}m ${ss}s` : `${ss}s`;
+  return mm > 0 ? t("durationMs", { minutes: mm, seconds: ss }) : t("durationS", { seconds: ss });
 }
 
 function FinishButton() {
+  const t = useTranslations("member.active");
   const { pending } = useFormStatus();
   return (
     <button
@@ -19,7 +25,7 @@ function FinishButton() {
       disabled={pending}
       className="w-full rounded-2xl bg-accent-gradient px-6 py-4 text-center text-lg font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98] disabled:opacity-60"
     >
-      {pending ? "Opslaan…" : "Workout opslaan 🎉"}
+      {pending ? t("saving") : t("saveWorkout")}
     </button>
   );
 }
@@ -91,6 +97,9 @@ export function CompletionScreen({
   workoutsThisWeek: number;
   onContinue: () => void;
 }) {
+  const t = useTranslations("member.active");
+  const locale = useLocale();
+  const loc: AppLocale = isLocale(locale) ? locale : "nl";
   const goalRemaining = Math.max(0, weeklyGoal - workoutsThisWeek);
 
   return (
@@ -101,7 +110,7 @@ export function CompletionScreen({
       className="fixed inset-0 z-[70] overflow-y-auto bg-surface-0/95 px-6 py-10 backdrop-blur"
       role="dialog"
       aria-modal="true"
-      aria-label="Workout voltooid"
+      aria-label={t("completedAria")}
     >
       <m.div
         initial={{ y: 24, opacity: 0, scale: 0.96 }}
@@ -128,21 +137,21 @@ export function CompletionScreen({
         </div>
 
         <h1 className="font-display text-2xl font-bold text-neutral-900">
-          Workout voltooid! 💪
+          {t("completedTitle")}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          {completedExercises}/{totalExercises} oefeningen afgerond. Sterk gedaan.
+          {t("completedSubtitle", { completed: completedExercises, total: totalExercises })}
         </p>
 
         {/* Statistieken */}
         <div className="mt-6 grid grid-cols-2 gap-3 text-left">
-          <Stat icon={<Clock className="size-4" />} value={fmtDuration(durationSec)} label="duur" />
-          <Stat icon={<Dumbbell className="size-4" />} value={`${Math.round(totalVolume).toLocaleString("nl-NL")} kg`} label="volume" />
-          <Stat icon={<Check className="size-4" />} value={String(completedSets)} label="sets" />
-          <Stat icon={<Target className="size-4" />} value={String(totalReps)} label="herhalingen" />
+          <Stat icon={<Clock className="size-4" />} value={fmtDuration(durationSec, t)} label={t("statDuration")} />
+          <Stat icon={<Dumbbell className="size-4" />} value={`${formatNumber(Math.round(totalVolume), loc)} kg`} label={t("statVolume")} />
+          <Stat icon={<Check className="size-4" />} value={String(completedSets)} label={t("statSets")} />
+          <Stat icon={<Target className="size-4" />} value={String(totalReps)} label={t("statReps")} />
         </div>
         <p className="mt-2 text-xs text-neutral-400">
-          Geplande rusttijd: {fmtDuration(estRestSec)}
+          {t("plannedRest", { duration: fmtDuration(estRestSec, t) })}
         </p>
 
         {/* Nieuwe PR's */}
@@ -155,7 +164,7 @@ export function CompletionScreen({
           >
             <p className="flex items-center gap-2 font-display text-sm font-bold text-accent">
               <Trophy className="size-4" />
-              {newRecords.length} nieuwe persoonlijke {newRecords.length === 1 ? "record" : "records"}!
+              {t("newRecords", { count: newRecords.length })}
             </p>
             <ul className="mt-2 flex flex-col gap-1">
               {newRecords.slice(0, 4).map((r, i) => (
@@ -178,9 +187,9 @@ export function CompletionScreen({
             </span>
             <div>
               <p className="font-display text-lg font-bold leading-none text-neutral-900">
-                {streakWeeks} {streakWeeks === 1 ? "week" : "weken"}
+                {t("streakWeeks", { count: streakWeeks })}
               </p>
-              <p className="text-xs text-neutral-500">streak</p>
+              <p className="text-xs text-neutral-500">{t("streakLabel")}</p>
             </div>
           </div>
           <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-surface-1 p-3.5">
@@ -191,15 +200,15 @@ export function CompletionScreen({
               <p className="font-display text-lg font-bold leading-none text-neutral-900">
                 {workoutsThisWeek}/{weeklyGoal}
               </p>
-              <p className="text-xs text-neutral-500">weekdoel</p>
+              <p className="text-xs text-neutral-500">{t("weekGoalLabel")}</p>
             </div>
           </div>
         </div>
 
         <p className="mt-3 text-sm font-medium text-neutral-600">
           {weeklyGoalReached
-            ? "🎯 Weekdoel gehaald — top!"
-            : `Nog ${goalRemaining} ${goalRemaining === 1 ? "training" : "trainingen"} tot je weekdoel.`}
+            ? t("goalReached")
+            : t("goalRemaining", { count: goalRemaining })}
         </p>
 
         <form action={endSession} className="mt-6">
@@ -211,7 +220,7 @@ export function CompletionScreen({
           onClick={onContinue}
           className="mt-3 w-full rounded-2xl border border-border px-6 py-3 text-center text-sm font-medium text-neutral-700 active:bg-surface-2"
         >
-          Verder trainen
+          {t("continueTraining")}
         </button>
       </m.div>
     </m.div>

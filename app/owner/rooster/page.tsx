@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
 
 export const metadata = { title: "Rooster" };
 
 export default async function RoosterPage() {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schedule:manage");
 
   const [classes, upcoming] = await Promise.all([
     prisma.groupClass.findMany({

@@ -8,7 +8,7 @@ import { AnimatePresence, m } from "motion/react";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity } from "@/components/ui/icons";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList } from "@/components/ui/icons";
 import type { UserTenant } from "@/lib/tenants";
 
 /**
@@ -119,6 +119,12 @@ export function MemberDrawer({
 
               {/* Snelle links */}
               <nav className="flex flex-col gap-1 px-2.5">
+                <DrawerLink href="/member/requests" icon={<ClipboardList className="size-5" />} onClick={() => setOpen(false)}>
+                  Schema aanvragen
+                </DrawerLink>
+                <DrawerLink href="/member/gym" icon={<Building2 className="size-5" />} onClick={() => setOpen(false)}>
+                  Sportschool
+                </DrawerLink>
                 <DrawerLink href="/member/exercises" icon={<Dumbbell className="size-5" />} onClick={() => setOpen(false)}>
                   Oefeningenbibliotheek
                 </DrawerLink>

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { uploadExerciseImage } from "@/lib/blob";
 import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
 import { suggestMachineType } from "@/lib/machine";
@@ -24,7 +24,7 @@ const addSchema = z.object({
 
 /** Voeg een catalogus-oefening toe aan de sportschool (als tenant-Exercise). */
 export async function addCatalogExerciseToGym(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
 
   const parsed = addSchema.safeParse({
     catalogId: formData.get("catalogId"),
@@ -111,7 +111,7 @@ export type BulkAddCatalogResult = { added: number; skipped: number };
 export async function bulkAddCatalogToGym(
   input: BulkAddCatalogInput
 ): Promise<BulkAddCatalogResult> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const parsed = bulkAddSchema.safeParse(input);
   if (!parsed.success) return { added: 0, skipped: 0 };
   const { catalogIds, allMatchingFilter, filter, autoMachine } = parsed.data;
@@ -202,7 +202,7 @@ export async function bulkAddCatalogToGym(
 
 /** Verwijder een eerder toegevoegde catalogus-oefening uit de sportschool. */
 export async function removeCatalogExerciseFromGym(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const catalogId = String(formData.get("catalogId") ?? "");
   if (!catalogId) return;
 
@@ -236,7 +236,7 @@ export async function removeCatalogExerciseFromGym(formData: FormData) {
  * type-toewijzing kan bijsturen. Gescoped op de tenant; geaudit bij wijziging.
  */
 export async function setExerciseType(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const id = String(formData.get("id") ?? "");
   const exerciseType = String(formData.get("exerciseType") ?? "");
   if (!id || !isExerciseType(exerciseType)) return;
@@ -323,7 +323,7 @@ export async function saveCustomExercise(
   _prev: CustomExerciseState,
   formData: FormData
 ): Promise<CustomExerciseState> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
 
   const parsed = customSchema.safeParse({
     id: formData.get("id") || undefined,
@@ -415,7 +415,7 @@ export async function saveCustomExercise(
 
 /** Dupliceer een eigen oefening (incl. media/instructies) als nieuwe kopie. */
 export async function duplicateCustomExercise(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
@@ -460,7 +460,7 @@ export async function duplicateCustomExercise(formData: FormData) {
 
 /** Archiveer of herstel een eigen oefening (soft). */
 export async function setCustomExerciseArchived(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const id = String(formData.get("id") ?? "");
   const archived = formData.get("archived") === "true";
   if (!id) return;
@@ -497,7 +497,7 @@ export async function deleteCustomExercise(
   _prev: CustomExerciseState,
   formData: FormData
 ): Promise<CustomExerciseState> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("exercises:manage");
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Onbekende oefening" };
 

@@ -1,18 +1,34 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-/** Tab-balk op het ledenprofiel: Profiel | Voortgang & Metingen. */
+/** Tab-balk op het ledenprofiel: Profiel | Voortgang & Metingen | Coachnotities.
+ *  Tabs respecteren de permissies van de bekijker (medewerker ziet alleen wat mag). */
 export function MemberProfileTabs({
   userId,
   active,
+  canMeasure = true,
+  canNotes = true,
 }: {
   userId: string;
-  active: "profiel" | "progress";
+  active: "profiel" | "progress" | "notes";
+  canMeasure?: boolean;
+  canNotes?: boolean;
 }) {
   const tabs = [
-    { key: "profiel", label: "Profiel", href: `/owner/members/${userId}` },
-    { key: "progress", label: "Voortgang & Metingen", href: `/owner/members/${userId}/progress` },
-  ] as const;
+    { key: "profiel", label: "Profiel", href: `/owner/members/${userId}`, show: true },
+    {
+      key: "progress",
+      label: "Voortgang & Metingen",
+      href: `/owner/members/${userId}/progress`,
+      show: canMeasure,
+    },
+    {
+      key: "notes",
+      label: "Coachnotities",
+      href: `/owner/members/${userId}/notes`,
+      show: canNotes,
+    },
+  ].filter((t) => t.show);
   return (
     <div className="flex w-fit gap-1 rounded-xl border border-border bg-surface-1 p-1">
       {tabs.map((t) => (

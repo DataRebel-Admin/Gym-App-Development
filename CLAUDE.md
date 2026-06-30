@@ -333,6 +333,72 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
 - **Tenant-isolatie** blijft primair via expliciete `tenantId`-filters (+ RLS-backstop);
   superadmin gebruikt bewust de base `prisma` achter `requireSuperadmin()`.
 
+### Sportschoolmedewerker (TENANT_STAFF) + permissie-gestuurd RBAC
+
+Vierde rol **`TENANT_STAFF`** (Sportschoolmedewerker/coach): tenant-gebonden coachrol met
+**per-medewerker in-/uitschakelbare permissies**. RBAC is van "vaste rollen" naar
+**permissie-gestuurd** getild — de rol levert alleen de *defaults*.
+
+- **`lib/rbac.ts`** (puur, ook client): `Permission`-union uitgebreid met feature-permissies
+  (`schemas:manage`, `members:view`, `measurements:manage`, `coachnotes:manage`,
+  `schedule:manage`, `exercises:manage`) + standaard-uit extra's (`members:import`,
+  `reports:export`, `mailings:send`). `STAFF_CONFIGURABLE_PERMISSIONS` = wat een eigenaar per
+  medewerker mag toewijzen (beheer-permissies nooit). `getEffectivePermissions(role, overrides)`
+  (admin = volledige superset; staff = role-default + override), `hasPermission(user, perm)`,
+  en `PERMISSION_GROUPS` (gegroepeerde catalogus → voedt de rechtenmatrix).
+- **Opslag**: `User.permissions Json?` = `Record<Permission, boolean>` (null = role-default).
+  Geen nieuw model — kolom op `User`, zoals `notificationPrefs`/`dashboardLayout`.
+- **`/owner` = gedeelde tenant-werkruimte** voor admin + staff. **`lib/staff.ts`**:
+  `requireTenantUser()` (admin óf staff, levert effectieve permissies) en
+  `requirePermission(perm)` (admin passeert altijd, anders `forbidden()`). `requireOwner()`
+  blijft **admin-only** (settings, audit, insights, machines, ledenadministratie, `/owner/staff`).
+  Gedeelde pagina's/actions (schemas/exercises/rooster/requests/leden-view/metingen) zijn
+  omgezet naar `requirePermission`. `proxy.ts` laat staff toe op `/owner`.
+- **Navigatie permissie-gefilterd** in `app/owner/layout.tsx` (`filterNav` + `permission`/
+  `adminOnly` op de nav-entries) — staff ziet alleen wat mag (geen verborgen-functie-fouten).
+  **Rolbadge** (Eigenaar/Medewerker) in de header. Leden-lijst & ledenprofiel renderen een
+  **read-only variant** voor staff (geen invite/rol/verwijderen); profieltabs zijn
+  permissie-gefilterd.
+- **Medewerkersbeheer** op **`/owner/staff`** (admin-only): uitnodigen (hergebruikt
+  `inviteMember` met `role=TENANT_STAFF`), (de)activeren/verwijderen/opnieuw uitnodigen
+  (hergebruikt `app/owner/members/actions.ts`; `tenantRole`-zod uitgebreid met `TENANT_STAFF`),
+  en de **rechtenmatrix** (`components/staff/permission-matrix.tsx` → `setStaffPermissions`
+  in `app/owner/staff/actions.ts`, `requireOwner` + `role:assign`). `listMembers` sluit staff
+  bewust uit (filter admin+member); de staff-pagina queryt `TENANT_STAFF` apart.
+- **Coachnotities** (nieuw): model `CoachNote` (tenant-scoped + RLS), `lib/coach-notes.ts`,
+  tab "Coachnotities" op het ledenprofiel (`/owner/members/[userId]/notes`,
+  `requirePermission("coachnotes:manage")`) met toevoegen/bewerken/pinnen/verwijderen.
+- **Rol-bewust dashboard**: `app/owner/page.tsx` toont voor staff `StaffDashboard`
+  (`components/dashboard/staff-dashboard.tsx`) — leden-actief-vandaag, openstaande
+  schema-aanvragen, nieuwe metingen, aankomende lessen, snelle acties — alles permissie-gegate;
+  géén audit/financiële data.
+- **Notificaties**: `lib/staff-notify.ts` (`notifyStaffWithPermission`) informeert tenant-
+  gebruikers met een bepaalde permissie. Schema-aanvraag-melding (`lib/schema-requests-notify.ts`)
+  bereikt nu ook staff met `schemas:manage`; nieuwe les → staff met `schedule:manage`
+  (categorie `changes`).
+- **Audit**: `user.permissions.change` + `coachnote.add/update/delete` (categorie `members`).
+  Uitnodigen/rol/(de)activeren/verwijderen loggen via de bestaande `user.*`-acties.
+- **Migratie** `20260701030000_tenant_staff_rbac` (handgeschreven, conform de Prisma-
+  beperking): `ALTER TYPE "Role" ADD VALUE 'TENANT_STAFF'` + `User.permissions` + `CoachNote`.
+  RLS in `prisma/sql/rls.sql` (`npm run db:rls`). Seed: demo-medewerker `coach@fitpower.nl`.
+- **Coach↔lid-koppeling**: model **`CoachAssignment`** (tenant-scoped + RLS; many-to-many,
+  `@@unique([tenantId, coachId, memberId])`, migratie `20260701040000_coach_assignment`).
+  Helpers in **`lib/coach-assignments.ts`** (`listMemberCoaches`, `listAvailableCoaches`,
+  `listCoachMembers`, `countCoachMembers`); `lib/members.ts` kreeg een `coachId`-filter
+  (→ "Mijn leden"). Beheer (admin) op het **ledenprofiel** (`assignCoach`/`unassignCoach` in
+  `app/owner/members/actions.ts`): koppelen stuurt een **"Nieuw lid toegewezen"**-melding
+  (`notifyInApp`, categorie `new_members`) naar de coach + audit (`coach.assign`/`coach.unassign`).
+  De coach ziet z'n leden via de **"Mijn leden"**-toggle op `/owner/members?mine=1` en een
+  **"Mijn leden"**-blok op het `StaffDashboard`. De koppeling is additief (een lens), geen
+  restrictie: staff met `members:view` ziet nog steeds alle leden.
+- **Zelf-toewijzen (optioneel)**: permissie **`members:assign-self`** (toewijsbaar in de matrix,
+  standaard uit). Zet de eigenaar 'm aan, dan krijgt de medewerker op het ledenprofiel een
+  knop "Mij koppelen/loskoppelen als coach" (`selfAssignCoach`/`selfUnassignCoach` in
+  members/actions.ts, `requirePermission("members:assign-self")`, `coachId` geforceerd op
+  zichzelf). Eigenaar-toewijzing (elke coach kiezen) blijft via `assignCoach`/`unassignCoach`.
+- **"Eigen planning"** op het dashboard toont tenant-brede lessen (geen trainer-FK,
+  `GroupClass.instructorName` is vrije tekst).
+
 ### Logging & Audit Trail
 
 - **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only
@@ -477,6 +543,42 @@ tenant-branding.
   `proxy.ts` vangt de cross-area rol-mismatch op `/owner`↔`/member`↔`/admin` al af met
   een redirect (bewust — betere UX dan een 403); de guard-`forbidden()` is daar dus
   defense-in-depth en de echte 403-UX is voor andere `forbidden()`-call-sites.
+
+### Internationalisatie (i18n) — NL / EN / FY
+
+Volledige meertalige UI op basis van **next-intl** (cookie-modus, **géén** URL-locale-prefix
+→ URLs blijven `/member`, `/owner`, `/admin`). NL = standaard/bron, EN = volledig, FY = Frysk
+(voorbereid: kern vertaald, rest valt terug op NL). **Nieuwe taal = één regel** in
+`LOCALES`+`LOCALE_META` (`lib/i18n/config.ts`) + een `messages/<code>.json` (ontbrekende
+sleutels → NL-fallback). Géén Prisma-migratie nodig: `enum Locale {NL,EN,FY}`, `User.locale`
+(persoonlijke voorkeur) en `Tenant.locale` bestonden al.
+
+- **Kern** (`lib/i18n/`): `config.ts` (talen-registry + helpers, geen `server-only`),
+  `request.ts` (`getRequestConfig` — resolutie-keten **cookie `gymrebel-locale` →
+  `Accept-Language` → NL**, DB-vrij), `messages.ts` (deep-merge NL-basis onder de actieve taal
+  → nooit een harde missing key), `format.ts` (pure `Intl`-helpers voor datum/getal/valuta,
+  ook server-side bruikbaar met expliciete locale), `actions.ts` (`setLocale` → cookie +
+  `User.locale`).
+- **Provider**: `app/layout.tsx` wrapt in `NextIntlClientProvider`; `<html lang>` volgt de
+  **UI-locale** (niet langer `tenant.locale`). Tenant-branding (logo/accent/font) blijft
+  100% taal-onafhankelijk.
+- **Persistentie/detectie**: de switcher zet cookie + `User.locale`; de **JWT/session** dragen
+  `locale` en **`proxy.ts`** zet bij de eerste request na login de cookie uit `User.locale`
+  (dekt magic-link/OAuth/wachtwoord). Nieuwe gast → `Accept-Language` → NL.
+- **Switcher**: `components/i18n/language-switcher.tsx` (`variant="menu"` / `"settings"`) →
+  `setLocale()` + `router.refresh()` (directe RSC-re-render, géén full reload, state behouden,
+  toast-bevestiging). Geplaatst in gebruikersmenu, `/account/taal` en het loginscherm.
+- **Berichten**: één namespaced JSON per taal (`messages/{nl,en,fy}.json`), top-level
+  namespaces (`common, nav, auth, account, member, owner, admin, errors, exercises, email,
+  pdf, validation, notifications, …`). RSC: `getTranslations(ns)`; client: `useTranslations(ns)`;
+  plurals/interpolatie via ICU; rich text via `t.rich`. `metadata`-titels → `generateMetadata`
+  met `getTranslations`.
+- **Rapport**: `npm run i18n:report` (`scripts/i18n-report.mjs`) diff't elke taal tegen NL
+  (ontbrekende/overbodige sleutels; `I18N_STRICT=1` faalt bij gaten).
+- **Migratie-status**: foundation + navigatie + auth + foutpagina's + member-dashboard zijn
+  gemigreerd. **Nog te doen** (zelfde patroon): rest member-area, owner-area, admin-area,
+  account-forms, gedeelde UI-componenten met defaulttekst, en server-side (e-mails
+  `lib/email`, PDF `lib/schema-pdf`, zod-validatie, audit-zinnen, `getExerciseDetail`-locale).
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 

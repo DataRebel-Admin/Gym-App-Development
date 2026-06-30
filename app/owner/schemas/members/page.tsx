@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { Badge } from "@/components/ui/badge";
 import { ASSIGNMENT_STATUS_META, isActiveNow } from "@/lib/schema-status";
 import { snapshotSelect } from "@/lib/schema-assignments";
@@ -9,7 +9,7 @@ import { snapshotOf, asSnapshot, diffSnapshots, hasAnyDiff } from "@/lib/schema-
 export const metadata = { title: "Schema's per lid" };
 
 export default async function MembersPage() {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
 
   const members = await prisma.user.findMany({
     where: { tenantId: owner.tenantId, role: "TENANT_MEMBER" },

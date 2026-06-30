@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { requireOwner } from "@/lib/owner";
+import { requireTenantUser } from "@/lib/staff";
 import { prisma } from "@/lib/db";
+import { StaffDashboard } from "@/components/dashboard/staff-dashboard";
 import { getDashboardStats } from "@/lib/insights";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
 import { normalizeLayout, type WidgetId } from "@/lib/dashboard";
@@ -20,7 +21,21 @@ import {
 export const metadata = { title: "Dashboard" };
 
 export default async function OwnerDashboard() {
-  const owner = await requireOwner();
+  const owner = await requireTenantUser();
+
+  // Medewerkers krijgen een op hun rol/permissies afgestemd dashboard
+  // (geen audit-/financiële data, geen configureerbare KPI-grid).
+  if (owner.role === "TENANT_STAFF") {
+    return (
+      <StaffDashboard
+        tenantId={owner.tenantId}
+        coachId={owner.id}
+        permissions={owner.permissions}
+        name={owner.name}
+      />
+    );
+  }
+
   const [stats, dbUser, recentLogs] = await Promise.all([
     getDashboardStats(owner.tenantId),
     prisma.user.findUnique({

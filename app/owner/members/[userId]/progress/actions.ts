@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { GoalMetric, MeasurementSource, PhotoPose, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { uploadProgressPhoto } from "@/lib/blob";
 import { METRICS, GOAL_METRIC_KEY, GOAL_METRIC_LABEL } from "@/lib/measurement-meta";
@@ -81,7 +81,7 @@ export async function createMeasurement(
   _prev: MeasurementFormState,
   formData: FormData
 ): Promise<MeasurementFormState> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const member = await ensureMember(owner.tenantId, userId);
   if (!member) return { error: "Lid niet gevonden" };
 
@@ -129,7 +129,7 @@ export async function updateMeasurement(
   _prev: MeasurementFormState,
   formData: FormData
 ): Promise<MeasurementFormState> {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const existing = await prisma.measurement.findFirst({
     where: { id: measurementId, tenantId: owner.tenantId, userId },
     select: { id: true },
@@ -182,7 +182,7 @@ export async function updateMeasurement(
 
 /** Meting verwijderen. */
 export async function deleteMeasurement(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const userId = String(formData.get("userId") ?? "");
   const measurementId = String(formData.get("measurementId") ?? "");
   if (!userId || !measurementId) return;
@@ -205,7 +205,7 @@ export async function deleteMeasurement(formData: FormData) {
 
 /** Doel instellen/bijwerken (startwaarde = huidige laatste meetwaarde). */
 export async function setGoal(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const userId = String(formData.get("userId") ?? "");
   const metricRaw = String(formData.get("metric") ?? "") as GoalMetric;
   const targetRaw = String(formData.get("targetValue") ?? "").trim().replace(",", ".");
@@ -250,7 +250,7 @@ export async function setGoal(formData: FormData) {
 
 /** Doel verwijderen. */
 export async function deleteGoal(formData: FormData) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const userId = String(formData.get("userId") ?? "");
   const goalId = String(formData.get("goalId") ?? "");
   if (!goalId) return;

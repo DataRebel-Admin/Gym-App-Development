@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 
 export default async function SchemasLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireOwner();
+  await requirePermission("schemas:manage");
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { ChevronRight, Check, Plus } from "@/components/ui/icons";
 import { getExerciseType, type ParamField } from "@/lib/exercise-types";
@@ -86,6 +87,7 @@ export function DynamicExerciseBlock({
   onDoneChange: (done: boolean) => void;
   onSetDone: (restSeconds: number) => void;
 }) {
+  const t = useTranslations("member.active");
   const type = getExerciseType(exercise.exerciseType);
   const TypeIcon = type.icon;
   const [, startTransition] = useTransition();
@@ -158,7 +160,7 @@ export function DynamicExerciseBlock({
       <Link
         href={`/member/history/exercise/${exercise.exerciseId}`}
         className="flex items-start gap-3 rounded-xl transition-opacity active:opacity-70"
-        aria-label={`Bekijk uitleg van ${exercise.name}`}
+        aria-label={t("viewExplanationOf", { name: exercise.name })}
       >
         {exercise.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -176,11 +178,11 @@ export function DynamicExerciseBlock({
             {exercise.name}
           </h2>
           {exercise.targetSummary && exercise.targetSummary !== "—" ? (
-            <p className="mt-0.5 text-xs text-neutral-500">doel: {exercise.targetSummary}</p>
+            <p className="mt-0.5 text-xs text-neutral-500">{t("targetSummary", { summary: exercise.targetSummary })}</p>
           ) : null}
         </div>
         <span className="mt-0.5 flex shrink-0 items-center gap-0.5 text-xs font-medium text-neutral-400">
-          uitleg <ChevronRight className="size-4" />
+          {t("explanation")} <ChevronRight className="size-4" />
         </span>
       </Link>
 
@@ -195,7 +197,7 @@ export function DynamicExerciseBlock({
             )}
           >
             {!isSingle ? (
-              <p className="mb-2 text-xs font-semibold text-neutral-500">Set {idx + 1}</p>
+              <p className="mb-2 text-xs font-semibold text-neutral-500">{t("setLabel", { number: idx + 1 })}</p>
             ) : null}
             <div className="flex flex-wrap items-end gap-2.5">
               {type.logFields.map((field) => (
@@ -216,7 +218,7 @@ export function DynamicExerciseBlock({
                     ? "border-accent bg-accent text-accent-foreground"
                     : "border-neutral-300 text-neutral-300"
                 )}
-                aria-label={isSingle ? "Markeer als klaar" : `Set ${idx + 1} opslaan`}
+                aria-label={isSingle ? t("markDone") : t("saveSet", { number: idx + 1 })}
               >
                 <Check className="size-5" />
               </button>
@@ -231,7 +233,7 @@ export function DynamicExerciseBlock({
           onClick={addRow}
           className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
         >
-          <Plus className="size-4" /> Set toevoegen
+          <Plus className="size-4" /> {t("addSet")}
         </button>
       ) : null}
     </div>

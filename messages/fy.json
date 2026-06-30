@@ -1,0 +1,75 @@
+{
+  "common": {
+    "save": "Bewarje",
+    "saving": "Bewarje…",
+    "saved": "Bewarre",
+    "cancel": "Annulearje",
+    "delete": "Wiskje",
+    "edit": "Bewurkje",
+    "add": "Tafoegje",
+    "close": "Slute",
+    "back": "Werom",
+    "next": "Folgjende",
+    "previous": "Foarige",
+    "search": "Sykje",
+    "loading": "Lade…",
+    "confirm": "Befêstigje",
+    "yes": "Ja",
+    "no": "Nee",
+    "open": "Iepenje",
+    "view": "Besjen",
+    "download": "Downloade",
+    "retry": "Besykje nochris"
+  },
+  "nav": {
+    "member": {
+      "home": "Thús",
+      "schema": "Skema",
+      "exercise": "Oefening",
+      "scan": "Scan",
+      "rooster": "Roaster",
+      "history": "Histoarje"
+    },
+    "owner": {
+      "dashboard": "Dashboard",
+      "settings": "Ynstellingen"
+    },
+    "userMenu": {
+      "account": "Akkountynstellingen",
+      "logout": "Útlogge",
+      "fallbackName": "Brûker"
+    }
+  },
+  "account": {
+    "title": "Akkountynstellingen",
+    "back": "Werom",
+    "nav": {
+      "profile": "Profyl",
+      "security": "Befeiliging",
+      "notifications": "Meldingen",
+      "privacy": "Privacy",
+      "integrations": "Yntegraasjes",
+      "activity": "Aktiviteit",
+      "gym": "Sportskoalle"
+    },
+    "language": {
+      "navLabel": "Taal",
+      "title": "Taal",
+      "description": "Kies de taal fan de ynterface. Dyn kar wurdt ûnthâlden en jildt op al dyn apparaten.",
+      "current": "Hjoeddeistige taal",
+      "changed": "Taal feroare",
+      "switchLabel": "Taal wikselje"
+    }
+  },
+  "auth": {
+    "metaTitle": "Ynlogge",
+    "title": "Ynlogge",
+    "welcomeBack": "Wolkom werom",
+    "emailLabel": "E-mailadres",
+    "password": "Wachtwurd",
+    "passwordLabel": "Wachtwurd",
+    "login": "Ynlogge",
+    "loggingIn": "Ynlogge…",
+    "sendMagicLink": "Stjoer magic link"
+  }
+}

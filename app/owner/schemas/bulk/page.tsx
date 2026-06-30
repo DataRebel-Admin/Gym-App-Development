@@ -1,4 +1,4 @@
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { prisma } from "@/lib/db";
 import { isActiveNow } from "@/lib/schema-status";
 import { SchemaBulkPanel } from "@/components/schema-bulk-panel";
@@ -6,7 +6,7 @@ import { SchemaBulkPanel } from "@/components/schema-bulk-panel";
 export const metadata = { title: "Bulkwijzigingen" };
 
 export default async function BulkPage() {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
 
   const rows = await prisma.user.findMany({
     where: { tenantId: owner.tenantId, role: "TENANT_MEMBER", active: true, archivedAt: null },

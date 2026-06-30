@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { getCoachInsights } from "@/lib/coach-insights";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,7 +18,7 @@ function Card({ title, hint, children }: { title: string; hint?: string; childre
 }
 
 export default async function CoachInsightsPage() {
-  const owner = await requireOwner();
+  const owner = await requirePermission("schemas:manage");
   const insights = await getCoachInsights(owner.tenantId);
 
   return (

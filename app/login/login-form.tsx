@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   requestMagicLink,
   loginWithPassword,
@@ -22,6 +23,7 @@ export function LoginForm({
   oauth?: { google: boolean; microsoft: boolean };
   demoAccounts?: DemoAccount[] | null;
 }) {
+  const t = useTranslations("auth");
   const [mode, setMode] = useState<"link" | "password">("link");
   const [linkState, linkAction, linkPending] = useActionState<LoginState, FormData>(requestMagicLink, {});
   const [pwState, pwAction, pwPending] = useActionState<LoginState, FormData>(loginWithPassword, {});
@@ -37,20 +39,20 @@ export function LoginForm({
             <form action={oauthSignIn}>
               <input type="hidden" name="provider" value="microsoft-entra-id" />
               <input type="hidden" name="tenant" value={tenant} />
-              <SsoButton label="Doorgaan met Microsoft" icon={<MicrosoftIcon />} />
+              <SsoButton label={t("continueMicrosoft")} icon={<MicrosoftIcon />} />
             </form>
           ) : null}
           {oauth?.google ? (
             <form action={oauthSignIn}>
               <input type="hidden" name="provider" value="google" />
               <input type="hidden" name="tenant" value={tenant} />
-              <SsoButton label="Doorgaan met Google" icon={<GoogleIcon />} />
+              <SsoButton label={t("continueGoogle")} icon={<GoogleIcon />} />
             </form>
           ) : null}
 
           <div className="flex items-center gap-3 py-1 text-xs font-medium text-neutral-400">
             <span className="h-px flex-1 bg-border" />
-            of met e-mail
+            {t("orWithEmail")}
             <span className="h-px flex-1 bg-border" />
           </div>
         </div>
@@ -59,37 +61,37 @@ export function LoginForm({
       {/* Segmented control: magic link vs. wachtwoord */}
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-neutral-100 p-1">
         <SegTab active={mode === "link"} onClick={() => setMode("link")}>
-          Magic link
+          {t("magicLink")}
         </SegTab>
         <SegTab active={mode === "password"} onClick={() => setMode("password")}>
-          Wachtwoord
+          {t("password")}
         </SegTab>
       </div>
 
       {mode === "link" ? (
         <form action={linkAction} className="flex w-full flex-col gap-4">
           <input type="hidden" name="tenant" value={tenant} />
-          <Field label="E-mailadres" error={linkState.error}>
-            <Input name="email" type="email" required autoComplete="email" placeholder="jij@voorbeeld.nl" className="py-3 text-base" />
+          <Field label={t("emailLabel")} error={linkState.error}>
+            <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
           </Field>
           <Button type="submit" size="lg" loading={linkPending} className="mt-1 w-full">
-            {linkPending ? "Versturen…" : "Stuur magic link"}
+            {linkPending ? t("sending") : t("sendMagicLink")}
           </Button>
           <p className="text-center text-xs text-neutral-500">
-            We mailen je een veilige link — geen wachtwoord nodig.
+            {t("magicLinkHint")}
           </p>
         </form>
       ) : (
         <form action={pwAction} className="flex w-full flex-col gap-4">
           <input type="hidden" name="tenant" value={tenant} />
-          <Field label="E-mailadres" error={pwState.error}>
-            <Input name="email" type="email" required autoComplete="email" placeholder="jij@voorbeeld.nl" className="py-3 text-base" />
+          <Field label={t("emailLabel")} error={pwState.error}>
+            <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
           </Field>
-          <Field label="Wachtwoord">
+          <Field label={t("passwordLabel")}>
             <Input name="password" type="password" required autoComplete="current-password" className="py-3 text-base" />
           </Field>
           <Button type="submit" size="lg" loading={pwPending} className="mt-1 w-full">
-            {pwPending ? "Inloggen…" : "Inloggen"}
+            {pwPending ? t("loggingIn") : t("login")}
           </Button>
         </form>
       )}
@@ -103,6 +105,7 @@ export function LoginForm({
 
 /** Demo snel-inlog-paneel: subtiel ingeklapt; één klik logt in als demo-account. */
 function DemoPanel({ accounts }: { accounts: DemoAccount[] }) {
+  const t = useTranslations("auth");
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-1 border-t border-border pt-3">
@@ -113,7 +116,7 @@ function DemoPanel({ accounts }: { accounts: DemoAccount[] }) {
         className="mx-auto flex items-center gap-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:text-neutral-600 focus-ring"
       >
         <WrenchIcon />
-        Demo-login
+        {t("demoLogin")}
         <ChevronIcon open={open} />
       </button>
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { m } from "motion/react";
 import { useTenant } from "@/components/tenant-provider";
 import { buttonClasses } from "@/components/ui/button-classes";
@@ -45,6 +46,11 @@ export function ErrorLayout({
   const preset = ERROR_PRESETS[code];
   const tenant = useTenant();
   const router = useRouter();
+  const t = useTranslations("errors");
+
+  // Rol-bewust dashboard-label, vertaald (was server-side nav.dashboardLabel).
+  const dashboardLabel =
+    nav.role === "SUPERADMIN" ? t("dashboardAdmin") : t("dashboardMine");
 
   // Behoud tenantcontext in dev (?tenant=slug); no-op in productie (subdomein).
   const [tenantQuery, setTenantQuery] = useState("");
@@ -66,15 +72,15 @@ export function ErrorLayout({
   // Secundaire bestemmingen, zonder de primaire te dupliceren.
   const secondary: { href: string; label: string }[] = [];
   if (nav.isAuthed && nav.dashboardHref !== primaryHref) {
-    secondary.push({ href: nav.dashboardHref, label: nav.dashboardLabel });
+    secondary.push({ href: nav.dashboardHref, label: dashboardLabel });
   }
   if (nav.homeHref !== primaryHref) {
-    secondary.push({ href: nav.homeHref, label: "Naar home" });
+    secondary.push({ href: nav.homeHref, label: t("toHome") });
   }
   // Inloggen alleen aanbieden op auth-/navigatie-fouten (niet op transiënte 5xx).
   const loginRelevant = code === 401 || code === 403 || code === 404;
   if (!nav.isAuthed && loginRelevant && nav.loginHref !== primaryHref) {
-    secondary.push({ href: nav.loginHref, label: "Inloggen" });
+    secondary.push({ href: nav.loginHref, label: t("login") });
   }
 
   return (
@@ -139,7 +145,7 @@ export function ErrorLayout({
                     : "bg-accent"
               )}
             />
-            Fout {code} · {preset.kicker}
+            {t("badge", { code, kicker: t(`codes.${code}.kicker`) })}
           </span>
           <span
             aria-hidden
@@ -154,13 +160,13 @@ export function ErrorLayout({
           variants={item}
           className="mt-6 font-display text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl"
         >
-          {preset.title}
+          {t(`codes.${code}.title`)}
         </m.h1>
         <m.p
           variants={item}
           className="mt-3 max-w-md text-balance text-base leading-relaxed text-neutral-500"
         >
-          {preset.description}
+          {t(`codes.${code}.description`)}
         </m.p>
 
         {/* Acties */}
@@ -178,7 +184,7 @@ export function ErrorLayout({
               )}
             >
               <RotateCcw className="size-4" />
-              Probeer opnieuw
+              {t("retry")}
             </button>
           ) : nav.isAuthed ? (
             <Link
@@ -189,7 +195,7 @@ export function ErrorLayout({
               )}
             >
               <LayoutDashboard className="size-4" />
-              {nav.dashboardLabel}
+              {dashboardLabel}
             </Link>
           ) : (
             <Link
@@ -200,7 +206,7 @@ export function ErrorLayout({
               )}
             >
               <LogOut className="size-4 rotate-180" />
-              Inloggen
+              {t("login")}
             </Link>
           )}
 
@@ -229,7 +235,7 @@ export function ErrorLayout({
               )}
             >
               <ChevronLeft className="size-4" />
-              Ga terug
+              {t("goBack")}
             </button>
           ) : null}
         </m.div>

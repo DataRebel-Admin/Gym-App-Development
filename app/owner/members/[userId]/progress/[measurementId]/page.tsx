@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { getMeasurement } from "@/lib/measurements";
 import { MeasurementDetail } from "@/components/progress/measurement-detail";
 import { MeasurementForm } from "@/components/progress/measurement-form";
@@ -15,7 +15,7 @@ export default async function MeasurementDetailPage({
 }: {
   params: Promise<{ userId: string; measurementId: string }>;
 }) {
-  const owner = await requireOwner();
+  const owner = await requirePermission("measurements:manage");
   const { userId, measurementId } = await params;
   const row = await getMeasurement(owner.tenantId, measurementId, userId);
   if (!row) notFound();

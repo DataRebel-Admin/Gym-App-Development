@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const READER_ID = "qr-reader";
 
@@ -18,6 +19,7 @@ function extractToken(text: string): string {
 
 export function QrScanner() {
   const router = useRouter();
+  const t = useTranslations("member.scan");
   const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +47,7 @@ export function QrScanner() {
           () => {}
         );
       } catch {
-        setError(
-          "Kan de camera niet openen. Geef cameratoegang of voer de machine handmatig op."
-        );
+        setError(t("cameraError"));
       }
     })();
 
@@ -55,6 +55,7 @@ export function QrScanner() {
       cancelled = true;
       if (stop) void stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   return (
@@ -67,7 +68,7 @@ export function QrScanner() {
         <p className="text-center text-sm text-red-600">{error}</p>
       ) : (
         <p className="text-center text-sm text-neutral-500">
-          Richt je camera op de QR-code op de machine.
+          {t("aim")}
         </p>
       )}
     </div>

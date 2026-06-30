@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { AnimatePresence, m } from "motion/react";
 import { saveSet, saveExerciseNote } from "../actions";
 import { ExerciseBlock } from "./exercise-block";
@@ -81,6 +82,7 @@ export function ActiveSession({
   exercises: ActiveExercise[];
   context: WorkoutContextProps;
 }) {
+  const t = useTranslations("member.active");
   const timer = useRestTimer();
   const [, startTransition] = useTransition();
 
@@ -293,7 +295,7 @@ export function ActiveSession({
             <span className="tabular-nums">
               {stats.completedExercises}/{exercises.length}
             </span>
-            <span className="text-neutral-400">klaar</span>
+            <span className="text-neutral-400">{t("done")}</span>
           </span>
           <div className="flex-1">
             <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
@@ -360,7 +362,7 @@ export function ActiveSession({
           }}
           className="flex items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
         >
-          <Check className="size-5" /> Workout afronden
+          <Check className="size-5" /> {t("finishWorkout")}
         </button>
       </div>
 

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { AddSessionForm } from "../class-forms";
 import { deleteClass, deleteSession } from "../actions";
@@ -30,7 +30,7 @@ export default async function ClassDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const owner = await requireOwner();
+  const owner = await requirePermission("schedule:manage");
 
   const groupClass = await prisma.groupClass.findFirst({
     where: { id, tenantId: owner.tenantId },

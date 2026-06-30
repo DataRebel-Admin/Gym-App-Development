@@ -1,4 +1,4 @@
-import type { Role } from "@prisma/client";
+import type { Locale, Role } from "@prisma/client";
 import type { DefaultSession } from "next-auth";
 
 // Breidt de Auth.js-types uit met onze multitenant-velden (role, tenantId).
@@ -9,6 +9,7 @@ declare module "next-auth" {
       id: string;
       role: Role;
       tenantId: string | null;
+      locale?: Locale | null;
     } & DefaultSession["user"];
   }
 
@@ -16,6 +17,7 @@ declare module "next-auth" {
     role: Role;
     tenantId: string | null;
     active?: boolean;
+    locale?: Locale | null;
   }
 }
 
@@ -24,6 +26,7 @@ declare module "next-auth/adapters" {
     role: Role;
     tenantId: string | null;
     active?: boolean;
+    locale?: Locale | null;
   }
 }
 
@@ -34,5 +37,6 @@ declare module "@auth/core/jwt" {
     id: string;
     role: Role;
     tenantId: string | null;
+    locale?: Locale | null;
   }
 }

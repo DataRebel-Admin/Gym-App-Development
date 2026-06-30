@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dumbbell, Search, ChevronRight, X } from "@/components/ui/icons";
@@ -22,6 +23,7 @@ export type LibraryExercise = {
  * en vrije tekst — client-side (gecureerde set is klein).
  */
 export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] }) {
+  const t = useTranslations("member.exercises");
   const [query, setQuery] = useState("");
   const [bodyPart, setBodyPart] = useState<string | null>(null);
 
@@ -48,10 +50,10 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
     <div className="flex flex-1 flex-col gap-4 px-5 py-7">
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-          Oefeningen
+          {t("title")}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Bekijk uitleg, animaties en stappenplan van elke oefening in jouw sportschool.
+          {t("subtitle")}
         </p>
       </div>
 
@@ -62,14 +64,14 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Zoek op naam, spier of materiaal…"
+          placeholder={t("searchPlaceholder")}
           className="w-full rounded-2xl border border-border bg-surface-1 py-3 pl-10 pr-10 text-sm text-neutral-900 outline-none focus:border-accent"
         />
         {query ? (
           <button
             type="button"
             onClick={() => setQuery("")}
-            aria-label="Wissen"
+            aria-label={t("clear")}
             className="absolute right-3 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-neutral-400 hover:text-neutral-700"
           >
             <X className="size-4" />
@@ -81,7 +83,7 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
       {bodyParts.length > 0 ? (
         <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Chip active={bodyPart === null} onClick={() => setBodyPart(null)}>
-            Alles
+            {t("all")}
           </Chip>
           {bodyParts.map((bp) => (
             <Chip key={bp} active={bodyPart === bp} onClick={() => setBodyPart(bp)}>
@@ -94,12 +96,8 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
       {filtered.length === 0 ? (
         <EmptyState
           icon={<Dumbbell className="size-7 text-accent" />}
-          title="Geen oefeningen gevonden"
-          description={
-            exercises.length === 0
-              ? "Je sportschool heeft nog geen oefeningen toegevoegd."
-              : "Pas je zoekopdracht of filter aan."
-          }
+          title={t("emptyTitle")}
+          description={exercises.length === 0 ? t("emptyNone") : t("emptyFilter")}
         />
       ) : (
         <ul className="grid grid-cols-2 gap-3">
@@ -135,7 +133,7 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
                     </p>
                   ) : null}
                   <span className="mt-2 inline-flex items-center gap-0.5 text-xs font-medium text-accent">
-                    Bekijk <ChevronRight className="size-3.5" />
+                    {t("view")} <ChevronRight className="size-3.5" />
                   </span>
                 </div>
               </Link>

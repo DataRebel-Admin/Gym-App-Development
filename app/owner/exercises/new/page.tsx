@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { requireOwner } from "@/lib/owner";
+import { requirePermission } from "@/lib/staff";
 import { blobConfigured } from "@/lib/blob";
 import { CustomExerciseForm } from "../custom-exercise-form";
 
 export const metadata = { title: "Nieuwe oefening | Eigen" };
 
 export default async function NewCustomExercisePage() {
-  await requireOwner();
+  await requirePermission("exercises:manage");
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">

@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { requireMember } from "@/lib/member";
 import { prisma } from "@/lib/db";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
@@ -6,7 +8,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarDays, Clock, MapPin, Users, Check } from "@/components/ui/icons";
 import { enroll, unenroll } from "./actions";
 
-export const metadata = { title: "Rooster" };
+export async function generateMetadata() {
+  const t = await getTranslations("member.rooster");
+  return { title: t("metaTitle") };
+}
 
 type SessionCard = {
   id: string;
@@ -23,6 +28,7 @@ type SessionCard = {
 };
 
 function ClassCard({ s }: { s: SessionCard }) {
+  const t = useTranslations("member.rooster");
   return (
     <div
       className={`rounded-2xl border p-4 shadow-sm ${
@@ -35,20 +41,20 @@ function ClassCard({ s }: { s: SessionCard }) {
             {s.className}
           </p>
           {s.instructorName ? (
-            <p className="text-xs text-neutral-500">met {s.instructorName}</p>
+            <p className="text-xs text-neutral-500">{t("withInstructor", { name: s.instructorName })}</p>
           ) : null}
         </div>
         {s.enrolled ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground">
-            <Check className="size-3" /> Aangemeld
+            <Check className="size-3" /> {t("enrolled")}
           </span>
         ) : s.full ? (
           <span className="shrink-0 rounded-full bg-neutral-200 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
-            Vol
+            {t("full")}
           </span>
         ) : (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-            <Users className="size-3" /> {s.spotsLeft} vrij
+            <Users className="size-3" /> {t("spotsLeft", { count: s.spotsLeft })}
           </span>
         )}
       </div>
@@ -78,7 +84,7 @@ function ClassCard({ s }: { s: SessionCard }) {
               type="submit"
               className="w-full rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
             >
-              Afmelden
+              {t("unenroll")}
             </button>
           </form>
         ) : s.full ? (
@@ -87,7 +93,7 @@ function ClassCard({ s }: { s: SessionCard }) {
             disabled
             className="w-full rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-semibold text-neutral-400"
           >
-            Volgeboekt
+            {t("fullyBooked")}
           </button>
         ) : (
           <form action={enroll}>
@@ -96,7 +102,7 @@ function ClassCard({ s }: { s: SessionCard }) {
               type="submit"
               className="w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground active:opacity-90"
             >
-              Aanmelden
+              {t("enroll")}
             </button>
           </form>
         )}
@@ -107,6 +113,7 @@ function ClassCard({ s }: { s: SessionCard }) {
 
 export default async function MemberRoosterPage() {
   const member = await requireMember();
+  const t = await getTranslations("member.rooster");
 
   const sessions = await prisma.classSession.findMany({
     where: { tenantId: member.tenantId, startsAt: { gte: new Date() } },
@@ -138,15 +145,15 @@ export default async function MemberRoosterPage() {
     <Reveal stagger className="flex flex-1 flex-col gap-6 px-5 py-8">
       <RevealItem>
         <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-          Rooster
+          {t("title")}
         </h1>
-        <p className="mt-1 text-sm text-neutral-500">Meld je aan voor groepslessen.</p>
+        <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </RevealItem>
 
       {mine.length > 0 ? (
         <RevealItem className="flex flex-col gap-3">
           <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-            Mijn lessen
+            {t("myClasses")}
           </h2>
           <div className="flex flex-col gap-2.5">
             {mine.map((s) => (
@@ -158,13 +165,13 @@ export default async function MemberRoosterPage() {
 
       <RevealItem className="flex flex-col gap-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-          Komende lessen
+          {t("upcoming")}
         </h2>
         {cards.length === 0 ? (
           <EmptyState
             icon={<CalendarDays className="size-7 text-accent" />}
-            title="Nog geen lessen gepland"
-            description="Er staan op dit moment geen groepslessen in het rooster. Kom later terug of vraag je sportschool naar het aanbod."
+            title={t("emptyTitle")}
+            description={t("emptyDesc")}
           />
         ) : (
           <div className="flex flex-col gap-2.5">

@@ -119,6 +119,30 @@ export async function notifyAssignmentsPublished(opts: {
       });
       notified += 1;
 
+      // Koppeling met schema-aanvragen: een lopende aanvraag van dit lid wordt
+      // automatisch afgerond zodra er een schema voor ze gepubliceerd wordt.
+      try {
+        const { count } = await prisma.schemaRequest.updateMany({
+          where: {
+            tenantId,
+            userId: a.user.id,
+            status: { in: ["NEW", "IN_PROGRESS", "SCHEMA_CREATED"] },
+          },
+          data: { status: "COMPLETED", resolvedAssignmentId: a.id },
+        });
+        if (count > 0) {
+          await audit("request.schema.link", {
+            actor,
+            tenantId,
+            targetType: "User",
+            targetId: a.user.id,
+            metadata: { member: a.user.name ?? a.user.email, name: schemaName },
+          });
+        }
+      } catch (err) {
+        console.error("✗ Aanvraag-koppeling mislukt:", (err as Error).message);
+      }
+
       // Audit: notificatie verzonden (in-app/push) + e-mail verzonden — apart,
       // zoals de feature-eisen vragen.
       if (channels.some((c) => c !== "email")) {
