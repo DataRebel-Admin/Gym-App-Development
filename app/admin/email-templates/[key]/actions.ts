@@ -99,6 +99,9 @@ export async function renderPreview(input: {
     bodyHtml: input.bodyHtml,
     branding,
     data: sampleData(def, input.useSampleData),
+    // On-screen preview altijd in de canonieke lichte weergave (niet meekleuren
+    // met de dark-mode van de browser van de beheerder). Testmails blijven auto.
+    forceLightScheme: true,
   });
   return { html: message.html, subject: message.subject };
 }

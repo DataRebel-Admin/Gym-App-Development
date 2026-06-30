@@ -76,6 +76,8 @@ export function renderTemplateMessage(opts: {
   bodyHtml: string;
   branding: EmailBranding;
   data: TemplateData;
+  /** On-screen preview: forceer de lichte weergave (geen OS-dark-mode). */
+  forceLightScheme?: boolean;
 }): EmailMessage {
   const data = { ...buildBrandingData(opts.branding), ...opts.data };
   const subject = renderPlaceholders(opts.subject, data, false);
@@ -88,6 +90,7 @@ export function renderTemplateMessage(opts: {
     preheader,
     contentHtml,
     reason,
+    forceLightScheme: opts.forceLightScheme,
   });
 
   return {

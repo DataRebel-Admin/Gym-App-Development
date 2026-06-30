@@ -18,6 +18,12 @@ export type LayoutInput = {
   contentHtml: string;
   /** "Je ontvangt deze e-mail omdat…" — transparantie in de footer. */
   reason: string;
+  /**
+   * Forceer de lichte weergave (laat de dark-mode media-query weg). Gebruikt door
+   * de on-screen template-preview zodat die niet meekleurt met de dark-mode van de
+   * browser/OS van de beheerder. Echte verzendingen laten dit weg → auto licht/donker.
+   */
+  forceLightScheme?: boolean;
 };
 
 /** Header: tenant-logo (of tekst-wordmark) op een accentbalk. */
@@ -95,15 +101,25 @@ function footer(branding: EmailBranding, reason: string): string {
 }
 
 export function renderEmailLayout(input: LayoutInput): string {
-  const { branding, preheader, contentHtml, reason } = input;
+  const { branding, preheader, contentHtml, reason, forceLightScheme } = input;
+  const colorScheme = forceLightScheme ? "light" : "light dark";
+  const darkModeCss = forceLightScheme
+    ? ""
+    : `
+  @media (prefers-color-scheme:dark){
+    body,.dm-bg{background:#0b0f17!important}
+    .dm-card{background:#111827!important}
+    .dm-text{color:#f3f4f6!important}
+    .dm-muted{color:#9ca3af!important}
+  }`;
   return `<!DOCTYPE html>
 <html lang="${branding.locale.toLowerCase()}" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-<meta name="color-scheme" content="light dark" />
-<meta name="supported-color-schemes" content="light dark" />
+<meta name="color-scheme" content="${colorScheme}" />
+<meta name="supported-color-schemes" content="${colorScheme}" />
 <title>${escapeHtml(branding.name)}</title>
 <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 <style>
@@ -115,12 +131,7 @@ export function renderEmailLayout(input: LayoutInput): string {
     .container{width:100%!important}
     .px{padding-left:20px!important;padding-right:20px!important}
   }
-  @media (prefers-color-scheme:dark){
-    body,.dm-bg{background:#0b0f17!important}
-    .dm-card{background:#111827!important}
-    .dm-text{color:#f3f4f6!important}
-    .dm-muted{color:#9ca3af!important}
-  }
+${darkModeCss}
 </style>
 </head>
 <body style="margin:0;padding:0;background:#f3f4f6">
