@@ -181,6 +181,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft oefening ${s(meta, "name") ?? ""} toegevoegd`.trim(),
   },
+  "exercise.import": {
+    category: "exercises", label: "Oefeningen toegevoegd uit catalogus", icon: "📦", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "count") ?? "0"} oefeningen toegevoegd uit de catalogus`,
+  },
   "exercise.update": {
     category: "exercises", label: "Oefening gewijzigd", icon: "✏️", tone: "accent",
     sentence: ({ actor, meta }) =>

@@ -1,16 +1,11 @@
 import Link from "next/link";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { machineTypeLabel, suggestMachineType } from "@/lib/machine";
 import { Badge } from "@/components/ui/badge";
 import { EXERCISE_DIFFICULTY_LABELS } from "@/lib/exercise-meta";
-import {
-  addCatalogExerciseToGym,
-  removeCatalogExerciseFromGym,
-  duplicateCustomExercise,
-  setCustomExerciseArchived,
-} from "./actions";
+import { buildCatalogWhere, myEquipmentValues, type CatalogFilter } from "@/lib/catalog";
+import { CatalogBulkGrid, type CatalogGridItem } from "./catalog-bulk-grid";
+import { duplicateCustomExercise, setCustomExerciseArchived } from "./actions";
 
 const PAGE_SIZE = 24;
 
@@ -22,6 +17,8 @@ type SearchParams = {
   bodyPart?: string;
   equipment?: string;
   target?: string;
+  /** "1" = alleen oefeningen voor de eigen apparatuur. */
+  myeq?: string;
   page?: string;
 };
 
@@ -113,14 +110,17 @@ async function StandaardTab({
 }) {
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
 
-  const where: Prisma.ExerciseCatalogWhereInput = {
-    ...(sp.q ? { name: { contains: sp.q, mode: "insensitive" } } : {}),
-    ...(sp.bodyPart ? { bodyPart: sp.bodyPart } : {}),
-    ...(sp.equipment ? { equipment: sp.equipment } : {}),
-    ...(sp.target ? { target: sp.target } : {}),
+  const filter: CatalogFilter = {
+    q: sp.q || undefined,
+    bodyPart: sp.bodyPart || undefined,
+    equipment: sp.equipment || undefined,
+    target: sp.target || undefined,
+    onlyMyEquipment: sp.myeq === "1",
   };
+  const myEquipment = filter.onlyMyEquipment ? await myEquipmentValues(tenantId) : null;
+  const where = buildCatalogWhere(filter, myEquipment);
 
-  const [items, total, bodyParts, equipments, targets, machines, existing] =
+  const [items, total, bodyParts, equipments, targets, existing] =
     await Promise.all([
       prisma.exerciseCatalog.findMany({
         where,
@@ -144,11 +144,6 @@ async function StandaardTab({
         select: { target: true },
         orderBy: { target: "asc" },
       }),
-      prisma.machine.findMany({
-        where: { tenantId },
-        select: { id: true, name: true, type: true },
-        orderBy: { name: "asc" },
-      }),
       prisma.exercise.findMany({
         where: { tenantId, catalogId: { not: null } },
         select: { catalogId: true },
@@ -158,11 +153,21 @@ async function StandaardTab({
   const inGym = new Set(existing.map((e) => e.catalogId));
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const gridItems: CatalogGridItem[] = items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    imageUrl: item.imageUrl,
+    bodyPart: item.bodyPart,
+    equipment: item.equipment,
+    target: item.target,
+    added: inGym.has(item.id),
+  }));
+
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-neutral-500">
-        {total} oefeningen in de centrale catalogus. Voeg ze toe aan jouw
-        sportschool en koppel ze eventueel aan een machine.
+        {total} oefeningen in de catalogus. Selecteer er meerdere (of alle
+        resultaten) en voeg ze in één keer toe aan jouw sportschool.
       </p>
 
       {/* Filters (GET-form) */}
@@ -181,6 +186,10 @@ async function StandaardTab({
         <FilterSelect label="Lichaamsdeel" name="bodyPart" value={sp.bodyPart} options={bodyParts.map((b) => b.bodyPart)} />
         <FilterSelect label="Apparatuur" name="equipment" value={sp.equipment} options={equipments.map((e) => e.equipment)} />
         <FilterSelect label="Doelspier" name="target" value={sp.target} options={targets.map((t) => t.target)} />
+        <label className="flex items-center gap-2 pb-2 text-sm text-neutral-600">
+          <input type="checkbox" name="myeq" value="1" defaultChecked={filter.onlyMyEquipment} />
+          Voor mijn apparatuur
+        </label>
         <button
           type="submit"
           className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent active:opacity-90"
@@ -196,89 +205,11 @@ async function StandaardTab({
       </form>
 
       {items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Geen oefeningen gevonden.</p>
+        <p className="text-sm text-neutral-500">
+          Geen oefeningen gevonden{filter.onlyMyEquipment ? " voor jouw apparatuur" : ""}.
+        </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {items.map((item) => {
-            const added = inGym.has(item.id);
-            const suggested = suggestMachineType(item.equipment);
-            const preMachine =
-              machines.find((m) => m.type === suggested)?.id ?? "";
-            return (
-              <div
-                key={item.id}
-                className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200"
-              >
-                <div className="aspect-square w-full bg-neutral-50">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    loading="lazy"
-                    className="h-full w-full object-contain"
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-3 p-4">
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <h2 className="font-medium capitalize text-neutral-900">
-                        {item.name}
-                      </h2>
-                      <Badge tone="neutral">Standaard</Badge>
-                    </div>
-                    <p className="mt-0.5 text-xs capitalize text-neutral-500">
-                      {item.bodyPart} · {item.equipment} · {item.target}
-                    </p>
-                  </div>
-
-                  <div className="mt-auto">
-                    {added ? (
-                      <form action={removeCatalogExerciseFromGym}>
-                        <input type="hidden" name="catalogId" value={item.id} />
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-accent">
-                            ✓ In sportschool
-                          </span>
-                          <button
-                            type="submit"
-                            className="text-xs text-neutral-400 hover:text-red-600"
-                          >
-                            Verwijderen
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <form action={addCatalogExerciseToGym} className="flex flex-col gap-2">
-                        <input type="hidden" name="catalogId" value={item.id} />
-                        <label className="flex flex-col gap-1 text-xs text-neutral-500">
-                          Machine (voorstel: {machineTypeLabel(suggested)})
-                          <select
-                            name="machineId"
-                            defaultValue={preMachine}
-                            className="rounded-lg border border-neutral-300 px-2 py-1.5 text-sm text-neutral-900"
-                          >
-                            <option value="">Geen machine</option>
-                            {machines.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({machineTypeLabel(m.type)})
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button
-                          type="submit"
-                          className="rounded-lg border-2 border-neutral-900 px-3 py-2 text-sm font-semibold text-neutral-900 active:bg-neutral-50"
-                        >
-                          + Toevoegen
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <CatalogBulkGrid items={gridItems} total={total} filter={filter} />
       )}
 
       {/* Paginering */}

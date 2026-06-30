@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { uploadExerciseImage } from "@/lib/blob";
 import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
+import { suggestMachineType } from "@/lib/machine";
+import { buildCatalogWhere, myEquipmentValues } from "@/lib/catalog";
 import { audit } from "@/lib/audit";
 
 const addSchema = z.object({
@@ -71,6 +73,120 @@ export async function addCatalogExerciseToGym(formData: FormData) {
   });
 
   revalidatePath("/owner/exercises");
+}
+
+const bulkAddSchema = z.object({
+  catalogIds: z.array(z.string().min(1)).max(5000).optional(),
+  allMatchingFilter: z.boolean().optional(),
+  filter: z
+    .object({
+      q: z.string().optional(),
+      bodyPart: z.string().optional(),
+      equipment: z.string().optional(),
+      target: z.string().optional(),
+      onlyMyEquipment: z.boolean().optional(),
+    })
+    .optional(),
+  autoMachine: z.boolean().optional(),
+});
+
+export type BulkAddCatalogInput = z.infer<typeof bulkAddSchema>;
+export type BulkAddCatalogResult = { added: number; skipped: number };
+
+/**
+ * Voeg meerdere catalogus-oefeningen tegelijk toe aan de sportschool. Twee
+ * modi: een expliciete `catalogIds`-lijst (selectie op de pagina) óf
+ * `allMatchingFilter` (alle resultaten van het huidige filter, ook over
+ * pagina's heen). Reeds-toegevoegde worden overgeslagen (geen unique op
+ * (tenantId, catalogId) → expliciet pre-filteren). Optioneel auto-koppelen aan
+ * een passende machine. Batched insert; één foute rij blokkeert de rest niet.
+ */
+export async function bulkAddCatalogToGym(
+  input: BulkAddCatalogInput
+): Promise<BulkAddCatalogResult> {
+  const owner = await requireOwner();
+  const parsed = bulkAddSchema.safeParse(input);
+  if (!parsed.success) return { added: 0, skipped: 0 };
+  const { catalogIds, allMatchingFilter, filter, autoMachine } = parsed.data;
+
+  // 1) Bepaal de doel-catalogus-ids.
+  let ids: string[];
+  if (allMatchingFilter && filter) {
+    const myEquipment = filter.onlyMyEquipment
+      ? await myEquipmentValues(owner.tenantId)
+      : null;
+    const rows = await prisma.exerciseCatalog.findMany({
+      where: buildCatalogWhere(filter, myEquipment),
+      select: { id: true },
+      take: 5000,
+    });
+    ids = rows.map((r) => r.id);
+  } else {
+    ids = [...new Set(catalogIds ?? [])].slice(0, 5000);
+  }
+  if (ids.length === 0) return { added: 0, skipped: 0 };
+
+  // 2) Reeds in de sportschool? Overslaan.
+  const existing = await prisma.exercise.findMany({
+    where: { tenantId: owner.tenantId, catalogId: { in: ids } },
+    select: { catalogId: true },
+  });
+  const existingSet = new Set(existing.map((e) => e.catalogId));
+  const toAddIds = ids.filter((id) => !existingSet.has(id));
+  const skipped = ids.length - toAddIds.length;
+  if (toAddIds.length === 0) {
+    revalidatePath("/owner/exercises");
+    return { added: 0, skipped };
+  }
+
+  // 3) Catalogus-velden + optionele machine-koppeling.
+  const catalogRows = await prisma.exerciseCatalog.findMany({
+    where: { id: { in: toAddIds } },
+    select: { id: true, name: true, target: true, equipment: true },
+  });
+
+  const machineByType = new Map<string, string>();
+  if (autoMachine) {
+    const machines = await prisma.machine.findMany({
+      where: { tenantId: owner.tenantId },
+      select: { id: true, type: true },
+    });
+    for (const m of machines) {
+      if (!machineByType.has(m.type)) machineByType.set(m.type, m.id);
+    }
+  }
+
+  const data = catalogRows.map((c) => ({
+    tenantId: owner.tenantId,
+    name: c.name,
+    targetMuscle: c.target,
+    catalogId: c.id,
+    machineId: autoMachine
+      ? machineByType.get(suggestMachineType(c.equipment)) ?? null
+      : null,
+  }));
+
+  // 4) Batched insert (createMany is atomair per batch).
+  let added = 0;
+  const CHUNK = 500;
+  for (let i = 0; i < data.length; i += CHUNK) {
+    const res = await prisma.exercise.createMany({
+      data: data.slice(i, i + CHUNK),
+      skipDuplicates: true,
+    });
+    added += res.count;
+  }
+
+  await audit("exercise.import", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Exercise",
+    metadata: { count: added, skipped },
+  });
+
+  revalidatePath("/owner/exercises");
+  revalidatePath("/member/exercises");
+  return { added, skipped };
 }
 
 /** Verwijder een eerder toegevoegde catalogus-oefening uit de sportschool. */
