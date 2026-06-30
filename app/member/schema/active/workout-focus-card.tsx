@@ -24,7 +24,7 @@ function BigStepper({
     onChange(String(next));
   }
   return (
-    <div className="flex flex-1 flex-col items-center">
+    <div className="flex w-full flex-col items-center">
       <span className="mb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
         {unit}
       </span>
@@ -43,7 +43,7 @@ function BigStepper({
           min={0}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full min-w-0 rounded-xl border border-border bg-surface-0 px-1 py-2 text-center font-display text-2xl font-bold tabular-nums text-neutral-900 outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          className="w-full min-w-0 rounded-xl border border-border bg-surface-0 px-1 py-2 text-center font-display text-xl font-bold leading-none tabular-nums text-neutral-900 outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
         />
         <button
           type="button"
@@ -163,22 +163,24 @@ export function WorkoutFocusCard({
                     : "border-border bg-surface-1"
               )}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-bold text-neutral-600">
                   {setNumber}
                 </span>
-                <BigStepper
-                  value={s.kg}
-                  unit="kg"
-                  step={2.5}
-                  onChange={(v) => onChangeSet(setNumber, "kg", v)}
-                />
-                <BigStepper
-                  value={s.reps}
-                  unit="reps"
-                  step={1}
-                  onChange={(v) => onChangeSet(setNumber, "reps", v)}
-                />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <BigStepper
+                    value={s.kg}
+                    unit="kg"
+                    step={2.5}
+                    onChange={(v) => onChangeSet(setNumber, "kg", v)}
+                  />
+                  <BigStepper
+                    value={s.reps}
+                    unit="reps"
+                    step={1}
+                    onChange={(v) => onChangeSet(setNumber, "reps", v)}
+                  />
+                </div>
                 <button
                   type="button"
                   aria-label={s.done ? `Set ${setNumber} ongedaan maken` : `Set ${setNumber} afvinken`}
