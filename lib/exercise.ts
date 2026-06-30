@@ -1,6 +1,24 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import type { Locale } from "@prisma/client";
+import type { Locale, Prisma } from "@prisma/client";
+
+export type Difficulty = "Beginner" | "Gemiddeld" | "Gevorderd";
+
+/**
+ * Heuristische moeilijkheidsgraad op basis van materiaal/categorie. De dataset
+ * heeft geen difficulty-veld; dit is een ruwe inschatting (vrije gewichten zwaarder
+ * te beheersen dan machines). Nooit medisch advies — de veiligheidsmelding blijft.
+ */
+export function deriveDifficulty(
+  equipment: string | null,
+  category: string | null
+): Difficulty {
+  const e = (equipment ?? "").toLowerCase();
+  const c = (category ?? "").toLowerCase();
+  if (/body\s?weight|assisted|machine|cable|sled|leverage|smith/.test(e)) return "Beginner";
+  if (/barbell|olympic|weighted/.test(e) || /powerlifting|olympic/.test(c)) return "Gevorderd";
+  return "Gemiddeld";
+}
 
 /**
  * Resolver-laag tussen de tenant-`Exercise` en de globale `ExerciseCatalog`.
@@ -53,6 +71,9 @@ export type ExerciseDetail = {
   secondaryMuscles: string[];
   equipment: string | null;
   bodyPart: string | null;
+  category: string | null;
+  /** Afgeleide moeilijkheidsgraad (heuristiek, geen dataset-veld). */
+  difficulty: Difficulty;
   /** Taalcode waaruit de instructie komt (bv. "nl" of "en") — null als er geen is. */
   instructionLang: string | null;
   /** Of de gegevens uit de globale catalogus komen. */
@@ -89,7 +110,60 @@ export async function getExerciseDetail(
     secondaryMuscles: cat?.secondaryMuscles ?? [],
     equipment: cat?.equipment ?? null,
     bodyPart: cat?.bodyPart ?? null,
+    category: cat?.category ?? null,
+    difficulty: deriveDifficulty(cat?.equipment ?? null, cat?.category ?? null),
     instructionLang: steps?.lang ?? text?.lang ?? null,
     fromCatalog: Boolean(cat),
   };
+}
+
+export type ExerciseAlternative = {
+  id: string;
+  name: string;
+  thumbUrl: string | null;
+  equipment: string | null;
+};
+
+/**
+ * Alternatieve oefeningen binnen dezelfde tenant die dezelfde spiergroep trainen
+ * (zelfde catalogus-`target` of `muscleGroup`). Data-gedekt — géén verzonnen
+ * suggesties. Eigen oefeningen zonder catalogus-koppeling vallen buiten de match.
+ */
+export async function getAlternativeExercises(
+  tenantId: string,
+  exerciseId: string,
+  take = 6
+): Promise<ExerciseAlternative[]> {
+  const src = await prisma.exercise.findFirst({
+    where: { id: exerciseId, tenantId },
+    select: { catalog: { select: { target: true, muscleGroup: true } } },
+  });
+  const target = src?.catalog?.target ?? null;
+  const muscleGroup = src?.catalog?.muscleGroup ?? null;
+  if (!target && !muscleGroup) return [];
+
+  const or: Prisma.ExerciseCatalogWhereInput[] = [];
+  if (target) or.push({ target });
+  if (muscleGroup) or.push({ muscleGroup });
+
+  const others = await prisma.exercise.findMany({
+    where: {
+      tenantId,
+      id: { not: exerciseId },
+      catalog: { is: { OR: or } },
+    },
+    select: {
+      id: true,
+      name: true,
+      catalog: { select: { imageUrl: true, gifUrl: true, equipment: true } },
+    },
+    take,
+  });
+
+  return others.map((o) => ({
+    id: o.id,
+    name: o.name,
+    thumbUrl: o.catalog?.imageUrl ?? o.catalog?.gifUrl ?? null,
+    equipment: o.catalog?.equipment ?? null,
+  }));
 }

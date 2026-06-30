@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { resolveTenantSlug } from "@/lib/tenant-resolve";
-import { TENANT_HEADER, AUTH_TENANT_COOKIE } from "@/lib/constants";
+import { TENANT_HEADER, PATHNAME_HEADER, AUTH_TENANT_COOKIE } from "@/lib/constants";
 
 // Edge-veilige proxy/middleware: lost de tenant op (subdomein of ?tenant),
 // zet die als header voor de Server Components, en dwingt rol-toegang af op
@@ -18,12 +18,13 @@ export default auth((req) => {
     nextUrl.searchParams.get("tenant"),
     req.cookies.get(AUTH_TENANT_COOKIE)?.value
   );
+  const { pathname } = nextUrl;
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(TENANT_HEADER, slug);
+  requestHeaders.set(PATHNAME_HEADER, pathname);
 
   // 2) Rol-bescherming.
   const user = req.auth?.user;
-  const { pathname } = nextUrl;
   const onAdmin = pathname.startsWith("/admin");
   const onOwner = pathname.startsWith("/owner");
   const onMember = pathname.startsWith("/member");

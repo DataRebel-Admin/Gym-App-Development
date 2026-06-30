@@ -4,13 +4,15 @@ import Link from "next/link";
 import { logout } from "@/app/login/actions";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 
-/** Avatar-initiaal + dropdown met gebruikersinfo en uitloggen. */
+/** Avatar (foto of initiaal) + dropdown met gebruikersinfo en uitloggen. */
 export function UserMenu({
   name,
   email,
+  image,
 }: {
   name: string | null;
   email: string | null;
+  image?: string | null;
 }) {
   const display = name ?? email ?? "Gebruiker";
   const initial = display.charAt(0).toUpperCase();
@@ -23,8 +25,13 @@ export function UserMenu({
           onClick={toggle}
           className="flex items-center gap-2 rounded-full border border-border bg-surface-1 py-1 pl-1 pr-3 transition-colors hover:bg-neutral-50 focus-ring"
         >
-          <span className="flex size-7 items-center justify-center rounded-full bg-accent-gradient text-xs font-bold text-accent-foreground">
-            {initial}
+          <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-gradient text-xs font-bold text-accent-foreground">
+            {image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={image} alt="" className="size-full object-cover" />
+            ) : (
+              initial
+            )}
           </span>
           <span className="max-w-[10rem] truncate text-sm font-medium text-neutral-700">
             {display}
@@ -34,13 +41,23 @@ export function UserMenu({
     >
       {() => (
         <>
-          <div className="px-3 py-2">
-            <p className="truncate text-sm font-semibold text-neutral-900">
-              {name ?? "Gebruiker"}
-            </p>
-            {email ? (
-              <p className="truncate text-xs text-neutral-500">{email}</p>
-            ) : null}
+          <div className="flex items-center gap-2.5 px-3 py-2">
+            <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-gradient text-sm font-bold text-accent-foreground">
+              {image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image} alt="" className="size-full object-cover" />
+              ) : (
+                initial
+              )}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-neutral-900">
+                {name ?? "Gebruiker"}
+              </p>
+              {email ? (
+                <p className="truncate text-xs text-neutral-500">{email}</p>
+              ) : null}
+            </div>
           </div>
           <div className="my-1 h-px bg-border" />
           <Link

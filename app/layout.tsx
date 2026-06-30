@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant";
-import { getTheme } from "@/lib/theme";
+import { getResolvedTheme } from "@/lib/theme";
 import { rootMetadata } from "@/lib/metadata";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
@@ -36,7 +36,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [tenant, theme] = await Promise.all([getCurrentTenant(), getTheme()]);
+  const [tenant, theme] = await Promise.all([
+    getCurrentTenant(),
+    getResolvedTheme(),
+  ]);
 
   const tenantInfo: TenantInfo | null = tenant
     ? {

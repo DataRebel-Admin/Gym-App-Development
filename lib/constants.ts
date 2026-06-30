@@ -6,5 +6,13 @@ export const AUTH_TENANT_COOKIE = "gymrebel-auth-tenant";
 /** Header die de middleware zet met de actieve tenant-slug (prompt 04). */
 export const TENANT_HEADER = "x-tenant-slug";
 
+/** Header die de middleware zet met het request-pad, zodat de root-layout
+ *  route-afhankelijk kan beslissen (bv. login altijd in lichte modus). */
+export const PATHNAME_HEADER = "x-pathname";
+
 /** Fallback-tenant in development wanneer geen subdomein/param aanwezig is. */
 export const DEV_FALLBACK_TENANT = "fitpower";
+
+/** Cookie met de ondertekende 2FA-challenge tussen stap 1 (wachtwoord) en stap 2
+ *  (code) van de wachtwoord-login. HttpOnly + kortlevend (zie lib/login-challenge.ts). */
+export const TWO_FACTOR_CHALLENGE_COOKIE = "gymrebel-2fa-challenge";

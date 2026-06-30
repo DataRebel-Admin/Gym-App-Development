@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import Markdown from "react-markdown";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { machineTypeLabel } from "@/lib/machine";
+import { Badge } from "@/components/ui/badge";
+import { Dumbbell, Plus, ChevronRight } from "@/components/ui/icons";
 import { addMachineToSchema } from "./actions";
 
 export async function generateMetadata({
@@ -42,9 +45,7 @@ export default async function MachinePublicPage({
           id: true,
           name: true,
           targetMuscle: true,
-          catalog: {
-            select: { gifUrl: true, imageUrl: true, target: true },
-          },
+          catalog: { select: { gifUrl: true, imageUrl: true, target: true } },
         },
       },
     },
@@ -53,41 +54,40 @@ export default async function MachinePublicPage({
 
   // "Voeg toe aan mijn schema" alleen voor ingelogde leden van deze tenant met schema.
   const session = await auth();
+  const isMember =
+    session?.user?.role === "TENANT_MEMBER" && session.user.tenantId === tenant.id;
   let canAdd = false;
-  if (
-    session?.user?.role === "TENANT_MEMBER" &&
-    session.user.tenantId === tenant.id &&
-    machine.exercises.length > 0
-  ) {
+  if (isMember && machine.exercises.length > 0) {
     const assignment = await prisma.assignedWorkout.findFirst({
-      where: { tenantId: tenant.id, userId: session.user.id },
+      where: { tenantId: tenant.id, userId: session!.user.id },
     });
     canAdd = Boolean(assignment);
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6">
+      {/* Hero */}
       {machine.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={machine.imageUrl}
-          alt={machine.name}
-          className="h-56 w-full object-cover"
-        />
+        <div className="overflow-hidden rounded-3xl border border-border bg-surface-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={machine.imageUrl}
+            alt={machine.name}
+            className="h-56 w-full object-cover"
+          />
+        </div>
       ) : (
-        <div className="flex h-40 w-full items-center justify-center bg-neutral-100 text-neutral-400">
-          Geen foto
+        <div className="flex h-44 w-full items-center justify-center rounded-3xl bg-accent-soft text-accent">
+          <Dumbbell className="size-12" />
         </div>
       )}
 
-      <div className="flex flex-col gap-5 px-5 py-6">
+      <div className="mt-5 flex flex-col gap-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+          <Badge tone="accent">{machineTypeLabel(machine.type)}</Badge>
+          <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-neutral-900">
             {machine.name}
           </h1>
-          <p className="text-sm text-neutral-500">
-            {machineTypeLabel(machine.type)}
-          </p>
         </div>
 
         {machine.description ? (
@@ -95,13 +95,13 @@ export default async function MachinePublicPage({
         ) : null}
 
         {machine.instructionsMd ? (
-          <div className="prose prose-sm prose-neutral max-w-none [&_h2]:mt-0 [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
+          <div className="prose prose-sm prose-neutral max-w-none rounded-3xl border border-border bg-surface-1 p-5 [&_h2]:mt-0 [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
             <Markdown>{machine.instructionsMd}</Markdown>
           </div>
         ) : null}
 
         {machine.videoUrl ? (
-          <div className="aspect-video w-full overflow-hidden rounded-xl border border-neutral-200">
+          <div className="aspect-video w-full overflow-hidden rounded-2xl border border-border">
             <iframe
               src={machine.videoUrl}
               title={`Video ${machine.name}`}
@@ -121,11 +121,8 @@ export default async function MachinePublicPage({
               {machine.exercises.map((ex) => {
                 const thumb = ex.catalog?.imageUrl ?? ex.catalog?.gifUrl ?? null;
                 const muscle = ex.targetMuscle ?? ex.catalog?.target ?? null;
-                return (
-                  <li
-                    key={ex.id}
-                    className="flex items-center gap-3 rounded-xl border border-neutral-200 px-3 py-2"
-                  >
+                const inner = (
+                  <>
                     {thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -133,12 +130,14 @@ export default async function MachinePublicPage({
                         alt=""
                         aria-hidden
                         loading="lazy"
-                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                        className="h-12 w-12 shrink-0 rounded-xl object-cover"
                       />
                     ) : (
-                      <div className="h-12 w-12 shrink-0 rounded-lg bg-neutral-100" />
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                        <Dumbbell className="size-5" />
+                      </span>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-medium capitalize text-neutral-900">
                         {ex.name}
                       </p>
@@ -148,6 +147,25 @@ export default async function MachinePublicPage({
                         </p>
                       ) : null}
                     </div>
+                    {isMember ? (
+                      <ChevronRight className="size-4 shrink-0 text-neutral-300" />
+                    ) : null}
+                  </>
+                );
+                return (
+                  <li key={ex.id}>
+                    {isMember ? (
+                      <Link
+                        href={`/member/history/exercise/${ex.id}`}
+                        className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-2.5 shadow-sm active:bg-surface-2"
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-2.5 shadow-sm">
+                        {inner}
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -160,21 +178,18 @@ export default async function MachinePublicPage({
             <input type="hidden" name="machineId" value={machine.id} />
             <button
               type="submit"
-              className="w-full rounded-xl border-2 border-neutral-900 px-5 py-3 text-center font-semibold text-neutral-900 active:bg-neutral-50"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-accent px-5 py-3.5 text-center font-semibold text-accent active:bg-accent-soft"
             >
-              + Voeg toe aan mijn schema
+              <Plus className="size-5" /> Voeg toe aan mijn schema
             </button>
           </form>
         ) : null}
 
         {/* Verplichte veiligheidsmelding — ALTIJD zichtbaar. */}
-        <div className="rounded-xl border-2 border-accent bg-accent/5 px-5 py-4 text-center">
-          <p className="font-semibold text-neutral-900">
-            Twijfel? Vraag een trainer.
-          </p>
+        <div className="rounded-2xl border-2 border-accent bg-accent-soft px-5 py-4 text-center">
+          <p className="font-semibold text-neutral-900">Twijfel? Vraag een trainer.</p>
           <p className="mt-1 text-sm text-neutral-600">
-            Bij pijn of onzekerheid over de uitvoering: raadpleeg altijd een
-            professional.
+            Bij pijn of onzekerheid over de uitvoering: raadpleeg altijd een professional.
           </p>
         </div>
       </div>

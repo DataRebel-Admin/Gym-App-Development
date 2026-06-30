@@ -2,12 +2,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
-import { UserMenu } from "@/components/nav/user-menu";
-import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { getUserTenants } from "@/lib/tenants";
+import { getUserBadge } from "@/lib/account";
 import { MemberNav } from "@/components/nav/member-nav";
+import { MemberDrawer } from "@/components/nav/member-drawer";
 import { PageTransition } from "@/components/motion/page-transition";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { MemberOnboarding } from "@/components/member/onboarding";
 
 export default async function MemberLayout({
   children,
@@ -20,41 +20,39 @@ export default async function MemberLayout({
   if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
 
   const tenant = await getCurrentTenant();
+  const badge = await getUserBadge(session.user.id);
   const tenants = session.user.email
     ? await getUserTenants(session.user.email)
     : [];
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-surface-0">
-      <header className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border bg-surface-1/85 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-2 overflow-hidden">
+    <div className="mx-auto flex min-h-full w-full max-w-md flex-col">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border bg-surface-1/80 px-4 py-3 backdrop-blur-xl">
         <Link
           href="/member"
-          className="flex items-center gap-2 font-display font-bold text-neutral-900"
+          className="flex min-w-0 items-center gap-2 font-display font-bold text-neutral-900"
         >
           {tenant?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={tenant.logoUrl}
               alt=""
-              className="h-6 w-6 rounded-md object-contain"
+              className="h-7 w-7 shrink-0 rounded-md object-contain"
             />
           ) : (
-            <span className="flex size-6 items-center justify-center rounded-md bg-accent-gradient text-xs text-accent-foreground">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent-gradient text-xs text-accent-foreground">
               {(tenant?.name ?? "G").charAt(0)}
             </span>
           )}
-          {tenant?.name ?? "GymRebel"}
+          <span className="truncate">{tenant?.name ?? "GymRebel"}</span>
         </Link>
-        <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <ThemeToggle />
-          <UserMenu
-            name={session.user.name ?? null}
-            email={session.user.email ?? null}
-          />
-        </div>
+        <MemberDrawer
+          name={badge?.name ?? session.user.name ?? null}
+          email={badge?.email ?? session.user.email ?? null}
+          image={badge?.image ?? null}
+          tenants={tenants}
+          currentSlug={tenant?.slug ?? null}
+        />
       </header>
 
       <main className="flex flex-1 flex-col pb-24">
@@ -62,6 +60,7 @@ export default async function MemberLayout({
       </main>
 
       <MemberNav />
+      <MemberOnboarding />
     </div>
   );
 }

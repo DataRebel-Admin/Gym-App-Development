@@ -9,6 +9,8 @@
  * tenant-kleur kloppen. Niets hardcoded merk-specifiek.
  */
 :root {
+  color-scheme: light;
+
   --background: #ffffff;
   --foreground: #0a0a0a;
 
@@ -19,7 +21,9 @@
   --neutral-300: #d4d4d4;
   --neutral-400: #a3a3a3;
   --neutral-500: #737373;
+  --neutral-600: #525252;
   --neutral-700: #404040;
+  --neutral-800: #262626;
   --neutral-900: #171717;
 
   /* Semantische surfaces */
@@ -72,6 +76,29 @@
 
   --glass: color-mix(in srgb, var(--surface-1) 70%, transparent);
   --shimmer-tint: rgb(255 255 255 / 0.6);
+
+  /* Premium app-achtergrond (licht).
+     Basis = koel off-white zodat witte kaarten loskomen; daaroverheen drie
+     zeer subtiele tenant-getinte radialen + een verticaal verloop. */
+  --app-bg-base: #eceef3;
+  --app-bg:
+    radial-gradient(
+      62% 52% at 6% -8%,
+      color-mix(in srgb, var(--tenant-accent) 9%, transparent) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      58% 48% at 100% -2%,
+      color-mix(in srgb, var(--tenant-secondary) 11%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      72% 60% at 92% 112%,
+      color-mix(in srgb, var(--tenant-accent) 6%, transparent) 0%,
+      transparent 60%
+    ),
+    linear-gradient(180deg, #f7f8fb 0%, #eef0f5 55%, #e9ebf2 100%);
+  --app-grain-opacity: 0.03;
 }
 
 /*
@@ -91,7 +118,9 @@
   --neutral-300: #3a3f47;
   --neutral-400: #71757d;
   --neutral-500: #9ca3af;
+  --neutral-600: #b8bcc4;
   --neutral-700: #d4d4d8;
+  --neutral-800: #e4e4e7;
   --neutral-900: #f4f4f5;
 
   --surface-0: #0a0b0d;
@@ -114,6 +143,29 @@
 
   --glass: color-mix(in srgb, var(--surface-1) 62%, transparent);
   --shimmer-tint: rgb(255 255 255 / 0.06);
+
+  /* Premium app-achtergrond (donker).
+     Geen vol zwart: een diep, licht blauwig verloop met sterkere — maar nog
+     altijd ingehouden — tenant-gloed, zodat surface-kaarten duidelijk loskomen. */
+  --app-bg-base: #0a0b0d;
+  --app-bg:
+    radial-gradient(
+      60% 50% at 4% -10%,
+      color-mix(in srgb, var(--tenant-accent) 20%, transparent) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      56% 50% at 100% -6%,
+      color-mix(in srgb, var(--tenant-secondary) 14%, transparent) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      78% 66% at 94% 114%,
+      color-mix(in srgb, var(--tenant-accent) 13%, transparent) 0%,
+      transparent 60%
+    ),
+    linear-gradient(180deg, #0f1116 0%, #0a0b0e 55%, #0c0d12 100%);
+  --app-grain-opacity: 0.055;
 }
 
 @theme inline {
@@ -126,7 +178,9 @@
   --color-neutral-300: var(--neutral-300);
   --color-neutral-400: var(--neutral-400);
   --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
   --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
   --color-neutral-900: var(--neutral-900);
 
   /* Semantische kleuren → utilities bg-surface-1, border-border, text-muted, … */
@@ -165,13 +219,68 @@
   color-scheme: dark;
 }
 
+html {
+  /* Vaste basiskleur — onderlaag onder de gelaagde achtergrond (no-flash). */
+  background-color: var(--app-bg-base);
+}
+
 body {
-  background: var(--surface-0);
+  /* De zichtbare achtergrond komt uit de gelaagde ::before/::after hieronder;
+     body zelf blijft transparant zodat die lagen doorschijnen. */
+  background: transparent;
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background-color var(--dur) var(--ease-out),
-    color var(--dur) var(--ease-out);
+  transition: color var(--dur) var(--ease-out);
+}
+
+/* ============================================================
+ * Premium gelaagde app-achtergrond
+ * ------------------------------------------------------------
+ * Pure-CSS dieptewerking (gradients + zachte kleurvlakken + grain),
+ * vast in de viewport zodat de content er rustig overheen scrollt.
+ * Whitelabel: de tenant-kleuren (--tenant-accent/--tenant-secondary)
+ * zijn héél subtiel verweven via color-mix. Twee lagen:
+ *   ::before = gelaagde kleurverlopen (langzaam driftend → leeft licht)
+ *   ::after  = fijne grain-textuur + zachte sheen (diepte zonder ruis)
+ * Beide pointer-events:none en achter de content (negatieve z-index).
+ * ============================================================ */
+body::before {
+  content: "";
+  position: fixed;
+  /* Iets groter dan de viewport zodat de drift-animatie nooit randen toont. */
+  inset: -20%;
+  z-index: -2;
+  pointer-events: none;
+  background-color: var(--app-bg-base);
+  background-image: var(--app-bg);
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  animation: app-bg-drift 42s var(--ease-in-out) infinite alternate;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* Fijne, vervaagde grain — geeft textuur zonder zwaar beeldbestand. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 170px 170px;
+  opacity: var(--app-grain-opacity);
+  mix-blend-mode: soft-light;
+}
+
+/* Langzame lichtverschuiving — nauwelijks waarneembaar, geeft de achtergrond
+   leven zonder af te leiden. Reduced-motion schakelt dit globaal uit. */
+@keyframes app-bg-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2.4%, 1.6%, 0) scale(1.05);
+  }
 }
 
 /* Glas-effect (header/overlays): translucent surface + blur */
@@ -188,6 +297,36 @@ body {
     color-mix(in srgb, var(--tenant-accent) 22%, transparent) 0%,
     transparent 60%
   );
+}
+
+/* Rijkere, gelaagde aura voor premium-panelen (dashboard-hero, KPI-secties):
+   tenant-accent linksboven + secundair rechtsboven, plus een fijne lichtrand
+   bovenin. Plaats op een absoluut gepositioneerde aria-hidden laag binnen een
+   `relative overflow-hidden` container. */
+.bg-aura {
+  background:
+    radial-gradient(
+      90% 120% at 0% 0%,
+      color-mix(in srgb, var(--tenant-accent) 16%, transparent) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      80% 120% at 100% 0%,
+      color-mix(in srgb, var(--tenant-secondary) 14%, transparent) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-1) 0%, transparent) 0%,
+      transparent 40%
+    );
+}
+/* Subtiele lichtrand bovenaan een paneel — versterkt het "loskomen". */
+.panel-sheen {
+  box-shadow: inset 0 1px 0 0 color-mix(in srgb, #ffffff 60%, transparent);
+}
+:root[data-theme="dark"] .panel-sheen {
+  box-shadow: inset 0 1px 0 0 color-mix(in srgb, #ffffff 10%, transparent);
 }
 
 /* Display-typografie: vette, strakke headings */

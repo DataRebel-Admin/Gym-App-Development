@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
+import { getWorkoutContext } from "@/lib/member-stats";
 import { ActiveSession, type ActiveExercise } from "./active-session";
 
 export const metadata = { title: "Actieve training" };
@@ -69,11 +70,14 @@ export default async function ActiveSessionPage() {
     };
   });
 
+  const context = await getWorkoutContext(open.id, member.id, member.tenantId);
+
   return (
     <ActiveSession
       sessionId={open.id}
       startedAt={open.startedAt.toISOString()}
       exercises={exercises}
+      context={context}
     />
   );
 }

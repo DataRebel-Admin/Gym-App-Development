@@ -49,11 +49,16 @@ export function StatCard({
     <div
       ref={ref}
       className={cn(
-        "flex flex-col gap-2 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm",
+        "panel-sheen relative flex flex-col gap-2 overflow-hidden rounded-2xl border border-border bg-surface-1 p-5 shadow-sm",
         className
       )}
     >
-      <div className="flex items-center justify-between">
+      {/* Zachte tenant-accent gloed achter de KPI — subtiele diepte. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-10 -top-12 size-32 rounded-full bg-accent-soft blur-2xl"
+      />
+      <div className="relative flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
           {label}
         </span>
