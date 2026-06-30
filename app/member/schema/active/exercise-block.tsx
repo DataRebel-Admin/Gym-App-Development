@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { m } from "motion/react";
 import { cn } from "@/lib/cn";
-import { Dumbbell, Trophy, Plus, Minus, RotateCcw } from "@/components/ui/icons";
+import { Dumbbell, Trophy, Plus, Minus, RotateCcw, ChevronRight } from "@/components/ui/icons";
 import type { ActiveExercise, SetValue } from "./active-session";
 
 const dateFmt = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short" });
@@ -120,8 +121,12 @@ export function ExerciseBlock({
         allDone ? "border-accent/40" : "border-border"
       )}
     >
-      {/* Kop */}
-      <div className="flex items-start gap-3">
+      {/* Kop — tik om de oefening-uitleg te openen */}
+      <Link
+        href={`/member/history/exercise/${exercise.exerciseId}`}
+        className="flex items-start gap-3 rounded-xl transition-opacity active:opacity-70"
+        aria-label={`Bekijk uitleg van ${exercise.name}`}
+      >
         {exercise.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -159,7 +164,11 @@ export function ExerciseBlock({
             {exercise.machineName ? ` · ${exercise.machineName}` : ""}
           </p>
         </div>
-      </div>
+        <span className="mt-0.5 flex shrink-0 items-center gap-0.5 text-xs font-medium text-neutral-400">
+          uitleg
+          <ChevronRight className="size-4" />
+        </span>
+      </Link>
 
       {/* Vorige keer */}
       {exercise.previous && exercise.previous.sets.length > 0 ? (
