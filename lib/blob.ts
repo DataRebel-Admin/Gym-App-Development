@@ -24,3 +24,17 @@ export async function uploadMachineImage(
   const blob = await put(key, file, { access: "public" });
   return blob.url;
 }
+
+/** Upload een profielfoto naar Vercel Blob en geef de publieke URL terug. */
+export async function uploadAvatar(
+  file: File | null,
+  userId: string
+): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+  if (!blobConfigured()) return null;
+
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+  const key = `avatars/${userId}/${randomUUID()}.${ext}`;
+  const blob = await put(key, file, { access: "public" });
+  return blob.url;
+}

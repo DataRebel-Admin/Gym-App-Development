@@ -148,6 +148,21 @@ model User {
   role          Role      @default(TENANT_MEMBER)
   active        Boolean   @default(true) // account geactiveerd/gedeactiveerd
   archivedAt    DateTime? // gearchiveerd lid (uit actieve roster, niet verwijderd)
+  // --- Profiel (accountinstellingen) ---
+  firstName     String?
+  lastName      String?
+  jobTitle      String?
+  phone         String?
+  timezone      String? // IANA, bv. "Europe/Amsterdam"
+  locale        Locale? // persoonlijke taal (override op tenant.locale)
+  preferences   Json? // persoonlijke voorkeuren (thema, dichtheid, datum/tijd-notatie, …)
+  notificationPrefs Json? // per categorie × kanaal (e-mail/in-app/push)
+  consents      Json? // privacy-toestemmingen (bv. marketing)
+  deletionRequestedAt DateTime? // verzoek tot accountverwijdering
+  // E-mailwijziging met verificatie.
+  pendingEmail       String?
+  emailChangeToken   String?   @unique
+  emailChangeExpires DateTime?
   tenantId      String? // NULL voor SUPERADMIN (transcendeert tenants)
   // Persoonlijke owner-dashboard indeling (widget-volgorde + zichtbaarheid).
   // null = standaard-layout. Geen RLS-impact (kolom op bestaand model).
