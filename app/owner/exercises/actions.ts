@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
+import { audit } from "@/lib/audit";
 
 const addSchema = z.object({
   catalogId: z.string().min(1),
@@ -48,7 +49,7 @@ export async function addCatalogExerciseToGym(formData: FormData) {
     validMachineId = machine?.id ?? null;
   }
 
-  await prisma.exercise.create({
+  const created = await prisma.exercise.create({
     data: {
       tenantId: owner.tenantId,
       name: catalog.name,
@@ -56,6 +57,14 @@ export async function addCatalogExerciseToGym(formData: FormData) {
       catalogId,
       machineId: validMachineId,
     },
+  });
+
+  await audit("exercise.add", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Exercise",
+    targetId: created.id,
+    metadata: { name: catalog.name },
   });
 
   revalidatePath("/owner/exercises");
@@ -67,11 +76,26 @@ export async function removeCatalogExerciseFromGym(formData: FormData) {
   const catalogId = String(formData.get("catalogId") ?? "");
   if (!catalogId) return;
 
+  const existing = await prisma.exercise.findFirst({
+    where: { tenantId: owner.tenantId, catalogId },
+    select: { id: true, name: true },
+  });
+
   // deleteMany scoped op tenant; faalt stil als de oefening in een schema zit
   // (FK) — dat is acceptabel, de owner haalt 'm dan eerst uit het schema.
-  await prisma.exercise
+  const result = await prisma.exercise
     .deleteMany({ where: { tenantId: owner.tenantId, catalogId } })
-    .catch(() => {});
+    .catch(() => null);
+
+  if (result && result.count > 0 && existing) {
+    await audit("exercise.remove", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "Exercise",
+      targetId: existing.id,
+      metadata: { name: existing.name },
+    });
+  }
 
   revalidatePath("/owner/exercises");
 }

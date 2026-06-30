@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
+import { audit } from "@/lib/audit";
 
 export type SchemaSaveState = { error?: string; ok?: boolean };
 
@@ -101,6 +102,16 @@ export async function saveSchema(
     ),
   ]);
 
+  await audit("schema.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: template.id,
+    oldValue: { name: template.name, description: template.description },
+    newValue: { name, description: description || null, days: days.length },
+    metadata: { name },
+  });
+
   revalidatePath("/owner/schemas");
   return { ok: true };
 }
@@ -111,15 +122,36 @@ export async function createTemplate() {
   const created = await prisma.workoutTemplate.create({
     data: { tenantId: owner.tenantId, name: "Nieuw schema", isLibrary: true },
   });
+  await audit("schema.create", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: created.id,
+    metadata: { name: created.name },
+  });
   redirect(`/owner/schemas/templates/${created.id}`);
 }
 
 export async function deleteTemplate(formData: FormData) {
   const owner = await requireOwner();
   const id = String(formData.get("id") ?? "");
-  await prisma.workoutTemplate.deleteMany({
+  const existing = await prisma.workoutTemplate.findFirst({
+    where: { id, tenantId: owner.tenantId, isLibrary: true },
+    select: { name: true },
+  });
+  const { count } = await prisma.workoutTemplate.deleteMany({
     where: { id, tenantId: owner.tenantId, isLibrary: true },
   });
+  if (count > 0) {
+    await audit("schema.delete", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      targetId: id,
+      oldValue: existing ? { name: existing.name } : undefined,
+      metadata: { name: existing?.name },
+    });
+  }
   revalidatePath("/owner/schemas/templates");
   redirect("/owner/schemas/templates");
 }
@@ -240,6 +272,14 @@ export async function assignFromTemplate(formData: FormData) {
     assignTemplateToUser(tx, owner.tenantId, userId, source)
   );
 
+  await audit("schema.assign", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "User",
+    targetId: userId,
+    metadata: { name: source.name, memberCount: 1, member: member.name ?? member.email },
+  });
+
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
 }
@@ -267,6 +307,16 @@ export async function assignTemplateToMembers(formData: FormData) {
     await prisma.$transaction((tx) =>
       assignTemplateToUser(tx, owner.tenantId, m.id, source)
     );
+  }
+
+  if (members.length > 0) {
+    await audit("schema.assign", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      targetId: sourceId,
+      metadata: { name: source.name, memberCount: members.length },
+    });
   }
 
   revalidatePath("/owner/schemas/templates");
@@ -318,6 +368,14 @@ export async function duplicateTemplate(formData: FormData) {
     return tpl;
   });
 
+  await audit("schema.duplicate", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: copy.id,
+    metadata: { name: source.name, copyId: copy.id },
+  });
+
   revalidatePath("/owner/schemas/templates");
   redirect(`/owner/schemas/templates/${copy.id}`);
 }
@@ -346,6 +404,14 @@ export async function startEmptySchema(formData: FormData) {
     }),
   ]);
 
+  await audit("schema.assign", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "User",
+    targetId: userId,
+    metadata: { name: "Nieuw schema", memberCount: 1, member: member.name ?? member.email },
+  });
+
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
 }
@@ -354,7 +420,15 @@ export async function removeAssignment(formData: FormData) {
   const owner = await requireOwner();
   const userId = String(formData.get("userId") ?? "");
   const clearOps = await clearAssignment(owner.tenantId, userId);
-  if (clearOps.length > 0) await prisma.$transaction(clearOps);
+  if (clearOps.length > 0) {
+    await prisma.$transaction(clearOps);
+    await audit("schema.unassign", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "User",
+      targetId: userId,
+    });
+  }
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
 }

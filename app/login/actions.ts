@@ -1,9 +1,11 @@
 "use server";
 
 import { z } from "zod";
+import { AuthError } from "next-auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
+import { prisma } from "@/lib/db";
 import { AUTH_TENANT_COOKIE, DEV_FALLBACK_TENANT } from "@/lib/constants";
 
 const requestSchema = z.object({
@@ -33,22 +35,45 @@ export async function requestMagicLink(
 
   const { email, tenant } = parsed.data;
 
-  // Onthoud de tenant voor de verificatiestap (phase 2 van de magic link).
+  // Platform-superadmins hebben geen tenant. Detecteer ze zodat we GEEN
+  // tenant-cookie zetten — dan doet de adapter de globale superadmin-lookup
+  // (zie lib/auth-adapter.ts). Tenant-gebruikers krijgen wél de tenant-cookie.
+  const isSuperadmin = Boolean(
+    await prisma.user.findFirst({
+      where: { email, tenantId: null, role: "SUPERADMIN" },
+      select: { id: true },
+    })
+  );
+
   const store = await cookies();
-  store.set(AUTH_TENANT_COOKIE, tenant, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 15, // 15 minuten
-  });
+  if (isSuperadmin) {
+    store.delete(AUTH_TENANT_COOKIE);
+  } else {
+    // Onthoud de tenant voor de verificatiestap (phase 2 van de magic link).
+    store.set(AUTH_TENANT_COOKIE, tenant, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 15, // 15 minuten
+    });
+  }
 
-  // signIn stuurt de magic link (console in dev) en redirect naar verifyRequest.
-  await signIn("nodemailer", {
-    email,
-    redirectTo: "/",
-  });
+  // signIn verstuurt de magic link (console in dev). Bij succes gooit het een
+  // redirect (naar de verifyRequest-pagina) die we moeten doorgooien; bij een
+  // weigering gooit het een AuthError die we hier netjes afvangen i.p.v. crashen.
+  try {
+    await signIn("nodemailer", { email, redirectTo: "/" });
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return {
+        error:
+          "Inloggen niet gelukt. Controleer je e-mailadres (en of je bij deze sportschool hoort).",
+      };
+    }
+    throw e; // NEXT_REDIRECT (succes) of een andere fout
+  }
 
-  // Onbereikbaar (signIn redirect), maar bevredigt het type.
+  // Onbereikbaar (signIn redirect bij succes), maar bevredigt het type.
   return {};
 }
 

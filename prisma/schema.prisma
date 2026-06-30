@@ -190,19 +190,32 @@ model Invitation {
 // Audit log van beheertaken. Bewust GEEN FK naar Tenant/User (forensisch: blijft
 // bestaan na verwijdering). tenantId NULL = platform-niveau (bv. tenant aanmaken).
 model AuditLog {
-  id         String   @id @default(cuid())
+  id         String      @id @default(cuid())
   actorId    String?
   actorEmail String?
   actorRole  Role?
   tenantId   String?
   action     String // bv. "tenant.create", "branding.update", "user.role.change"
+  category   String? // afgeleid van de action-prefix (user/schema/exercise/tenant/auth)
+  status     AuditStatus @default(SUCCESS)
   targetType String?
   targetId   String?
+  oldValue   Json? // staat vóór de wijziging (indien relevant)
+  newValue   Json? // staat ná de wijziging (indien relevant)
+  ipAddress  String? // geanonimiseerd (laatste octet → 0 / IPv6 ingekort)
+  userAgent  String? // browser/device
   metadata   Json?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime    @default(now())
 
   @@index([tenantId, createdAt])
   @@index([action, createdAt])
+  @@index([tenantId, category, createdAt])
+  @@index([actorId, createdAt])
+}
+
+enum AuditStatus {
+  SUCCESS
+  FAILED
 }
 
 // --- Auth.js (NextAuth v5) infra-tabellen ---

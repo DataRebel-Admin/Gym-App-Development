@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getCurrentTenant } from "@/lib/tenant";
 import { buildSchemaPdf, type SchemaPdfDay } from "@/lib/schema-pdf";
+import { audit } from "@/lib/audit";
 
 const VERSION_FMT = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -49,6 +50,14 @@ export async function GET() {
   });
 
   const slug = tpl.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+  await audit("schema.pdf.export", {
+    actor: { id: member.id, email: member.email, role: member.role },
+    tenantId: member.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: tpl.id,
+    metadata: { name: tpl.name },
+  });
 
   return new NextResponse(pdf as BodyInit, {
     headers: {

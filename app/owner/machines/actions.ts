@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { uploadMachineImage } from "@/lib/blob";
 import { MACHINE_TYPES } from "@/lib/machine";
+import { audit } from "@/lib/audit";
 
 export type MachineFormState = { error?: string };
 
@@ -77,6 +78,14 @@ export async function saveMachine(
       },
     });
     if (result.count === 0) return { error: "Machine niet gevonden" };
+    await audit("machine.update", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "Machine",
+      targetId: data.id,
+      newValue: { name: data.name, type: data.type },
+      metadata: { name: data.name },
+    });
   } else {
     const created = await prisma.machine.create({
       data: {
@@ -91,6 +100,13 @@ export async function saveMachine(
       },
     });
     machineId = created.id;
+    await audit("machine.create", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "Machine",
+      targetId: created.id,
+      metadata: { name: data.name },
+    });
   }
 
   revalidatePath("/owner/machines");
@@ -102,9 +118,23 @@ export async function deleteMachine(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
-  await prisma.machine.deleteMany({
+  const existing = await prisma.machine.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: { name: true },
+  });
+  const { count } = await prisma.machine.deleteMany({
     where: { id, tenantId: owner.tenantId },
   });
+  if (count > 0) {
+    await audit("machine.delete", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "Machine",
+      targetId: id,
+      oldValue: existing ? { name: existing.name } : undefined,
+      metadata: { name: existing?.name },
+    });
+  }
 
   revalidatePath("/owner/machines");
   redirect("/owner/machines");
