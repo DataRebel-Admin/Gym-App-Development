@@ -19,7 +19,8 @@ const RESERVED_LABELS = new Set([
 
 export function resolveTenantSlug(
   host: string | null | undefined,
-  paramTenant?: string | null
+  paramTenant?: string | null,
+  cookieTenant?: string | null
 ): string {
   if (host) {
     const hostname = host.split(":")[0];
@@ -29,6 +30,8 @@ export function resolveTenantSlug(
       return labels[0];
     }
   }
+  // Expliciete ?tenant wint; daarna de actieve-tenant-cookie (sticky na login/switch).
   if (paramTenant) return paramTenant;
+  if (cookieTenant) return cookieTenant;
   return DEV_FALLBACK_TENANT;
 }

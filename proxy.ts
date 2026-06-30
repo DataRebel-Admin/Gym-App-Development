@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/auth.config";
 import { resolveTenantSlug } from "@/lib/tenant-resolve";
-import { TENANT_HEADER } from "@/lib/constants";
+import { TENANT_HEADER, AUTH_TENANT_COOKIE } from "@/lib/constants";
 
 // Edge-veilige proxy/middleware: lost de tenant op (subdomein of ?tenant),
 // zet die als header voor de Server Components, en dwingt rol-toegang af op
@@ -15,7 +15,8 @@ export default auth((req) => {
   // 1) Tenant-resolutie → header voor downstream Server Components.
   const slug = resolveTenantSlug(
     req.headers.get("host"),
-    nextUrl.searchParams.get("tenant")
+    nextUrl.searchParams.get("tenant"),
+    req.cookies.get(AUTH_TENANT_COOKIE)?.value
   );
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set(TENANT_HEADER, slug);

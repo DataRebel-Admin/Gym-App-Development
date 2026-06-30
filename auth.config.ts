@@ -19,13 +19,23 @@ export const authConfig = {
     // Rol-bescherming wordt afgehandeld in proxy.ts (daar kunnen we ook de
     // tenant-header zetten), niet via een `authorized`-callback.
 
-    /** Zet onze velden op het JWT-token bij login. */
-    jwt({ token, user }) {
+    /** Zet onze velden op het JWT-token bij login, en herschrijf ze bij een
+     *  tenant-switch (via unstable_update met session.tenantSwitch). */
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id ?? token.sub ?? "";
         token.role = user.role;
         token.tenantId = user.tenantId;
         if (user.email) token.email = user.email;
+      }
+      if (trigger === "update") {
+        const sw = (session as { tenantSwitch?: { id: string; tenantId: string; role: typeof token.role; email?: string } } | null)?.tenantSwitch;
+        if (sw) {
+          token.id = sw.id;
+          token.tenantId = sw.tenantId;
+          token.role = sw.role;
+          if (sw.email) token.email = sw.email;
+        }
       }
       return token;
     },

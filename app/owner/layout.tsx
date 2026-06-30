@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { TopNav, type TopNavLink } from "@/components/nav/top-nav";
 import { UserMenu } from "@/components/nav/user-menu";
+import { TenantSwitcher } from "@/components/nav/tenant-switcher";
+import { getUserTenants } from "@/lib/tenants";
 import { PageTransition } from "@/components/motion/page-transition";
 
 const LINKS: TopNavLink[] = [
@@ -28,12 +30,15 @@ export default async function OwnerLayout({
   if (session.user.role !== "TENANT_ADMIN") redirect("/member");
 
   const tenant = await getCurrentTenant();
+  const tenants = session.user.email
+    ? await getUserTenants(session.user.email)
+    : [];
 
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-          <div className="flex items-center gap-6 overflow-x-auto">
+          <div className="flex items-center gap-4 overflow-x-auto">
             <Link
               href="/owner"
               className="flex shrink-0 items-center gap-2 font-display text-lg font-bold text-neutral-900"
@@ -52,6 +57,7 @@ export default async function OwnerLayout({
               )}
               {tenant?.name ?? "GymRebel"}
             </Link>
+            <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
             <TopNav links={LINKS} rootHref="/owner" layoutId="owner-nav-active" />
           </div>
           <UserMenu

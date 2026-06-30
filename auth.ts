@@ -14,7 +14,7 @@ import type { Role } from "@prisma/client";
  * (zie sendVerificationRequest). Voor productie wordt hier later een echte
  * SMTP/Resend-transport ingehangen.
  */
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: TenantPrismaAdapter(),
   providers: [
