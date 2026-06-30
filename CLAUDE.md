@@ -206,11 +206,35 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
 - **Invitations**: `Invitation`-model (token + 7d vervaldatum); mail naar server-console in dev
   (`lib/invitation.ts`, net als de magic link). Publieke accept-flow `/invite/[token]` maakt/
   heractiveert de gebruiker en stuurt door naar de tenant-login.
-- **Audit logging** (`lib/audit.ts` → `AuditLog`-model, géén FK's = forensisch): elke
-  beheermutatie logt `tenant.*`, `branding.update`, `user.invite*`, `user.role.change`,
-  `user.(de)activate`, `user.delete`.
 - **Tenant-isolatie** blijft primair via expliciete `tenantId`-filters (+ RLS-backstop);
   superadmin gebruikt bewust de base `prisma` achter `requireSuperadmin()`.
+
+### Logging & Audit Trail
+
+- **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only
+  `AuditLog`-model (géén FK's = forensisch; overleeft delete van tenant/user). Faalt **nooit**
+  hard (try/catch) zodat logging een business-actie niet kan breken. Vangt automatisch een
+  **geanonimiseerd IP** (laatste octet → 0, `anonymizeIp`) + user-agent uit `headers()`.
+  Velden: `category`, `status` (`AuditStatus` SUCCESS/FAILED), `oldValue`/`newValue` (diff),
+  `ipAddress`, `userAgent`, `metadata`.
+- **Actie-registry** `lib/audit-actions.ts` = één bron van waarheid: per action-key
+  `{ category, label, icon, tone, sentence() }`. Categorie wordt afgeleid uit de prefix
+  (`user.`→members, `schema.`, `exercise.`, `machine.`, `tenant.`/`branding.`→tenant, `auth.`).
+  **Nieuw event = één regel toevoegen** + een `audit("…")`-call in de betreffende action.
+- **Hook-punten**: leden/uitnodigingen (`app/owner/members`, `app/admin`), schema's
+  (`app/owner/schemas/actions.ts`), oefeningen, machines, instellingen (AI-toggle),
+  schema-PDF (`app/member/schema/pdf`), en auth-events in `auth.ts` (`auth.login`/`logout`
+  via `events`, `auth.login.failed` in de `signIn`-callback — **alleen voor bestaande accounts**).
+- **Querylaag** `lib/audit-query.ts` (`queryAuditLogs`, `getRecentActivity`, `getAuditActors`,
+  `parseAuditSearchParams`, `serializeAuditRows`). Tenant-scoping wordt door de caller afgedwongen.
+- **UI**: owner ziet eigen tenant op `/owner/audit`; superadmin ziet alle tenants op
+  `/admin/audit` (+ tenant-filter). Gedeelde componenten in `components/audit/` (tijdlijn,
+  detail-modal met diff, filterbalk). Export via `…/audit/export?format=csv|pdf`
+  (`lib/audit-export.ts`, pdf-lib). Dashboard-widget `recent-activity` toont leesbare zinnen.
+- **Immutability**: er zijn bewust **geen** update/delete-actions op `AuditLog`. Niet toevoegen.
+- **Retentie/archivering**: `npm run audit:prune` (`scripts/prune-audit.mjs`) archiveert logs
+  ouder dan `AUDIT_RETENTION_DAYS` (default 365) naar `./audit-archive/*.csv` en verwijdert ze.
+  In productie als cron-stap draaien (zoals `db:rls`).
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
