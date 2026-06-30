@@ -77,6 +77,56 @@ export async function requestMagicLink(
   return {};
 }
 
+const pwLoginSchema = z.object({
+  email: z.string().email("Ongeldig e-mailadres"),
+  password: z.string().min(1, "Wachtwoord vereist"),
+  code: z.string().optional().or(z.literal("")),
+  tenant: z.string().min(1).default(DEV_FALLBACK_TENANT),
+});
+
+/** Inloggen met e-mailadres + wachtwoord (+ 2FA-code indien ingeschakeld). */
+export async function loginWithPassword(
+  _prev: LoginState,
+  formData: FormData
+): Promise<LoginState> {
+  const parsed = pwLoginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+    code: formData.get("code") ?? "",
+    tenant: formData.get("tenant"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+  }
+  const { email, password, code, tenant } = parsed.data;
+
+  const isSuperadmin = Boolean(
+    await prisma.user.findFirst({
+      where: { email, tenantId: null, role: "SUPERADMIN" },
+      select: { id: true },
+    })
+  );
+  const store = await cookies();
+  if (isSuperadmin) store.delete(AUTH_TENANT_COOKIE);
+  else
+    store.set(AUTH_TENANT_COOKIE, tenant, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 15,
+    });
+
+  try {
+    await signIn("credentials", { email, password, code, redirectTo: "/" });
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return { error: "Onjuiste inloggegevens of 2FA-code." };
+    }
+    throw e; // NEXT_REDIRECT bij succes
+  }
+  return {};
+}
+
 /** Log de huidige gebruiker uit en stuur terug naar de loginpagina. */
 export async function logout() {
   await signOut({ redirectTo: "/login" });

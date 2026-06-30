@@ -1,9 +1,13 @@
 import NextAuth from "next-auth";
 import Nodemailer from "next-auth/providers/nodemailer";
+import Credentials from "next-auth/providers/credentials";
+import { cookies, headers } from "next/headers";
 import { authConfig } from "@/auth.config";
 import { TenantPrismaAdapter } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { verifyPassword, verifyTotp } from "@/lib/security";
+import { AUTH_TENANT_COOKIE } from "@/lib/constants";
 import type { Role } from "@prisma/client";
 
 /**
@@ -31,6 +35,46 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             url +
             "\n"
         );
+      },
+    }),
+    Credentials({
+      name: "Wachtwoord",
+      credentials: { email: {}, password: {}, code: {} },
+      async authorize(creds) {
+        const email = String(creds?.email ?? "").toLowerCase().trim();
+        const password = String(creds?.password ?? "");
+        const code = String(creds?.code ?? "");
+        if (!email || !password) return null;
+
+        // Tenant uit de login-cookie (zoals de magic-link-flow); geen cookie → superadmin.
+        const slug = (await cookies()).get(AUTH_TENANT_COOKIE)?.value;
+        const user = slug
+          ? await prisma.tenant
+              .findUnique({ where: { slug }, select: { id: true } })
+              .then((t) =>
+                t
+                  ? prisma.user.findUnique({
+                      where: { tenantId_email: { tenantId: t.id, email } },
+                    })
+                  : null
+              )
+          : await prisma.user.findFirst({
+              where: { email, tenantId: null, role: "SUPERADMIN" },
+            });
+
+        if (!user || !user.active || !user.passwordHash) return null;
+        if (!(await verifyPassword(password, user.passwordHash))) return null;
+        if (user.twoFactorEnabled) {
+          if (!user.twoFactorSecret || !verifyTotp(code, user.twoFactorSecret)) return null;
+        }
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          active: user.active,
+        };
       },
     }),
   ],
@@ -89,6 +133,21 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         targetType: "User",
         targetId: user.id ?? undefined,
       });
+      // Device-/sessie-registratie voor de "actieve sessies"-lijst.
+      if (user.id) {
+        try {
+          const h = await headers();
+          await prisma.userSession.create({
+            data: {
+              userId: user.id,
+              userAgent: h.get("user-agent") ?? null,
+              ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+            },
+          });
+        } catch {
+          // sessie-registratie is best-effort
+        }
+      }
     },
     async signOut(message) {
       const token = "token" in message ? message.token : null;
