@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
+import { logParamsFromInputValues, logColumnsFromParams } from "@/lib/exercise-params";
 
 /**
  * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
@@ -104,6 +105,60 @@ export async function saveSet(
       weightKg: data.weightKg,
     },
     update: { reps: data.reps, weightKg: data.weightKg },
+  });
+
+  return { ok: true };
+}
+
+const logSchema = z.object({
+  sessionId: z.string().min(1),
+  exerciseId: z.string().min(1),
+  setNumber: z.number().int().min(1).max(50),
+  values: z.record(z.string(), z.string()).default({}),
+});
+
+/**
+ * Sla één type-bewust logresultaat op (cardio/isometrisch/…): de invoerwaarden
+ * worden via de registry omgezet naar reps/weightKg-kolommen (kracht) + JSON-
+ * params. Idempotent via upsert op (sessie, oefening, setNummer).
+ */
+export async function saveLog(
+  input: z.infer<typeof logSchema>
+): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const parsed = logSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, exerciseId, setNumber, values } = parsed.data;
+
+  const session = await prisma.workoutSession.findFirst({
+    where: { id: sessionId, tenantId: member.tenantId, userId: member.id, endedAt: null },
+    select: { id: true },
+  });
+  if (!session) return { ok: false };
+
+  const exercise = await prisma.exercise.findFirst({
+    where: { id: exerciseId, tenantId: member.tenantId },
+    select: { exerciseType: true },
+  });
+  if (!exercise) return { ok: false };
+
+  const params = logParamsFromInputValues(exercise.exerciseType, values);
+  const cols = logColumnsFromParams(exercise.exerciseType, params);
+
+  await prisma.performanceEntry.upsert({
+    where: {
+      sessionId_exerciseId_setNumber: { sessionId, exerciseId, setNumber },
+    },
+    create: {
+      tenantId: member.tenantId,
+      sessionId,
+      exerciseId,
+      setNumber,
+      reps: cols.reps,
+      weightKg: cols.weightKg,
+      params: cols.params ?? undefined,
+    },
+    update: { reps: cols.reps, weightKg: cols.weightKg, params: cols.params ?? undefined },
   });
 
   return { ok: true };

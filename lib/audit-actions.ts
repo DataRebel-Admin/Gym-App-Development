@@ -219,6 +219,30 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "schemas", label: "PDF geëxporteerd", icon: "📄", tone: "neutral",
     sentence: ({ actor }) => `${actor} heeft een schema-PDF geëxporteerd`,
   },
+  "schema.sync": {
+    category: "schemas", label: "Schema gesynchroniseerd", icon: "🔃", tone: "accent",
+    sentence: ({ actor, meta }) => {
+      const name = s(meta, "name") ?? "een schema";
+      const mode = s(meta, "mode");
+      const label =
+        mode === "all"
+          ? "alle master-wijzigingen overgenomen"
+          : mode === "dismiss"
+            ? "master-wijzigingen genegeerd"
+            : "een master-wijziging overgenomen";
+      return `${actor} heeft voor '${name}' ${label}`;
+    },
+  },
+  "schema.bulk.edit": {
+    category: "schemas", label: "Bulkwijziging toegepast", icon: "⚡", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een bulkwijziging toegepast op ${s(meta, "memberCount") ?? "meerdere"} leden`,
+  },
+  "schema.master.apply": {
+    category: "schemas", label: "Wijziging in master toegepast", icon: "⬆️", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een veelvoorkomende aanpassing in master '${s(meta, "name") ?? ""}' toegepast`.trim(),
+  },
 
   // --- Oefeningen ---
   "exercise.add": {
@@ -255,6 +279,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "exercises", label: "Oefening hersteld", icon: "♻️", tone: "accent",
     sentence: ({ actor, meta }) =>
       `${actor} heeft oefening ${s(meta, "name") ?? ""} hersteld`.trim(),
+  },
+  "exercise.type.change": {
+    category: "exercises", label: "Oefeningstype gewijzigd", icon: "🏷️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het type van oefening ${s(meta, "name") ?? ""} gewijzigd naar ${s(meta, "type") ?? "?"}`.trim(),
   },
 
   // --- Machines ---

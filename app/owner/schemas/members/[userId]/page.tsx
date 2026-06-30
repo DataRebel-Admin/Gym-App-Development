@@ -7,7 +7,18 @@ import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
+import { SchemaDiffView } from "@/components/schema-compare";
+import { SchemaSyncPanel } from "@/components/schema-sync-panel";
+import {
+  snapshotOf,
+  asSnapshot,
+  diffSnapshots,
+  hasAnyDiff,
+  type SchemaDiff,
+} from "@/lib/schema-diff";
 import { getAssignmentsForMember } from "@/lib/schema-assignments";
+import { getDayTemplateOptions } from "@/lib/day-templates";
+import { itemToInputValues } from "@/lib/exercise-params";
 import { ASSIGNMENT_STATUS_META, fmtDate, fmtDateTime, isActiveNow } from "@/lib/schema-status";
 import {
   assignFromTemplate,
@@ -70,20 +81,67 @@ export default async function MemberSchemaPage({
   const exerciseRows = await prisma.exercise.findMany({
     where: { tenantId: owner.tenantId, archivedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, targetMuscle: true, catalogId: true },
+    select: { id: true, name: true, targetMuscle: true, catalogId: true, exerciseType: true },
   });
   const exercises = exerciseRows.map((e) => ({
     id: e.id,
     name: e.name,
     targetMuscle: e.targetMuscle,
+    exerciseType: e.exerciseType,
     source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
   }));
 
+  // Naam-map (incl. gearchiveerde) voor de diff-weergaven.
+  const allExercises = await prisma.exercise.findMany({
+    where: { tenantId: owner.tenantId },
+    select: { id: true, name: true },
+  });
+  const exerciseNames: Record<string, string> = Object.fromEntries(
+    allExercises.map((e) => [e.id, e.name])
+  );
+
+  // Master ↔ persoonlijke kopie: persoonlijke aanpassingen + sync-status.
+  let personalDiff: SchemaDiff | null = null;
+  let masterDiff: SchemaDiff | null = null;
+  let fullDiff: SchemaDiff | null = null;
+  let personalized = false;
+  let syncAvailable = false;
+  if (primary && primaryTemplate) {
+    const full = await prisma.assignedWorkout.findUnique({
+      where: { id: primary.id },
+      select: { baselineSnapshot: true, masterSyncedAt: true, sourceTemplateId: true },
+    });
+    const baseline = asSnapshot(full?.baselineSnapshot);
+    const personalSnap = snapshotOf(primaryTemplate);
+    if (baseline) {
+      personalDiff = diffSnapshots(baseline, personalSnap);
+      personalized = hasAnyDiff(personalDiff);
+    }
+    if (full?.sourceTemplateId) {
+      const master = await prisma.workoutTemplate.findFirst({
+        where: { id: full.sourceTemplateId, tenantId: owner.tenantId },
+        include: {
+          days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } },
+        },
+      });
+      if (master && baseline) {
+        const masterSnap = snapshotOf(master);
+        masterDiff = diffSnapshots(baseline, masterSnap);
+        fullDiff = diffSnapshots(personalSnap, masterSnap);
+        const masterChangedSince = full.masterSyncedAt
+          ? master.updatedAt.getTime() > full.masterSyncedAt.getTime()
+          : false;
+        syncAvailable = masterChangedSince && hasAnyDiff(masterDiff);
+      }
+    }
+  }
+
   const libraryTemplates = await prisma.workoutTemplate.findMany({
-    where: { tenantId: owner.tenantId, isLibrary: true },
+    where: { tenantId: owner.tenantId, isLibrary: true, kind: "SCHEMA" },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
+  const dayTemplates = await getDayTemplateOptions(owner.tenantId);
 
   return (
     <div className="flex flex-col gap-6">
@@ -117,6 +175,12 @@ export default async function MemberSchemaPage({
                   </span>
                   <Badge tone={meta.tone}>{meta.label}</Badge>
                   {active ? <Badge tone="accent">Actief</Badge> : null}
+                  {a.id === primary?.id && personalized ? (
+                    <Badge tone="warning">Aangepast</Badge>
+                  ) : null}
+                  {a.id === primary?.id && syncAvailable ? (
+                    <Badge tone="accent">Sync beschikbaar</Badge>
+                  ) : null}
                   {a.status === "PUBLISHED" && !a.seenAt ? (
                     <Badge tone="warning">Nog niet geopend</Badge>
                   ) : null}
@@ -167,6 +231,30 @@ export default async function MemberSchemaPage({
         </section>
       ) : null}
 
+      {/* Slimme synchronisatie: master is gewijzigd sinds toewijzing */}
+      {primary && syncAvailable && masterDiff && fullDiff ? (
+        <SchemaSyncPanel
+          userId={userId}
+          assignmentId={primary.id}
+          masterDiff={masterDiff}
+          fullDiff={fullDiff}
+          names={exerciseNames}
+        />
+      ) : null}
+
+      {/* Persoonlijke aanpassingen t.o.v. de master (drift) */}
+      {personalized && personalDiff ? (
+        <section className="flex max-w-3xl flex-col gap-2 rounded-2xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-neutral-900">
+            Persoonlijke aanpassingen
+          </h3>
+          <p className="text-sm text-neutral-500">
+            Dit schema wijkt af van de master-template. De master blijft ongewijzigd.
+          </p>
+          <SchemaDiffView diff={personalDiff} names={exerciseNames} />
+        </section>
+      ) : null}
+
       {/* Editor voor het primaire schema */}
       {primaryTemplate ? (
         <>
@@ -178,21 +266,22 @@ export default async function MemberSchemaPage({
               templateId={primaryTemplate.id}
               initialName={primaryTemplate.name}
               initialDescription={primaryTemplate.description ?? ""}
+              initialCoachNote={primaryTemplate.coachNote ?? ""}
               initialDays={primaryTemplate.days.map<EditorDay>((d) => ({
                 key: d.id,
                 name: d.name,
+                notes: d.notes ?? "",
                 items: d.items.map((it) => ({
                   key: it.id,
                   exerciseId: it.exerciseId,
                   exerciseName: it.exercise.name,
-                  sets: it.sets,
-                  reps: it.reps,
-                  restSeconds: it.restSeconds,
-                  weightKg: it.weightKg,
+                  exerciseType: it.exercise.exerciseType,
+                  values: itemToInputValues(it, it.exercise.exerciseType),
                   notes: it.notes ?? "",
                 })),
               }))}
               availableExercises={exercises}
+              dayTemplates={dayTemplates}
             />
           </div>
 

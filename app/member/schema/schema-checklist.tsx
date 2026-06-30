@@ -7,13 +7,14 @@ export type ChecklistItem = {
   id: string;
   exerciseName: string;
   machineName: string | null;
-  sets: number;
-  reps: number;
-  restSeconds: number;
+  /** Type-bewuste samenvatting ("4 × 10 @ 70 kg" of "30 min · 5 km · Zone 3"). */
+  summary: string;
+  typeLabel: string;
+  notes: string | null;
   thumbUrl: string | null;
 };
 
-export type ChecklistDay = { name: string; items: ChecklistItem[] };
+export type ChecklistDay = { name: string; notes: string | null; items: ChecklistItem[] };
 
 export function SchemaChecklist({
   items,
@@ -30,7 +31,7 @@ export function SchemaChecklist({
 
   // Normaliseer naar dagen (val terug op één naamloze "dag" voor platte lijsten).
   const groups: ChecklistDay[] =
-    days && days.length > 0 ? days : [{ name: "", items: items ?? [] }];
+    days && days.length > 0 ? days : [{ name: "", notes: null, items: items ?? [] }];
   const allItems = groups.flatMap((g) => g.items);
   const completed = allItems.filter((i) => done[i.id]).length;
   const pct = allItems.length > 0 ? Math.round((completed / allItems.length) * 100) : 0;
@@ -59,6 +60,12 @@ export function SchemaChecklist({
         <div key={gi} className="flex flex-col gap-2">
           {group.name ? (
             <h3 className="text-sm font-semibold text-neutral-900">{group.name}</h3>
+          ) : null}
+          {group.notes ? (
+            <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-neutral-600">
+              <span className="font-semibold text-accent">Tip: </span>
+              {group.notes}
+            </p>
           ) : null}
           <ul className="flex flex-col gap-2">
         {group.items.map((it) => {
@@ -106,10 +113,19 @@ export function SchemaChecklist({
                     {it.exerciseName}
                   </span>
                   <span className="block text-sm text-neutral-500">
-                    {it.sets} × {it.reps}
-                    {it.machineName ? ` · ${it.machineName}` : " · lichaamsgewicht"}
-                    {it.restSeconds ? ` · ${it.restSeconds}s rust` : ""}
+                    <span className="font-medium text-neutral-600">{it.typeLabel}</span>
+                    {it.summary && it.summary !== "—" ? ` · ${it.summary}` : ""}
+                    {it.machineName ? ` · ${it.machineName}` : ""}
                   </span>
+                  {it.notes ? (
+                    <span
+                      className={`mt-0.5 block text-xs ${
+                        isDone ? "text-neutral-400" : "text-accent"
+                      }`}
+                    >
+                      {it.notes}
+                    </span>
+                  ) : null}
                 </span>
               </button>
             </li>

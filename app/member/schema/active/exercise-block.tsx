@@ -161,6 +161,7 @@ export function ExerciseBlock({
           <p className="mt-0.5 text-xs text-neutral-500">
             doel: {exercise.sets} × {exercise.targetReps}
             {exercise.targetWeightKg ? ` · ${exercise.targetWeightKg} kg` : ""}
+            {exercise.tempo ? ` · tempo ${exercise.tempo}` : ""}
             {exercise.machineName ? ` · ${exercise.machineName}` : ""}
           </p>
         </div>

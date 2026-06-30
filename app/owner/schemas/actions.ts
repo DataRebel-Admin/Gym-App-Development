@@ -9,6 +9,17 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
+import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
+import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
+import {
+  snapshotOf,
+  asSnapshot,
+  diffSnapshots,
+  applyEntryToSnapshot,
+  type DiffEntry,
+  type ItemField,
+  type ItemSnapshot,
+} from "@/lib/schema-diff";
 
 export type SchemaSaveState = { error?: string; ok?: boolean };
 
@@ -19,16 +30,17 @@ async function origin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+// Editor-item: oefeningstype + dynamische invoerwaarden (per veld-id, in
+// invoer-eenheid). De server zet ze met de registry om naar kolommen + JSON.
 const itemSchema = z.object({
   exerciseId: z.string().min(1),
-  sets: z.number().int().min(1).max(20),
-  reps: z.number().int().min(1).max(100),
-  restSeconds: z.number().int().min(0).max(600),
-  weightKg: z.number().min(0).max(1000).nullable().optional(),
+  exerciseType: z.string().min(1),
+  values: z.record(z.string(), z.string()).default({}),
   notes: z.string().trim().max(280).nullable().optional(),
 });
 const daySchema = z.object({
   name: z.string().trim().min(1).max(60),
+  notes: z.string().trim().max(280).nullable().optional(),
   items: z.array(itemSchema).max(50),
 });
 const daysSchema = z.array(daySchema).max(14);
@@ -53,6 +65,7 @@ export async function saveSchema(
   const templateId = String(formData.get("templateId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const coachNote = String(formData.get("coachNote") ?? "").trim();
 
   if (!name) return { error: "Naam is verplicht" };
 
@@ -80,7 +93,7 @@ export async function saveSchema(
   await prisma.$transaction([
     prisma.workoutTemplate.update({
       where: { id: template.id },
-      data: { name, description: description || null },
+      data: { name, description: description || null, coachNote: coachNote || null },
     }),
     // Items en dagen volledig vervangen (items cascaden via day-FK, maar we
     // ruimen expliciet op voor items zonder dag).
@@ -93,18 +106,30 @@ export async function saveSchema(
           templateId: template.id,
           order: dayIdx,
           name: d.name,
+          notes: d.notes?.trim() ? d.notes.trim() : null,
           items: {
-            create: d.items.map((it, idx) => ({
-              tenantId: owner.tenantId,
-              templateId: template.id,
-              exerciseId: it.exerciseId,
-              order: idx,
-              sets: it.sets,
-              reps: it.reps,
-              restSeconds: it.restSeconds,
-              weightKg: it.weightKg ?? null,
-              notes: it.notes?.trim() ? it.notes.trim() : null,
-            })),
+            create: d.items.map((it, idx) => {
+              const typeKey = isExerciseType(it.exerciseType)
+                ? it.exerciseType
+                : DEFAULT_EXERCISE_TYPE;
+              const cols = itemColumnsFromParams(
+                typeKey,
+                paramsFromInputValues(typeKey, it.values)
+              );
+              return {
+                tenantId: owner.tenantId,
+                templateId: template.id,
+                exerciseId: it.exerciseId,
+                order: idx,
+                sets: cols.sets,
+                reps: cols.reps,
+                restSeconds: cols.restSeconds,
+                weightKg: cols.weightKg,
+                tempo: cols.tempo,
+                params: cols.params ?? undefined,
+                notes: it.notes?.trim() ? it.notes.trim() : null,
+              };
+            }),
           },
         },
       })
@@ -125,11 +150,17 @@ export async function saveSchema(
   return { ok: true };
 }
 
-/** Maak een lege library-template en ga naar de edit-pagina. */
-export async function createTemplate() {
+/** Maak een lege library-template (schema of dag) en ga naar de edit-pagina. */
+export async function createTemplate(formData: FormData) {
   const owner = await requireOwner();
+  const kind = String(formData.get("kind") ?? "SCHEMA") === "DAY" ? "DAY" : "SCHEMA";
   const created = await prisma.workoutTemplate.create({
-    data: { tenantId: owner.tenantId, name: "Nieuw schema", isLibrary: true },
+    data: {
+      tenantId: owner.tenantId,
+      name: kind === "DAY" ? "Nieuwe dag" : "Nieuw schema",
+      isLibrary: true,
+      kind,
+    },
   });
   await audit("schema.create", {
     actor: owner,
@@ -168,9 +199,12 @@ export async function deleteTemplate(formData: FormData) {
 type SourceTemplate = {
   name: string;
   description: string | null;
+  coachNote: string | null;
+  updatedAt: Date;
   days: {
     order: number;
     name: string;
+    notes: string | null;
     items: {
       exerciseId: string;
       order: number;
@@ -178,6 +212,8 @@ type SourceTemplate = {
       reps: number;
       restSeconds: number;
       weightKg: number | null;
+      tempo: string | null;
+      params: Prisma.JsonValue | null;
       notes: string | null;
     }[];
   }[];
@@ -219,7 +255,13 @@ async function cloneToAssignment(
 ): Promise<string> {
   const { tenantId, userId, source } = params;
   const tpl = await tx.workoutTemplate.create({
-    data: { tenantId, name: source.name, description: source.description, isLibrary: false },
+    data: {
+      tenantId,
+      name: source.name,
+      description: source.description,
+      coachNote: source.coachNote,
+      isLibrary: false,
+    },
   });
   for (const d of source.days) {
     await tx.workoutDay.create({
@@ -228,6 +270,7 @@ async function cloneToAssignment(
         templateId: tpl.id,
         order: d.order,
         name: d.name,
+        notes: d.notes,
         items: {
           create: d.items.map((it) => ({
             tenantId,
@@ -238,6 +281,8 @@ async function cloneToAssignment(
             reps: it.reps,
             restSeconds: it.restSeconds,
             weightKg: it.weightKg,
+            tempo: it.tempo,
+            params: it.params ?? undefined,
             notes: it.notes,
           })),
         },
@@ -257,6 +302,9 @@ async function cloneToAssignment(
       endDate: params.endDate,
       trainerMessage: params.trainerMessage,
       publishedAt: params.publishedAt,
+      // Baseline = master-staat op koppelmoment (bron voor 3-weg-diff).
+      baselineSnapshot: snapshotOf(source),
+      masterSyncedAt: source.updatedAt,
     },
   });
   return assignment.id;
@@ -506,6 +554,7 @@ export async function duplicateTemplate(formData: FormData) {
         tenantId: owner.tenantId,
         name: `${source.name} (kopie)`,
         description: source.description,
+        coachNote: source.coachNote,
         isLibrary: true,
       },
     });
@@ -516,6 +565,7 @@ export async function duplicateTemplate(formData: FormData) {
           templateId: tpl.id,
           order: d.order,
           name: d.name,
+          notes: d.notes,
           items: {
             create: d.items.map((it) => ({
               tenantId: owner.tenantId,
@@ -526,6 +576,8 @@ export async function duplicateTemplate(formData: FormData) {
               reps: it.reps,
               restSeconds: it.restSeconds,
               weightKg: it.weightKg,
+              tempo: it.tempo,
+              params: it.params ?? undefined,
               notes: it.notes,
             })),
           },
@@ -686,4 +738,458 @@ export async function removeAssignment(formData: FormData) {
   }
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
+}
+
+// --- Slimme synchronisatie (master ↔ persoonlijke kopie) --------------------
+
+const cloneStructInclude = {
+  days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } },
+} as const;
+
+/** Prisma-update-data uit de gewijzigde velden van een master-item (getypeerd). */
+function itemDataFromFields(
+  after: ItemSnapshot,
+  fields: ItemField[]
+): Prisma.WorkoutExerciseItemUpdateInput {
+  const data: Prisma.WorkoutExerciseItemUpdateInput = {};
+  for (const f of fields) {
+    switch (f) {
+      case "sets":
+        data.sets = after.sets;
+        break;
+      case "reps":
+        data.reps = after.reps;
+        break;
+      case "weightKg":
+        data.weightKg = after.weightKg;
+        break;
+      case "restSeconds":
+        data.restSeconds = after.restSeconds;
+        break;
+      case "tempo":
+        data.tempo = after.tempo;
+        break;
+      case "params":
+        data.params = after.params === null ? Prisma.JsonNull : after.params;
+        break;
+      case "notes":
+        data.notes = after.notes;
+        break;
+    }
+  }
+  return data;
+}
+
+/**
+ * Pas één master-diff-entry toe op de persoonlijke kopie. Herlaadt de kloon vers
+ * (id-stabiel ook na structurele wijzigingen). Bij `threeWay` worden waarde-
+ * velden die het lid zélf heeft aangepast overgeslagen (lid wint).
+ */
+async function applyMasterEntry(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  cloneId: string,
+  e: DiffEntry,
+  opts: { threeWay: boolean; personalizedFields: Set<string> }
+): Promise<void> {
+  const clone = await tx.workoutTemplate.findUniqueOrThrow({
+    where: { id: cloneId },
+    include: cloneStructInclude,
+  });
+  let day = clone.days[e.dayIndex] ?? clone.days.find((d) => d.name === e.dayName) ?? null;
+
+  if (e.kind === "added" && e.after) {
+    if (!day) {
+      day = await tx.workoutDay.create({
+        data: { tenantId, templateId: cloneId, order: clone.days.length, name: e.dayName },
+        include: { items: true },
+      });
+    }
+    const maxOrder = day.items.reduce((m, it) => Math.max(m, it.order), -1);
+    await tx.workoutExerciseItem.create({
+      data: {
+        tenantId,
+        templateId: cloneId,
+        dayId: day.id,
+        exerciseId: e.after.exerciseId,
+        order: maxOrder + 1,
+        sets: e.after.sets,
+        reps: e.after.reps,
+        restSeconds: e.after.restSeconds,
+        weightKg: e.after.weightKg,
+        tempo: e.after.tempo,
+        params: e.after.params ?? undefined,
+        notes: e.after.notes,
+      },
+    });
+    return;
+  }
+
+  if (!day) return; // dag bestaat niet (meer) in de kopie
+
+  if (e.kind === "changed" && e.after && e.fields) {
+    const it = day.items.find((i) => i.exerciseId === e.exerciseId);
+    if (!it) return;
+    const fields = opts.threeWay
+      ? e.fields.filter((f) => !opts.personalizedFields.has(`${e.dayIndex}:${e.exerciseId}:${f}`))
+      : e.fields;
+    if (fields.length === 0) return;
+    await tx.workoutExerciseItem.update({
+      where: { id: it.id },
+      data: itemDataFromFields(e.after, fields),
+    });
+  } else if (e.kind === "replaced" && e.after) {
+    const it = day.items.find((i) => i.exerciseId === e.fromExerciseId);
+    if (!it) return;
+    await tx.workoutExerciseItem.update({
+      where: { id: it.id },
+      data: {
+        exerciseId: e.after.exerciseId,
+        sets: e.after.sets,
+        reps: e.after.reps,
+        restSeconds: e.after.restSeconds,
+        weightKg: e.after.weightKg,
+        tempo: e.after.tempo,
+        params: e.after.params ?? undefined,
+        notes: e.after.notes,
+      },
+    });
+  } else if (e.kind === "removed") {
+    const it = day.items.find((i) => i.exerciseId === e.exerciseId);
+    if (it) await tx.workoutExerciseItem.delete({ where: { id: it.id } });
+  }
+}
+
+/**
+ * Synchroniseer een persoonlijke kopie met de (gewijzigde) master.
+ * Modi: `all` (alle master-wijzigingen, 3-weg — lid-overrides blijven),
+ * `one` (één entry via `entryId`), `dismiss` (negeren — erken de master-staat).
+ */
+export async function syncAssignment(formData: FormData) {
+  const owner = await requireOwner();
+  const userId = String(formData.get("userId") ?? "");
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  const mode = String(formData.get("mode") ?? "");
+  const entryId = String(formData.get("entryId") ?? "");
+  const back = `/owner/schemas/members/${userId}`;
+
+  const assignment = await prisma.assignedWorkout.findFirst({
+    where: { id: assignmentId, tenantId: owner.tenantId, userId },
+    include: { template: { include: cloneStructInclude } },
+  });
+  if (!assignment?.sourceTemplateId || !assignment.template) redirect(back);
+
+  const master = await prisma.workoutTemplate.findFirst({
+    where: { id: assignment.sourceTemplateId, tenantId: owner.tenantId },
+    include: cloneStructInclude,
+  });
+  if (!master) redirect(back);
+
+  const masterSnap = snapshotOf(master);
+  const name = master.name;
+
+  if (mode === "dismiss") {
+    await prisma.assignedWorkout.update({
+      where: { id: assignment.id },
+      data: { masterSyncedAt: master.updatedAt },
+    });
+    await audit("schema.sync", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "User",
+      targetId: userId,
+      metadata: { name, mode: "dismiss" },
+    });
+    revalidatePath(back);
+    redirect(back);
+  }
+
+  const baseline = asSnapshot(assignment.baselineSnapshot) ?? masterSnap;
+  const cloneSnap = snapshotOf(assignment.template);
+  const masterDiff = diffSnapshots(baseline, masterSnap);
+  const personalDiff = diffSnapshots(baseline, cloneSnap);
+
+  // Velden die het lid zelf heeft aangepast (3-weg: lid wint).
+  const personalizedFields = new Set<string>();
+  for (const e of personalDiff.entries) {
+    if (e.kind === "changed" && e.fields) {
+      for (const f of e.fields) personalizedFields.add(`${e.dayIndex}:${e.exerciseId}:${f}`);
+    }
+  }
+
+  const toApply =
+    mode === "one"
+      ? masterDiff.entries.filter((e) => e.id === entryId)
+      : masterDiff.entries;
+  if (mode === "one" && toApply.length === 0) redirect(back);
+
+  await prisma.$transaction(async (tx) => {
+    for (const e of toApply) {
+      await applyMasterEntry(tx, owner.tenantId, assignment.template!.id, e, {
+        threeWay: mode === "all",
+        personalizedFields,
+      });
+    }
+
+    if (mode === "all") {
+      // Dag-notities + verwijderde dagen + coach-notitie (waar lid niet zelf wijzigde).
+      const cloneNow = await tx.workoutTemplate.findUniqueOrThrow({
+        where: { id: assignment.template!.id },
+        include: cloneStructInclude,
+      });
+      for (const md of masterDiff.days) {
+        if (md.status === "removed") {
+          const cd = cloneNow.days[md.dayIndex] ?? cloneNow.days.find((d) => d.name === md.name);
+          if (cd) await tx.workoutDay.delete({ where: { id: cd.id } });
+        } else if (md.notesChanged) {
+          const cd = cloneNow.days[md.dayIndex] ?? cloneNow.days.find((d) => d.name === md.name);
+          const baseDayNotes = baseline.days[md.dayIndex]?.notes ?? null;
+          // Lid wint: alleen overnemen als het lid de dag-notitie niet zelf wijzigde.
+          if (cd && cd.notes === baseDayNotes) {
+            await tx.workoutDay.update({
+              where: { id: cd.id },
+              data: { notes: masterSnap.days[md.dayIndex]?.notes ?? null },
+            });
+          }
+        }
+      }
+      if (masterDiff.coachNoteChanged && cloneSnap.coachNote === baseline.coachNote) {
+        await tx.workoutTemplate.update({
+          where: { id: assignment.template!.id },
+          data: { coachNote: masterSnap.coachNote },
+        });
+      }
+      await tx.assignedWorkout.update({
+        where: { id: assignment.id },
+        data: { baselineSnapshot: masterSnap, masterSyncedAt: master.updatedAt },
+      });
+    } else {
+      // Eén wijziging: werk de baseline bij zodat de rest pending blijft.
+      const newBaseline = applyEntryToSnapshot(baseline, toApply[0]);
+      await tx.assignedWorkout.update({
+        where: { id: assignment.id },
+        data: { baselineSnapshot: newBaseline },
+      });
+    }
+  });
+
+  await audit("schema.sync", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "User",
+    targetId: userId,
+    metadata: { name, mode: mode === "all" ? "all" : "one" },
+  });
+
+  revalidatePath(back);
+  redirect(back);
+}
+
+// --- Bulkwijzigingen over meerdere leden ------------------------------------
+
+const bulkOpSchema = z.object({
+  type: z.enum(["weightDelta", "setRest", "addExercise", "removeExercise"]),
+  delta: z.number().min(-500).max(500).optional(),
+  restSeconds: z.number().int().min(0).max(600).optional(),
+  exerciseId: z.string().optional().nullable(),
+  sets: z.number().int().min(1).max(20).optional(),
+  reps: z.number().int().min(1).max(100).optional(),
+});
+export type BulkOp = z.infer<typeof bulkOpSchema>;
+export type BulkResult = { updated: number; skipped: number; error?: string };
+
+/**
+ * Pas één bulkwijziging toe op het actieve schema van een batch leden. Werkt op
+ * de persoonlijke kopie van elk lid (de master blijft ongemoeid). Per chunk aan
+ * te roepen vanuit de client → echte voortgangsbalk, schaalbaar.
+ */
+export async function bulkEditChunk(userIds: string[], rawOp: BulkOp): Promise<BulkResult> {
+  const owner = await requireOwner();
+  const parsed = bulkOpSchema.safeParse(rawOp);
+  if (!parsed.success) return { updated: 0, skipped: 0, error: "Ongeldige bewerking" };
+  const op = parsed.data;
+
+  const ids = [...new Set(userIds.map(String).filter(Boolean))].slice(0, 200);
+  if (ids.length === 0) return { updated: 0, skipped: 0 };
+
+  // Doel-oefening (bij toevoegen/vervangen/verwijderen) moet bij de tenant horen.
+  if ((op.type === "addExercise" || op.type === "removeExercise") && op.exerciseId) {
+    const exists = await prisma.exercise.count({
+      where: { id: op.exerciseId, tenantId: owner.tenantId },
+    });
+    if (exists === 0) return { updated: 0, skipped: 0, error: "Oefening hoort niet bij deze sportschool." };
+  }
+
+  // Actieve, gepubliceerde toewijzing per lid (meest recent).
+  const assignments = await prisma.assignedWorkout.findMany({
+    where: { tenantId: owner.tenantId, userId: { in: ids }, status: "PUBLISHED", templateId: { not: null } },
+    orderBy: { publishedAt: "desc" },
+    select: { userId: true, templateId: true },
+  });
+  const byUser = new Map<string, string>();
+  for (const a of assignments) {
+    if (a.templateId && !byUser.has(a.userId)) byUser.set(a.userId, a.templateId);
+  }
+
+  let updated = 0;
+  let skipped = 0;
+  for (const [, templateId] of byUser) {
+    try {
+      if (op.type === "weightDelta" && op.delta != null) {
+        const items = await prisma.workoutExerciseItem.findMany({
+          where: {
+            templateId,
+            weightKg: { not: null },
+            ...(op.exerciseId ? { exerciseId: op.exerciseId } : {}),
+          },
+          select: { id: true, weightKg: true },
+        });
+        if (items.length === 0) {
+          skipped++;
+          continue;
+        }
+        await prisma.$transaction(
+          items.map((it) =>
+            prisma.workoutExerciseItem.update({
+              where: { id: it.id },
+              data: { weightKg: Math.max(0, Math.round(((it.weightKg ?? 0) + op.delta!) * 100) / 100) },
+            })
+          )
+        );
+        updated++;
+      } else if (op.type === "setRest" && op.restSeconds != null) {
+        const r = await prisma.workoutExerciseItem.updateMany({
+          where: { templateId, ...(op.exerciseId ? { exerciseId: op.exerciseId } : {}) },
+          data: { restSeconds: op.restSeconds },
+        });
+        r.count > 0 ? updated++ : skipped++;
+      } else if (op.type === "removeExercise" && op.exerciseId) {
+        const r = await prisma.workoutExerciseItem.deleteMany({
+          where: { templateId, exerciseId: op.exerciseId },
+        });
+        r.count > 0 ? updated++ : skipped++;
+      } else if (op.type === "addExercise" && op.exerciseId) {
+        const day = await prisma.workoutDay.findFirst({
+          where: { templateId },
+          orderBy: { order: "asc" },
+          select: { id: true },
+        });
+        const max = await prisma.workoutExerciseItem.aggregate({
+          where: { templateId, dayId: day?.id ?? null },
+          _max: { order: true },
+        });
+        await prisma.workoutExerciseItem.create({
+          data: {
+            tenantId: owner.tenantId,
+            templateId,
+            dayId: day?.id ?? null,
+            exerciseId: op.exerciseId,
+            order: (max._max.order ?? -1) + 1,
+            sets: op.sets ?? 3,
+            reps: op.reps ?? 10,
+            restSeconds: op.restSeconds ?? 60,
+          },
+        });
+        updated++;
+      } else {
+        skipped++;
+      }
+    } catch (err) {
+      console.error("✗ Bulkwijziging mislukt voor lid:", (err as Error).message);
+      skipped++;
+    }
+  }
+
+  if (updated > 0) {
+    await audit("schema.bulk.edit", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      metadata: { memberCount: updated, op: op.type },
+    });
+  }
+
+  revalidatePath("/owner/schemas/bulk");
+  return { updated, skipped };
+}
+
+// --- Slimme suggestie toepassen op de master --------------------------------
+
+/**
+ * Voer een veelvoorkomende lid-aanpassing door in de master-template
+ * (suggestie-id afkomstig van getMasterSuggestions). Daarna kan de coach de
+ * leden re-synchroniseren. Bumpt master.updatedAt → "Sync beschikbaar".
+ */
+export async function applyMasterSuggestion(formData: FormData) {
+  const owner = await requireOwner();
+  const masterId = String(formData.get("masterId") ?? "");
+  const suggestionId = String(formData.get("suggestionId") ?? "");
+  const back = `/owner/schemas/templates/${masterId}`;
+
+  const parts = suggestionId.split(":");
+  const kind = parts[0];
+  const dayIndex = Number(parts[1]);
+  if (!masterId || Number.isNaN(dayIndex)) redirect(back);
+
+  const master = await prisma.workoutTemplate.findFirst({
+    where: { id: masterId, tenantId: owner.tenantId, isLibrary: true },
+    include: cloneStructInclude,
+  });
+  if (!master) redirect(back);
+  const day = master.days[dayIndex];
+  if (!day) redirect(back);
+
+  if (kind === "replace") {
+    const fromId = parts[2];
+    const toId = parts[3];
+    const ok = await prisma.exercise.count({ where: { id: toId, tenantId: owner.tenantId } });
+    const item = day.items.find((i) => i.exerciseId === fromId);
+    if (ok > 0 && item) {
+      await prisma.workoutExerciseItem.update({
+        where: { id: item.id },
+        data: { exerciseId: toId },
+      });
+    }
+  } else if (kind === "remove") {
+    const exId = parts[2];
+    const item = day.items.find((i) => i.exerciseId === exId);
+    if (item) await prisma.workoutExerciseItem.delete({ where: { id: item.id } });
+  } else if (kind === "add") {
+    const exId = parts[2];
+    const ok = await prisma.exercise.count({ where: { id: exId, tenantId: owner.tenantId } });
+    if (ok > 0 && !day.items.some((i) => i.exerciseId === exId)) {
+      const maxOrder = day.items.reduce((m, it) => Math.max(m, it.order), -1);
+      await prisma.workoutExerciseItem.create({
+        data: {
+          tenantId: owner.tenantId,
+          templateId: masterId,
+          dayId: day.id,
+          exerciseId: exId,
+          order: maxOrder + 1,
+          sets: 3,
+          reps: 10,
+          restSeconds: 60,
+        },
+      });
+    }
+  } else {
+    redirect(back);
+  }
+
+  // Bump updatedAt zodat toewijzingen "Sync beschikbaar" tonen.
+  await prisma.workoutTemplate.update({
+    where: { id: masterId },
+    data: { updatedAt: new Date() },
+  });
+
+  await audit("schema.master.apply", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: masterId,
+    metadata: { name: master.name, kind },
+  });
+
+  revalidatePath(back);
+  redirect(back);
 }

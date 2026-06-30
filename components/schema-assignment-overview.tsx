@@ -11,6 +11,8 @@ export function SchemaAssignmentOverview({ rows }: { rows: AssignmentRow[] }) {
   const active = rows.filter((r) => r.active).length;
   const scheduled = rows.filter((r) => r.status === "SCHEDULED").length;
   const drafts = rows.filter((r) => r.status === "DRAFT").length;
+  const personalized = rows.filter((r) => r.personalized).length;
+  const syncable = rows.filter((r) => r.syncAvailable).length;
 
   if (rows.length === 0) {
     return (
@@ -26,6 +28,8 @@ export function SchemaAssignmentOverview({ rows }: { rows: AssignmentRow[] }) {
         <Badge tone="success">{active} actief</Badge>
         {scheduled > 0 ? <Badge tone="warning">{scheduled} gepland</Badge> : null}
         {drafts > 0 ? <Badge tone="neutral">{drafts} concept</Badge> : null}
+        {personalized > 0 ? <Badge tone="warning">{personalized} aangepast</Badge> : null}
+        {syncable > 0 ? <Badge tone="accent">{syncable} sync beschikbaar</Badge> : null}
         <Badge tone="neutral">{rows.length} totaal</Badge>
       </div>
 
@@ -35,6 +39,7 @@ export function SchemaAssignmentOverview({ rows }: { rows: AssignmentRow[] }) {
             <tr>
               <th className="px-3 py-2 font-medium">Lid</th>
               <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">Template</th>
               <th className="px-3 py-2 font-medium">Beschikbaar / gepubliceerd</th>
               <th className="px-3 py-2 font-medium">Periode</th>
               <th className="px-3 py-2 font-medium">Gewijzigd</th>
@@ -49,6 +54,18 @@ export function SchemaAssignmentOverview({ rows }: { rows: AssignmentRow[] }) {
                   <td className="px-3 py-2 font-medium text-neutral-900">{r.memberName}</td>
                   <td className="px-3 py-2">
                     <Badge tone={meta.tone}>{meta.label}</Badge>
+                  </td>
+                  <td className="px-3 py-2">
+                    {r.personalized ? (
+                      <Badge tone="warning">Aangepast</Badge>
+                    ) : (
+                      <Badge tone="neutral">Standaard</Badge>
+                    )}
+                    {r.syncAvailable ? (
+                      <span className="ml-1">
+                        <Badge tone="accent">Sync</Badge>
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2 text-neutral-600">
                     {r.status === "SCHEDULED"

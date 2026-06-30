@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getWorkoutContext } from "@/lib/member-stats";
+import { targetSummaryFromItem } from "@/lib/exercise-params";
 import { ActiveSession, type ActiveExercise } from "./active-session";
 
 export const metadata = { title: "Actieve training" };
@@ -25,6 +26,7 @@ export default async function ActiveSessionPage() {
       setNumber: true,
       reps: true,
       weightKg: true,
+      params: true,
       notes: true,
     },
   });
@@ -91,6 +93,7 @@ export default async function ActiveSessionPage() {
     const prev = prevByExercise.get(item.exerciseId);
     return {
       exerciseId: item.exerciseId,
+      exerciseType: item.exercise.exerciseType,
       name: item.exercise.name,
       machineName: item.exercise.machine?.name ?? null,
       thumbUrl:
@@ -99,12 +102,15 @@ export default async function ActiveSessionPage() {
       sets: item.sets,
       targetReps: item.reps,
       targetWeightKg: item.weightKg ?? null,
+      tempo: item.tempo ?? null,
+      targetSummary: targetSummaryFromItem(item, item.exercise.exerciseType),
       restSeconds: item.restSeconds,
       note: savedNote ?? item.notes ?? null,
       entries: own.map((e) => ({
         setNumber: e.setNumber,
         reps: e.reps,
         weightKg: e.weightKg,
+        params: e.params,
       })),
       previous: prev
         ? {

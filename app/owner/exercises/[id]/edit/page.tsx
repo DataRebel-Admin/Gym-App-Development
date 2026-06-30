@@ -16,6 +16,7 @@ async function loadExercise(id: string, tenantId: string) {
     select: {
       id: true,
       name: true,
+      exerciseType: true,
       description: true,
       targetMuscle: true,
       muscleGroups: true,

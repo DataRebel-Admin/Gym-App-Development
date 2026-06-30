@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { saveSet, saveExerciseNote } from "../actions";
 import { ExerciseBlock } from "./exercise-block";
+import { DynamicExerciseBlock } from "./dynamic-exercise-block";
 import { CompletionScreen } from "./completion-screen";
 import { useRestTimer, FloatingTimer } from "./rest-timer";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
@@ -12,13 +13,15 @@ import { Check } from "@/components/ui/icons";
 /** Lokale (optimistische) staat van één set. */
 export type SetValue = { reps: string; kg: string; done: boolean; saving: boolean };
 
-type SetEntry = { setNumber: number; reps: number; weightKg: number };
+type SetEntry = { setNumber: number; reps: number; weightKg: number; params?: unknown };
 export type PreviousPerformance = {
   date: string;
   sets: { setNumber: number; reps: number; weightKg: number }[];
 };
 export type ActiveExercise = {
   exerciseId: string;
+  /** Oefeningstype — kracht volgt het set/reps/kg-pad; overige types een eigen log-UI. */
+  exerciseType: string;
   name: string;
   machineName: string | null;
   thumbUrl: string | null;
@@ -26,11 +29,19 @@ export type ActiveExercise = {
   sets: number;
   targetReps: number;
   targetWeightKg: number | null;
+  tempo: string | null;
+  /** Type-bewuste doel-samenvatting (voor niet-kracht-types). */
+  targetSummary: string;
   restSeconds: number;
   note: string | null;
   entries: SetEntry[];
   previous: PreviousPerformance | null;
 };
+
+/** Of de oefening het klassieke kracht-trackingpad volgt. */
+function isStrength(ex: ActiveExercise): boolean {
+  return ex.exerciseType === "strength";
+}
 
 export type WorkoutContextProps = {
   historicalBest: Record<string, number>;
@@ -73,9 +84,13 @@ export function ActiveSession({
   const timer = useRestTimer();
   const [, startTransition] = useTransition();
 
+  // Set-state alleen voor kracht-oefeningen (klassiek reps×kg-pad). Niet-kracht-
+  // types beheren hun eigen state in DynamicExerciseBlock en rapporteren "klaar"
+  // via dynamicDone.
   const [setState, setSetState] = useState<Record<string, SetValue[]>>(() => {
     const init: Record<string, SetValue[]> = {};
     for (const ex of exercises) {
+      if (!isStrength(ex)) continue;
       // Aantal sets = template, maar minstens zoveel als er al opgeslagen zijn
       // (zo blijven eerder toegevoegde extra sets behouden na herladen).
       const maxEntry = ex.entries.reduce((m, e) => Math.max(m, e.setNumber), 0);
@@ -89,6 +104,17 @@ export function ActiveSession({
           saving: false,
         };
       });
+    }
+    return init;
+  });
+
+  // "Klaar"-status van niet-kracht-oefeningen (gerapporteerd door de dynamische
+  // blokken). Init: klaar als er al een logregel bestaat.
+  const [dynamicDone, setDynamicDone] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const ex of exercises) {
+      if (isStrength(ex)) continue;
+      init[ex.exerciseId] = ex.entries.length > 0;
     }
     return init;
   });
@@ -188,6 +214,19 @@ export function ActiveSession({
     const newRecords: { name: string; weightKg: number; reps: number }[] = [];
 
     for (const ex of exercises) {
+      // Niet-kracht-oefeningen tellen als één eenheid (klaar/niet-klaar).
+      if (!isStrength(ex)) {
+        totalSets += 1;
+        if (dynamicDone[ex.exerciseId]) {
+          completedSets += 1;
+          completedExercises += 1;
+          estRestSec += ex.restSeconds || 0;
+        } else {
+          estRemainingSec += (ex.restSeconds || DEFAULT_REST) + 30;
+        }
+        continue;
+      }
+
       const sets = setState[ex.exerciseId];
       totalSets += sets.length;
       const doneSets = sets.filter((s) => s.done);
@@ -228,7 +267,7 @@ export function ActiveSession({
       estRemainingSec,
       newRecords,
     };
-  }, [exercises, setState, context.historicalBest]);
+  }, [exercises, setState, dynamicDone, context.historicalBest]);
 
   const pct = stats.totalSets > 0 ? Math.round((stats.completedSets / stats.totalSets) * 100) : 0;
   const allDone = stats.completedExercises === exercises.length;
@@ -286,18 +325,29 @@ export function ActiveSession({
                   {ex.dayName}
                 </p>
               ) : null}
-              <ExerciseBlock
-                exercise={ex}
-                sets={setState[ex.exerciseId]}
-                note={notes[ex.exerciseId] ?? ""}
-                historicalBestOneRm={context.historicalBest[ex.exerciseId] ?? 0}
-                onChangeSet={(sn, field, val) => changeSet(ex.exerciseId, sn, field, val)}
-                onToggleSet={(sn) => toggleSet(ex, sn)}
-                onAddSet={() => addSet(ex.exerciseId)}
-                onRemoveSet={(sn) => removeSet(ex.exerciseId, sn)}
-                onNoteChange={(val) => setNotes((p) => ({ ...p, [ex.exerciseId]: val }))}
-                onNoteBlur={() => noteBlur(ex.exerciseId)}
-              />
+              {isStrength(ex) ? (
+                <ExerciseBlock
+                  exercise={ex}
+                  sets={setState[ex.exerciseId]}
+                  note={notes[ex.exerciseId] ?? ""}
+                  historicalBestOneRm={context.historicalBest[ex.exerciseId] ?? 0}
+                  onChangeSet={(sn, field, val) => changeSet(ex.exerciseId, sn, field, val)}
+                  onToggleSet={(sn) => toggleSet(ex, sn)}
+                  onAddSet={() => addSet(ex.exerciseId)}
+                  onRemoveSet={(sn) => removeSet(ex.exerciseId, sn)}
+                  onNoteChange={(val) => setNotes((p) => ({ ...p, [ex.exerciseId]: val }))}
+                  onNoteBlur={() => noteBlur(ex.exerciseId)}
+                />
+              ) : (
+                <DynamicExerciseBlock
+                  exercise={ex}
+                  sessionId={sessionId}
+                  onDoneChange={(done) =>
+                    setDynamicDone((p) => ({ ...p, [ex.exerciseId]: done }))
+                  }
+                  onSetDone={(rest) => timer.startRest(rest > 0 ? rest : DEFAULT_REST)}
+                />
+              )}
             </div>
           );
         })}

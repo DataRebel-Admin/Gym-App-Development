@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button-classes";
 import type { CatalogFilter } from "@/lib/catalog";
 import { bulkAddCatalogToGym, removeCatalogExerciseFromGym } from "./actions";
+import { ExerciseTypeSelect } from "./exercise-type-select";
 
 export type CatalogGridItem = {
   id: string;
@@ -17,6 +18,9 @@ export type CatalogGridItem = {
   equipment: string;
   target: string;
   added: boolean;
+  /** Alleen wanneer toegevoegd: de tenant-Exercise-id + huidig type (override). */
+  exerciseId?: string;
+  exerciseType?: string;
 };
 
 /**
@@ -180,12 +184,23 @@ export function CatalogBulkGrid({
                   {item.bodyPart} · {item.equipment} · {item.target}
                 </p>
                 {item.added ? (
-                  <form action={removeCatalogExerciseFromGym} className="mt-auto pt-1">
-                    <input type="hidden" name="catalogId" value={item.id} />
-                    <button type="submit" className="text-xs text-neutral-400 hover:text-red-600">
-                      Verwijderen uit sportschool
-                    </button>
-                  </form>
+                  <div className="mt-auto flex flex-col gap-2 pt-1">
+                    {item.exerciseId && item.exerciseType ? (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-neutral-400">Type</span>
+                        <ExerciseTypeSelect
+                          exerciseId={item.exerciseId}
+                          value={item.exerciseType}
+                        />
+                      </div>
+                    ) : null}
+                    <form action={removeCatalogExerciseFromGym}>
+                      <input type="hidden" name="catalogId" value={item.id} />
+                      <button type="submit" className="text-xs text-neutral-400 hover:text-red-600">
+                        Verwijderen uit sportschool
+                      </button>
+                    </form>
+                  </div>
                 ) : null}
               </div>
             </div>

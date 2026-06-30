@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { getAssignedSchema } from "@/lib/member";
 import { buildSchemaPdf, type SchemaPdfDay } from "@/lib/schema-pdf";
+import { targetSummaryFromItem } from "@/lib/exercise-params";
 
 const VERSION_FMT = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -51,6 +52,9 @@ export async function GET(
       reps: it.reps,
       weightKg: it.weightKg,
       restSeconds: it.restSeconds,
+      tempo: it.tempo,
+      exerciseType: it.exercise.exerciseType,
+      summary: targetSummaryFromItem(it, it.exercise.exerciseType),
       notes: it.notes,
     })),
   }));

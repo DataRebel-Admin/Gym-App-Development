@@ -27,6 +27,18 @@ export default async function SchemasLayout({
           >
             Leden
           </Link>
+          <Link
+            href="/owner/schemas/bulk"
+            className="text-neutral-500 hover:text-neutral-900"
+          >
+            Bulk
+          </Link>
+          <Link
+            href="/owner/schemas/insights"
+            className="text-neutral-500 hover:text-neutral-900"
+          >
+            Analyse
+          </Link>
         </nav>
       </div>
       {children}

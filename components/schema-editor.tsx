@@ -17,21 +17,32 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { saveSchema, type SchemaSaveState } from "@/app/owner/schemas/actions";
+import {
+  EXERCISE_TYPES,
+  getExerciseType,
+  type ParamField,
+} from "@/lib/exercise-types";
+import {
+  defaultInputValues,
+  summaryFromInputValues,
+  type InputValues,
+} from "@/lib/exercise-params";
 
 export type EditorItem = {
   key: string;
   exerciseId: string;
   exerciseName: string;
-  sets: number;
-  reps: number;
-  restSeconds: number;
-  weightKg: number | null;
+  /** Oefeningstype (bepaalt de dynamische velden). */
+  exerciseType: string;
+  /** Invoerwaarden per veld-id (input-eenheid: min/km/…); leeg = niet ingevuld. */
+  values: InputValues;
   notes: string;
 };
 
 export type EditorDay = {
   key: string;
   name: string;
+  notes: string;
   items: EditorItem[];
 };
 
@@ -39,12 +50,89 @@ export type AvailableExercise = {
   id: string;
   name: string;
   targetMuscle: string | null;
+  exerciseType: string;
   /** Herkomst: "standaard" (catalogus) of "eigen" (tenant-oefening). */
   source: "standaard" | "eigen";
 };
 
+/** Herbruikbare dag (kind=DAY) om als blok in te voegen. */
+export type DayTemplateOption = {
+  id: string;
+  name: string;
+  notes: string;
+  items: Omit<EditorItem, "key">[];
+};
+
 const numClass =
-  "w-14 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent";
+  "w-16 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent";
+
+/** Label voor een veld inclusief invoer-eenheid (bv. "tijd (min)"). */
+function fieldLabel(field: ParamField): string {
+  const unit =
+    field.kind === "duration" || field.kind === "distance"
+      ? ` (${field.unit})`
+      : "";
+  return `${field.label.toLowerCase()}${unit}`;
+}
+
+/** Eén dynamisch invoerveld in de editor-rij (compact). */
+function ParamInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: ParamField;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  if (field.kind === "enum") {
+    return (
+      <label className="flex items-center gap-1 text-xs text-neutral-500">
+        {fieldLabel(field)}
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="rounded-md border border-border px-1.5 py-1 text-sm outline-none focus:border-accent"
+        >
+          <option value="">—</option>
+          {field.options?.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  if (field.kind === "text") {
+    return (
+      <label className="flex items-center gap-1 text-xs text-neutral-500">
+        {fieldLabel(field)}
+        <input
+          type="text"
+          value={value}
+          placeholder={field.placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-20 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent"
+        />
+      </label>
+    );
+  }
+  return (
+    <label className="flex items-center gap-1 text-xs text-neutral-500">
+      {fieldLabel(field)}
+      <input
+        type="number"
+        inputMode="decimal"
+        min={0}
+        step={field.step ?? (field.kind === "float" ? 0.5 : 1)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={numClass}
+      />
+    </label>
+  );
+}
 
 /** Kleine herkomst-badge: Standaard (catalogus) of Eigen (tenant-oefening). */
 function SourceBadge({ source }: { source: "standaard" | "eigen" }) {
@@ -80,6 +168,12 @@ function SortableRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.key });
   const otherDays = dayKeys.filter((d) => d.key !== currentDayKey);
+  const type = getExerciseType(item.exerciseType);
+  const TypeIcon = type.icon;
+
+  function setValue(fieldId: string, v: string) {
+    onChange(item.key, { values: { ...item.values, [fieldId]: v } });
+  }
 
   return (
     <div
@@ -95,20 +189,14 @@ function SortableRow({
         </button>
         <span className="flex flex-1 items-center gap-2 text-sm font-medium text-neutral-900">
           {source ? <SourceBadge source={source} /> : null}
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${type.tone}`}
+            title={type.label}
+          >
+            <TypeIcon className="size-3" /> {type.label}
+          </span>
           <span className="truncate">{item.exerciseName}</span>
         </span>
-        <label className="flex items-center gap-1 text-xs text-neutral-500">sets
-          <input type="number" min={1} value={item.sets} onChange={(e) => onChange(item.key, { sets: Number(e.target.value) })} className={numClass} />
-        </label>
-        <label className="flex items-center gap-1 text-xs text-neutral-500">reps
-          <input type="number" min={1} value={item.reps} onChange={(e) => onChange(item.key, { reps: Number(e.target.value) })} className={numClass} />
-        </label>
-        <label className="flex items-center gap-1 text-xs text-neutral-500">kg
-          <input type="number" min={0} step={0.5} value={item.weightKg ?? ""} onChange={(e) => onChange(item.key, { weightKg: e.target.value === "" ? null : Number(e.target.value) })} className={numClass} />
-        </label>
-        <label className="flex items-center gap-1 text-xs text-neutral-500">rust
-          <input type="number" min={0} value={item.restSeconds} onChange={(e) => onChange(item.key, { restSeconds: Number(e.target.value) })} className={numClass} />
-        </label>
         {otherDays.length > 0 ? (
           <select
             value=""
@@ -124,6 +212,19 @@ function SortableRow({
         ) : null}
         <button type="button" onClick={() => onRemove(item.key)} className="text-neutral-400 hover:text-red-600" aria-label="Verwijder">✕</button>
       </div>
+
+      {/* Dynamische, type-specifieke doelvelden */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-6">
+        {type.targetFields.map((field) => (
+          <ParamInput
+            key={field.id}
+            field={field}
+            value={item.values[field.id] ?? ""}
+            onChange={(v) => setValue(field.id, v)}
+          />
+        ))}
+      </div>
+
       <input
         type="text"
         value={item.notes}
@@ -141,6 +242,7 @@ function DayCard({
   dayKeys,
   availableExercises,
   onRename,
+  onNotesChange,
   onRemove,
   onAdd,
   onReorder,
@@ -153,6 +255,7 @@ function DayCard({
   dayKeys: { key: string; name: string }[];
   availableExercises: AvailableExercise[];
   onRename: (dayKey: string, name: string) => void;
+  onNotesChange: (dayKey: string, notes: string) => void;
   onRemove: (dayKey: string) => void;
   onAdd: (dayKey: string, ex: AvailableExercise) => void;
   onReorder: (dayKey: string, e: DragEndEvent) => void;
@@ -189,6 +292,14 @@ function DayCard({
           Verwijder dag
         </button>
       </div>
+
+      <input
+        type="text"
+        value={day.notes}
+        onChange={(e) => onNotesChange(day.key, e.target.value)}
+        placeholder="Dag-notitie voor het lid (optioneel)…"
+        className="w-full rounded-md border border-border bg-transparent px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent"
+      />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => onReorder(day.key, e)}>
         <SortableContext items={day.items.map((i) => i.key)} strategy={verticalListSortingStrategy}>
@@ -251,20 +362,25 @@ export function SchemaEditor({
   templateId,
   initialName,
   initialDescription,
+  initialCoachNote = "",
   initialDays,
   availableExercises,
+  dayTemplates = [],
 }: {
   templateId: string;
   initialName: string;
   initialDescription: string;
+  initialCoachNote?: string;
   initialDays: EditorDay[];
   availableExercises: AvailableExercise[];
+  dayTemplates?: DayTemplateOption[];
 }) {
   const [state, formAction, pending] = useActionState<SchemaSaveState, FormData>(saveSchema, {});
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
+  const [coachNote, setCoachNote] = useState(initialCoachNote);
   const [days, setDays] = useState<EditorDay[]>(
-    initialDays.length > 0 ? initialDays : [{ key: `d-${dayCounter++}`, name: "Dag 1", items: [] }]
+    initialDays.length > 0 ? initialDays : [{ key: `d-${dayCounter++}`, name: "Dag 1", notes: "", items: [] }]
   );
   const formRef = useRef<HTMLFormElement>(null);
   const mounted = useRef(false);
@@ -274,12 +390,11 @@ export function SchemaEditor({
       JSON.stringify(
         days.map((d) => ({
           name: d.name.trim() || "Dag",
+          notes: d.notes,
           items: d.items.map((i) => ({
             exerciseId: i.exerciseId,
-            sets: i.sets,
-            reps: i.reps,
-            restSeconds: i.restSeconds,
-            weightKg: i.weightKg,
+            exerciseType: i.exerciseType,
+            values: i.values,
             notes: i.notes,
           })),
         }))
@@ -296,7 +411,7 @@ export function SchemaEditor({
       if (name.trim()) formRef.current?.requestSubmit();
     }, 1200);
     return () => clearTimeout(t);
-  }, [serialized, name, description]);
+  }, [serialized, name, description, coachNote]);
 
   const dayKeys = days.map((d) => ({ key: d.key, name: d.name.trim() || "Dag" }));
 
@@ -305,7 +420,20 @@ export function SchemaEditor({
   }
 
   function addDay() {
-    setDays((prev) => [...prev, { key: `d-${dayCounter++}`, name: `Dag ${prev.length + 1}`, items: [] }]);
+    setDays((prev) => [...prev, { key: `d-${dayCounter++}`, name: `Dag ${prev.length + 1}`, notes: "", items: [] }]);
+  }
+  function addDayFromTemplate(tplId: string) {
+    const tpl = dayTemplates.find((t) => t.id === tplId);
+    if (!tpl) return;
+    setDays((prev) => [
+      ...prev,
+      {
+        key: `d-${dayCounter++}`,
+        name: tpl.name,
+        notes: tpl.notes,
+        items: tpl.items.map((it) => ({ ...it, key: `i-${itemCounter++}` })),
+      },
+    ]);
   }
   function removeDay(dayKey: string) {
     setDays((prev) => (prev.length <= 1 ? prev : prev.filter((d) => d.key !== dayKey)));
@@ -313,10 +441,23 @@ export function SchemaEditor({
   function renameDay(dayKey: string, name: string) {
     updateDay(dayKey, (d) => ({ ...d, name }));
   }
+  function setDayNotes(dayKey: string, notes: string) {
+    updateDay(dayKey, (d) => ({ ...d, notes }));
+  }
   function addItem(dayKey: string, ex: AvailableExercise) {
     updateDay(dayKey, (d) => ({
       ...d,
-      items: [...d.items, { key: `i-${itemCounter++}`, exerciseId: ex.id, exerciseName: ex.name, sets: 3, reps: 10, restSeconds: 60, weightKg: null, notes: "" }],
+      items: [
+        ...d.items,
+        {
+          key: `i-${itemCounter++}`,
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          exerciseType: ex.exerciseType,
+          values: defaultInputValues(ex.exerciseType),
+          notes: "",
+        },
+      ],
     }));
   }
   function reorder(dayKey: string, e: DragEndEvent) {
@@ -357,6 +498,10 @@ export function SchemaEditor({
           Beschrijving
           <textarea name="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
         </label>
+        <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          Coach-notitie (zichtbaar voor het lid)
+          <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
+        </label>
 
         <div className="flex flex-col gap-3">
           {days.map((d, i) => (
@@ -367,6 +512,7 @@ export function SchemaEditor({
               dayKeys={dayKeys}
               availableExercises={availableExercises}
               onRename={renameDay}
+              onNotesChange={setDayNotes}
               onRemove={removeDay}
               onAdd={addItem}
               onReorder={reorder}
@@ -377,9 +523,29 @@ export function SchemaEditor({
           ))}
         </div>
 
-        <button type="button" onClick={addDay} className="self-start rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
-          + Dag toevoegen
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={addDay} className="rounded-lg border border-border-strong px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+            + Dag toevoegen
+          </button>
+          {dayTemplates.length > 0 ? (
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addDayFromTemplate(e.target.value);
+                e.target.value = "";
+              }}
+              className="rounded-lg border border-border-strong px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              title="Dag toevoegen vanuit template"
+            >
+              <option value="">+ Dag uit template…</option>
+              {dayTemplates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.items.length} oef.)
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
 
         <div className="flex items-center gap-3">
           <button type="submit" disabled={pending} className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50">
@@ -407,7 +573,7 @@ export function SchemaEditor({
                     <span className="flex-1">
                       <span className="font-medium text-neutral-900">{it.exerciseName}</span>
                       <span className="block text-xs text-neutral-500">
-                        {it.sets} × {it.reps}{it.weightKg ? ` @ ${it.weightKg} kg` : ""} · {it.restSeconds}s
+                        {summaryFromInputValues(it.exerciseType, it.values)}
                       </span>
                     </span>
                   </li>

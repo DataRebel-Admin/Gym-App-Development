@@ -68,6 +68,14 @@ enum AssignmentStatus {
   ARCHIVED // niet meer actief (handmatig of na einddatum)
 }
 
+// Soort herbruikbare template in de bibliotheek. SCHEMA = volledig trainingsschema
+// (meerdere dagen); DAY = één herbruikbare trainingsdag (Push/Pull/Legs/…) die je
+// als blok in een schema kunt invoegen ("Dag toevoegen vanuit template").
+enum WorkoutTemplateKind {
+  SCHEMA
+  DAY
+}
+
 model Tenant {
   id          String   @id @default(cuid())
   slug        String   @unique // subdomein, bv. "fitpower"
@@ -562,6 +570,11 @@ model Exercise {
   machineId    String? // nullable: lichaamsgewicht-oefeningen hebben geen machine
   catalogId    String? // optioneel: link naar de globale ExerciseCatalog (bron van media/instructies)
 
+  // Oefeningstype (code-registry, zie lib/exercise-types.ts) — bepaalt wélke
+  // parameters relevant zijn (sets/reps/gewicht vs. tijd/afstand/intensiteit…).
+  // Bewust een String (geen enum): een nieuw type vereist geen DB-migratie.
+  exerciseType String @default("strength")
+
   // --- Eigen-oefening content (alleen gevuld bij catalogId == null) ---
   // Een "eigen oefening" is een tenant-Exercise zonder catalogus-koppeling; deze
   // velden vervangen dan de catalogus als bron van media/instructies/metadata.
@@ -623,6 +636,8 @@ model WorkoutTemplate {
   name        String
   description String?
   isLibrary   Boolean  @default(false) // true = zichtbaar als herbruikbare template
+  kind        WorkoutTemplateKind @default(SCHEMA) // SCHEMA = volledig schema; DAY = herbruikbare dag
+  coachNote   String?  @db.Text // coach-notitie op schema-niveau (zichtbaar voor het lid)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -641,6 +656,7 @@ model WorkoutDay {
   templateId String
   order      Int    @default(0)
   name       String @default("Dag 1")
+  notes      String? // coach-notitie op dag-niveau (zichtbaar voor het lid)
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -661,7 +677,12 @@ model WorkoutExerciseItem {
   reps        Int    @default(10)
   restSeconds Int    @default(60)
   weightKg    Float? // streefgewicht (optioneel)
+  tempo       String? // tempo-cadans, bv. "3-1-1" (optioneel)
   notes       String? // opmerking bij de oefening (optioneel)
+  // Type-specifieke doel-parameters (tijd/afstand/intensiteit/…). Velden die op
+  // een kolom mappen (sets/reps/restSeconds/weightKg/tempo) blijven daar; de rest
+  // leeft hier. Zie lib/exercise-params.ts (itemColumnsFromParams).
+  params      Json?
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
@@ -693,6 +714,14 @@ model AssignedWorkout {
   assignedById  String? // User.id van de toewijzende owner/admin
   notifiedAt    DateTime? // meldingen verstuurd (voorkomt dubbele meldingen)
   seenAt        DateTime? // lid heeft het schema voor het eerst geopend ("Nieuw")
+
+  // --- Master ↔ persoonlijke kopie (3-weg-diff) ---
+  // De persoonlijke kopie (`template`) wordt bij toewijzen gekloond van de master
+  // (`sourceTemplateId`). `baselineSnapshot` legt de master-staat op koppel-/
+  // sync-moment vast: diff(kopie, baseline) = persoonlijke aanpassingen,
+  // diff(master, baseline) = master-wijzigingen sinds sync. Zie lib/schema-diff.ts.
+  baselineSnapshot Json? // genormaliseerde master-snapshot op koppel-/sync-moment
+  masterSyncedAt   DateTime? // laatst erkende master-staat (master.updatedAt)
 
   tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -749,6 +778,10 @@ model PerformanceEntry {
   reps       Int
   weightKg   Float
   notes      String?
+  // Type-specifieke logwaarden (houdtijd/tijd/afstand/intensiteit/…). reps en
+  // weightKg blijven de kolommen voor kracht (1RM/volume/PR ongewijzigd); overige
+  // types loggen hier. Zie lib/exercise-params.ts (logColumnsFromParams).
+  params     Json?
 
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

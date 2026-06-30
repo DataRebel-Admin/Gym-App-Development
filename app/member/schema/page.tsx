@@ -10,27 +10,35 @@ import {
 } from "./schema-checklist";
 import { startSession } from "./actions";
 import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
+import { exerciseTypeLabel } from "@/lib/exercise-types";
+import { targetSummaryFromItem } from "@/lib/exercise-params";
 
 type ItemWithRel = {
   id: string;
   sets: number;
   reps: number;
   restSeconds: number;
+  weightKg: number | null;
+  tempo: string | null;
+  params: unknown;
+  notes: string | null;
   exercise: {
     name: string;
+    exerciseType: string;
     machine: { name: string } | null;
     catalog: { imageUrl: string | null; gifUrl: string | null } | null;
   };
 };
 
 function toChecklistItem(it: ItemWithRel): ChecklistItem {
+  const type = it.exercise.exerciseType;
   return {
     id: it.id,
     exerciseName: it.exercise.name,
     machineName: it.exercise.machine?.name ?? null,
-    sets: it.sets,
-    reps: it.reps,
-    restSeconds: it.restSeconds,
+    summary: targetSummaryFromItem(it, type),
+    typeLabel: exerciseTypeLabel(type),
+    notes: it.notes,
     thumbUrl: it.exercise.catalog?.imageUrl ?? it.exercise.catalog?.gifUrl ?? null,
   };
 }
@@ -67,6 +75,7 @@ export default async function MemberSchemaPage() {
   // Toon per dag wanneer er dagen zijn; anders één platte lijst.
   const days: ChecklistDay[] = schema.days.map((d) => ({
     name: d.name,
+    notes: d.notes,
     items: d.items.map(toChecklistItem),
   }));
   const flatItems: ChecklistItem[] = schema.items.map(toChecklistItem);
@@ -110,6 +119,15 @@ export default async function MemberSchemaPage() {
             Bericht van je trainer
           </p>
           <p className="mt-1 text-sm text-neutral-700">{trainerMessage}</p>
+        </div>
+      ) : null}
+
+      {schema.coachNote ? (
+        <div className="rounded-2xl border border-border bg-surface-1 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+            Coach-notitie
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">{schema.coachNote}</p>
         </div>
       ) : null}
 

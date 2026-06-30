@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { Badge } from "@/components/ui/badge";
 import { ASSIGNMENT_STATUS_META, isActiveNow } from "@/lib/schema-status";
+import { snapshotSelect } from "@/lib/schema-assignments";
+import { snapshotOf, asSnapshot, diffSnapshots, hasAnyDiff } from "@/lib/schema-diff";
 
 export const metadata = { title: "Schema's per lid" };
 
@@ -16,7 +18,7 @@ export default async function MembersPage() {
       assignedWorkouts: {
         where: { status: { not: "ARCHIVED" } },
         orderBy: { createdAt: "desc" },
-        include: { template: { select: { name: true } } },
+        include: { template: { select: { name: true, ...snapshotSelect } } },
       },
     },
   });
@@ -43,6 +45,11 @@ export default async function MembersPage() {
                 (a) => a.status === "SCHEDULED" || a.status === "DRAFT"
               );
               const show = active ?? upcoming;
+              const baseline = show ? asSnapshot(show.baselineSnapshot) : null;
+              const personalized =
+                show?.template && baseline
+                  ? hasAnyDiff(diffSnapshots(baseline, snapshotOf(show.template)))
+                  : false;
               return (
                 <tr key={m.id} className="border-t border-neutral-100">
                   <td className="px-4 py-2 font-medium text-neutral-900">
@@ -52,6 +59,11 @@ export default async function MembersPage() {
                     {show ? (
                       <span className="flex items-center gap-2">
                         <span>{show.template?.name ?? "Schema"}</span>
+                        {personalized ? (
+                          <Badge tone="warning">Aangepast</Badge>
+                        ) : (
+                          <Badge tone="neutral">Standaard</Badge>
+                        )}
                         {!active && upcoming ? (
                           <Badge tone={ASSIGNMENT_STATUS_META[upcoming.status].tone}>
                             {ASSIGNMENT_STATUS_META[upcoming.status].label}

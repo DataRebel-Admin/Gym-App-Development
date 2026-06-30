@@ -7,11 +7,17 @@ import {
   EXERCISE_DIFFICULTIES,
   EXERCISE_DIFFICULTY_LABELS,
 } from "@/lib/exercise-meta";
+import {
+  EXERCISE_TYPES,
+  DEFAULT_EXERCISE_TYPE,
+  exerciseTypeOptions,
+} from "@/lib/exercise-types";
 import { X } from "@/components/ui/icons";
 
 export type CustomExerciseFormData = {
   id: string;
   name: string;
+  exerciseType: string;
   description: string | null;
   targetMuscle: string | null;
   muscleGroups: string[];
@@ -60,6 +66,8 @@ export function CustomExerciseForm({
     {}
   );
 
+  // Gekozen oefeningstype — stuurt later de relevante schema-velden aan.
+  const [type, setType] = useState<string>(exercise?.exerciseType ?? DEFAULT_EXERCISE_TYPE);
   // Bestaande (opgeslagen) afbeeldingen — individueel te verwijderen.
   const [keptImages, setKeptImages] = useState<string[]>(exercise?.imageUrls ?? []);
   // Nieuw gekozen bestanden — met voorvertoning en individueel te verwijderen.
@@ -105,6 +113,27 @@ export function CustomExerciseForm({
             className={inputClass}
             placeholder="bv. Bulgaarse split squat"
           />
+        </Field>
+
+        <Field
+          label="Oefeningstype *"
+          hint="Bepaalt welke velden (sets/gewicht, tijd/afstand…) in het schema verschijnen."
+        >
+          <select
+            name="exerciseType"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            className={inputClass}
+          >
+            {exerciseTypeOptions().map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-neutral-500">
+            {EXERCISE_TYPES[type]?.description}
+          </span>
         </Field>
 
         <Field label="Korte omschrijving">

@@ -18,6 +18,10 @@ export type SchemaPdfItem = {
   weightKg: number | null;
   restSeconds: number | null;
   tempo?: string | null;
+  /** Oefeningstype (registry-key). Niet-kracht → toon `summary` i.p.v. de getalkolommen. */
+  exerciseType?: string;
+  /** Type-bewuste samenvatting (voor niet-kracht-types). */
+  summary?: string;
   notes: string | null;
 };
 
@@ -366,14 +370,24 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
 
     // Numerieke kolommen, verticaal uitgelijnd op de eerste regel.
     const cy = top - CELL_PAD - 1;
-    const center = (key: string, s: string, c: Tuple = INK, f: PDFFont = font) =>
-      textCenter(s, colX[key] + COLS.find((k) => k.key === key)!.w / 2, cy, CELL_SIZE, f, c);
-    center("sets", String(it.sets), INK, bold);
-    center("reps", String(it.reps));
-    if (it.weightKg != null) center("weight", `${it.weightKg} kg`);
-    else center("weight", "____", SUBTLE);
-    center("rest", formatRest(it.restSeconds), SUBTLE);
-    center("tempo", it.tempo ? sanitize(it.tempo) : "·", SUBTLE);
+    const isStrengthRow = !it.exerciseType || it.exerciseType === "strength";
+    if (isStrengthRow) {
+      const center = (key: string, s: string, c: Tuple = INK, f: PDFFont = font) =>
+        textCenter(s, colX[key] + COLS.find((k) => k.key === key)!.w / 2, cy, CELL_SIZE, f, c);
+      center("sets", String(it.sets), INK, bold);
+      center("reps", String(it.reps));
+      if (it.weightKg != null) center("weight", `${it.weightKg} kg`);
+      else center("weight", "____", SUBTLE);
+      center("rest", formatRest(it.restSeconds), SUBTLE);
+      center("tempo", it.tempo ? sanitize(it.tempo) : "·", SUBTLE);
+    } else {
+      // Niet-kracht: de getalkolommen vervangen door één type-bewuste samenvatting
+      // (tijd/afstand/intensiteit/…), die de Sets…Tempo-breedte overspant.
+      const spanX = colX.sets + CELL_PAD;
+      const spanW = colX.notes - colX.sets - CELL_PAD * 2;
+      const s = it.summary?.trim() || "—";
+      text(ellipsize(s, font, CELL_SIZE, spanW), spanX, cy, CELL_SIZE, font, INK);
+    }
 
     // Notities.
     if (it.notes?.trim()) {

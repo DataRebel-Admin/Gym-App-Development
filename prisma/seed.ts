@@ -1,5 +1,6 @@
 import { PrismaClient, MachineType, Role, Locale } from "@prisma/client";
 import { randomBytes } from "node:crypto";
+import { snapshotOf } from "../lib/schema-diff";
 
 const prisma = new PrismaClient();
 
@@ -13,13 +14,34 @@ type ExerciseSpec = {
   targetMuscle: string;
   machine: string | null; // machine-naam binnen dezelfde tenant, of null (lichaamsgewicht)
   catalogName?: string; // exacte naam in ExerciseCatalog (lowercase) → koppelt media/instructies
+  exerciseType?: string; // registry-key (lib/exercise-types.ts); default "strength"
 };
+
+type ItemSpec = {
+  exercise: string;
+  sets: number;
+  reps: number;
+  restSeconds: number;
+  weightKg?: number;
+  tempo?: string;
+  notes?: string;
+  // Type-specifieke doel-parameters (canoniek: seconden/meters). Voor niet-kracht-
+  // oefeningen, bv. { timeSeconds: 1800, distanceM: 5000, intensity: "middel" }.
+  params?: Record<string, number | string>;
+};
+type DaySpec = { name: string; notes?: string; items: ItemSpec[] };
 
 type TemplateSpec = {
   name: string;
   description: string;
-  items: { exercise: string; sets: number; reps: number; restSeconds: number }[];
+  coachNote?: string;
+  // Eén van beide: meerdaagse `days` of platte `items` (→ "Dag 1").
+  days?: DaySpec[];
+  items?: ItemSpec[];
 };
+
+/** Herbruikbare trainingsdag in de bibliotheek (WorkoutTemplate kind = DAY). */
+type DayTemplateSpec = { name: string; notes?: string; items: ItemSpec[] };
 
 type TenantSpec = {
   slug: string;
@@ -32,7 +54,74 @@ type TenantSpec = {
   machines: { name: string; type: MachineType; description: string }[];
   exercises: ExerciseSpec[];
   templates: TemplateSpec[];
+  dayTemplates?: DayTemplateSpec[];
 };
+
+/** Normaliseer een TemplateSpec naar dagen (platte items → één "Dag 1"). */
+function toDays(spec: { days?: DaySpec[]; items?: ItemSpec[] }): DaySpec[] {
+  if (spec.days && spec.days.length > 0) return spec.days;
+  return [{ name: "Dag 1", items: spec.items ?? [] }];
+}
+
+/**
+ * Maak een (library-)template met dagen + oefeningen. Items worden per dag
+ * aangemaakt mét expliciete `templateId` (de template-relatie wordt niet
+ * auto-gekoppeld via de geneste day-create).
+ */
+async function createTemplate(
+  tenantId: string,
+  exerciseByName: Map<string, { id: string }>,
+  opts: {
+    name: string;
+    description?: string | null;
+    coachNote?: string | null;
+    isLibrary: boolean;
+    kind: "SCHEMA" | "DAY";
+    days: DaySpec[];
+  }
+) {
+  const tpl = await prisma.workoutTemplate.create({
+    data: {
+      tenantId,
+      name: opts.name,
+      description: opts.description ?? null,
+      coachNote: opts.coachNote ?? null,
+      isLibrary: opts.isLibrary,
+      kind: opts.kind,
+    },
+  });
+  for (const [di, d] of opts.days.entries()) {
+    await prisma.workoutDay.create({
+      data: {
+        tenantId,
+        templateId: tpl.id,
+        order: di,
+        name: d.name,
+        notes: d.notes ?? null,
+        items: {
+          create: d.items.map((it, ii) => {
+            const ex = exerciseByName.get(it.exercise);
+            if (!ex) throw new Error(`Oefening niet gevonden: ${it.exercise}`);
+            return {
+              tenantId,
+              templateId: tpl.id,
+              exerciseId: ex.id,
+              order: ii,
+              sets: it.sets,
+              reps: it.reps,
+              restSeconds: it.restSeconds,
+              weightKg: it.weightKg ?? null,
+              tempo: it.tempo ?? null,
+              params: it.params ?? undefined,
+              notes: it.notes ?? null,
+            };
+          }),
+        },
+      },
+    });
+  }
+  return tpl;
+}
 
 async function seedTenant(spec: TenantSpec) {
   const tenant = await prisma.tenant.upsert({
@@ -56,6 +145,7 @@ async function seedTenant(spec: TenantSpec) {
   await prisma.workoutSession.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.assignedWorkout.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.workoutExerciseItem.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.workoutDay.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.workoutTemplate.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.exercise.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.machine.deleteMany({ where: { tenantId: tenant.id } });
@@ -116,6 +206,7 @@ async function seedTenant(spec: TenantSpec) {
           catalogId: e.catalogName
             ? catalogIdByName.get(e.catalogName.toLowerCase()) ?? null
             : null,
+          exerciseType: e.exerciseType ?? "strength",
           description: `${e.name} — gericht op ${e.targetMuscle.toLowerCase()}.`,
         },
       })
@@ -123,35 +214,33 @@ async function seedTenant(spec: TenantSpec) {
   );
   const exerciseByName = new Map(exercises.map((e) => [e.name, e]));
 
-  // Library-templates met oefeningen.
+  // Library-schema's (kind = SCHEMA), met dagen, coach-notities en tempo.
   for (const tpl of spec.templates) {
-    await prisma.workoutTemplate.create({
-      data: {
-        tenantId: tenant.id,
-        name: tpl.name,
-        description: tpl.description,
-        isLibrary: true,
-        items: {
-          create: tpl.items.map((it, idx) => {
-            const ex = exerciseByName.get(it.exercise);
-            if (!ex) throw new Error(`Oefening niet gevonden: ${it.exercise}`);
-            return {
-              tenantId: tenant.id,
-              exerciseId: ex.id,
-              order: idx,
-              sets: it.sets,
-              reps: it.reps,
-              restSeconds: it.restSeconds,
-            };
-          }),
-        },
-      },
+    await createTemplate(tenant.id, exerciseByName, {
+      name: tpl.name,
+      description: tpl.description,
+      coachNote: tpl.coachNote ?? null,
+      isLibrary: true,
+      kind: "SCHEMA",
+      days: toDays(tpl),
+    });
+  }
+
+  // Herbruikbare dag-templates (kind = DAY) — bouwstenen voor schema's.
+  for (const dt of spec.dayTemplates ?? []) {
+    await createTemplate(tenant.id, exerciseByName, {
+      name: dt.name,
+      description: null,
+      isLibrary: true,
+      kind: "DAY",
+      days: [{ name: dt.name, notes: dt.notes, items: dt.items }],
     });
   }
 
   console.log(
     `✓ ${spec.name} (${spec.slug}): 1 owner, ${spec.members.length} members, ` +
-      `${machines.length} machines, ${exercises.length} oefeningen, ${spec.templates.length} templates.`
+      `${machines.length} machines, ${exercises.length} oefeningen, ` +
+      `${spec.templates.length} schema's, ${(spec.dayTemplates ?? []).length} dag-templates.`
   );
 }
 
@@ -224,52 +313,120 @@ async function seedActivity(
   console.log(`  ↳ activiteit ${slug}: ${sessions} sessies, ${entries} entries`);
 }
 
-/** Wijs een lid een (gekloond, lid-specifiek) schema toe op basis van een template. */
+/**
+ * Wijs een lid een gekloond, lid-specifiek schema toe op basis van een
+ * library-master, inclusief baseline-snapshot (master ↔ persoonlijke kopie).
+ * Retourneert de id van de gekloonde (persoonlijke) template.
+ */
 async function seedAssignment(
   slug: string,
   memberEmail: string,
-  templateName: string
-) {
+  templateName: string,
+  opts?: { seen?: boolean; trainerMessage?: string }
+): Promise<string | null> {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
   const member = await prisma.user.findFirst({
     where: { tenantId: tenant.id, email: memberEmail, role: "TENANT_MEMBER" },
   });
   const source = await prisma.workoutTemplate.findFirst({
     where: { tenantId: tenant.id, isLibrary: true, name: templateName },
-    include: { items: { orderBy: { order: "asc" } } },
+    include: {
+      days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } },
+    },
   });
-  if (!member || !source) return;
+  if (!member || !source) return null;
 
-  await prisma.workoutTemplate.create({
+  const clone = await prisma.workoutTemplate.create({
     data: {
       tenantId: tenant.id,
       name: source.name,
       description: source.description,
+      coachNote: source.coachNote,
       isLibrary: false,
-      assignedWorkouts: {
-        create: {
-          tenantId: tenant.id,
-          userId: member.id,
-          sourceTemplateId: source.id,
-          status: "PUBLISHED",
-          publishedAt: new Date(),
-          startDate: new Date(),
-          seenAt: new Date(), // demo: al gezien (geen permanente "Nieuw")
+    },
+  });
+  for (const d of source.days) {
+    await prisma.workoutDay.create({
+      data: {
+        tenantId: tenant.id,
+        templateId: clone.id,
+        order: d.order,
+        name: d.name,
+        notes: d.notes,
+        items: {
+          create: d.items.map((it) => ({
+            tenantId: tenant.id,
+            templateId: clone.id,
+            exerciseId: it.exerciseId,
+            order: it.order,
+            sets: it.sets,
+            reps: it.reps,
+            restSeconds: it.restSeconds,
+            weightKg: it.weightKg,
+            tempo: it.tempo,
+            params: it.params ?? undefined,
+            notes: it.notes,
+          })),
         },
       },
-      items: {
-        create: source.items.map((it) => ({
-          tenantId: tenant.id,
-          exerciseId: it.exerciseId,
-          order: it.order,
-          sets: it.sets,
-          reps: it.reps,
-          restSeconds: it.restSeconds,
-        })),
-      },
+    });
+  }
+  await prisma.assignedWorkout.create({
+    data: {
+      tenantId: tenant.id,
+      userId: member.id,
+      templateId: clone.id,
+      sourceTemplateId: source.id,
+      status: "PUBLISHED",
+      publishedAt: new Date(),
+      startDate: new Date(),
+      seenAt: opts?.seen === false ? null : new Date(),
+      trainerMessage: opts?.trainerMessage ?? null,
+      baselineSnapshot: snapshotOf(source),
+      masterSyncedAt: source.updatedAt,
     },
   });
   console.log(`  ↳ schema toegewezen: ${memberEmail} ← ${templateName}`);
+  return clone.id;
+}
+
+/**
+ * Personaliseer een gekloond schema (maakt het "Aangepast" t.o.v. de baseline):
+ * pas het gewicht/de reps van de eerste oefening aan en zet een persoonlijke
+ * notitie. Demonstreert de drift-badges + vergelijkingsscherm.
+ */
+async function personalizeClone(cloneId: string) {
+  const first = await prisma.workoutExerciseItem.findFirst({
+    where: { templateId: cloneId },
+    orderBy: [{ dayId: "asc" }, { order: "asc" }],
+  });
+  if (!first) return;
+  await prisma.workoutExerciseItem.update({
+    where: { id: first.id },
+    data: {
+      weightKg: (first.weightKg ?? 20) + 7.5,
+      reps: first.reps + 2,
+      notes: "Persoonlijk: rustig opbouwen, let op je rug.",
+    },
+  });
+  console.log(`  ↳ schema gepersonaliseerd: kloon ${cloneId}`);
+}
+
+/**
+ * Wijzig een library-master ná toewijzing (voegt een coach-notitie toe), zodat
+ * `master.updatedAt > masterSyncedAt` → "Sync beschikbaar" bij de toewijzingen.
+ */
+async function bumpMaster(slug: string, templateName: string) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const master = await prisma.workoutTemplate.findFirst({
+    where: { tenantId: tenant.id, isLibrary: true, name: templateName },
+  });
+  if (!master) return;
+  await prisma.workoutTemplate.update({
+    where: { id: master.id },
+    data: { coachNote: "Update: focus deze blok op een strakke uitvoering." },
+  });
+  console.log(`  ↳ master gewijzigd (sync beschikbaar): ${templateName}`);
 }
 
 function futureDate(daysAhead: number, hour: number): Date {
@@ -383,21 +540,67 @@ async function main() {
       {
         name: "Full Body Start",
         description: "Rustige start voor het hele lichaam.",
-        items: [
-          { exercise: "Beenpers", sets: 3, reps: 12, restSeconds: 60 },
-          { exercise: "Lat pulldown", sets: 3, reps: 10, restSeconds: 60 },
-          { exercise: "Bankdrukken", sets: 3, reps: 10, restSeconds: 75 },
-          { exercise: "Plank", sets: 3, reps: 30, restSeconds: 45 },
+        coachNote: "Techniek boven gewicht — bouw rustig op deze eerste weken.",
+        days: [
+          {
+            name: "Dag 1 — Onderlichaam",
+            notes: "Warm goed op met 5 min cardio.",
+            items: [
+              { exercise: "Beenpers", sets: 3, reps: 12, restSeconds: 60, weightKg: 40, tempo: "3-1-1" },
+              { exercise: "Squat", sets: 3, reps: 12, restSeconds: 60, notes: "Knieën naar buiten." },
+              { exercise: "Plank", sets: 3, reps: 30, restSeconds: 45 },
+            ],
+          },
+          {
+            name: "Dag 2 — Bovenlichaam",
+            items: [
+              { exercise: "Bankdrukken", sets: 3, reps: 10, restSeconds: 75, weightKg: 30, tempo: "2-0-2" },
+              { exercise: "Lat pulldown", sets: 3, reps: 10, restSeconds: 60 },
+              { exercise: "Biceps curl", sets: 3, reps: 12, restSeconds: 45 },
+            ],
+          },
         ],
       },
       {
         name: "Cardio + Core",
         description: "Conditie en buikspieren.",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Hardlopen", sets: 1, reps: 20, restSeconds: 0 },
+              { exercise: "Crosstrainen", sets: 1, reps: 15, restSeconds: 0 },
+              { exercise: "Squat", sets: 3, reps: 15, restSeconds: 45 },
+              { exercise: "Plank", sets: 3, reps: 40, restSeconds: 45, notes: "Span je buik aan." },
+            ],
+          },
+        ],
+      },
+    ],
+    dayTemplates: [
+      {
+        name: "Push",
+        notes: "Borst, schouders, triceps.",
         items: [
-          { exercise: "Hardlopen", sets: 1, reps: 20, restSeconds: 0 },
-          { exercise: "Crosstrainen", sets: 1, reps: 15, restSeconds: 0 },
-          { exercise: "Squat", sets: 3, reps: 15, restSeconds: 45 },
-          { exercise: "Plank", sets: 3, reps: 40, restSeconds: 45 },
+          { exercise: "Bankdrukken", sets: 4, reps: 8, restSeconds: 90, tempo: "2-1-2" },
+          { exercise: "Push-up", sets: 3, reps: 12, restSeconds: 60 },
+        ],
+      },
+      {
+        name: "Pull",
+        notes: "Rug en biceps.",
+        items: [
+          { exercise: "Lat pulldown", sets: 4, reps: 10, restSeconds: 90 },
+          { exercise: "Biceps curl", sets: 3, reps: 12, restSeconds: 60 },
+        ],
+      },
+      {
+        name: "Legs",
+        notes: "Benen en core.",
+        items: [
+          { exercise: "Beenpers", sets: 4, reps: 12, restSeconds: 90 },
+          { exercise: "Lunges", sets: 3, reps: 12, restSeconds: 60 },
+          { exercise: "Plank", sets: 3, reps: 45, restSeconds: 45 },
         ],
       },
     ],
@@ -427,7 +630,7 @@ async function main() {
         name: "Iron Conditioning",
         description: "Strength + conditioning.",
         items: [
-          { exercise: "Barbell squat", sets: 5, reps: 5, restSeconds: 120 },
+          { exercise: "Barbell squat", sets: 5, reps: 5, restSeconds: 120, weightKg: 60, tempo: "2-1-1" },
           { exercise: "Rowing", sets: 1, reps: 20, restSeconds: 0 },
           { exercise: "Burpee", sets: 3, reps: 12, restSeconds: 45 },
         ],
@@ -440,8 +643,17 @@ async function main() {
   await seedActivity("ironhouse", { days: 30, trainProbability: 0.45 });
 
   // Toegewezen schema's zodat de member-views data tonen.
-  await seedAssignment("fitpower", "sven@fitpower.nl", "Full Body Start");
-  await seedAssignment("fitpower", "lisa@fitpower.nl", "Cardio + Core");
+  // Sven: gepersonaliseerd schema (badge "Aangepast" + vergelijking).
+  const svenClone = await seedAssignment("fitpower", "sven@fitpower.nl", "Full Body Start", {
+    trainerMessage: "Welkom Sven! Dit is je startschema — vragen? App me gerust.",
+  });
+  if (svenClone) await personalizeClone(svenClone);
+  // Lisa: standaard kopie van hetzelfde schema (badge "Standaard").
+  await seedAssignment("fitpower", "lisa@fitpower.nl", "Full Body Start", { seen: false });
+  await seedAssignment("fitpower", "tom@fitpower.nl", "Cardio + Core");
+
+  // Master ná toewijzing wijzigen → "Sync beschikbaar" bij Sven & Lisa.
+  await bumpMaster("fitpower", "Full Body Start");
 
   // Groepslessen.
   await seedRooster("fitpower");

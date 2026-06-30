@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getCurrentTenant } from "@/lib/tenant";
 import { buildSchemaPdf, type SchemaPdfDay } from "@/lib/schema-pdf";
+import { targetSummaryFromItem } from "@/lib/exercise-params";
 import { audit } from "@/lib/audit";
 
 const VERSION_FMT = new Intl.DateTimeFormat("nl-NL", {
@@ -30,6 +31,9 @@ export async function GET() {
       reps: it.reps,
       weightKg: it.weightKg,
       restSeconds: it.restSeconds,
+      tempo: it.tempo,
+      exerciseType: it.exercise.exerciseType,
+      summary: targetSummaryFromItem(it, it.exercise.exerciseType),
       notes: it.notes,
     })),
   }));

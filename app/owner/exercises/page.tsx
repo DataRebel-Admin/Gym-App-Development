@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { EXERCISE_DIFFICULTY_LABELS } from "@/lib/exercise-meta";
 import { buildCatalogWhere, myEquipmentValues, type CatalogFilter } from "@/lib/catalog";
 import { CatalogBulkGrid, type CatalogGridItem } from "./catalog-bulk-grid";
+import { ExerciseTypeSelect } from "./exercise-type-select";
 import { duplicateCustomExercise, setCustomExerciseArchived } from "./actions";
 
 const PAGE_SIZE = 24;
@@ -146,22 +147,27 @@ async function StandaardTab({
       }),
       prisma.exercise.findMany({
         where: { tenantId, catalogId: { not: null } },
-        select: { catalogId: true },
+        select: { id: true, catalogId: true, exerciseType: true },
       }),
     ]);
 
-  const inGym = new Set(existing.map((e) => e.catalogId));
+  const byCatalogId = new Map(existing.map((e) => [e.catalogId, e]));
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  const gridItems: CatalogGridItem[] = items.map((item) => ({
-    id: item.id,
-    name: item.name,
-    imageUrl: item.imageUrl,
-    bodyPart: item.bodyPart,
-    equipment: item.equipment,
-    target: item.target,
-    added: inGym.has(item.id),
-  }));
+  const gridItems: CatalogGridItem[] = items.map((item) => {
+    const added = byCatalogId.get(item.id);
+    return {
+      id: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      bodyPart: item.bodyPart,
+      equipment: item.equipment,
+      target: item.target,
+      added: Boolean(added),
+      exerciseId: added?.id,
+      exerciseType: added?.exerciseType,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -259,6 +265,7 @@ async function EigenTab({ tenantId }: { tenantId: string }) {
     select: {
       id: true,
       name: true,
+      exerciseType: true,
       targetMuscle: true,
       category: true,
       difficulty: true,
@@ -339,6 +346,11 @@ async function EigenTab({ tenantId }: { tenantId: string }) {
                         <Badge tone="warning">Gearchiveerd</Badge>
                       ) : null}
                     </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-400">Type</span>
+                    <ExerciseTypeSelect exerciseId={ex.id} value={ex.exerciseType} />
                   </div>
 
                   <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

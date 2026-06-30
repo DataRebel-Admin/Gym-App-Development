@@ -9,6 +9,12 @@ import { uploadExerciseImage } from "@/lib/blob";
 import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
 import { suggestMachineType } from "@/lib/machine";
 import { buildCatalogWhere, myEquipmentValues } from "@/lib/catalog";
+import {
+  EXERCISE_TYPE_KEYS,
+  DEFAULT_EXERCISE_TYPE,
+  inferExerciseType,
+  isExerciseType,
+} from "@/lib/exercise-types";
 import { audit } from "@/lib/audit";
 
 const addSchema = z.object({
@@ -29,7 +35,7 @@ export async function addCatalogExerciseToGym(formData: FormData) {
 
   const catalog = await prisma.exerciseCatalog.findUnique({
     where: { id: catalogId },
-    select: { name: true, target: true },
+    select: { name: true, target: true, category: true, equipment: true, bodyPart: true },
   });
   if (!catalog) return;
 
@@ -61,6 +67,7 @@ export async function addCatalogExerciseToGym(formData: FormData) {
       targetMuscle: catalog.target,
       catalogId,
       machineId: validMachineId,
+      exerciseType: inferExerciseType(catalog),
     },
   });
 
@@ -142,7 +149,10 @@ export async function bulkAddCatalogToGym(
   // 3) Catalogus-velden + optionele machine-koppeling.
   const catalogRows = await prisma.exerciseCatalog.findMany({
     where: { id: { in: toAddIds } },
-    select: { id: true, name: true, target: true, equipment: true },
+    select: {
+      id: true, name: true, target: true, equipment: true,
+      category: true, bodyPart: true,
+    },
   });
 
   const machineByType = new Map<string, string>();
@@ -161,6 +171,7 @@ export async function bulkAddCatalogToGym(
     name: c.name,
     targetMuscle: c.target,
     catalogId: c.id,
+    exerciseType: inferExerciseType(c),
     machineId: autoMachine
       ? machineByType.get(suggestMachineType(c.equipment)) ?? null
       : null,
@@ -219,6 +230,42 @@ export async function removeCatalogExerciseFromGym(formData: FormData) {
   revalidatePath("/owner/exercises");
 }
 
+/**
+ * Wijzig het oefeningstype van een (willekeurige) tenant-oefening — ook
+ * catalogus-gekoppelde, zodat de owner een verkeerd ingeschatte automatische
+ * type-toewijzing kan bijsturen. Gescoped op de tenant; geaudit bij wijziging.
+ */
+export async function setExerciseType(formData: FormData) {
+  const owner = await requireOwner();
+  const id = String(formData.get("id") ?? "");
+  const exerciseType = String(formData.get("exerciseType") ?? "");
+  if (!id || !isExerciseType(exerciseType)) return;
+
+  const existing = await prisma.exercise.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: { name: true, exerciseType: true },
+  });
+  if (!existing || existing.exerciseType === exerciseType) return;
+
+  await prisma.exercise.updateMany({
+    where: { id, tenantId: owner.tenantId },
+    data: { exerciseType },
+  });
+
+  await audit("exercise.type.change", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Exercise",
+    targetId: id,
+    oldValue: { type: existing.exerciseType },
+    newValue: { type: exerciseType },
+    metadata: { name: existing.name, type: exerciseType },
+  });
+
+  revalidatePath("/owner/exercises");
+  revalidatePath("/member/exercises");
+}
+
 // ---------------------------------------------------------------------------
 // Eigen oefeningen (tenant-Exercise zonder catalogus-koppeling): volledige CRUD.
 // ---------------------------------------------------------------------------
@@ -228,6 +275,7 @@ export type CustomExerciseState = { error?: string };
 const customSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1, "Naam is verplicht"),
+  exerciseType: z.enum(EXERCISE_TYPE_KEYS).optional(),
   description: z.string().trim().optional(),
   targetMuscle: z.string().trim().optional(),
   category: z.string().trim().optional(),
@@ -280,6 +328,7 @@ export async function saveCustomExercise(
   const parsed = customSchema.safeParse({
     id: formData.get("id") || undefined,
     name: formData.get("name"),
+    exerciseType: formData.get("exerciseType") || undefined,
     description: formData.get("description") || undefined,
     targetMuscle: formData.get("targetMuscle") || undefined,
     category: formData.get("category") || undefined,
@@ -315,6 +364,7 @@ export async function saveCustomExercise(
 
   const fields = {
     name: data.name,
+    exerciseType: data.exerciseType ?? DEFAULT_EXERCISE_TYPE,
     description: data.description ?? null,
     targetMuscle: data.targetMuscle ?? null,
     muscleGroups: splitList(formData.get("muscleGroups")),
@@ -342,8 +392,8 @@ export async function saveCustomExercise(
       tenantId: owner.tenantId,
       targetType: "Exercise",
       targetId: data.id,
-      newValue: { name: data.name },
-      metadata: { name: data.name },
+      newValue: { name: data.name, type: fields.exerciseType },
+      metadata: { name: data.name, type: fields.exerciseType },
     });
   } else {
     const created = await prisma.exercise.create({
@@ -379,6 +429,7 @@ export async function duplicateCustomExercise(formData: FormData) {
       tenantId: owner.tenantId,
       catalogId: null,
       name: `${src.name} (kopie)`,
+      exerciseType: src.exerciseType,
       description: src.description,
       targetMuscle: src.targetMuscle,
       muscleGroups: src.muscleGroups,
