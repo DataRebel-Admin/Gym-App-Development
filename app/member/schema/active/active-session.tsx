@@ -2,18 +2,21 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { AnimatePresence, m } from "motion/react";
-import { cn } from "@/lib/cn";
 import { saveSet, saveExerciseNote } from "../actions";
-import { WorkoutFocusCard } from "./workout-focus-card";
+import { ExerciseBlock } from "./exercise-block";
 import { CompletionScreen } from "./completion-screen";
 import { useRestTimer, FloatingTimer } from "./rest-timer";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
-import { ChevronLeft, ChevronRight, Check } from "@/components/ui/icons";
+import { Check } from "@/components/ui/icons";
 
 /** Lokale (optimistische) staat van één set. */
 export type SetValue = { reps: string; kg: string; done: boolean; saving: boolean };
 
 type SetEntry = { setNumber: number; reps: number; weightKg: number };
+export type PreviousPerformance = {
+  date: string;
+  sets: { setNumber: number; reps: number; weightKg: number }[];
+};
 export type ActiveExercise = {
   exerciseId: string;
   name: string;
@@ -26,6 +29,7 @@ export type ActiveExercise = {
   restSeconds: number;
   note: string | null;
   entries: SetEntry[];
+  previous: PreviousPerformance | null;
 };
 
 export type WorkoutContextProps = {
@@ -44,12 +48,16 @@ function fmtClock(totalSec: number) {
   return `${mm}:${String(ss).padStart(2, "0")}`;
 }
 
+function emptySet(): SetValue {
+  return { reps: "", kg: "", done: false, saving: false };
+}
+
 /**
- * Orkestreert de Workout Mode: één oefening tegelijk in beeld (swipe/knoppen),
- * met sticky voortgang, meelopende rusttimer en een afrond-scherm. Alle
- * set-/opslag-logica (saveSet/saveExerciseNote optimistisch, endSession via het
- * completion-scherm) blijft ongewijzigd; alleen de presentatie is herzien naar
- * een distraction-free focus-modus.
+ * Orkestreert de actieve training als één doorlopende lijst: alle oefeningen
+ * onder elkaar (continuous scroll), per oefening de sets met grote steppers,
+ * een "vorige keer"-regel en de mogelijkheid extra sets toe te voegen. Sticky
+ * voortgangsbalk, meelopende rusttimer en afrond-scherm blijven behouden. Alle
+ * opslag-logica (saveSet/saveExerciseNote optimistisch) is ongewijzigd.
  */
 export function ActiveSession({
   sessionId,
@@ -68,7 +76,11 @@ export function ActiveSession({
   const [setState, setSetState] = useState<Record<string, SetValue[]>>(() => {
     const init: Record<string, SetValue[]> = {};
     for (const ex of exercises) {
-      init[ex.exerciseId] = Array.from({ length: ex.sets }, (_, i) => {
+      // Aantal sets = template, maar minstens zoveel als er al opgeslagen zijn
+      // (zo blijven eerder toegevoegde extra sets behouden na herladen).
+      const maxEntry = ex.entries.reduce((m, e) => Math.max(m, e.setNumber), 0);
+      const len = Math.max(ex.sets, maxEntry, 1);
+      init[ex.exerciseId] = Array.from({ length: len }, (_, i) => {
         const entry = ex.entries.find((e) => e.setNumber === i + 1);
         return {
           reps: entry ? String(entry.reps) : "",
@@ -87,18 +99,6 @@ export function ActiveSession({
     return init;
   });
 
-  // Welke oefening is in beeld (start bij de eerste onafgeronde).
-  const firstUnfinished = Math.max(
-    0,
-    exercises.findIndex((ex) =>
-      Array.from({ length: ex.sets }, (_, i) => i).some(
-        (i) => !setState[ex.exerciseId][i].done
-      )
-    )
-  );
-  const [viewIndex, setViewIndex] = useState(firstUnfinished);
-  const [dir, setDir] = useState(0); // richting voor slide-animatie
-  const [showOverview, setShowOverview] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -114,6 +114,23 @@ export function ActiveSession({
     patchSet(exerciseId, setNumber - 1, { [field]: value });
   }
 
+  function addSet(exerciseId: string) {
+    setSetState((prev) => {
+      if (prev[exerciseId].length >= 20) return prev;
+      return { ...prev, [exerciseId]: [...prev[exerciseId], emptySet()] };
+    });
+  }
+
+  function removeSet(exerciseId: string, setNumber: number) {
+    setSetState((prev) => {
+      const arr = prev[exerciseId];
+      const idx = setNumber - 1;
+      // Veiligheid: alleen de laatste, nog niet afgevinkte set verwijderen.
+      if (idx !== arr.length - 1 || arr[idx]?.done) return prev;
+      return { ...prev, [exerciseId]: arr.slice(0, -1) };
+    });
+  }
+
   function toggleSet(ex: ActiveExercise, setNumber: number) {
     const idx = setNumber - 1;
     const cur = setState[ex.exerciseId][idx];
@@ -124,13 +141,21 @@ export function ActiveSession({
       return;
     }
 
-    const reps = Number(cur.reps || ex.targetReps || 0);
-    const kg = Number(cur.kg || ex.targetWeightKg || 0);
+    // Lege velden vallen terug op de vorige keer, anders het schema-doel.
+    const prevSet = ex.previous?.sets.find((s) => s.setNumber === setNumber);
+    const reps = Number(cur.reps || prevSet?.reps || ex.targetReps || 0);
+    const fallbackKg =
+      prevSet && prevSet.weightKg > 0
+        ? prevSet.weightKg
+        : ex.targetWeightKg != null
+          ? ex.targetWeightKg
+          : 0;
+    const kg = Number(cur.kg || fallbackKg || 0);
     patchSet(ex.exerciseId, idx, {
       done: true,
       saving: true,
       reps: String(reps),
-      kg: cur.kg || (ex.targetWeightKg != null ? String(ex.targetWeightKg) : ""),
+      kg: cur.kg || (fallbackKg ? String(fallbackKg) : ""),
     });
 
     startTransition(async () => {
@@ -151,8 +176,6 @@ export function ActiveSession({
     });
   }
 
-  const exerciseDone = (ex: ActiveExercise) => setState[ex.exerciseId].every((s) => s.done);
-
   // Voortgang + live samenvatting (voor header + completion-scherm).
   const stats = useMemo(() => {
     let completedSets = 0;
@@ -166,10 +189,10 @@ export function ActiveSession({
 
     for (const ex of exercises) {
       const sets = setState[ex.exerciseId];
-      totalSets += ex.sets;
+      totalSets += sets.length;
       const doneSets = sets.filter((s) => s.done);
       completedSets += doneSets.length;
-      if (doneSets.length === ex.sets) completedExercises += 1;
+      if (sets.length > 0 && doneSets.length === sets.length) completedExercises += 1;
 
       let liveBest = 0;
       let bestSet: { weightKg: number; reps: number } | null = null;
@@ -187,12 +210,11 @@ export function ActiveSession({
           }
         }
       }
-      // Nieuwe PR alleen melden als er een eerdere beste was die we overtreffen.
       const historical = context.historicalBest[ex.exerciseId] ?? 0;
       if (bestSet && historical > 0 && liveBest > historical) {
         newRecords.push({ name: ex.name, weightKg: bestSet.weightKg, reps: bestSet.reps });
       }
-      const remain = ex.sets - doneSets.length;
+      const remain = sets.length - doneSets.length;
       estRemainingSec += remain * ((ex.restSeconds || DEFAULT_REST) + 30);
     }
 
@@ -221,17 +243,6 @@ export function ActiveSession({
     return () => window.clearInterval(id);
   }, [startedAt]);
 
-  function goTo(next: number) {
-    const clamped = Math.max(0, Math.min(exercises.length - 1, next));
-    setDir(clamped > viewIndex ? 1 : -1);
-    setViewIndex(clamped);
-    setShowOverview(false);
-  }
-
-  const current = exercises[viewIndex];
-  const next = exercises.slice(viewIndex + 1).find((e) => !exerciseDone(e));
-  const currentDone = exerciseDone(current);
-  const isLast = viewIndex === exercises.length - 1;
   const completionVisible = (allDone || showCompletion) && !dismissed;
 
   return (
@@ -239,16 +250,12 @@ export function ActiveSession({
       {/* Sticky voortgangsbalk */}
       <div className="sticky top-[3.25rem] z-30 border-b border-border bg-surface-1/85 px-4 py-2.5 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setShowOverview((v) => !v)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-neutral-700 active:scale-95"
-          >
+          <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-neutral-700">
             <span className="tabular-nums">
-              {viewIndex + 1}/{exercises.length}
+              {stats.completedExercises}/{exercises.length}
             </span>
-            <span className="text-neutral-400">oefeningen</span>
-          </button>
+            <span className="text-neutral-400">klaar</span>
+          </span>
           <div className="flex-1">
             <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
               <m.div
@@ -268,84 +275,32 @@ export function ActiveSession({
         </div>
       </div>
 
-      {/* Focus-kaart */}
-      <div className="flex-1 px-4 pb-44 pt-5">
-        {current.dayName ? (
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent">
-            {current.dayName}
-          </p>
-        ) : null}
-
-        <AnimatePresence mode="wait" custom={dir}>
-          <m.div
-            key={current.exerciseId}
-            custom={dir}
-            initial={{ opacity: 0, x: dir === 0 ? 0 : dir > 0 ? 40 : -40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir > 0 ? -40 : 40 }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.18}
-            onDragEnd={(_, info) => {
-              if (info.offset.x < -80 && viewIndex < exercises.length - 1) goTo(viewIndex + 1);
-              else if (info.offset.x > 80 && viewIndex > 0) goTo(viewIndex - 1);
-            }}
-          >
-            <WorkoutFocusCard
-              exercise={current}
-              index={viewIndex}
-              total={exercises.length}
-              sets={setState[current.exerciseId]}
-              note={notes[current.exerciseId] ?? ""}
-              nextExerciseName={next?.name ?? null}
-              historicalBestOneRm={context.historicalBest[current.exerciseId] ?? 0}
-              onChangeSet={(sn, field, val) => changeSet(current.exerciseId, sn, field, val)}
-              onToggleSet={(sn) => toggleSet(current, sn)}
-              onNoteChange={(val) => setNotes((p) => ({ ...p, [current.exerciseId]: val }))}
-              onNoteBlur={() => noteBlur(current.exerciseId)}
-            />
-          </m.div>
-        </AnimatePresence>
-
-        {/* Navigatie */}
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => goTo(viewIndex - 1)}
-            disabled={viewIndex === 0}
-            aria-label="Vorige oefening"
-            className="flex w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-1 py-4 text-neutral-700 disabled:opacity-30 active:scale-95"
-          >
-            <ChevronLeft className="size-6" />
-          </button>
-          {isLast ? (
-            <button
-              type="button"
-              onClick={() => {
-                setDismissed(false);
-                setShowCompletion(true);
-              }}
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
-            >
-              <Check className="size-5" /> Workout afronden
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => goTo(viewIndex + 1)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-2 rounded-2xl px-6 py-4 text-center text-base font-bold transition-colors active:scale-[0.98]",
-                currentDone
-                  ? "bg-accent-gradient text-accent-foreground shadow-accent"
-                  : "bg-foreground text-background shadow-md"
-              )}
-            >
-              {currentDone ? "Volgende oefening" : "Volgende"}
-              <ChevronRight className="size-5" />
-            </button>
-          )}
-        </div>
+      {/* Doorlopende oefeningenlijst */}
+      <div className="flex flex-1 flex-col gap-5 px-4 pb-44 pt-5">
+        {exercises.map((ex, i) => {
+          const showDay = Boolean(ex.dayName) && ex.dayName !== exercises[i - 1]?.dayName;
+          return (
+            <div key={ex.exerciseId} className="flex flex-col gap-2">
+              {showDay ? (
+                <p className="px-1 text-xs font-semibold uppercase tracking-wide text-accent">
+                  {ex.dayName}
+                </p>
+              ) : null}
+              <ExerciseBlock
+                exercise={ex}
+                sets={setState[ex.exerciseId]}
+                note={notes[ex.exerciseId] ?? ""}
+                historicalBestOneRm={context.historicalBest[ex.exerciseId] ?? 0}
+                onChangeSet={(sn, field, val) => changeSet(ex.exerciseId, sn, field, val)}
+                onToggleSet={(sn) => toggleSet(ex, sn)}
+                onAddSet={() => addSet(ex.exerciseId)}
+                onRemoveSet={(sn) => removeSet(ex.exerciseId, sn)}
+                onNoteChange={(val) => setNotes((p) => ({ ...p, [ex.exerciseId]: val }))}
+                onNoteBlur={() => noteBlur(ex.exerciseId)}
+              />
+            </div>
+          );
+        })}
 
         <button
           type="button"
@@ -353,77 +308,11 @@ export function ActiveSession({
             setDismissed(false);
             setShowCompletion(true);
           }}
-          className="mt-3 w-full text-center text-sm font-medium text-neutral-500 active:text-neutral-900"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
         >
-          Workout nu afronden
+          <Check className="size-5" /> Workout afronden
         </button>
       </div>
-
-      {/* Overzicht-sheet */}
-      <AnimatePresence>
-        {showOverview ? (
-          <m.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowOverview(false)}
-          >
-            <m.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-x-0 bottom-0 mx-auto max-h-[70vh] max-w-md overflow-y-auto rounded-t-3xl border-t border-border bg-surface-1 p-4 pb-8"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-neutral-300" />
-              <h2 className="mb-3 font-display text-lg font-bold text-neutral-900">
-                Oefeningen
-              </h2>
-              <ul className="flex flex-col gap-1.5">
-                {exercises.map((ex, i) => {
-                  const done = exerciseDone(ex);
-                  const doneSets = setState[ex.exerciseId].filter((s) => s.done).length;
-                  return (
-                    <li key={ex.exerciseId}>
-                      <button
-                        type="button"
-                        onClick={() => goTo(i)}
-                        className={cn(
-                          "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left active:scale-[0.99]",
-                          i === viewIndex
-                            ? "border-accent ring-1 ring-accent/30 bg-accent-soft"
-                            : "border-border bg-surface-0"
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                            done
-                              ? "bg-accent text-accent-foreground"
-                              : "bg-surface-2 text-neutral-500"
-                          )}
-                        >
-                          {done ? "✓" : i + 1}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium text-neutral-900">
-                            {ex.name}
-                          </span>
-                          <span className="text-xs text-neutral-500">
-                            {doneSets}/{ex.sets} sets
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </m.div>
-          </m.div>
-        ) : null}
-      </AnimatePresence>
 
       <FloatingTimer timer={timer} />
 
