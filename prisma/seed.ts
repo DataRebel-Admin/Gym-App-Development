@@ -525,15 +525,15 @@ async function main() {
       { name: "Halterbank", type: MachineType.VRIJE_GEWICHTEN, description: "Verstelbare bank voor halteroefeningen." },
     ],
     exercises: [
-      { name: "Hardlopen", targetMuscle: "Cardio", machine: "Loopband" },
-      { name: "Crosstrainen", targetMuscle: "Cardio", machine: "Crosstrainer" },
+      { name: "Hardlopen", targetMuscle: "Cardio", machine: "Loopband", exerciseType: "cardio" },
+      { name: "Crosstrainen", targetMuscle: "Cardio", machine: "Crosstrainer", exerciseType: "cardio" },
       { name: "Beenpers", targetMuscle: "Quadriceps", machine: "Beenpers", catalogName: "lever alternate leg press" },
       { name: "Lat pulldown", targetMuscle: "Latissimus", machine: "Lat pulldown", catalogName: "cable lat pulldown full range of motion" },
       { name: "Bankdrukken", targetMuscle: "Borst", machine: "Halterbank", catalogName: "barbell bench press" },
       { name: "Biceps curl", targetMuscle: "Biceps", machine: "Halterbank", catalogName: "dumbbell biceps curl" },
       { name: "Squat", targetMuscle: "Benen", machine: null, catalogName: "dumbbell squat" },
       { name: "Push-up", targetMuscle: "Borst", machine: null, catalogName: "push-up" },
-      { name: "Plank", targetMuscle: "Core", machine: null, catalogName: "front plank with twist" },
+      { name: "Plank", targetMuscle: "Core", machine: null, catalogName: "front plank with twist", exerciseType: "isometric" },
       { name: "Lunges", targetMuscle: "Benen", machine: null, catalogName: "dumbbell lunge" },
     ],
     templates: [
@@ -548,7 +548,7 @@ async function main() {
             items: [
               { exercise: "Beenpers", sets: 3, reps: 12, restSeconds: 60, weightKg: 40, tempo: "3-1-1" },
               { exercise: "Squat", sets: 3, reps: 12, restSeconds: 60, notes: "Knieën naar buiten." },
-              { exercise: "Plank", sets: 3, reps: 30, restSeconds: 45 },
+              { exercise: "Plank", sets: 3, reps: 30, restSeconds: 45, params: { holdSeconds: 30 } },
             ],
           },
           {
@@ -568,10 +568,19 @@ async function main() {
           {
             name: "Dag 1",
             items: [
-              { exercise: "Hardlopen", sets: 1, reps: 20, restSeconds: 0 },
-              { exercise: "Crosstrainen", sets: 1, reps: 15, restSeconds: 0 },
+              {
+                exercise: "Hardlopen", sets: 1, reps: 0, restSeconds: 0,
+                params: { timeSeconds: 1200, distanceM: 4000, intensity: "middel", hrZone: "zone3" },
+              },
+              {
+                exercise: "Crosstrainen", sets: 1, reps: 0, restSeconds: 0,
+                params: { timeSeconds: 900, distanceM: 3000, intensity: "middel" },
+              },
               { exercise: "Squat", sets: 3, reps: 15, restSeconds: 45 },
-              { exercise: "Plank", sets: 3, reps: 40, restSeconds: 45, notes: "Span je buik aan." },
+              {
+                exercise: "Plank", sets: 3, reps: 40, restSeconds: 45,
+                notes: "Span je buik aan.", params: { holdSeconds: 40 },
+              },
             ],
           },
         ],
@@ -600,7 +609,7 @@ async function main() {
         items: [
           { exercise: "Beenpers", sets: 4, reps: 12, restSeconds: 90 },
           { exercise: "Lunges", sets: 3, reps: 12, restSeconds: 60 },
-          { exercise: "Plank", sets: 3, reps: 45, restSeconds: 45 },
+          { exercise: "Plank", sets: 3, reps: 45, restSeconds: 45, params: { holdSeconds: 45 } },
         ],
       },
     ],
