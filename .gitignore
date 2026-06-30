@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# auditlog-archief (retentie-export)
+/audit-archive
+
 # next.js
 /.next/
 /out/

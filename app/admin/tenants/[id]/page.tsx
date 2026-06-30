@@ -5,6 +5,8 @@ import { requireSuperadmin } from "@/lib/superadmin";
 import { setTenantStatus, deleteTenant } from "../actions";
 import { TenantEditForm, TenantBrandingForm } from "./tenant-edit-forms";
 import { ConfirmButton } from "@/components/ui/confirm-button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
 import {
   inviteToTenant,
   revokeInvitation,
@@ -29,7 +31,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+    <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm">
       <div>
         <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
         {description ? (
@@ -76,15 +78,11 @@ export default async function TenantDetailPage({
           <Link href="/admin/tenants" className="text-sm text-neutral-500 hover:text-neutral-900">
             ← Tenants
           </Link>
-          <h1 className="mt-2 flex items-center gap-3 text-2xl font-semibold tracking-tight text-neutral-900">
+          <h1 className="mt-2 flex items-center gap-3 font-display text-2xl font-bold tracking-tight text-neutral-900">
             {tenant.name}
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                active ? "bg-green-100 text-green-700" : "bg-neutral-200 text-neutral-600"
-              }`}
-            >
+            <Badge tone={active ? "success" : "neutral"}>
               {active ? "Actief" : "Inactief"}
-            </span>
+            </Badge>
           </h1>
           <p className="mt-1 font-mono text-xs text-neutral-500">{tenant.slug}</p>
         </div>
@@ -151,14 +149,11 @@ export default async function TenantDetailPage({
           <ul className="flex flex-col divide-y divide-neutral-100">
             {users.map((u) => (
               <li key={u.id} className="flex flex-wrap items-center gap-3 py-3">
+                <Avatar name={u.name ?? u.email} size="sm" status={u.active ? "online" : "offline"} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-neutral-900">
+                  <p className="flex items-center gap-2 truncate font-medium text-neutral-900">
                     {u.name ?? u.email}
-                    {!u.active ? (
-                      <span className="ml-2 rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-600">
-                        gedeactiveerd
-                      </span>
-                    ) : null}
+                    {!u.active ? <Badge tone="warning">gedeactiveerd</Badge> : null}
                   </p>
                   <p className="truncate text-xs text-neutral-500">{u.email}</p>
                 </div>
@@ -218,7 +213,7 @@ export default async function TenantDetailPage({
               <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
             </select>
           </label>
-          <button type="submit" className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+          <button type="submit" className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent">
             Uitnodigen
           </button>
         </form>

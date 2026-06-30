@@ -8,8 +8,20 @@ import {
 } from "@/lib/members";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Field, Input, Select } from "@/components/ui/field";
-import { buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button-classes";
 import { ConfirmButton } from "@/components/ui/confirm-button";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Avatar } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
+import {
+  TableWrap,
+  Table,
+  Thead,
+  Th,
+  Tbody,
+  Tr,
+  Td,
+} from "@/components/ui/table";
 import { MemberAddForm } from "./member-add-form";
 import {
   setMemberRole,
@@ -67,14 +79,15 @@ export default async function OwnerMembersPage({
 
   return (
     <div className="flex flex-col gap-6 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-        Leden &amp; beheerders
-      </h1>
+      <SectionHeading
+        title="Leden & beheerders"
+        description="Beheer wie toegang heeft tot jouw sportschool."
+      />
 
-      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
+      <Card className="flex flex-col gap-3 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">Nieuw lid toevoegen</h2>
         <MemberAddForm />
-      </section>
+      </Card>
 
       {/* Zoeken / filteren / sorteren */}
       <form method="get" className="flex flex-wrap items-end gap-3">
@@ -110,46 +123,54 @@ export default async function OwnerMembersPage({
         </Link>
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-border">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left text-neutral-500">
+      <TableWrap>
+        <Table>
+          <Thead>
             <tr>
-              <th className="px-4 py-3 font-medium">Lid</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Rol</th>
-              <th className="px-4 py-3 font-medium text-right">Acties</th>
+              <Th>Lid</Th>
+              <Th>Status</Th>
+              <Th>Rol</Th>
+              <Th className="text-right">Acties</Th>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
+          </Thead>
+          <Tbody>
             {members.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-neutral-500">
+              <Tr>
+                <Td colSpan={4} className="py-8 text-center text-neutral-500">
                   Geen leden gevonden.
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ) : (
               members.map((m) => {
                 const self = m.id === owner.id;
                 const canInvite = m.inviteStatus !== "GEACTIVEERD";
                 return (
-                  <tr key={m.id} className={m.archivedAt ? "bg-neutral-50/60" : undefined}>
-                    <td className="px-4 py-3">
-                      <Link href={`/owner/members/${m.id}`} className="font-medium text-neutral-900 hover:underline">
-                        {m.name ?? m.email}
-                      </Link>
-                      <p className="text-xs text-neutral-500">{m.email}</p>
-                      {m.archivedAt ? (
-                        <Badge tone="neutral" className="mt-1">gearchiveerd</Badge>
-                      ) : !m.active ? (
-                        <Badge tone="warning" className="mt-1">gedeactiveerd</Badge>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
+                  <Tr key={m.id} className={m.archivedAt ? "opacity-60" : undefined}>
+                    <Td>
+                      <div className="flex items-center gap-3">
+                        <Avatar
+                          name={m.name ?? m.email}
+                          status={m.active ? "online" : "offline"}
+                        />
+                        <div>
+                          <Link href={`/owner/members/${m.id}`} className="font-medium text-neutral-900 hover:underline">
+                            {m.name ?? m.email}
+                          </Link>
+                          <p className="text-xs text-neutral-500">{m.email}</p>
+                          {m.archivedAt ? (
+                            <Badge tone="neutral" className="mt-1">gearchiveerd</Badge>
+                          ) : !m.active ? (
+                            <Badge tone="warning" className="mt-1">gedeactiveerd</Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Td>
+                    <Td>
                       <Badge tone={STATUS_TONE[m.inviteStatus]}>
                         {INVITE_STATUS_LABEL[m.inviteStatus]}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3">
+                    </Td>
+                    <Td>
                       <form action={setMemberRole} className="flex items-center gap-1">
                         <input type="hidden" name="userId" value={m.id} />
                         <Select name="role" defaultValue={m.role} className="h-8 w-32 py-1 text-xs">
@@ -158,8 +179,8 @@ export default async function OwnerMembersPage({
                         </Select>
                         <button type="submit" className={rowBtn}>OK</button>
                       </form>
-                    </td>
-                    <td className="px-4 py-3">
+                    </Td>
+                    <Td>
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         {canInvite ? (
                           <form action={resendInvite}>
@@ -197,14 +218,14 @@ export default async function OwnerMembersPage({
                           <span className="text-xs text-neutral-400">(jij)</span>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 );
               })
             )}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+        </Table>
+      </TableWrap>
 
       {totalPages > 1 ? (
         <div className="flex items-center justify-center gap-4 text-sm">

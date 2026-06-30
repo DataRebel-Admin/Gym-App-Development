@@ -56,7 +56,7 @@ export function TenantCreateForm() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent disabled:opacity-50"
       >
         {pending ? "Aanmaken…" : "Tenant aanmaken"}
       </button>

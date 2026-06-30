@@ -42,7 +42,7 @@ export function AssistantWidget() {
       </button>
 
       {open ? (
-        <div className="fixed inset-x-4 bottom-40 z-40 mx-auto flex max-w-md flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl">
+        <div className="fixed inset-x-4 bottom-40 z-40 mx-auto flex max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-1 shadow-lg">
           <div className="border-b border-neutral-200 px-4 py-3">
             <p className="text-sm font-semibold text-neutral-900">
               Trainingsassistent

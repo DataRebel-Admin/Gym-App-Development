@@ -3,6 +3,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { machineTypeLabel } from "@/lib/machine";
+import { Input, Select } from "@/components/ui/field";
+import {
+  TableWrap,
+  Table,
+  Thead,
+  Th,
+  Tbody,
+  Tr,
+  Td,
+} from "@/components/ui/table";
+import { Dumbbell } from "@/components/ui/icons";
 
 export type MachineRow = {
   id: string;
@@ -33,81 +44,80 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <input
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Zoek op naam…"
-          className="w-full max-w-xs rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-accent"
+          className="max-w-xs"
         />
-        <select
+        <Select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortKey)}
-          className="rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-accent"
+          className="w-auto"
         >
           <option value="name">Sorteer op naam</option>
           <option value="type">Sorteer op type</option>
-        </select>
+        </Select>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-neutral-50 text-neutral-500">
+      <TableWrap>
+        <Table>
+          <Thead>
             <tr>
-              <th className="px-4 py-2 font-medium">Foto</th>
-              <th className="px-4 py-2 font-medium">Naam</th>
-              <th className="px-4 py-2 font-medium">Type</th>
-              <th className="px-4 py-2 font-medium">QR</th>
-              <th className="px-4 py-2" />
+              <Th>Machine</Th>
+              <Th>Type</Th>
+              <Th>QR</Th>
+              <Th className="text-right" />
             </tr>
-          </thead>
-          <tbody>
+          </Thead>
+          <Tbody>
             {rows.map((m) => (
-              <tr key={m.id} className="border-t border-neutral-100">
-                <td className="px-4 py-2">
-                  {m.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={m.imageUrl}
-                      alt={m.name}
-                      className="h-10 w-10 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-md bg-neutral-100" />
-                  )}
-                </td>
-                <td className="px-4 py-2 font-medium text-neutral-900">
-                  {m.name}
-                </td>
-                <td className="px-4 py-2 text-neutral-700">
-                  {machineTypeLabel(m.type)}
-                </td>
-                <td className="px-4 py-2">
+              <Tr key={m.id}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    {m.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.imageUrl}
+                        alt={m.name}
+                        className="h-10 w-10 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100 text-neutral-400">
+                        <Dumbbell className="size-5" />
+                      </div>
+                    )}
+                    <span className="font-medium text-neutral-900">{m.name}</span>
+                  </div>
+                </Td>
+                <Td className="text-neutral-500">{machineTypeLabel(m.type)}</Td>
+                <Td>
                   {m.hasQr ? (
-                    <span className="text-neutral-700">✓</span>
+                    <span className="text-green-600">✓</span>
                   ) : (
                     <span className="text-neutral-400">—</span>
                   )}
-                </td>
-                <td className="px-4 py-2 text-right">
+                </Td>
+                <Td className="text-right">
                   <Link
                     href={`/owner/machines/${m.id}`}
-                    className="text-accent hover:underline"
+                    className="font-medium text-accent hover:underline"
                   >
                     Bewerken
                   </Link>
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
             {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
+              <Tr>
+                <Td colSpan={4} className="py-8 text-center text-neutral-500">
                   Geen machines gevonden.
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ) : null}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+        </Table>
+      </TableWrap>
     </div>
   );
 }

@@ -1,11 +1,29 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { SectionHeading } from "@/components/ui/section-heading";
+import {
+  TableWrap,
+  Table,
+  Thead,
+  Th,
+  Tbody,
+  Tr,
+  Td,
+} from "@/components/ui/table";
 
 const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: "Superadmin",
   TENANT_ADMIN: "Tenant-admin",
   TENANT_MEMBER: "Lid",
+};
+
+const ROLE_TONE: Record<string, BadgeTone> = {
+  SUPERADMIN: "danger",
+  TENANT_ADMIN: "accent",
+  TENANT_MEMBER: "neutral",
 };
 
 export default async function AdminUsersPage({
@@ -39,60 +57,69 @@ export default async function AdminUsersPage({
 
   return (
     <div className="flex flex-col gap-6 px-6 py-8">
-      <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-        Alle gebruikers
-      </h1>
+      <SectionHeading
+        title="Alle gebruikers"
+        description="Elke gebruiker over alle tenants van het platform."
+      />
 
       <form method="get" className="flex items-end gap-2">
         <input
           name="q"
           defaultValue={sp.q ?? ""}
           placeholder="zoek op e-mail of naam…"
-          className="w-72 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+          className="w-72 rounded-xl border border-border bg-surface-1 px-3.5 py-2.5 text-sm text-neutral-900 outline-none focus-ring focus:border-accent"
         />
-        <button type="submit" className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+        <button type="submit" className="rounded-xl bg-accent-gradient px-4 py-2.5 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent">
           Zoeken
         </button>
       </form>
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200">
-        <table className="w-full text-sm">
-          <thead className="bg-neutral-50 text-left text-neutral-500">
+      <TableWrap>
+        <Table>
+          <Thead>
             <tr>
-              <th className="px-4 py-3 font-medium">E-mail</th>
-              <th className="px-4 py-3 font-medium">Naam</th>
-              <th className="px-4 py-3 font-medium">Rol</th>
-              <th className="px-4 py-3 font-medium">Tenant</th>
-              <th className="px-4 py-3 font-medium">Status</th>
+              <Th>Gebruiker</Th>
+              <Th>Rol</Th>
+              <Th>Tenant</Th>
+              <Th>Status</Th>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-neutral-100">
+          </Thead>
+          <Tbody>
             {users.map((u) => (
-              <tr key={u.id} className="hover:bg-neutral-50">
-                <td className="px-4 py-2.5 text-neutral-800">{u.email}</td>
-                <td className="px-4 py-2.5 text-neutral-700">{u.name ?? "—"}</td>
-                <td className="px-4 py-2.5 text-neutral-600">{ROLE_LABEL[u.role]}</td>
-                <td className="px-4 py-2.5 text-neutral-600">
+              <Tr key={u.id}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={u.name ?? u.email} status={u.active ? "online" : "offline"} />
+                    <div>
+                      <p className="font-medium text-neutral-900">{u.name ?? "—"}</p>
+                      <p className="text-xs text-neutral-500">{u.email}</p>
+                    </div>
+                  </div>
+                </Td>
+                <Td>
+                  <Badge tone={ROLE_TONE[u.role] ?? "neutral"}>{ROLE_LABEL[u.role]}</Badge>
+                </Td>
+                <Td className="text-neutral-500">
                   {u.tenant ? (
-                    <Link href={`/admin/tenants/${u.tenant.id}`} className="hover:underline">
+                    <Link href={`/admin/tenants/${u.tenant.id}`} className="text-accent hover:underline">
                       {u.tenant.name}
                     </Link>
                   ) : (
                     <span className="text-neutral-400">platform</span>
                   )}
-                </td>
-                <td className="px-4 py-2.5">
+                </Td>
+                <Td>
                   {u.active ? (
                     <span className="text-green-600">actief</span>
                   ) : (
                     <span className="text-neutral-400">inactief</span>
                   )}
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+        </Table>
+      </TableWrap>
     </div>
   );
 }

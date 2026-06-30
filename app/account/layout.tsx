@@ -11,6 +11,7 @@ const ICON = {
   shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z",
   privacy: "M12 2 4 5v6c0 5 8 11 8 11s8-6 8-11V5l-8-3ZM9 12l2 2 4-4",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
+  building: "M3 21h18M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M19 21V9h1M9 8h2M9 12h2M9 16h2",
 };
 
 export default async function AccountLayout({
@@ -26,10 +27,14 @@ export default async function AccountLayout({
   // Tabs groeien mee terwijl de secties landen.
   const items: AccountNavItem[] = [
     { href: "/account", label: "Profiel", iconPath: ICON.profile },
+    { href: "/account/beveiliging", label: "Beveiliging", iconPath: ICON.shield },
     { href: "/account/meldingen", label: "Meldingen", iconPath: ICON.bell },
     { href: "/account/privacy", label: "Privacy", iconPath: ICON.privacy },
     { href: "/account/activiteit", label: "Activiteit", iconPath: ICON.activity },
   ];
+  if (role === "TENANT_ADMIN") {
+    items.push({ href: "/account/tenant", label: "Sportschool", iconPath: ICON.building });
+  }
 
   return (
     <div className="flex min-h-full flex-col bg-surface-0">

@@ -14,6 +14,7 @@ export function StatCard({
   suffix,
   icon,
   hint,
+  trend,
   className,
 }: {
   label: string;
@@ -21,6 +22,8 @@ export function StatCard({
   suffix?: string;
   icon?: React.ReactNode;
   hint?: string;
+  /** ±% t.o.v. vorige periode; toont een gekleurde trend-pill. */
+  trend?: number | null;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -64,7 +67,24 @@ export function StatCard({
         {display.toLocaleString("nl-NL")}
         {suffix ? <span className="text-xl text-neutral-400">{suffix}</span> : null}
       </span>
-      {hint ? <span className="text-xs text-neutral-500">{hint}</span> : null}
+      <div className="flex items-center gap-2">
+        {trend != null ? (
+          <span
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold",
+              trend > 0
+                ? "bg-green-500/15 text-green-600"
+                : trend < 0
+                  ? "bg-red-500/15 text-red-600"
+                  : "bg-neutral-100 text-neutral-500"
+            )}
+          >
+            {trend > 0 ? "▲" : trend < 0 ? "▼" : "—"}
+            {Math.abs(trend)}%
+          </span>
+        ) : null}
+        {hint ? <span className="text-xs text-neutral-500">{hint}</span> : null}
+      </div>
     </div>
   );
 }

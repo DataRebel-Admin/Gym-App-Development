@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getTheme } from "@/lib/theme";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
@@ -37,7 +38,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const tenant = await getCurrentTenant();
+  const [tenant, theme] = await Promise.all([getCurrentTenant(), getTheme()]);
 
   const tenantInfo: TenantInfo | null = tenant
     ? {
@@ -62,6 +63,7 @@ export default async function RootLayout({
   return (
     <html
       lang={LOCALE_LANG[tenant?.locale ?? "NL"] ?? "nl"}
+      data-theme={theme}
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
       {tenant?.faviconUrl ? (

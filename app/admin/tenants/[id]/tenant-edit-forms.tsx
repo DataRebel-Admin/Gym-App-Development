@@ -57,7 +57,7 @@ export function TenantEditForm({ tenant }: { tenant: Tenant }) {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        className="self-start rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent disabled:opacity-50"
       >
         {pending ? "Opslaan…" : "Opslaan"}
       </button>
@@ -89,7 +89,7 @@ export function TenantBrandingForm({ tenant }: { tenant: Tenant }) {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        className="self-start rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent disabled:opacity-50"
       >
         {pending ? "Opslaan…" : "Huisstijl opslaan"}
       </button>

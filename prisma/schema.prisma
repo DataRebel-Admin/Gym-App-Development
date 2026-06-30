@@ -55,6 +55,18 @@ model Tenant {
   locale      Locale       @default(NL)
   status      TenantStatus @default(ACTIVE)
   aiEnabled   Boolean      @default(false)
+  // --- Zakelijke gegevens (tenant-instellingen, owner) ---
+  contactEmail String?
+  contactPhone String?
+  addressLine  String?
+  postalCode   String?
+  city         String?
+  country      String?
+  website      String?
+  vatNumber    String? // BTW-nummer
+  cocNumber    String? // KvK-nummer
+  socials      Json? // { instagram, facebook, ... }
+  openingHours Json? // { mon: "06:00-22:00", ... }
   deletedAt   DateTime? // soft-delete; null = actief bestaand
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -159,6 +171,11 @@ model User {
   notificationPrefs Json? // per categorie × kanaal (e-mail/in-app/push)
   consents      Json? // privacy-toestemmingen (bv. marketing)
   deletionRequestedAt DateTime? // verzoek tot accountverwijdering
+  // --- Beveiliging ---
+  passwordHash     String? // bcrypt; null = alleen magic-link
+  twoFactorSecret  String? // base32 TOTP-secret (pending of actief)
+  twoFactorEnabled Boolean   @default(false)
+  sessionsValidFrom DateTime? // sessies vóór dit moment zijn ongeldig (logout overal)
   // E-mailwijziging met verificatie.
   pendingEmail       String?
   emailChangeToken   String?   @unique
@@ -175,6 +192,7 @@ model User {
   classEnrollments ClassEnrollment[]
   accounts         Account[] // Auth.js (OAuth, later)
   authSessions     Session[] // Auth.js DB-sessies (we gebruiken jwt, maar model vereist)
+  userSessions     UserSession[] // device/sessie-registratie
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
@@ -236,6 +254,21 @@ enum AuditStatus {
 // --- Auth.js (NextAuth v5) infra-tabellen ---
 // Géén tenantId/RLS: dit zijn framework-tabellen, geen tenant-business-data.
 // De Prisma-adapter maakt deze rijen aan zonder tenant-context.
+
+// Device-/sessie-registratie voor "actieve sessies" + op afstand uitloggen.
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
 
 model Account {
   id                String  @id @default(cuid())
