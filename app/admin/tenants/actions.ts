@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";
+import { uploadTenantAsset, type AssetUploadResult } from "@/lib/blob";
 
 const slugSchema = z
   .string()
@@ -99,6 +100,19 @@ const brandingSchema = z.object({
   fontFamily: z.string().trim().max(80).optional().or(z.literal("")),
 });
 
+function assetErrorMessage(
+  error: Extract<AssetUploadResult, { error: string }>["error"],
+  label: string
+): string {
+  const messages: Record<typeof error, string> = {
+    "no-file": `${label}: kies eerst een bestand.`,
+    "bad-type": `${label}: alleen afbeeldingen zijn toegestaan.`,
+    "too-large": `${label} is te groot (max. 2 MB).`,
+    failed: `${label} uploaden mislukt. Probeer het opnieuw.`,
+  };
+  return messages[error];
+}
+
 export async function updateBranding(
   _prev: TenantFormState,
   formData: FormData
@@ -115,19 +129,47 @@ export async function updateBranding(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
 
   const { id, accentColor, secondaryColor, logoUrl, faviconUrl, fontFamily } = parsed.data;
+
+  const tenant = await prisma.tenant.findFirst({
+    where: { id, deletedAt: null },
+    select: { slug: true },
+  });
+  if (!tenant) return { error: "Tenant niet gevonden" };
+
+  // Een geüpload bestand heeft voorrang op het URL-veld; bij geen upload blijft de
+  // URL (default = huidige waarde) staan zodat bestaande branding behouden blijft.
+  let resolvedLogo = logoUrl || null;
+  const logoFile = formData.get("logoFile");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    const result = await uploadTenantAsset(logoFile, tenant.slug, "logo");
+    if ("error" in result) return { error: assetErrorMessage(result.error, "Logo") };
+    resolvedLogo = result.url;
+  }
+
+  let resolvedFavicon = faviconUrl || null;
+  const faviconFile = formData.get("faviconFile");
+  if (faviconFile instanceof File && faviconFile.size > 0) {
+    const result = await uploadTenantAsset(faviconFile, tenant.slug, "favicon");
+    if ("error" in result) return { error: assetErrorMessage(result.error, "Favicon") };
+    resolvedFavicon = result.url;
+  }
+
   await prisma.tenant.update({
     where: { id },
     data: {
       accentColor: accentColor || null,
       secondaryColor: secondaryColor || null,
-      logoUrl: logoUrl || null,
-      faviconUrl: faviconUrl || null,
+      logoUrl: resolvedLogo,
+      faviconUrl: resolvedFavicon,
       fontFamily: fontFamily || null,
     },
   });
   await audit("branding.update", { actor: admin, tenantId: id, targetType: "Tenant", targetId: id });
 
   revalidatePath(`/admin/tenants/${id}`);
+  // Huisstijl (logo/favicon/accent/font) leeft in de gedeelde layouts van élke
+  // tenant-facing area → hervalideer de hele app-layout zodat het logo overal bijwerkt.
+  revalidatePath("/", "layout");
   return {};
 }
 

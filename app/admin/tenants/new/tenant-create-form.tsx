@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createTenant, type TenantFormState } from "../actions";
+import { ColorInput } from "@/components/ui/color-input";
 
 const initial: TenantFormState = {};
 
@@ -40,14 +41,8 @@ export function TenantCreateForm() {
           <option value="FY">Frysk</option>
         </select>
       </label>
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        Accentkleur (optioneel)
-        <input
-          name="accentColor"
-          placeholder="#E84B1F"
-          className="rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm text-neutral-900"
-        />
-      </label>
+      <ColorInput name="accentColor" label="Accentkleur (optioneel)" placeholder="#E84B1F" />
+
 
       {state.error ? (
         <p className="text-sm text-red-600">{state.error}</p>

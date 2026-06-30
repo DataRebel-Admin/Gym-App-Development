@@ -5,6 +5,12 @@ import { TopNav, type TopNavLink } from "@/components/nav/top-nav";
 import { UserMenu } from "@/components/nav/user-menu";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { platformMetadata } from "@/lib/metadata";
+import { getUserBadge } from "@/lib/account";
+
+// Superadmin werkt platformbreed → titel zonder tenant-suffix (voorkomt o.a. een
+// dubbele tenantnaam op /admin/tenants/[id]). Overschrijft de root-template.
+export const metadata = platformMetadata;
 
 const LINKS: TopNavLink[] = [
   { href: "/admin", label: "Dashboard", iconPath: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" },
@@ -21,6 +27,8 @@ export default async function AdminLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (session.user.role !== "SUPERADMIN") redirect("/");
+
+  const badge = await getUserBadge(session.user.id);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -46,8 +54,9 @@ export default async function AdminLayout({
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
             <UserMenu
-              name={session.user.name ?? null}
-              email={session.user.email ?? null}
+              name={badge?.name ?? session.user.name ?? null}
+              email={badge?.email ?? session.user.email ?? null}
+              image={badge?.image ?? null}
             />
           </div>
         </div>

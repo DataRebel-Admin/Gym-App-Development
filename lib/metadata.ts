@@ -24,6 +24,22 @@ export function titleSuffix(tenantName: string | null | undefined): string {
 }
 
 /**
+ * Platform-metadata voor de superadmin-area (`/admin/*`): **géén tenant in de
+ * suffix**. Een superadmin werkt op platformniveau, dus de browsertitel toont
+ * alleen de platformnaam. Zonder deze override zou de admin-area de
+ * tenant-suffix van de root-template erven (via de dev-fallback-tenant), waardoor
+ * een tenant-detailpagina ("FitPower | Tenant") de tenantnaam dubbel toont:
+ * "FitPower | Tenant | FitPower · GymRebel". Een geneste layout-template
+ * overschrijft de root-template voor zijn child-pagina's.
+ */
+export const platformMetadata: Metadata = {
+  title: {
+    template: `%s | ${APP_NAME}`,
+    default: APP_NAME,
+  },
+};
+
+/**
  * Root-metadata: titel-sjabloon + dynamische favicon. Wordt als
  * `generateMetadata` vanuit `app/layout.tsx` gebruikt zodat de titel en favicon
  * per request (per tenant) kloppen — ook bij navigeren, verversen en in de

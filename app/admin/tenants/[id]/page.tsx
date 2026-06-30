@@ -54,7 +54,7 @@ export async function generateMetadata({
     where: { id, deletedAt: null },
     select: { name: true },
   });
-  return { title: tenant ? `${tenant.name} | Tenant` : "Tenant" };
+  return { title: tenant ? tenant.name : "Tenant" };
 }
 
 export default async function TenantDetailPage({
