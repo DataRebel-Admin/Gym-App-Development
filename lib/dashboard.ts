@@ -3,8 +3,10 @@ import { z } from "zod";
 /** Alle beschikbare owner-dashboard widgets. */
 export const WIDGET_IDS = [
   "kpis",
-  "weekday-chart",
   "week-chart",
+  "weekday-chart",
+  "popular-exercises",
+  "class-occupancy",
   "top-machines",
   "bottom-machines",
   "recent-activity",
@@ -22,8 +24,10 @@ export const WIDGET_META: Record<
   { title: string; span: 1 | 2 }
 > = {
   kpis: { title: "Kerncijfers", span: 2 },
+  "week-chart": { title: "Groei — sessies per week", span: 2 },
   "weekday-chart": { title: "Sessies per weekdag", span: 1 },
-  "week-chart": { title: "Sessies per week", span: 1 },
+  "popular-exercises": { title: "Populaire oefeningen", span: 1 },
+  "class-occupancy": { title: "Lesbezetting", span: 1 },
   "top-machines": { title: "Top 5 machines", span: 1 },
   "bottom-machines": { title: "Minst gebruikt", span: 1 },
   "recent-activity": { title: "Recente activiteiten", span: 1 },

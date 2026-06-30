@@ -46,17 +46,35 @@ export type RecentActivity = {
   exercises: number;
 };
 
+export type PopularExercise = { name: string; count: number };
+export type ClassOccupancy = {
+  name: string;
+  startsAt: string; // ISO
+  enrolled: number;
+  capacity: number;
+};
+
 export type DashboardStats = {
   activeToday: number;
   memberCount: number;
   sessionsThisWeek: number;
   machineCount: number;
+  newSignups: number; // leden aangemaakt laatste 30 dagen
+  signupsTrend: number | null; // ±% t.o.v. vorige 30 dagen
+  sessionsTrend: number | null; // ±% sessies deze week vs vorige
+  popularExercises: PopularExercise[];
+  classOccupancy: ClassOccupancy[];
   topMachines: { name: string; sessions: number }[];
   bottomMachines: { name: string; sessions: number }[];
   perWeekday: { day: string; sessies: number }[];
   perWeek: { label: string; sessies: number }[];
   recent: RecentActivity[];
 };
+
+function trendPct(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return Math.round(((current - previous) / previous) * 100);
+}
 
 async function computeDashboard(tenantId: string): Promise<DashboardStats> {
   const machines = await prisma.machine.findMany({
@@ -96,6 +114,59 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
     member: s.user?.name ?? s.user?.email ?? "Onbekend lid",
     startedAt: s.startedAt.toISOString(),
     exercises: s._count.performanceEntries,
+  }));
+
+  // Nieuwe aanmeldingen (leden) + groeitrend.
+  const [signupsNow, signupsPrev, sessionsPrevWeek] = await Promise.all([
+    prisma.user.count({
+      where: { tenantId, role: "TENANT_MEMBER", createdAt: { gte: daysAgo(30) } },
+    }),
+    prisma.user.count({
+      where: {
+        tenantId,
+        role: "TENANT_MEMBER",
+        createdAt: { gte: daysAgo(60), lt: daysAgo(30) },
+      },
+    }),
+    prisma.workoutSession.count({
+      where: { tenantId, startedAt: { gte: daysAgo(14), lt: daysAgo(7) } },
+    }),
+  ]);
+
+  // Populaire oefeningen (op basis van prestatie-entries, laatste 30 dagen).
+  const exerciseGroups = await prisma.performanceEntry.groupBy({
+    by: ["exerciseId"],
+    where: { tenantId, session: { startedAt: { gte: daysAgo(30) } } },
+    _count: { exerciseId: true },
+    orderBy: { _count: { exerciseId: "desc" } },
+    take: 5,
+  });
+  const exerciseNames = await prisma.exercise.findMany({
+    where: { tenantId, id: { in: exerciseGroups.map((g) => g.exerciseId) } },
+    select: { id: true, name: true },
+  });
+  const exNameById = new Map(exerciseNames.map((e) => [e.id, e.name]));
+  const popularExercises: PopularExercise[] = exerciseGroups.map((g) => ({
+    name: exNameById.get(g.exerciseId) ?? "Onbekend",
+    count: g._count.exerciseId,
+  }));
+
+  // Bezetting van komende lessen.
+  const upcoming = await prisma.classSession.findMany({
+    where: { tenantId, startsAt: { gte: new Date() } },
+    orderBy: { startsAt: "asc" },
+    take: 5,
+    select: {
+      startsAt: true,
+      groupClass: { select: { name: true, maxParticipants: true } },
+      _count: { select: { enrollments: true } },
+    },
+  });
+  const classOccupancy: ClassOccupancy[] = upcoming.map((c) => ({
+    name: c.groupClass.name,
+    startsAt: c.startsAt.toISOString(),
+    enrolled: c._count.enrollments,
+    capacity: c.groupClass.maxParticipants,
   }));
 
   // Top 5 deze week.
@@ -147,6 +218,11 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
     memberCount,
     sessionsThisWeek,
     machineCount: machines.length,
+    newSignups: signupsNow,
+    signupsTrend: trendPct(signupsNow, signupsPrev),
+    sessionsTrend: trendPct(sessionsThisWeek, sessionsPrevWeek),
+    popularExercises,
+    classOccupancy,
     topMachines,
     bottomMachines,
     perWeekday,
