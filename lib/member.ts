@@ -1,14 +1,15 @@
 import "server-only";
-import { redirect } from "next/navigation";
+import { redirect, unauthorized, forbidden } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
 /** Vereist een ingelogde TENANT_MEMBER; retourneert de session-user met een
- *  gegarandeerd niet-null `tenantId`. */
+ *  gegarandeerd niet-null `tenantId`. Niet ingelogd → premium 401; verkeerde
+ *  rol → premium 403 (app/unauthorized.tsx / app/forbidden.tsx). */
 export async function requireMember() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
-  if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
+  if (!session?.user) unauthorized();
+  if (session.user.role !== "TENANT_MEMBER") forbidden();
   if (!session.user.tenantId) redirect("/login");
   return { ...session.user, tenantId: session.user.tenantId };
 }
