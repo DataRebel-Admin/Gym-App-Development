@@ -5,9 +5,15 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
+import { Badge } from "@/components/ui/badge";
+import { ConfirmButton } from "@/components/ui/confirm-button";
+import { getAssignmentsForMember } from "@/lib/schema-assignments";
+import { ASSIGNMENT_STATUS_META, fmtDate, fmtDateTime, isActiveNow } from "@/lib/schema-status";
 import {
   assignFromTemplate,
   startEmptySchema,
+  publishAssignment,
+  archiveAssignment,
   removeAssignment,
 } from "../../actions";
 
@@ -41,10 +47,15 @@ export default async function MemberSchemaPage({
   });
   if (!member) notFound();
 
-  const assignment = await prisma.assignedWorkout.findFirst({
-    where: { tenantId: owner.tenantId, userId },
-    include: {
-      template: {
+  const assignments = await getAssignmentsForMember(owner.tenantId, userId);
+  const liveOrDraft = assignments.filter((a) => a.status !== "ARCHIVED");
+  // Het te bewerken schema: het actieve gepubliceerde, anders het eerste concept/geplande.
+  const primary =
+    liveOrDraft.find((a) => isActiveNow(a)) ?? liveOrDraft[0] ?? null;
+
+  const primaryTemplate = primary?.template
+    ? await prisma.workoutTemplate.findFirst({
+        where: { id: primary.template.id, tenantId: owner.tenantId },
         include: {
           days: {
             orderBy: { order: "asc" },
@@ -53,9 +64,8 @@ export default async function MemberSchemaPage({
             },
           },
         },
-      },
-    },
-  });
+      })
+    : null;
 
   const exerciseRows = await prisma.exercise.findMany({
     where: { tenantId: owner.tenantId, archivedAt: null },
@@ -75,8 +85,6 @@ export default async function MemberSchemaPage({
     select: { id: true, name: true },
   });
 
-  const template = assignment?.template;
-
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -91,93 +99,153 @@ export default async function MemberSchemaPage({
         </h2>
       </div>
 
-      {template ? (
-        <>
-          <SchemaEditor
-            templateId={template.id}
-            initialName={template.name}
-            initialDescription={template.description ?? ""}
-            initialDays={template.days.map<EditorDay>((d) => ({
-              key: d.id,
-              name: d.name,
-              items: d.items.map((it) => ({
-                key: it.id,
-                exerciseId: it.exerciseId,
-                exerciseName: it.exercise.name,
-                sets: it.sets,
-                reps: it.reps,
-                restSeconds: it.restSeconds,
-                weightKg: it.weightKg,
-                notes: it.notes ?? "",
-              })),
-            }))}
-            availableExercises={exercises}
-          />
+      {/* Overzicht van toewijzingen (status + acties) */}
+      {liveOrDraft.length > 0 ? (
+        <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-neutral-900">Toewijzingen</h3>
+          <ul className="flex flex-col gap-2">
+            {liveOrDraft.map((a) => {
+              const meta = ASSIGNMENT_STATUS_META[a.status];
+              const active = isActiveNow(a);
+              return (
+                <li
+                  key={a.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border px-3 py-2.5"
+                >
+                  <span className="font-medium text-neutral-900">
+                    {a.template?.name ?? "Schema"}
+                  </span>
+                  <Badge tone={meta.tone}>{meta.label}</Badge>
+                  {active ? <Badge tone="accent">Actief</Badge> : null}
+                  {a.status === "PUBLISHED" && !a.seenAt ? (
+                    <Badge tone="warning">Nog niet geopend</Badge>
+                  ) : null}
+                  <span className="text-xs text-neutral-500">
+                    {a.status === "SCHEDULED"
+                      ? `vanaf ${fmtDateTime(a.availableFrom)}`
+                      : a.status === "PUBLISHED"
+                        ? `gepubliceerd ${fmtDate(a.publishedAt)}`
+                        : "concept"}
+                    {a.endDate ? ` · t/m ${fmtDate(a.endDate)}` : ""}
+                  </span>
+                  <div className="ml-auto flex items-center gap-2">
+                    {a.status !== "PUBLISHED" ? (
+                      <form action={publishAssignment}>
+                        <input type="hidden" name="userId" value={userId} />
+                        <input type="hidden" name="assignmentId" value={a.id} />
+                        <button
+                          type="submit"
+                          className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground hover:opacity-90"
+                        >
+                          Publiceren
+                        </button>
+                      </form>
+                    ) : null}
+                    <form action={archiveAssignment}>
+                      <input type="hidden" name="userId" value={userId} />
+                      <input type="hidden" name="assignmentId" value={a.id} />
+                      <button
+                        type="submit"
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                      >
+                        Archiveren
+                      </button>
+                    </form>
+                    <ConfirmButton
+                      action={removeAssignment}
+                      fields={{ userId, assignmentId: a.id }}
+                      label="Verwijderen"
+                      triggerClassName="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
+                      title="Toewijzing verwijderen?"
+                      message="Dit verwijdert het schema definitief voor dit lid."
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
-          <section className="flex max-w-3xl items-center justify-between rounded-xl border border-neutral-200 p-4">
+      {/* Editor voor het primaire schema */}
+      {primaryTemplate ? (
+        <>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-neutral-900">
+              {primary && isActiveNow(primary) ? "Actief schema bewerken" : "Schema bewerken"}
+            </h3>
+            <SchemaEditor
+              templateId={primaryTemplate.id}
+              initialName={primaryTemplate.name}
+              initialDescription={primaryTemplate.description ?? ""}
+              initialDays={primaryTemplate.days.map<EditorDay>((d) => ({
+                key: d.id,
+                name: d.name,
+                items: d.items.map((it) => ({
+                  key: it.id,
+                  exerciseId: it.exerciseId,
+                  exerciseName: it.exercise.name,
+                  sets: it.sets,
+                  reps: it.reps,
+                  restSeconds: it.restSeconds,
+                  weightKg: it.weightKg,
+                  notes: it.notes ?? "",
+                })),
+              }))}
+              availableExercises={exercises}
+            />
+          </div>
+
+          <section className="max-w-3xl rounded-xl border border-border p-4">
             <a
               href={`/owner/schemas/members/${member.id}/pdf`}
-              className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
             >
               ⬇ Exporteer als PDF
             </a>
-            <form action={removeAssignment}>
-              <input type="hidden" name="userId" value={member.id} />
-              <button
-                type="submit"
-                className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
-              >
-                Schema verwijderen
-              </button>
-            </form>
           </section>
         </>
-      ) : (
-        <section className="flex max-w-2xl flex-col gap-5">
-          <p className="text-sm text-neutral-500">
-            Dit lid heeft nog geen schema. Kopieer een template of begin leeg.
-          </p>
+      ) : null}
 
-          <div className="flex flex-col gap-2 rounded-xl border border-neutral-200 p-4">
-            <span className="text-sm font-medium text-neutral-700">
-              Kopieer van een template
-            </span>
-            {libraryTemplates.length === 0 ? (
-              <p className="text-sm text-neutral-400">
-                Nog geen templates beschikbaar.
-              </p>
-            ) : (
-              libraryTemplates.map((t) => (
-                <form
-                  key={t.id}
-                  action={assignFromTemplate}
-                  className="flex items-center justify-between"
+      {/* Nieuw schema voor dit lid */}
+      <section className="flex max-w-2xl flex-col gap-5 rounded-2xl border border-border p-5">
+        <h3 className="text-sm font-semibold text-neutral-900">Nieuw schema voor dit lid</h3>
+
+        <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
+          <span className="text-sm font-medium text-neutral-700">Kopieer van een template</span>
+          {libraryTemplates.length === 0 ? (
+            <p className="text-sm text-neutral-400">Nog geen templates beschikbaar.</p>
+          ) : (
+            libraryTemplates.map((t) => (
+              <form
+                key={t.id}
+                action={assignFromTemplate}
+                className="flex items-center justify-between"
+              >
+                <input type="hidden" name="userId" value={member.id} />
+                <input type="hidden" name="sourceTemplateId" value={t.id} />
+                <span className="text-sm text-neutral-900">{t.name}</span>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
                 >
-                  <input type="hidden" name="userId" value={member.id} />
-                  <input type="hidden" name="sourceTemplateId" value={t.id} />
-                  <span className="text-sm text-neutral-900">{t.name}</span>
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
-                  >
-                    Kopieer &amp; wijs toe
-                  </button>
-                </form>
-              ))
-            )}
-          </div>
+                  Kopieer &amp; publiceer
+                </button>
+              </form>
+            ))
+          )}
+        </div>
 
-          <form action={startEmptySchema}>
-            <input type="hidden" name="userId" value={member.id} />
-            <button
-              type="submit"
-              className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground hover:opacity-90"
-            >
-              Begin met leeg schema
-            </button>
-          </form>
-        </section>
-      )}
+        <form action={startEmptySchema}>
+          <input type="hidden" name="userId" value={member.id} />
+          <button
+            type="submit"
+            className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground hover:opacity-90"
+          >
+            Begin met leeg schema
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

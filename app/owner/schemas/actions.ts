@@ -1,17 +1,14 @@
 "use server";
 
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, type AssignmentStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { audit } from "@/lib/audit";
-import { loadTenantBranding } from "@/lib/email/branding";
-import { schemaAssignedMessage } from "@/lib/email/messages";
-import { sendEmail } from "@/lib/email/send";
-import { prefAllows, createInAppNotification } from "@/lib/notifications";
+import { notifyAssignmentsPublished } from "@/lib/schema-notify";
 
 export type SchemaSaveState = { error?: string; ok?: boolean };
 
@@ -20,56 +17,6 @@ async function origin(): Promise<string> {
   const host = h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
-}
-
-/**
- * Meld leden dat er een (nieuw) trainingsschema voor ze klaarstaat. Best-effort:
- * een mailfout mag de toewijzing nooit breken (eigen try/catch). Aanroepen vóór
- * een eventuele redirect.
- */
-async function notifySchemaAssigned(
-  tenantId: string,
-  userIds: string[],
-  schemaName: string
-): Promise<void> {
-  try {
-    const [branding, members, viewUrl] = await Promise.all([
-      loadTenantBranding(tenantId),
-      prisma.user.findMany({
-        where: { id: { in: userIds }, tenantId, role: "TENANT_MEMBER", active: true },
-        select: { id: true, email: true, name: true, notificationPrefs: true },
-      }),
-      origin().then((o) => `${o}/member/schema`),
-    ]);
-    for (const m of members) {
-      // In-app melding (kanaal "inApp") en e-mail (kanaal "email") staan los van
-      // elkaar — respecteer beide voorkeuren onder categorie "schema's".
-      if (prefAllows(m.notificationPrefs, "schemas", "inApp")) {
-        await createInAppNotification({
-          userId: m.id,
-          tenantId,
-          category: "schemas",
-          title: "Nieuw trainingsschema",
-          body: `Je traint nu met '${schemaName}'.`,
-          link: "/member/schema",
-        });
-      }
-      if (prefAllows(m.notificationPrefs, "schemas", "email")) {
-        await sendEmail({
-          to: m.email,
-          message: await schemaAssignedMessage({
-            branding,
-            recipientName: m.name,
-            schemaName,
-            viewUrl,
-          }),
-          devLink: viewUrl,
-        });
-      }
-    }
-  } catch (err) {
-    console.error("✗ Schema-toewijzing mail mislukt:", (err as Error).message);
-  }
 }
 
 const itemSchema = z.object({
@@ -218,25 +165,6 @@ export async function deleteTemplate(formData: FormData) {
   redirect("/owner/schemas/templates");
 }
 
-/** Verwijder het huidige (lid-specifieke) schema van een lid. */
-async function clearAssignment(tenantId: string, userId: string) {
-  const existing = await prisma.assignedWorkout.findFirst({
-    where: { tenantId, userId },
-    include: { template: true },
-  });
-  if (!existing) return [];
-  const ops: Prisma.PrismaPromise<unknown>[] = [
-    prisma.assignedWorkout.delete({ where: { id: existing.id } }),
-  ];
-  // Lid-specifieke (niet-library) template mag mee weg.
-  if (existing.template && !existing.template.isLibrary) {
-    ops.push(
-      prisma.workoutTemplate.delete({ where: { id: existing.template.id } })
-    );
-  }
-  return ops;
-}
-
 type SourceTemplate = {
   name: string;
   description: string | null;
@@ -259,35 +187,40 @@ const sourceInclude = {
   days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } },
 } as const;
 
-/** Kloon (binnen een transactie) een bron-template naar een nieuw lid-schema +
- *  wijs het toe. Vervangt het bestaande lid-schema. */
-async function assignTemplateToUser(
+/** Parse een datetime-local/ISO string naar Date; ongeldig of leeg → null. */
+function parseDate(v: unknown): Date | null {
+  if (typeof v !== "string" || !v.trim()) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Kloon (binnen een transactie) een bron-template naar een nieuw lid-specifiek
+ * schema + maak de toewijzing met levenscyclus-velden. Vervangt NIET automatisch
+ * een bestaand schema — meerdere toewijzingen per lid zijn toegestaan; de
+ * caller archiveert eventueel het vorige actieve schema. Retourneert de
+ * assignment-id.
+ */
+async function cloneToAssignment(
   tx: Prisma.TransactionClient,
-  tenantId: string,
-  userId: string,
-  source: SourceTemplate
-) {
-  const existing = await tx.assignedWorkout.findFirst({
-    where: { tenantId, userId },
-    include: { template: true },
-  });
-  if (existing) {
-    await tx.assignedWorkout.delete({ where: { id: existing.id } });
-    if (existing.template && !existing.template.isLibrary) {
-      await tx.workoutTemplate.delete({ where: { id: existing.template.id } });
-    }
+  params: {
+    tenantId: string;
+    userId: string;
+    assignedById: string;
+    source: SourceTemplate;
+    sourceTemplateId: string | null;
+    status: AssignmentStatus;
+    availableFrom: Date | null;
+    startDate: Date | null;
+    endDate: Date | null;
+    trainerMessage: string | null;
+    publishedAt: Date | null;
   }
-
+): Promise<string> {
+  const { tenantId, userId, source } = params;
   const tpl = await tx.workoutTemplate.create({
-    data: {
-      tenantId,
-      name: source.name,
-      description: source.description,
-      isLibrary: false,
-      assignedWorkouts: { create: { tenantId, userId } },
-    },
+    data: { tenantId, name: source.name, description: source.description, isLibrary: false },
   });
-
   for (const d of source.days) {
     await tx.workoutDay.create({
       data: {
@@ -311,9 +244,198 @@ async function assignTemplateToUser(
       },
     });
   }
+  const assignment = await tx.assignedWorkout.create({
+    data: {
+      tenantId,
+      userId,
+      templateId: tpl.id,
+      sourceTemplateId: params.sourceTemplateId,
+      assignedById: params.assignedById,
+      status: params.status,
+      availableFrom: params.availableFrom,
+      startDate: params.startDate,
+      endDate: params.endDate,
+      trainerMessage: params.trainerMessage,
+      publishedAt: params.publishedAt,
+    },
+  });
+  return assignment.id;
 }
 
-/** Kopieer een library-template naar een lid-specifiek schema en wijs het toe. */
+/**
+ * Archiveer (binnen een transactie) de actieve, gepubliceerde toewijzingen van
+ * een lid. Behoudt ze als historie (status ARCHIVED) i.p.v. ze te verwijderen.
+ * Retourneert true als er een actief schema was (→ "opnieuw toegewezen").
+ */
+async function archivePriorActive(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  userId: string
+): Promise<boolean> {
+  const { count } = await tx.assignedWorkout.updateMany({
+    where: { tenantId, userId, status: "PUBLISHED" },
+    data: { status: "ARCHIVED" },
+  });
+  return count > 0;
+}
+
+const assignOptionsSchema = z.object({
+  mode: z.enum(["now", "draft", "schedule"]),
+  availableFrom: z.string().optional().nullable(),
+  startDate: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
+  trainerMessage: z.string().trim().max(1000).optional().nullable(),
+});
+
+export type AssignOptions = z.infer<typeof assignOptionsSchema>;
+export type AssignChunkResult = {
+  assigned: number;
+  reassigned: number;
+  scheduled: number;
+  drafted: number;
+  error?: string;
+};
+
+/**
+ * Wijs één library-template toe aan een batch leden, met levenscyclus
+ * (direct publiceren / concept / inplannen), ingangs-/einddatum en een
+ * persoonlijke boodschap. Bewust per chunk aan te roepen vanuit de client zodat
+ * bulktoewijzingen (duizenden leden) een echte voortgangsindicator hebben en
+ * binnen serverless-tijdslimieten blijven.
+ */
+export async function assignSchemaChunk(
+  sourceTemplateId: string,
+  userIds: string[],
+  rawOptions: AssignOptions
+): Promise<AssignChunkResult> {
+  const owner = await requireOwner();
+  const empty: AssignChunkResult = { assigned: 0, reassigned: 0, scheduled: 0, drafted: 0 };
+
+  const parsed = assignOptionsSchema.safeParse(rawOptions);
+  if (!parsed.success) return { ...empty, error: "Ongeldige toewijs-opties" };
+  const opts = parsed.data;
+
+  const ids = [...new Set(userIds.map(String).filter(Boolean))].slice(0, 200);
+  if (!sourceTemplateId || ids.length === 0) return empty;
+
+  const source = await prisma.workoutTemplate.findFirst({
+    where: { id: sourceTemplateId, tenantId: owner.tenantId, isLibrary: true },
+    include: sourceInclude,
+  });
+  if (!source) return { ...empty, error: "Schema niet gevonden" };
+
+  const availableFrom = parseDate(opts.availableFrom);
+  const startDate = parseDate(opts.startDate);
+  const endDate = parseDate(opts.endDate);
+  const trainerMessage = opts.trainerMessage?.trim() || null;
+
+  if (opts.mode === "schedule" && !availableFrom) {
+    return { ...empty, error: "Kies een geldig publicatiemoment" };
+  }
+
+  // Alleen geldige, actieve leden van deze tenant.
+  const members = await prisma.user.findMany({
+    where: { id: { in: ids }, tenantId: owner.tenantId, role: "TENANT_MEMBER", active: true },
+    select: { id: true },
+  });
+  if (members.length === 0) return empty;
+
+  const result: AssignChunkResult = { ...empty };
+  const publishedAssignmentIds: string[] = [];
+
+  for (const m of members) {
+    try {
+      const status: AssignmentStatus =
+        opts.mode === "now" ? "PUBLISHED" : opts.mode === "schedule" ? "SCHEDULED" : "DRAFT";
+      const publishedAt = opts.mode === "now" ? new Date() : null;
+      // Bij direct publiceren: ingangsdatum default = nu; bij plannen = availableFrom.
+      const effectiveStart =
+        startDate ?? (opts.mode === "schedule" ? availableFrom : opts.mode === "now" ? new Date() : null);
+
+      const assignmentId = await prisma.$transaction(async (tx) => {
+        let reassigned = false;
+        if (opts.mode === "now") {
+          reassigned = await archivePriorActive(tx, owner.tenantId, m.id);
+        }
+        const id = await cloneToAssignment(tx, {
+          tenantId: owner.tenantId,
+          userId: m.id,
+          assignedById: owner.id,
+          source,
+          sourceTemplateId,
+          status,
+          availableFrom: opts.mode === "schedule" ? availableFrom : null,
+          startDate: effectiveStart,
+          endDate,
+          trainerMessage,
+          publishedAt,
+        });
+        return { id, reassigned };
+      });
+
+      if (opts.mode === "now") {
+        publishedAssignmentIds.push(assignmentId.id);
+        if (assignmentId.reassigned) result.reassigned += 1;
+        else result.assigned += 1;
+      } else if (opts.mode === "schedule") {
+        result.scheduled += 1;
+      } else {
+        result.drafted += 1;
+      }
+    } catch (err) {
+      console.error("✗ Toewijzing mislukt voor lid:", (err as Error).message);
+    }
+  }
+
+  // Audit (per chunk, leesbaar): nieuw toegewezen / opnieuw toegewezen / ingepland.
+  if (result.assigned > 0) {
+    await audit("schema.assign", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      targetId: sourceTemplateId,
+      metadata: { name: source.name, memberCount: result.assigned },
+    });
+  }
+  if (result.reassigned > 0) {
+    await audit("schema.reassign", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      targetId: sourceTemplateId,
+      metadata: { name: source.name, memberCount: result.reassigned },
+    });
+  }
+  if (result.scheduled > 0) {
+    await audit("schema.schedule", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      targetId: sourceTemplateId,
+      metadata: {
+        name: source.name,
+        memberCount: result.scheduled,
+        availableFrom: availableFrom?.toLocaleString("nl-NL") ?? null,
+      },
+    });
+  }
+
+  // Meldingen alleen bij direct publiceren (geplande publicatie verloopt via de cron).
+  if (publishedAssignmentIds.length > 0) {
+    await notifyAssignmentsPublished({
+      tenantId: owner.tenantId,
+      assignmentIds: publishedAssignmentIds,
+      origin: await origin(),
+      actor: owner,
+    });
+  }
+
+  revalidatePath("/owner/schemas/templates");
+  return result;
+}
+
+/** Kopieer een library-template naar een lid-specifiek schema en publiceer het
+ *  direct (per-lid-pagina, eenvoudige flow). */
 export async function assignFromTemplate(formData: FormData) {
   const owner = await requireOwner();
   const userId = String(formData.get("userId") ?? "");
@@ -330,11 +452,25 @@ export async function assignFromTemplate(formData: FormData) {
   });
   if (!source) redirect(`/owner/schemas/members/${userId}`);
 
-  await prisma.$transaction((tx) =>
-    assignTemplateToUser(tx, owner.tenantId, userId, source)
-  );
+  const { assignmentId, reassigned } = await prisma.$transaction(async (tx) => {
+    const reassigned = await archivePriorActive(tx, owner.tenantId, userId);
+    const id = await cloneToAssignment(tx, {
+      tenantId: owner.tenantId,
+      userId,
+      assignedById: owner.id,
+      source,
+      sourceTemplateId: source.isLibrary ? source.id : null,
+      status: "PUBLISHED",
+      availableFrom: null,
+      startDate: new Date(),
+      endDate: null,
+      trainerMessage: null,
+      publishedAt: new Date(),
+    });
+    return { assignmentId: id, reassigned };
+  });
 
-  await audit("schema.assign", {
+  await audit(reassigned ? "schema.reassign" : "schema.assign", {
     actor: owner,
     tenantId: owner.tenantId,
     targetType: "User",
@@ -342,53 +478,15 @@ export async function assignFromTemplate(formData: FormData) {
     metadata: { name: source.name, memberCount: 1, member: member.name ?? member.email },
   });
 
-  await notifySchemaAssigned(owner.tenantId, [userId], source.name);
+  await notifyAssignmentsPublished({
+    tenantId: owner.tenantId,
+    assignmentIds: [assignmentId],
+    origin: await origin(),
+    actor: owner,
+  });
 
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
-}
-
-/** Wijs één library-template tegelijk toe aan meerdere leden (G3c). */
-export async function assignTemplateToMembers(formData: FormData) {
-  const owner = await requireOwner();
-  const sourceId = String(formData.get("sourceTemplateId") ?? "");
-  const userIds = formData.getAll("userIds").map(String).filter(Boolean);
-  if (!sourceId || userIds.length === 0) return;
-
-  const source = await prisma.workoutTemplate.findFirst({
-    where: { id: sourceId, tenantId: owner.tenantId, isLibrary: true },
-    include: sourceInclude,
-  });
-  if (!source) return;
-
-  // Alleen geldige leden van deze tenant.
-  const members = await prisma.user.findMany({
-    where: { id: { in: userIds }, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
-    select: { id: true },
-  });
-
-  for (const m of members) {
-    await prisma.$transaction((tx) =>
-      assignTemplateToUser(tx, owner.tenantId, m.id, source)
-    );
-  }
-
-  if (members.length > 0) {
-    await audit("schema.assign", {
-      actor: owner,
-      tenantId: owner.tenantId,
-      targetType: "WorkoutTemplate",
-      targetId: sourceId,
-      metadata: { name: source.name, memberCount: members.length },
-    });
-    await notifySchemaAssigned(
-      owner.tenantId,
-      members.map((m) => m.id),
-      source.name
-    );
-  }
-
-  revalidatePath("/owner/schemas/templates");
 }
 
 /** Dupliceer een library-template (incl. dagen + oefeningen) (G3c). */
@@ -449,7 +547,8 @@ export async function duplicateTemplate(formData: FormData) {
   redirect(`/owner/schemas/templates/${copy.id}`);
 }
 
-/** Start een leeg lid-specifiek schema voor een lid. */
+/** Start een leeg lid-specifiek schema voor een lid (direct gepubliceerd, geen
+ *  melding — er staat nog niets in). Archiveert een vorig actief schema. */
 export async function startEmptySchema(formData: FormData) {
   const owner = await requireOwner();
   const userId = String(formData.get("userId") ?? "");
@@ -459,19 +558,23 @@ export async function startEmptySchema(formData: FormData) {
   });
   if (!member) redirect("/owner/schemas/members");
 
-  const clearOps = await clearAssignment(owner.tenantId, userId);
-
-  await prisma.$transaction([
-    ...clearOps,
-    prisma.workoutTemplate.create({
+  await prisma.$transaction(async (tx) => {
+    await archivePriorActive(tx, owner.tenantId, userId);
+    const tpl = await tx.workoutTemplate.create({
+      data: { tenantId: owner.tenantId, name: "Nieuw schema", isLibrary: false },
+    });
+    await tx.assignedWorkout.create({
       data: {
         tenantId: owner.tenantId,
-        name: "Nieuw schema",
-        isLibrary: false,
-        assignedWorkouts: { create: { tenantId: owner.tenantId, userId } },
+        userId,
+        templateId: tpl.id,
+        assignedById: owner.id,
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        startDate: new Date(),
       },
-    }),
-  ]);
+    });
+  });
 
   await audit("schema.assign", {
     actor: owner,
@@ -481,23 +584,104 @@ export async function startEmptySchema(formData: FormData) {
     metadata: { name: "Nieuw schema", memberCount: 1, member: member.name ?? member.email },
   });
 
-  await notifySchemaAssigned(owner.tenantId, [userId], "Nieuw schema");
+  revalidatePath(`/owner/schemas/members/${userId}`);
+  redirect(`/owner/schemas/members/${userId}`);
+}
+
+/** Vind de toewijzing van een lid op id (of de actieve, als geen id). */
+async function findAssignment(tenantId: string, userId: string, assignmentId?: string) {
+  return prisma.assignedWorkout.findFirst({
+    where: assignmentId
+      ? { id: assignmentId, tenantId, userId }
+      : { tenantId, userId, status: "PUBLISHED" },
+    orderBy: { publishedAt: "desc" },
+    include: { template: { select: { id: true, name: true, isLibrary: true } } },
+  });
+}
+
+/** Publiceer een concept- of gepland schema nu (zichtbaar + melding). */
+export async function publishAssignment(formData: FormData) {
+  const owner = await requireOwner();
+  const userId = String(formData.get("userId") ?? "");
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+
+  const assignment = await findAssignment(owner.tenantId, userId, assignmentId);
+  if (!assignment || assignment.status === "PUBLISHED") {
+    redirect(`/owner/schemas/members/${userId}`);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await archivePriorActive(tx, owner.tenantId, userId);
+    await tx.assignedWorkout.update({
+      where: { id: assignment.id },
+      data: { status: "PUBLISHED", publishedAt: new Date(), availableFrom: null, notifiedAt: null },
+    });
+  });
+
+  await audit("schema.publish", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "User",
+    targetId: userId,
+    metadata: { name: assignment.template?.name ?? "schema" },
+  });
+
+  await notifyAssignmentsPublished({
+    tenantId: owner.tenantId,
+    assignmentIds: [assignment.id],
+    origin: await origin(),
+    actor: owner,
+  });
 
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
 }
 
+/** Archiveer een toewijzing (uit de actieve roster, behoudt historie). */
+export async function archiveAssignment(formData: FormData) {
+  const owner = await requireOwner();
+  const userId = String(formData.get("userId") ?? "");
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+
+  const assignment = await findAssignment(owner.tenantId, userId, assignmentId);
+  if (assignment) {
+    await prisma.assignedWorkout.update({
+      where: { id: assignment.id },
+      data: { status: "ARCHIVED" },
+    });
+    await audit("schema.archive", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "User",
+      targetId: userId,
+      metadata: { name: assignment.template?.name ?? "schema" },
+    });
+  }
+  revalidatePath(`/owner/schemas/members/${userId}`);
+  redirect(`/owner/schemas/members/${userId}`);
+}
+
+/** Verwijder een toewijzing volledig (+ lid-specifieke template-kloon). */
 export async function removeAssignment(formData: FormData) {
   const owner = await requireOwner();
   const userId = String(formData.get("userId") ?? "");
-  const clearOps = await clearAssignment(owner.tenantId, userId);
-  if (clearOps.length > 0) {
-    await prisma.$transaction(clearOps);
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+
+  const assignment = await findAssignment(owner.tenantId, userId, assignmentId);
+  if (assignment) {
+    const ops: Prisma.PrismaPromise<unknown>[] = [
+      prisma.assignedWorkout.delete({ where: { id: assignment.id } }),
+    ];
+    if (assignment.template && !assignment.template.isLibrary) {
+      ops.push(prisma.workoutTemplate.delete({ where: { id: assignment.template.id } }));
+    }
+    await prisma.$transaction(ops);
     await audit("schema.unassign", {
       actor: owner,
       tenantId: owner.tenantId,
       targetType: "User",
       targetId: userId,
+      metadata: { name: assignment.template?.name ?? "schema" },
     });
   }
   revalidatePath(`/owner/schemas/members/${userId}`);

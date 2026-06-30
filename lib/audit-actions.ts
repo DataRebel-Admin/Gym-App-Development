@@ -166,9 +166,49 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
         : `${actor} heeft schema '${name}' toegewezen`;
     },
   },
+  "schema.reassign": {
+    category: "schemas", label: "Schema opnieuw toegewezen", icon: "🔄", tone: "accent",
+    sentence: ({ actor, meta }) => {
+      const count = s(meta, "memberCount");
+      const name = s(meta, "name") ?? "een schema";
+      return count && count !== "1"
+        ? `${actor} heeft schema '${name}' opnieuw toegewezen aan ${count} leden`
+        : `${actor} heeft schema '${name}' opnieuw toegewezen`;
+    },
+  },
+  "schema.publish": {
+    category: "schemas", label: "Schema gepubliceerd", icon: "🚀", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft schema '${s(meta, "name") ?? ""}' gepubliceerd`.trim(),
+  },
+  "schema.schedule": {
+    category: "schemas", label: "Schema ingepland", icon: "🕒", tone: "neutral",
+    sentence: ({ actor, meta }) => {
+      const name = s(meta, "name") ?? "een schema";
+      const when = s(meta, "availableFrom");
+      return when
+        ? `${actor} heeft schema '${name}' ingepland voor ${when}`
+        : `${actor} heeft schema '${name}' ingepland`;
+    },
+  },
+  "schema.archive": {
+    category: "schemas", label: "Schema gearchiveerd", icon: "📦", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft schema-toewijzing '${s(meta, "name") ?? ""}' gearchiveerd`.trim(),
+  },
   "schema.unassign": {
     category: "schemas", label: "Schema-toewijzing verwijderd", icon: "✖️", tone: "warning",
     sentence: ({ actor }) => `${actor} heeft een schema-toewijzing verwijderd`,
+  },
+  "schema.notify.sent": {
+    category: "schemas", label: "Notificatie verzonden", icon: "🔔", tone: "neutral",
+    sentence: ({ meta }) =>
+      `Melding over '${s(meta, "name") ?? "een schema"}' verzonden aan ${s(meta, "member") ?? "een lid"}`,
+  },
+  "schema.email.sent": {
+    category: "schemas", label: "E-mail verzonden", icon: "📧", tone: "neutral",
+    sentence: ({ meta }) =>
+      `E-mail over '${s(meta, "name") ?? "een schema"}' verzonden aan ${s(meta, "to") ?? "een lid"}`,
   },
   "schema.pdf.export": {
     category: "schemas", label: "PDF geëxporteerd", icon: "📄", tone: "neutral",

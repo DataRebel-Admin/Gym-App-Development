@@ -9,6 +9,7 @@ import {
   type ChecklistDay,
 } from "./schema-checklist";
 import { startSession } from "./actions";
+import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
 
 type ItemWithRel = {
   id: string;
@@ -40,6 +41,8 @@ export default async function MemberSchemaPage() {
   const member = await requireMember();
   const assignment = await getAssignedSchema(member.id, member.tenantId);
   const schema = assignment?.template;
+  const isNew = assignment ? assignment.seenAt === null : false;
+  const trainerMessage = assignment?.trainerMessage?.trim() || null;
 
   if (!schema) {
     return (
@@ -71,11 +74,19 @@ export default async function MemberSchemaPage() {
 
   return (
     <Fullscreenable className="flex flex-1 flex-col gap-5 px-5 py-8">
+      {isNew ? <MarkSchemaSeen /> : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-            {schema.name}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
+              {schema.name}
+            </h1>
+            {isNew ? (
+              <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent-foreground">
+                Nieuw
+              </span>
+            ) : null}
+          </div>
           {schema.description ? (
             <p className="mt-1 text-sm text-neutral-500">{schema.description}</p>
           ) : null}
@@ -92,6 +103,15 @@ export default async function MemberSchemaPage() {
         </div>
         <FullscreenButton />
       </div>
+
+      {trainerMessage ? (
+        <div className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            Bericht van je trainer
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">{trainerMessage}</p>
+        </div>
+      ) : null}
 
       {multiDay ? (
         <SchemaChecklist days={days} />

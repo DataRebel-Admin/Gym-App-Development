@@ -219,6 +219,17 @@
   color-scheme: dark;
 }
 
+/* Native <select>-optielijst: zodra een <select> een eigen achtergrond heeft
+ * (onze velden gebruiken bg-surface-1), rendert Chrome de optie-popup
+ * "author-styled" en vallen <option>s terug op wit — in dark mode dus witte
+ * tekst op wit. Forceer hier thema-kleuren via de tokens zodat opties in light
+ * én dark leesbaar blijven. */
+option,
+optgroup {
+  background-color: var(--surface-1);
+  color: var(--neutral-900);
+}
+
 html {
   /* Vaste basiskleur — onderlaag onder de gelaagde achtergrond (no-flash). */
   background-color: var(--app-bg-base);

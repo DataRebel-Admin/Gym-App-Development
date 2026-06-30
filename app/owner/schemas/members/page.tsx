@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
+import { Badge } from "@/components/ui/badge";
+import { ASSIGNMENT_STATUS_META, isActiveNow } from "@/lib/schema-status";
 
 export const metadata = { title: "Schema's per lid" };
 
@@ -12,8 +14,9 @@ export default async function MembersPage() {
     orderBy: { name: "asc" },
     include: {
       assignedWorkouts: {
+        where: { status: { not: "ARCHIVED" } },
+        orderBy: { createdAt: "desc" },
         include: { template: { select: { name: true } } },
-        take: 1,
       },
     },
   });
@@ -35,14 +38,27 @@ export default async function MembersPage() {
           </thead>
           <tbody>
             {members.map((m) => {
-              const schema = m.assignedWorkouts[0]?.template?.name;
+              const active = m.assignedWorkouts.find((a) => isActiveNow(a));
+              const upcoming = m.assignedWorkouts.find(
+                (a) => a.status === "SCHEDULED" || a.status === "DRAFT"
+              );
+              const show = active ?? upcoming;
               return (
                 <tr key={m.id} className="border-t border-neutral-100">
                   <td className="px-4 py-2 font-medium text-neutral-900">
                     {m.name ?? m.email}
                   </td>
                   <td className="px-4 py-2 text-neutral-700">
-                    {schema ?? (
+                    {show ? (
+                      <span className="flex items-center gap-2">
+                        <span>{show.template?.name ?? "Schema"}</span>
+                        {!active && upcoming ? (
+                          <Badge tone={ASSIGNMENT_STATUS_META[upcoming.status].tone}>
+                            {ASSIGNMENT_STATUS_META[upcoming.status].label}
+                          </Badge>
+                        ) : null}
+                      </span>
+                    ) : (
                       <span className="text-neutral-400">— geen —</span>
                     )}
                   </td>

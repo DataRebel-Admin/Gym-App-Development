@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireMember } from "@/lib/member";
+import { requireMember, getAssignedSchema } from "@/lib/member";
 
 /** Voeg de oefening(en) van een machine toe aan het schema van het lid. */
 export async function addMachineToSchema(formData: FormData) {
@@ -17,12 +17,7 @@ export async function addMachineToSchema(formData: FormData) {
   });
   if (!machine) redirect("/member/schema");
 
-  const assignment = await prisma.assignedWorkout.findFirst({
-    where: { tenantId: member.tenantId, userId: member.id },
-    include: {
-      template: { include: { items: { select: { exerciseId: true, order: true } } } },
-    },
-  });
+  const assignment = await getAssignedSchema(member.id, member.tenantId);
   if (!assignment?.template) redirect("/member/schema");
 
   const template = assignment.template;

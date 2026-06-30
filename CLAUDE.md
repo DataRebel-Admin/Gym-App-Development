@@ -133,7 +133,8 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   mutaties zijn gescoped op `owner.tenantId` (app-side isolatie; RLS is de backstop).
 - **Lid-schema-model**: een toegewezen schema is een eigen **niet-library `WorkoutTemplate`**
   (met eigen items) waarnaar `AssignedWorkout` verwijst. "Kopieer & wijs toe" kloont een
-  library-template; verwijderen ruimt de kloon op. Eén actief schema per lid.
+  library-template; verwijderen ruimt de kloon op. Zie de schema-levenscyclus hieronder —
+  een lid kan **meerdere** toewijzingen hebben (concept/gepland/actief) maar ziet er telkens één.
 - **Foto-upload** via Vercel Blob werkt alleen met `BLOB_READ_WRITE_TOKEN`; zonder token
   degradeert create/update netjes (geen foto). QR-download is client-side (`qrcode`).
 - **Insights** (lib/insights.ts): server-side aggregaties met `unstable_cache` (revalidate
@@ -152,6 +153,54 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
 - **PDF (prompt 13)**: `/member/schema/pdf` route-handler rendert met **pdf-lib**
   (geen native deps, betrouwbaarder in Next dan @react-pdf/renderer) en streamt als download.
 - **Niet gebouwd (bewust)**: prompt 14 (i18n) — op verzoek overgeslagen.
+
+### Schema-toewijzing: levenscyclus, planning & meldingen
+
+Een Tenant Owner stelt schema's samen (bestaande `SchemaEditor`, drag-and-drop,
+multi-dag, eigen + standaardoefeningen) en wijst ze toe met een volledige
+**levenscyclus** en automatische, voorkeur-gerespecteerde meldingen.
+
+- **`AssignedWorkout` = lifecycle-model.** Velden: `status`
+  (`enum AssignmentStatus DRAFT | SCHEDULED | PUBLISHED | ARCHIVED`),
+  `availableFrom` (zichtbaarheidspoort — geplande publicatie), `startDate`/`endDate`
+  (trainingsperiode), `trainerMessage`, `publishedAt`, `assignedById`, `notifiedAt`
+  (idempotente meldingen), `seenAt` ("Nieuw"-indicator) en `sourceTemplateId`
+  (herkomst-library-template → owner-overzicht). Een lid kan **meerdere** toewijzingen
+  hebben; `getAssignedSchema` (lib/member.ts) kiest de **actieve**: PUBLISHED,
+  `availableFrom ≤ nu`, niet verlopen, meest recent. Concept/gepland blijven verborgen —
+  zuiver read-time (geen job nodig voor zichtbaarheid).
+- **Toewijs-flow** (`app/owner/schemas/actions.ts`): `assignSchemaChunk(sourceId, userIds[],
+  options)` is een **getypeerde, per-chunk** server-action (client batcht per 25 →
+  echte voortgangsbalk, schaalbaar voor duizenden). Modi: direct publiceren / concept /
+  inplannen (+ ingangs-/einddatum + persoonlijke boodschap). Bij publiceren wordt een vorig
+  actief schema **gearchiveerd** (`archivePriorActive`, behoudt historie) en gedetecteerd of
+  het een **reassign** is. Per-lid-acties: `assignFromTemplate`, `startEmptySchema`,
+  `publishAssignment`, `archiveAssignment`, `removeAssignment`. Kloon-helper
+  `cloneToAssignment` schrijft `sourceTemplateId` mee.
+- **Geplande publicatie** verloopt via **Vercel Cron** → `app/api/cron/publish-schemas`
+  (`vercel.json`, elke 5 min, Bearer `CRON_SECRET`). Publiceert due `SCHEDULED`-rijen,
+  archiveert vorige actieve, en stuurt de meldingen — hergebruikt bewust de volledige
+  TS-architectuur i.p.v. een los `.mjs`-script.
+- **Meldingen**: gedeelde **`lib/schema-notify.ts`** (`notifyAssignmentsPublished`) — in-app +
+  e-mail (bestaande `schemaAssignedMessage`, branded) + **web-push**, elk gegate op
+  `prefAllows(prefs, "schemas", kanaal)`. Idempotent via `notifiedAt`. Gebruikt door zowel de
+  action (direct) als de cron (gepland).
+- **Web-push** (nieuw): `lib/push.ts` (`sendPushToUser`, `vapidPublicKey`, `pushConfigured`;
+  ruimt 404/410-endpoints op), model **`PushSubscription`** (tenant-scoped + RLS), service
+  worker `public/sw.js`, subscribe-flow op `/account/meldingen` (`push-toggle.tsx` +
+  `app/account/push-actions.ts`). VAPID-sleutels via env (`VAPID_PUBLIC_KEY`/`_PRIVATE_KEY`/
+  `_SUBJECT`; `npx web-push generate-vapid-keys`). Zónder sleutels degradeert alles netjes.
+- **"Nieuw"-indicator (lid)**: badge + trainersboodschap op `/member/schema` en een
+  dashboard-alert op `/member` zolang `seenAt == null`. `markActiveSchemaSeen`
+  (app/member/schema/actions.ts) wordt op openen aangeroepen (`MarkSchemaSeen`).
+- **Owner-overzicht per schema**: `components/schema-assignment-overview.tsx` op de
+  template-pagina toont leden, status, publicatiedatum, periode, laatst gewijzigd, gezien +
+  aantal actief (`lib/schema-assignments.ts`). Statuslabels/kleuren centraal in
+  **`lib/schema-status.ts`** (`ASSIGNMENT_STATUS_META`, `isActiveNow`, datumhelpers).
+- **Audit** (lib/audit-actions.ts): `schema.reassign`, `schema.publish`, `schema.schedule`,
+  `schema.archive`, `schema.notify.sent`, `schema.email.sent` — alle onder categorie `schemas`.
+- **Bewust niet gebouwd**: lidmaatschapsgroepen (toewijs-flow is er wel op voorbereid via
+  multi-select; "filter op groep" volgt zodra een MemberGroup-model bestaat).
 
 ### Fase 3 (member-functionaliteit, prompts 08–10)
 

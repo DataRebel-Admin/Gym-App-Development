@@ -14,7 +14,15 @@ export async function requireMember() {
   return { ...session.user, tenantId: session.user.tenantId };
 }
 
-/** Het actief toegewezen schema van een lid (incl. dagen + oefeningen). */
+/**
+ * Het actief toegewezen schema van een lid (incl. dagen + oefeningen).
+ *
+ * Een lid kan meerdere toewijzingen hebben (concept/gepland/actief). Zichtbaar is
+ * alleen een PUBLISHED-toewijzing waarvan de beschikbaarheidspoort bereikt is
+ * (`availableFrom` ≤ nu) en die nog niet verlopen is (`endDate` ≥ nu). De meest
+ * recent gepubliceerde wint. Concept- en geplande schema's blijven verborgen —
+ * zuiver read-time, geen achtergrondjob nodig voor zichtbaarheid.
+ */
 export async function getAssignedSchema(memberId: string, tenantId: string) {
   const itemInclude = {
     orderBy: { order: "asc" },
@@ -28,8 +36,16 @@ export async function getAssignedSchema(memberId: string, tenantId: string) {
     },
   } as const;
 
+  const now = new Date();
   return prisma.assignedWorkout.findFirst({
-    where: { tenantId, userId: memberId },
+    where: {
+      tenantId,
+      userId: memberId,
+      status: "PUBLISHED",
+      OR: [{ availableFrom: null }, { availableFrom: { lte: now } }],
+      AND: [{ OR: [{ endDate: null }, { endDate: { gte: now } }] }],
+    },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     include: {
       template: {
         include: {

@@ -134,7 +134,7 @@ export function NotificationsForm({ initial }: { initial: Prefs | null }) {
           ))}
         </div>
         <p className="mt-2 text-xs text-neutral-400">
-          Push-meldingen zijn voorbereid voor de toekomstige mobiele app.
+          Pushmeldingen schakel je per apparaat in (zie hieronder).
         </p>
       </form>
     </div>

@@ -58,10 +58,18 @@ export default async function MachinePublicPage({
     session?.user?.role === "TENANT_MEMBER" && session.user.tenantId === tenant.id;
   let canAdd = false;
   if (isMember && machine.exercises.length > 0) {
-    const assignment = await prisma.assignedWorkout.findFirst({
-      where: { tenantId: tenant.id, userId: session!.user.id },
+    const now = new Date();
+    const active = await prisma.assignedWorkout.findFirst({
+      where: {
+        tenantId: tenant.id,
+        userId: session!.user.id,
+        status: "PUBLISHED",
+        OR: [{ availableFrom: null }, { availableFrom: { lte: now } }],
+        AND: [{ OR: [{ endDate: null }, { endDate: { gte: now } }] }],
+      },
+      select: { id: true },
     });
-    canAdd = Boolean(assignment);
+    canAdd = Boolean(active);
   }
 
   return (

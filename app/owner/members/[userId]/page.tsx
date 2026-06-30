@@ -68,12 +68,13 @@ export default async function MemberDetailPage({
   const status = deriveInviteStatus(member, invitation ?? undefined);
 
   const assignment = await prisma.assignedWorkout.findFirst({
-    where: { tenantId: owner.tenantId, userId: member.id },
+    where: { tenantId: owner.tenantId, userId: member.id, status: { not: "ARCHIVED" } },
+    orderBy: { createdAt: "desc" },
     include: { template: { select: { name: true } } },
   });
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <Link href="/owner/members" className="text-sm text-neutral-500 hover:text-neutral-900">
           ← Leden

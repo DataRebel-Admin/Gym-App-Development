@@ -43,6 +43,8 @@ export default async function MemberHome() {
     }),
   ]);
   const schema = assignment?.template;
+  const isNewSchema = assignment ? assignment.seenAt === null : false;
+  const trainerMessage = assignment?.trainerMessage?.trim() || null;
   const firstName = member.name?.split(" ")[0] ?? "sporter";
 
   const goalPct =
@@ -68,6 +70,29 @@ export default async function MemberHome() {
         </h1>
         <p className="mt-1 text-neutral-500">{motivation}</p>
       </RevealItem>
+
+      {/* Nieuw-schema-melding */}
+      {isNewSchema && schema ? (
+        <RevealItem>
+          <Link
+            href="/member/schema"
+            className="block rounded-3xl border border-accent/30 bg-accent-soft p-5 shadow-sm active:scale-[0.99]"
+          >
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-accent-foreground">
+              Nieuw
+            </span>
+            <p className="mt-2 font-display text-lg font-bold text-neutral-900">
+              Je trainer heeft een nieuw schema voor je klaargezet
+            </p>
+            <p className="mt-0.5 text-sm text-neutral-600">
+              {trainerMessage ?? `'${schema.name}' staat klaar — open het en begin je training.`}
+            </p>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent">
+              Bekijk schema <ChevronRight className="size-4" />
+            </span>
+          </Link>
+        </RevealItem>
+      ) : null}
 
       {/* Weekdoel + streak */}
       <RevealItem className="flex items-center gap-4 rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">

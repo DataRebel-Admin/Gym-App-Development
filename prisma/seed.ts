@@ -246,7 +246,17 @@ async function seedAssignment(
       name: source.name,
       description: source.description,
       isLibrary: false,
-      assignedWorkouts: { create: { tenantId: tenant.id, userId: member.id } },
+      assignedWorkouts: {
+        create: {
+          tenantId: tenant.id,
+          userId: member.id,
+          sourceTemplateId: source.id,
+          status: "PUBLISHED",
+          publishedAt: new Date(),
+          startDate: new Date(),
+          seenAt: new Date(), // demo: al gezien (geen permanente "Nieuw")
+        },
+      },
       items: {
         create: source.items.map((it) => ({
           tenantId: tenant.id,

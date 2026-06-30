@@ -32,7 +32,8 @@ DECLARE
     'AiUsage',
     'GroupClass',
     'ClassSession',
-    'ClassEnrollment'
+    'ClassEnrollment',
+    'PushSubscription'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

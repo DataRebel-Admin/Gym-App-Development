@@ -1,0 +1,152 @@
+import "server-only";
+import type { Role } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { audit } from "@/lib/audit";
+import { loadTenantBranding } from "@/lib/email/branding";
+import { schemaAssignedMessage } from "@/lib/email/messages";
+import { sendEmail } from "@/lib/email/send";
+import { sendPushToUser } from "@/lib/push";
+import { prefAllows, createInAppNotification } from "@/lib/notifications";
+
+type Actor = { id?: string | null; email?: string | null; role?: Role | null };
+
+const SYSTEM_ACTOR: Actor = { email: "systeem", role: null };
+
+/**
+ * Meld leden dat er een (nieuw) trainingsschema voor ze klaarstaat — over álle
+ * toegestane kanalen (in-app / e-mail / push), met respect voor de persoonlijke
+ * meldingsvoorkeuren (categorie "schemas").
+ *
+ * Gedeeld door de toewijs-action (direct publiceren) én de cron-route (geplande
+ * publicatie). Best-effort: een verzendfout mag de toewijzing nooit breken.
+ * Idempotent via `notifiedAt`: een al-gemelde toewijzing wordt overgeslagen.
+ *
+ * @returns aantal toewijzingen waarvoor (minstens één kanaal) gemeld is.
+ */
+export async function notifyAssignmentsPublished(opts: {
+  tenantId: string;
+  assignmentIds: string[];
+  /** Basis-URL voor links (request-host of AUTH_URL in de cron). */
+  origin: string;
+  actor?: Actor;
+}): Promise<number> {
+  const { tenantId, assignmentIds, origin } = opts;
+  const actor = opts.actor ?? SYSTEM_ACTOR;
+  if (assignmentIds.length === 0) return 0;
+
+  let branding;
+  let assignments;
+  try {
+    [branding, assignments] = await Promise.all([
+      loadTenantBranding(tenantId),
+      prisma.assignedWorkout.findMany({
+        where: {
+          id: { in: assignmentIds },
+          tenantId,
+          status: "PUBLISHED",
+          notifiedAt: null,
+        },
+        select: {
+          id: true,
+          trainerMessage: true,
+          template: { select: { name: true } },
+          user: {
+            select: { id: true, email: true, name: true, notificationPrefs: true, active: true },
+          },
+        },
+      }),
+    ]);
+  } catch (err) {
+    console.error("✗ Schema-meldingen ophalen mislukt:", (err as Error).message);
+    return 0;
+  }
+
+  const viewUrl = `${origin.replace(/\/$/, "")}/member/schema`;
+  let notified = 0;
+
+  for (const a of assignments) {
+    if (!a.user.active) continue;
+    const prefs = a.user.notificationPrefs;
+    const schemaName = a.template?.name ?? "Nieuw schema";
+    const intro = a.trainerMessage?.trim()
+      ? `${a.trainerMessage.trim()} — je traint nu met '${schemaName}'.`
+      : `Je trainer heeft '${schemaName}' voor je klaargezet.`;
+
+    const channels: string[] = [];
+
+    try {
+      if (prefAllows(prefs, "schemas", "inApp")) {
+        await createInAppNotification({
+          userId: a.user.id,
+          tenantId,
+          category: "schemas",
+          title: "Nieuw trainingsschema",
+          body: intro,
+          link: "/member/schema",
+        });
+        channels.push("inApp");
+      }
+
+      if (prefAllows(prefs, "schemas", "push")) {
+        const delivered = await sendPushToUser(a.user.id, {
+          title: "Nieuw trainingsschema",
+          body: "Er staat een nieuw trainingsschema voor je klaar.",
+          url: "/member/schema",
+          tag: "schema-assigned",
+        });
+        if (delivered > 0) channels.push("push");
+      }
+
+      let emailed = false;
+      if (prefAllows(prefs, "schemas", "email")) {
+        await sendEmail({
+          to: a.user.email,
+          message: await schemaAssignedMessage({
+            branding,
+            recipientName: a.user.name,
+            schemaName,
+            viewUrl,
+          }),
+          devLink: viewUrl,
+        });
+        emailed = true;
+        channels.push("email");
+      }
+
+      await prisma.assignedWorkout.update({
+        where: { id: a.id },
+        data: { notifiedAt: new Date() },
+      });
+      notified += 1;
+
+      // Audit: notificatie verzonden (in-app/push) + e-mail verzonden — apart,
+      // zoals de feature-eisen vragen.
+      if (channels.some((c) => c !== "email")) {
+        await audit("schema.notify.sent", {
+          actor,
+          tenantId,
+          targetType: "User",
+          targetId: a.user.id,
+          metadata: {
+            name: schemaName,
+            channels: channels.filter((c) => c !== "email"),
+            member: a.user.name ?? a.user.email,
+          },
+        });
+      }
+      if (emailed) {
+        await audit("schema.email.sent", {
+          actor,
+          tenantId,
+          targetType: "User",
+          targetId: a.user.id,
+          metadata: { name: schemaName, to: a.user.email, kind: "schemaAssigned" },
+        });
+      }
+    } catch (err) {
+      console.error("✗ Schema-melding mislukt:", (err as Error).message);
+    }
+  }
+
+  return notified;
+}

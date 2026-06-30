@@ -6,7 +6,9 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { deleteTemplate, duplicateTemplate } from "../../actions";
-import { AssignMembersForm } from "./assign-members";
+import { SchemaAssignPanel } from "@/components/schema-assign-panel";
+import { SchemaAssignmentOverview } from "@/components/schema-assignment-overview";
+import { getAssignmentsForTemplate } from "@/lib/schema-assignments";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 
 export async function generateMetadata({
@@ -59,10 +61,12 @@ export default async function TemplateEditPage({
   }));
 
   const members = await prisma.user.findMany({
-    where: { tenantId: owner.tenantId, role: "TENANT_MEMBER", archivedAt: null },
+    where: { tenantId: owner.tenantId, role: "TENANT_MEMBER", archivedAt: null, active: true },
     orderBy: { name: "asc" },
     select: { id: true, name: true, email: true },
   });
+
+  const assignments = await getAssignmentsForTemplate(owner.tenantId, template.id);
 
   const initialDays: EditorDay[] = template.days.map((d) => ({
     key: d.id,
@@ -97,8 +101,25 @@ export default async function TemplateEditPage({
       />
 
       <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">Toewijzen aan leden</h2>
-        <AssignMembersForm templateId={template.id} members={members} />
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Toewijzen aan leden</h2>
+          <p className="text-sm text-neutral-500">
+            Zoek en selecteer leden, kies wanneer het schema beschikbaar wordt en voeg
+            een persoonlijke boodschap toe. Leden krijgen automatisch een melding via
+            hun voorkeurskanalen.
+          </p>
+        </div>
+        <SchemaAssignPanel templateId={template.id} members={members} />
+      </section>
+
+      <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Toewijzingen</h2>
+          <p className="text-sm text-neutral-500">
+            Wie heeft dit schema, met welke status en sinds wanneer.
+          </p>
+        </div>
+        <SchemaAssignmentOverview rows={assignments} />
       </section>
 
       <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">

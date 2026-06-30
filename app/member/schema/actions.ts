@@ -4,15 +4,38 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireMember } from "@/lib/member";
+import { requireMember, getAssignedSchema } from "@/lib/member";
+
+/**
+ * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
+ * Idempotent: zet `seenAt` alleen als die nog leeg is. Faalt nooit hard.
+ */
+export async function markActiveSchemaSeen(): Promise<void> {
+  try {
+    const member = await requireMember();
+    const now = new Date();
+    await prisma.assignedWorkout.updateMany({
+      where: {
+        tenantId: member.tenantId,
+        userId: member.id,
+        status: "PUBLISHED",
+        seenAt: null,
+        OR: [{ availableFrom: null }, { availableFrom: { lte: now } }],
+      },
+      data: { seenAt: now },
+    });
+    revalidatePath("/member");
+    revalidatePath("/member/schema");
+  } catch {
+    // stil falen — de indicator is cosmetisch
+  }
+}
 
 /** Start (of hervat) een trainingssessie en ga naar de actieve-sessie-pagina. */
 export async function startSession() {
   const member = await requireMember();
 
-  const assignment = await prisma.assignedWorkout.findFirst({
-    where: { tenantId: member.tenantId, userId: member.id },
-  });
+  const assignment = await getAssignedSchema(member.id, member.tenantId);
   if (!assignment) redirect("/member/schema");
 
   const open = await prisma.workoutSession.findFirst({

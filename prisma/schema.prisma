@@ -58,6 +58,16 @@ enum Gender {
   ONBEKEND
 }
 
+// Levenscyclus van een aan een lid toegewezen schema. Een lid kan meerdere
+// toewijzingen hebben (bv. een actief schema + een gepland toekomstig schema);
+// het lid ziet er telkens precies één — zie lib/member.ts (getAssignedSchema).
+enum AssignmentStatus {
+  DRAFT // concept — nog niet zichtbaar voor het lid
+  SCHEDULED // gepland — wordt zichtbaar zodra availableFrom is bereikt
+  PUBLISHED // live — zichtbaar voor het lid
+  ARCHIVED // niet meer actief (handmatig of na einddatum)
+}
+
 model Tenant {
   id          String   @id @default(cuid())
   slug        String   @unique // subdomein, bv. "fitpower"
@@ -101,6 +111,7 @@ model Tenant {
   classSessions     ClassSession[]
   classEnrollments  ClassEnrollment[]
   notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 }
 
 // In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een
@@ -235,6 +246,7 @@ model User {
   authSessions     Session[] // Auth.js DB-sessies (we gebruiken jwt, maar model vereist)
   userSessions     UserSession[] // device/sessie-registratie
   notifications    Notification[]
+  pushSubscriptions PushSubscription[]
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
@@ -550,13 +562,48 @@ model AssignedWorkout {
   id         String   @id @default(cuid())
   tenantId   String
   userId     String // MEMBER aan wie het schema is toegewezen
-  templateId String? // nullable wanneer handmatig gebouwd
+  templateId String? // lid-specifieke kloon (nullable wanneer handmatig gebouwd)
+  sourceTemplateId String? // herkomst-library-template (voor het owner-overzicht)
   customName String? // naam bij handmatig opgebouwd schema
   createdAt  DateTime @default(now())
+
+  // --- Levenscyclus / planning ---
+  status        AssignmentStatus @default(PUBLISHED)
+  availableFrom DateTime? // zichtbaarheidspoort; null/verleden = nu zichtbaar
+  startDate     DateTime? // ingangsdatum (informatief)
+  endDate       DateTime? // einddatum (optioneel; verlopen = niet meer actief)
+  trainerMessage String? // persoonlijke boodschap van de trainer
+  publishedAt   DateTime? // moment van publiceren
+  assignedById  String? // User.id van de toewijzende owner/admin
+  notifiedAt    DateTime? // meldingen verstuurd (voorkomt dubbele meldingen)
+  seenAt        DateTime? // lid heeft het schema voor het eerst geopend ("Nieuw")
 
   tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   template WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([tenantId, userId, status])
+  @@index([status, availableFrom])
+  @@index([sourceTemplateId])
+}
+
+// Web-push-abonnement van één gebruiker/apparaat (PushSubscription API). Tenant-
+// scoped (RLS); een lid kan meerdere apparaten registreren. Verlopen endpoints
+// (410/404 bij verzenden) worden opgeruimd in lib/push.ts.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([userId])
