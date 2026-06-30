@@ -112,6 +112,9 @@ model Tenant {
   classEnrollments  ClassEnrollment[]
   notifications     Notification[]
   pushSubscriptions PushSubscription[]
+  measurements      Measurement[]
+  measurementPhotos MeasurementPhoto[]
+  memberGoals       MemberGoal[]
 }
 
 // In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een
@@ -134,6 +137,117 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, createdAt])
   @@index([tenantId])
+}
+
+// --- Body Composition & Progress Tracking ---
+
+// Herkomst van een meting. MANUAL = handmatig; de rest is integratie-prep
+// (device-sync), nog niet actief — zie Measurement.externalId/raw.
+enum MeasurementSource {
+  MANUAL
+  INBODY
+  TANITA
+  EVOLT
+  GARMIN
+  APPLE_HEALTH
+  GOOGLE_FIT
+}
+
+enum PhotoPose {
+  FRONT
+  SIDE
+  BACK
+}
+
+enum GoalMetric {
+  WEIGHT
+  BODY_FAT
+  MUSCLE_MASS
+  BMI
+  WAIST
+}
+
+// Eén lichaamsmeting op een moment. Historisch — nooit overschrijven. Velden
+// nullable zodat een trainer alleen invult wat de weegschaal levert. `extra`
+// (Json) houdt de structuur uitbreidbaar voor toekomstige meetwaarden.
+model Measurement {
+  id           String            @id @default(cuid())
+  tenantId     String
+  userId       String // het lid
+  recordedById String? // trainer/owner die de meting invoerde
+  measuredAt   DateTime
+  notes        String?
+  source       MeasurementSource @default(MANUAL)
+  externalId   String? // integratie-prep: device-record-id
+  raw          Json? // integratie-prep: ruwe device-payload
+  // Lichaamssamenstelling
+  weightKg     Float?
+  bodyFatPct   Float?
+  muscleMassKg Float?
+  fatMassKg    Float?
+  bmi          Float?
+  waterPct     Float?
+  boneMassKg   Float?
+  visceralFat  Float?
+  bmr          Int?
+  metabolicAge Int?
+  // Omtrek (cm)
+  chestCm      Float?
+  waistCm      Float?
+  hipsCm       Float?
+  neckCm       Float?
+  armLeftCm    Float?
+  armRightCm   Float?
+  thighLeftCm  Float?
+  thighRightCm Float?
+  calfLeftCm   Float?
+  calfRightCm  Float?
+  extra        Json? // extra/toekomstige meetwaarden
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  tenant Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User               @relation("MemberMeasurements", fields: [userId], references: [id], onDelete: Cascade)
+  photos MeasurementPhoto[]
+
+  @@index([tenantId])
+  @@index([userId, measuredAt])
+}
+
+model MeasurementPhoto {
+  id            String    @id @default(cuid())
+  tenantId      String
+  measurementId String
+  pose          PhotoPose
+  url           String
+  createdAt     DateTime  @default(now())
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  measurement Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([measurementId])
+}
+
+// Persoonlijk doel per metric, ingesteld door de trainer. Historisch (meerdere
+// mogen bestaan); de app toont het meest recente actieve doel per metric.
+model MemberGoal {
+  id          String     @id @default(cuid())
+  tenantId    String
+  userId      String
+  metric      GoalMetric
+  startValue  Float?
+  targetValue Float
+  targetDate  DateTime?
+  createdById String?
+  achievedAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation("MemberGoals", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId, metric])
 }
 
 // Eén rij per AI-assistent-vraag — voor rate-limiting (per lid/dag) en
@@ -247,6 +361,8 @@ model User {
   userSessions     UserSession[] // device/sessie-registratie
   notifications    Notification[]
   pushSubscriptions PushSubscription[]
+  measurements     Measurement[] @relation("MemberMeasurements")
+  goals            MemberGoal[]  @relation("MemberGoals")
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.

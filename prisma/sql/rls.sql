@@ -33,7 +33,10 @@ DECLARE
     'GroupClass',
     'ClassSession',
     'ClassEnrollment',
-    'PushSubscription'
+    'PushSubscription',
+    'Measurement',
+    'MeasurementPhoto',
+    'MemberGoal'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

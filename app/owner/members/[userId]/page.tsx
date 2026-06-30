@@ -6,6 +6,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
 import { deriveInviteStatus, INVITE_STATUS_LABEL, type InviteStatus } from "@/lib/members";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { MemberProfileTabs } from "@/components/members/profile-tabs";
 import { MemberEditForm } from "./member-edit-form";
 
 const STATUS_TONE: Record<InviteStatus, BadgeTone> = {
@@ -85,6 +86,8 @@ export default async function MemberDetailPage({
         </h1>
         <p className="mt-1 text-sm text-neutral-500">{member.email}</p>
       </div>
+
+      <MemberProfileTabs userId={member.id} active="profiel" />
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">Gegevens</h2>

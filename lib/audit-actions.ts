@@ -13,6 +13,7 @@ export type AuditCategory =
   | "schemas"
   | "exercises"
   | "machines"
+  | "measurements"
   | "tenant"
   | "email"
   | "auth";
@@ -41,6 +42,7 @@ export const CATEGORY_META: Record<
   schemas: { label: "Schema's", icon: "📋", tone: "success" },
   exercises: { label: "Oefeningen", icon: "🏋️", tone: "warning" },
   machines: { label: "Machines", icon: "⚙️", tone: "neutral" },
+  measurements: { label: "Metingen", icon: "📏", tone: "accent" },
   tenant: { label: "Tenant", icon: "🏢", tone: "neutral" },
   email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
@@ -58,6 +60,9 @@ export function categoryFromAction(action: string): AuditCategory {
       return "exercises";
     case "machine":
       return "machines";
+    case "measurement":
+    case "goal":
+      return "measurements";
     case "auth":
       return "auth";
     case "email":
@@ -267,6 +272,35 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "machines", label: "Machine verwijderd", icon: "🗑️", tone: "danger",
     sentence: ({ actor, meta }) =>
       `${actor} heeft machine ${s(meta, "name") ?? ""} verwijderd`.trim(),
+  },
+
+  // --- Metingen (Body Composition) ---
+  "measurement.add": {
+    category: "measurements", label: "Meting toegevoegd", icon: "📏", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een meting toegevoegd${s(meta, "member") ? ` voor ${s(meta, "member")}` : ""}`,
+  },
+  "measurement.update": {
+    category: "measurements", label: "Meting gewijzigd", icon: "✏️", tone: "accent",
+    sentence: ({ actor }) => `${actor} heeft een meting gewijzigd`,
+  },
+  "measurement.remove": {
+    category: "measurements", label: "Meting verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor }) => `${actor} heeft een meting verwijderd`,
+  },
+  "measurement.report.export": {
+    category: "measurements", label: "Voortgangsrapport geëxporteerd", icon: "📄", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een voortgangsrapport geëxporteerd${s(meta, "member") ? ` van ${s(meta, "member")}` : ""}`,
+  },
+  "goal.set": {
+    category: "measurements", label: "Doel ingesteld", icon: "🎯", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een doel ingesteld${s(meta, "metric") ? ` (${s(meta, "metric")})` : ""}`,
+  },
+  "goal.remove": {
+    category: "measurements", label: "Doel verwijderd", icon: "✖️", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft een doel verwijderd`,
   },
 
   // --- Tenant / instellingen ---
