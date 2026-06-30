@@ -111,7 +111,7 @@ export default async function OwnerExercisesPage({
         <FilterSelect label="Doelspier" name="target" value={sp.target} options={targets.map((t) => t.target)} />
         <button
           type="submit"
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white active:opacity-90"
+          className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent active:opacity-90"
         >
           Filter
         </button>

@@ -136,7 +136,7 @@ export function ActiveSession({
         <input type="hidden" name="sessionId" value={sessionId} />
         <button
           type="submit"
-          className="w-full rounded-2xl bg-neutral-900 px-6 py-5 text-center text-lg font-semibold text-white active:opacity-90"
+          className="w-full rounded-2xl bg-foreground px-6 py-5 text-center text-lg font-semibold text-background active:opacity-90"
         >
           Klaar
         </button>

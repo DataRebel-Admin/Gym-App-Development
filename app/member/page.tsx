@@ -46,7 +46,7 @@ export default async function MemberHome() {
       <RevealItem>
         <Link
           href="/member/schema"
-          className="flex items-center justify-center rounded-2xl bg-neutral-900 px-6 py-5 text-center text-xl font-bold text-white shadow-md transition-transform active:scale-[0.98]"
+          className="flex items-center justify-center rounded-2xl bg-foreground px-6 py-5 text-center text-xl font-bold text-background shadow-md transition-transform active:scale-[0.98]"
         >
           Start training
         </Link>

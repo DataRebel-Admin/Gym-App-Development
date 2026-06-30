@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { TopNav, type TopNavLink } from "@/components/nav/top-nav";
 import { UserMenu } from "@/components/nav/user-menu";
 import { PageTransition } from "@/components/motion/page-transition";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const LINKS: TopNavLink[] = [
   { href: "/admin", label: "Dashboard", iconPath: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" },
@@ -35,17 +36,20 @@ export default async function AdminLayout({
               </span>
               <span className="hidden sm:inline">
                 GymRebel
-                <span className="ml-1.5 rounded-md bg-neutral-900 px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-white">
+                <span className="ml-1.5 rounded-md bg-accent px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
                   Platform
                 </span>
               </span>
             </Link>
             <TopNav links={LINKS} rootHref="/admin" layoutId="admin-nav-active" />
           </div>
-          <UserMenu
-            name={session.user.name ?? null}
-            email={session.user.email ?? null}
-          />
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
+            <UserMenu
+              name={session.user.name ?? null}
+              email={session.user.email ?? null}
+            />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1">

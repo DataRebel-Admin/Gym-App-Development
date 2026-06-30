@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ProgressRing } from "@/components/ui/progress-ring";
 
 export type ChecklistItem = {
   id: string;
@@ -32,12 +33,28 @@ export function SchemaChecklist({
     days && days.length > 0 ? days : [{ name: "", items: items ?? [] }];
   const allItems = groups.flatMap((g) => g.items);
   const completed = allItems.filter((i) => done[i.id]).length;
+  const pct = allItems.length > 0 ? Math.round((completed / allItems.length) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-sm text-neutral-500">
-        {completed}/{allItems.length} afgevinkt
-      </p>
+      <div className="flex items-center gap-4 rounded-2xl border border-border bg-surface-1 p-4 shadow-sm">
+        <ProgressRing
+          value={pct}
+          size={88}
+          strokeWidth={9}
+          label={`${pct}%`}
+        />
+        <div>
+          <p className="font-display text-lg font-bold text-neutral-900">
+            {completed === allItems.length && allItems.length > 0
+              ? "Helemaal klaar! 💪"
+              : "Jouw voortgang"}
+          </p>
+          <p className="text-sm text-neutral-500">
+            {completed}/{allItems.length} oefeningen afgevinkt
+          </p>
+        </div>
+      </div>
       {groups.map((group, gi) => (
         <div key={gi} className="flex flex-col gap-2">
           {group.name ? (
@@ -53,8 +70,8 @@ export function SchemaChecklist({
                 onClick={() => toggle(it.id)}
                 className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
                   isDone
-                    ? "border-neutral-200 bg-neutral-50"
-                    : "border-neutral-200 bg-white"
+                    ? "border-border bg-neutral-100"
+                    : "border-border bg-surface-1"
                 }`}
               >
                 <span

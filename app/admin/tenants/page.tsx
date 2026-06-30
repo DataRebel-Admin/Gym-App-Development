@@ -1,6 +1,16 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
+import { Badge } from "@/components/ui/badge";
+import {
+  TableWrap,
+  Table,
+  Thead,
+  Th,
+  Tbody,
+  Tr,
+  Td,
+} from "@/components/ui/table";
 
 export default async function TenantsPage() {
   await requireSuperadmin();
@@ -26,7 +36,7 @@ export default async function TenantsPage() {
         </h1>
         <Link
           href="/admin/tenants/new"
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent"
         >
           + Nieuwe tenant
         </Link>
@@ -35,55 +45,49 @@ export default async function TenantsPage() {
       {tenants.length === 0 ? (
         <p className="text-sm text-neutral-500">Nog geen tenants.</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-neutral-200">
-          <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-left text-neutral-500">
+        <TableWrap>
+          <Table>
+            <Thead>
               <tr>
-                <th className="px-4 py-3 font-medium">Naam</th>
-                <th className="px-4 py-3 font-medium">Slug</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Gebruikers</th>
-                <th className="px-4 py-3" />
+                <Th>Naam</Th>
+                <Th>Slug</Th>
+                <Th>Status</Th>
+                <Th>Gebruikers</Th>
+                <Th className="text-right" />
               </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
+            </Thead>
+            <Tbody>
               {tenants.map((t) => (
-                <tr key={t.id} className="hover:bg-neutral-50">
-                  <td className="px-4 py-3">
+                <Tr key={t.id}>
+                  <Td>
                     <span className="flex items-center gap-2">
                       <span
-                        className="inline-block h-3 w-3 rounded-full"
+                        className="inline-block size-3 rounded-full ring-1 ring-inset ring-black/10"
                         style={{ backgroundColor: t.accentColor ?? "#d4d4d4" }}
                       />
                       <span className="font-medium text-neutral-900">{t.name}</span>
                     </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-500">{t.slug}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        t.status === "ACTIVE"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-neutral-200 text-neutral-600"
-                      }`}
-                    >
+                  </Td>
+                  <Td className="font-mono text-xs text-neutral-500">{t.slug}</Td>
+                  <Td>
+                    <Badge tone={t.status === "ACTIVE" ? "success" : "neutral"}>
                       {t.status === "ACTIVE" ? "Actief" : "Inactief"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-neutral-700">{t._count.users}</td>
-                  <td className="px-4 py-3 text-right">
+                    </Badge>
+                  </Td>
+                  <Td className="text-neutral-500">{t._count.users}</Td>
+                  <Td className="text-right">
                     <Link
                       href={`/admin/tenants/${t.id}`}
-                      className="text-sm font-medium text-neutral-900 hover:underline"
+                      className="text-sm font-medium text-accent hover:underline"
                     >
                       Beheren →
                     </Link>
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </Tbody>
+          </Table>
+        </TableWrap>
       )}
     </div>
   );

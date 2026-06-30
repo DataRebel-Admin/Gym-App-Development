@@ -1,6 +1,16 @@
 import Link from "next/link";
 import { requireOwner } from "@/lib/owner";
 import { getMachineInsights } from "@/lib/insights";
+import { SectionHeading } from "@/components/ui/section-heading";
+import {
+  TableWrap,
+  Table,
+  Thead,
+  Th,
+  Tbody,
+  Tr,
+  Td,
+} from "@/components/ui/table";
 
 const PERIODS = [7, 30, 90] as const;
 type Period = (typeof PERIODS)[number];
@@ -36,63 +46,59 @@ export default async function InsightsPage({
 
   return (
     <div className="flex flex-col gap-6 px-6 py-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <Link href="/owner" className="text-sm text-neutral-500 hover:text-neutral-900">
-            ← Dashboard
-          </Link>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-            Inzichten
-          </h1>
-        </div>
-        <div className="flex gap-1 rounded-lg border border-neutral-200 p-1 text-sm">
-          {PERIODS.map((p) => (
-            <Link
-              key={p}
-              href={`/owner/insights?period=${p}`}
-              className={`rounded-md px-3 py-1 ${
-                p === period
-                  ? "bg-accent text-accent-foreground"
-                  : "text-neutral-600 hover:bg-neutral-50"
-              }`}
-            >
-              {p} dagen
-            </Link>
-          ))}
-        </div>
-      </div>
+      <SectionHeading
+        title="Inzichten"
+        description="Machinegebruik en trends over de gekozen periode."
+        action={
+          <div className="flex gap-1 rounded-xl border border-border bg-surface-0 p-1 text-sm">
+            {PERIODS.map((p) => (
+              <Link
+                key={p}
+                href={`/owner/insights?period=${p}`}
+                className={`rounded-lg px-3 py-1 font-medium transition-colors ${
+                  p === period
+                    ? "bg-surface-1 text-neutral-900 shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-900"
+                }`}
+              >
+                {p} dagen
+              </Link>
+            ))}
+          </div>
+        }
+      />
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-neutral-50 text-neutral-500">
+      <TableWrap>
+        <Table>
+          <Thead>
             <tr>
-              <th className="px-4 py-2 font-medium">Machine</th>
-              <th className="px-4 py-2 font-medium">Sessies</th>
-              <th className="px-4 py-2 font-medium">Totaal reps</th>
-              <th className="px-4 py-2 font-medium">Trend</th>
+              <Th>Machine</Th>
+              <Th>Sessies</Th>
+              <Th>Totaal reps</Th>
+              <Th>Trend</Th>
             </tr>
-          </thead>
-          <tbody>
+          </Thead>
+          <Tbody>
             {rows.map((r) => (
-              <tr key={r.name} className="border-t border-neutral-100">
-                <td className="px-4 py-2 font-medium text-neutral-900">{r.name}</td>
-                <td className="px-4 py-2 text-neutral-700">{r.sessions}</td>
-                <td className="px-4 py-2 text-neutral-700">{r.totalReps}</td>
-                <td className="px-4 py-2">
+              <Tr key={r.name}>
+                <Td className="font-medium">{r.name}</Td>
+                <Td className="text-neutral-500">{r.sessions}</Td>
+                <Td className="text-neutral-500">{r.totalReps}</Td>
+                <Td>
                   <Trend pct={r.trendPct} />
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
             {rows.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-neutral-500">
+              <Tr>
+                <Td colSpan={4} className="py-8 text-center text-neutral-500">
                   Geen machines.
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ) : null}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+        </Table>
+      </TableWrap>
       <p className="text-xs text-neutral-500">
         Trend vergelijkt de gekozen periode met de voorgaande periode van gelijke
         lengte. Cijfers verversen elke 5 minuten.

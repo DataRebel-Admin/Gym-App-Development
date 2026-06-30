@@ -51,7 +51,7 @@ export default async function AdminDashboard() {
       <div className="flex gap-3">
         <Link
           href="/admin/tenants"
-          className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent"
         >
           Tenants beheren
         </Link>
