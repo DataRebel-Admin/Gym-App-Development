@@ -25,6 +25,39 @@ export async function uploadMachineImage(
   return blob.url;
 }
 
+/** Maximale grootte van een oefening-afbeelding (5 MB). */
+export const EXERCISE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Upload één afbeelding van een eigen oefening. Met Vercel Blob → publieke URL;
+ * zonder token (lokaal) → een data-URL zodat afbeeldingen ook lokaal werken.
+ * Geeft null terug bij ongeldige/te grote/lege invoer (caller filtert die eruit).
+ */
+export async function uploadExerciseImage(
+  file: File | null,
+  tenantSlug: string
+): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+  if (!file.type.startsWith("image/")) return null;
+  if (file.size > EXERCISE_IMAGE_MAX_BYTES) return null;
+
+  try {
+    if (blobConfigured()) {
+      const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+      const key = `${tenantSlug}/exercises/${randomUUID()}.${ext}`;
+      const blob = await put(key, file, { access: "public" });
+      return blob.url;
+    }
+
+    // Lokale fallback zonder Blob-token: base64 data-URL.
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const mime = file.type || "image/jpeg";
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Maximale grootte van een logo/favicon (2 MB). */
 export const TENANT_ASSET_MAX_BYTES = 2 * 1024 * 1024;
 

@@ -46,11 +46,17 @@ export default async function TemplateEditPage({
   });
   if (!template) notFound();
 
-  const exercises = await prisma.exercise.findMany({
-    where: { tenantId: owner.tenantId },
+  const exerciseRows = await prisma.exercise.findMany({
+    where: { tenantId: owner.tenantId, archivedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, targetMuscle: true },
+    select: { id: true, name: true, targetMuscle: true, catalogId: true },
   });
+  const exercises = exerciseRows.map((e) => ({
+    id: e.id,
+    name: e.name,
+    targetMuscle: e.targetMuscle,
+    source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
+  }));
 
   const members = await prisma.user.findMany({
     where: { tenantId: owner.tenantId, role: "TENANT_MEMBER", archivedAt: null },

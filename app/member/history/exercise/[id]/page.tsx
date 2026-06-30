@@ -51,8 +51,15 @@ export default async function ExerciseProgressPage({
       description: null,
       imageUrl: null,
       gifUrl: null,
+      images: [],
+      videoUrl: null,
       steps: [],
       instructionsText: null,
+      executionMd: null,
+      coachingTipsMd: null,
+      commonMistakesMd: null,
+      notesMd: null,
+      tags: [],
       primaryMuscle: null,
       secondaryMuscles: [],
       equipment: null,
@@ -61,6 +68,7 @@ export default async function ExerciseProgressPage({
       difficulty: "Gemiddeld" as const,
       instructionLang: null,
       fromCatalog: false,
+      source: "standaard" as const,
     });
 
   const progressSlot = (

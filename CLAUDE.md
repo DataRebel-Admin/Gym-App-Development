@@ -191,6 +191,22 @@ meertalige instructies) is dé bron van waarheid voor oefening-content. Media st
 - **Vertaalstand**: nl-instructies zijn deels gevuld; Azure **F0** throttelt te hard voor
   de volledige set. Afmaken: Translator-tier **S1** + `npm run data:import` (hervat).
 - **Licentie**: dataset-media is **non-commercieel** — vervangen vóór commercieel gebruik.
+- **Eigen oefeningen (tenant-specifiek)**: een eigen oefening = tenant-`Exercise` met
+  `catalogId == null` + ingevulde eigen-content-velden op datzelfde model (géén apart model):
+  `description`/`targetMuscle` (bestonden al), `muscleGroups[]`, `category`, `difficulty`
+  (enum `ExerciseDifficulty`), `equipment`, `tags[]`, `executionMd`/`coachingTipsMd`/
+  `commonMistakesMd`/`notesMd` (Markdown), `imageUrls[]`, `videoUrl`, `archivedAt`. Bij
+  catalogus-gekoppelde oefeningen blijven die NULL (catalogus is bron). `getExerciseDetail`
+  (lib/exercise.ts) merget: bij `catalog == null` zijn de eigen velden de bron, anders de
+  catalogus (+ `source: "standaard" | "eigen"`). Owner beheert ze op `/owner/exercises?tab=eigen`
+  (toevoegen/bewerken/dupliceren/archiveren/verwijderen — verwijderen geblokkeerd zodra de
+  oefening in een schema/historie zit → archiveren). Rich-text = gedeelde
+  `components/ui/markdown-field.tsx` (textarea + live preview, ook in machine-form).
+  Media-upload via `uploadExerciseImage` (lib/blob.ts), video-embed via `lib/video.ts`
+  (`toEmbedUrl`, YouTube/Vimeo). Schema-editor toont een **Standaard/Eigen**-badge
+  (`AvailableExercise.source`); gearchiveerde oefeningen vallen uit de pickers
+  (`archivedAt: null`). Volledig tenant-geïsoleerd (bestaande `tenantId` + RLS). Alle mutaties
+  geaudit (`exercise.add/update/duplicate/archive/unarchive/remove`).
 
 ### Superadmin + RBAC (platform-laag)
 

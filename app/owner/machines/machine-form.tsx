@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import Markdown from "react-markdown";
+import { useActionState } from "react";
 import { saveMachine, type MachineFormState } from "./actions";
 import { MACHINE_TYPES, MACHINE_TYPE_LABELS } from "@/lib/machine";
+import { MarkdownField } from "@/components/ui/markdown-field";
 
 export type MachineFormData = {
   id: string;
@@ -29,7 +29,6 @@ export function MachineForm({
     saveMachine,
     {}
   );
-  const [instructions, setInstructions] = useState(machine?.instructionsMd ?? "");
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-5">
@@ -71,27 +70,13 @@ export function MachineForm({
         />
       </label>
 
-      <div className="flex flex-col gap-1 text-sm text-neutral-700">
-        Instructie (Markdown)
-        <textarea
-          name="instructionsMd"
-          rows={6}
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          className={`${inputClass} font-mono`}
-          placeholder="## Gebruik&#10;1. Stel de machine af…"
-        />
-        {instructions.trim() ? (
-          <div className="mt-2 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-            <p className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
-              Voorbeeld
-            </p>
-            <div className="prose prose-sm prose-neutral max-w-none [&_h2]:mt-0 [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
-              <Markdown>{instructions}</Markdown>
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <MarkdownField
+        name="instructionsMd"
+        label="Instructie (Markdown)"
+        defaultValue={machine?.instructionsMd ?? ""}
+        rows={6}
+        placeholder="## Gebruik&#10;1. Stel de machine af…"
+      />
 
       <label className="flex flex-col gap-1 text-sm text-neutral-700">
         Video-URL (optioneel)

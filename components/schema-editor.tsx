@@ -39,13 +39,30 @@ export type AvailableExercise = {
   id: string;
   name: string;
   targetMuscle: string | null;
+  /** Herkomst: "standaard" (catalogus) of "eigen" (tenant-oefening). */
+  source: "standaard" | "eigen";
 };
 
 const numClass =
   "w-14 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent";
 
+/** Kleine herkomst-badge: Standaard (catalogus) of Eigen (tenant-oefening). */
+function SourceBadge({ source }: { source: "standaard" | "eigen" }) {
+  const eigen = source === "eigen";
+  return (
+    <span
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+        eigen ? "bg-accent-soft text-accent" : "bg-neutral-100 text-neutral-500"
+      }`}
+    >
+      {eigen ? "Eigen" : "Standaard"}
+    </span>
+  );
+}
+
 function SortableRow({
   item,
+  source,
   dayKeys,
   currentDayKey,
   onChange,
@@ -53,6 +70,7 @@ function SortableRow({
   onCopyTo,
 }: {
   item: EditorItem;
+  source?: "standaard" | "eigen";
   dayKeys: { key: string; name: string }[];
   currentDayKey: string;
   onChange: (key: string, patch: Partial<EditorItem>) => void;
@@ -75,7 +93,10 @@ function SortableRow({
         <button type="button" className="cursor-grab text-neutral-400 hover:text-neutral-700" aria-label="Versleep" {...attributes} {...listeners}>
           ⠿
         </button>
-        <span className="flex-1 text-sm font-medium text-neutral-900">{item.exerciseName}</span>
+        <span className="flex flex-1 items-center gap-2 text-sm font-medium text-neutral-900">
+          {source ? <SourceBadge source={source} /> : null}
+          <span className="truncate">{item.exerciseName}</span>
+        </span>
         <label className="flex items-center gap-1 text-xs text-neutral-500">sets
           <input type="number" min={1} value={item.sets} onChange={(e) => onChange(item.key, { sets: Number(e.target.value) })} className={numClass} />
         </label>
@@ -142,6 +163,11 @@ function DayCard({
   const sensors = useSensors(useSensor(PointerSensor));
   const [query, setQuery] = useState("");
 
+  const sourceById = useMemo(
+    () => new Map(availableExercises.map((e) => [e.id, e.source])),
+    [availableExercises]
+  );
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -171,6 +197,7 @@ function DayCard({
               <SortableRow
                 key={it.key}
                 item={it}
+                source={sourceById.get(it.exerciseId)}
                 dayKeys={dayKeys}
                 currentDayKey={day.key}
                 onChange={(k, p) => onItemChange(day.key, k, p)}
@@ -200,10 +227,13 @@ function DayCard({
                 <button
                   type="button"
                   onClick={() => { onAdd(day.key, e); setQuery(""); }}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-neutral-50"
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-neutral-50"
                 >
-                  <span className="font-medium text-neutral-900">{e.name}</span>
-                  {e.targetMuscle ? <span className="text-xs text-neutral-400">{e.targetMuscle}</span> : null}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <SourceBadge source={e.source} />
+                    <span className="truncate font-medium text-neutral-900">{e.name}</span>
+                  </span>
+                  {e.targetMuscle ? <span className="shrink-0 text-xs text-neutral-400">{e.targetMuscle}</span> : null}
                 </button>
               </li>
             ))}

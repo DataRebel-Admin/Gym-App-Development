@@ -57,27 +57,45 @@ function pickLang<T>(
   return null;
 }
 
+const DIFFICULTY_LABEL: Record<string, Difficulty> = {
+  BEGINNER: "Beginner",
+  GEMIDDELD: "Gemiddeld",
+  GEVORDERD: "Gevorderd",
+};
+
 export type ExerciseDetail = {
   id: string;
   name: string;
   description: string | null;
   imageUrl: string | null;
   gifUrl: string | null;
+  /** Alle afbeeldingen (eigen oefeningen kunnen er meerdere hebben). */
+  images: string[];
+  /** Optionele videolink (YouTube/Vimeo) — alleen bij eigen oefeningen. */
+  videoUrl: string | null;
   /** Stappen in de gekozen taal (leeg als er geen stappen zijn). */
   steps: string[];
   /** Instructie als lopende tekst (fallback wanneer er geen stappen zijn). */
   instructionsText: string | null;
+  /** Rich-text (Markdown) velden van een eigen oefening. Null voor catalogus. */
+  executionMd: string | null;
+  coachingTipsMd: string | null;
+  commonMistakesMd: string | null;
+  notesMd: string | null;
+  tags: string[];
   primaryMuscle: string | null;
   secondaryMuscles: string[];
   equipment: string | null;
   bodyPart: string | null;
   category: string | null;
-  /** Afgeleide moeilijkheidsgraad (heuristiek, geen dataset-veld). */
+  /** Moeilijkheidsgraad (expliciet voor eigen oefeningen, heuristiek voor catalogus). */
   difficulty: Difficulty;
   /** Taalcode waaruit de instructie komt (bv. "nl" of "en") — null als er geen is. */
   instructionLang: string | null;
   /** Of de gegevens uit de globale catalogus komen. */
   fromCatalog: boolean;
+  /** Herkomst-label: "standaard" (catalogus) of "eigen" (tenant-oefening). */
+  source: "standaard" | "eigen";
 };
 
 /** Volledige weergave-data van één tenant-oefening, verrijkt met de catalogus. */
@@ -98,22 +116,63 @@ export async function getExerciseDetail(
   const steps = cat ? pickLang(cat.instructionSteps, pref, isStepArray) : null;
   const text = cat ? pickLang(cat.instructions, pref, isNonEmptyString) : null;
 
+  // Eigen oefening (geen catalogus-koppeling): de tenant-velden zijn de bron van
+  // media, instructies en metadata. Catalogus-oefeningen blijven ongewijzigd.
+  if (!cat) {
+    const images = ex.imageUrls ?? [];
+    return {
+      id: ex.id,
+      name: ex.name?.trim() || "Oefening",
+      description: ex.description ?? null,
+      imageUrl: images[0] ?? null,
+      gifUrl: null,
+      images,
+      videoUrl: ex.videoUrl ?? null,
+      steps: [],
+      instructionsText: null,
+      executionMd: ex.executionMd ?? null,
+      coachingTipsMd: ex.coachingTipsMd ?? null,
+      commonMistakesMd: ex.commonMistakesMd ?? null,
+      notesMd: ex.notesMd ?? null,
+      tags: ex.tags ?? [],
+      primaryMuscle: ex.targetMuscle?.trim() || null,
+      secondaryMuscles: ex.muscleGroups ?? [],
+      equipment: ex.equipment ?? null,
+      bodyPart: null,
+      category: ex.category ?? null,
+      difficulty: ex.difficulty
+        ? DIFFICULTY_LABEL[ex.difficulty]
+        : "Gemiddeld",
+      instructionLang: ex.executionMd ? "nl" : null,
+      fromCatalog: false,
+      source: "eigen",
+    };
+  }
+
   return {
     id: ex.id,
-    name: ex.name?.trim() || cat?.name || "Oefening",
+    name: ex.name?.trim() || cat.name || "Oefening",
     description: ex.description ?? null,
-    imageUrl: cat?.imageUrl ?? null,
-    gifUrl: cat?.gifUrl ?? null,
+    imageUrl: cat.imageUrl ?? null,
+    gifUrl: cat.gifUrl ?? null,
+    images: cat.imageUrl ? [cat.imageUrl] : [],
+    videoUrl: null,
     steps: steps?.value ?? [],
     instructionsText: text?.value ?? null,
-    primaryMuscle: ex.targetMuscle?.trim() || cat?.target || cat?.muscleGroup || null,
-    secondaryMuscles: cat?.secondaryMuscles ?? [],
-    equipment: cat?.equipment ?? null,
-    bodyPart: cat?.bodyPart ?? null,
-    category: cat?.category ?? null,
-    difficulty: deriveDifficulty(cat?.equipment ?? null, cat?.category ?? null),
+    executionMd: null,
+    coachingTipsMd: null,
+    commonMistakesMd: null,
+    notesMd: null,
+    tags: [],
+    primaryMuscle: ex.targetMuscle?.trim() || cat.target || cat.muscleGroup || null,
+    secondaryMuscles: cat.secondaryMuscles ?? [],
+    equipment: cat.equipment ?? null,
+    bodyPart: cat.bodyPart ?? null,
+    category: cat.category ?? null,
+    difficulty: deriveDifficulty(cat.equipment ?? null, cat.category ?? null),
     instructionLang: steps?.lang ?? text?.lang ?? null,
-    fromCatalog: Boolean(cat),
+    fromCatalog: true,
+    source: "standaard",
   };
 }
 

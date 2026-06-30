@@ -1,7 +1,24 @@
 import Link from "next/link";
+import Markdown from "react-markdown";
 import type { ExerciseDetail, ExerciseAlternative } from "@/lib/exercise";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { toEmbedUrl } from "@/lib/video";
 import { Dumbbell, Target, MapPin, Activity, ChevronRight, Sparkles } from "@/components/ui/icons";
+
+const PROSE =
+  "prose prose-sm prose-neutral max-w-none text-neutral-700 [&_h2]:mt-0 [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5";
+
+/** Sectie met een Markdown-body (eigen-oefening rich text). */
+function MarkdownSection({ title, body }: { title: string; body: string }) {
+  return (
+    <section>
+      <h2 className="mb-3 text-sm font-semibold text-neutral-900">{title}</h2>
+      <div className={PROSE}>
+        <Markdown>{body}</Markdown>
+      </div>
+    </section>
+  );
+}
 
 const LANG_LABEL: Record<string, string> = {
   en: "Engels",
@@ -71,6 +88,10 @@ export function ExerciseDetailView({
   );
   const showLangNote = detail.instructionLang && detail.instructionLang !== "nl";
   const media = detail.gifUrl ?? detail.imageUrl;
+  const extraImages = detail.images.filter((img) => img !== media);
+  const video = toEmbedUrl(detail.videoUrl);
+  const hasExecution =
+    detail.steps.length > 0 || detail.instructionsText || detail.executionMd;
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,6 +110,45 @@ export function ExerciseDetailView({
           <Dumbbell className="size-12" />
         </div>
       )}
+
+      {/* Extra afbeeldingen (eigen oefeningen kunnen er meerdere hebben) */}
+      {extraImages.length > 0 ? (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {extraImages.map((img) => (
+            <div
+              key={img}
+              className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-surface-2"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img} alt="" aria-hidden className="h-full w-full object-cover" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Video (YouTube/Vimeo) */}
+      {video ? (
+        <div className="overflow-hidden rounded-3xl border border-border bg-black">
+          <div className="relative aspect-video w-full">
+            <iframe
+              src={video.embedUrl}
+              title={`Video — ${detail.name}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+          </div>
+        </div>
+      ) : detail.videoUrl ? (
+        <a
+          href={detail.videoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+        >
+          Bekijk video <ChevronRight className="size-3.5" />
+        </a>
+      ) : null}
 
       <div>
         <div className="flex flex-wrap items-center gap-2">
@@ -145,7 +205,7 @@ export function ExerciseDetailView({
       ) : null}
 
       {/* Uitvoering */}
-      {detail.steps.length > 0 || detail.instructionsText ? (
+      {hasExecution ? (
         <section>
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-neutral-900">Uitvoering</h2>
@@ -169,26 +229,51 @@ export function ExerciseDetailView({
                 </li>
               ))}
             </ol>
+          ) : detail.executionMd ? (
+            <div className={PROSE}>
+              <Markdown>{detail.executionMd}</Markdown>
+            </div>
           ) : (
             <p className="text-sm text-neutral-700">{detail.instructionsText}</p>
           )}
         </section>
       ) : null}
 
-      {/* Algemene tips */}
-      <section className="rounded-3xl border border-border bg-surface-1 p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
-          <Sparkles className="size-4 text-accent" /> Algemene tips
-        </h2>
-        <ul className="flex flex-col gap-2">
-          {GENERAL_TIPS.map((tip, i) => (
-            <li key={i} className="flex gap-2 text-sm text-neutral-600">
-              <span className="text-accent">•</span>
-              <span>{tip}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {/* Coachingtips: eigen tekst indien aanwezig, anders generieke tips */}
+      {detail.coachingTipsMd ? (
+        <section className="rounded-3xl border border-border bg-surface-1 p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
+            <Sparkles className="size-4 text-accent" /> Coachingtips
+          </h2>
+          <div className={PROSE}>
+            <Markdown>{detail.coachingTipsMd}</Markdown>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-3xl border border-border bg-surface-1 p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
+            <Sparkles className="size-4 text-accent" /> Algemene tips
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {GENERAL_TIPS.map((tip, i) => (
+              <li key={i} className="flex gap-2 text-sm text-neutral-600">
+                <span className="text-accent">•</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Veelgemaakte fouten (eigen oefening) */}
+      {detail.commonMistakesMd ? (
+        <MarkdownSection title="Veelgemaakte fouten" body={detail.commonMistakesMd} />
+      ) : null}
+
+      {/* Opmerkingen (eigen oefening) */}
+      {detail.notesMd ? (
+        <MarkdownSection title="Opmerkingen" body={detail.notesMd} />
+      ) : null}
 
       {/* Verplichte veiligheidsmelding — ALTIJD zichtbaar (ontwerpprincipe #2). */}
       <div className="rounded-2xl border-2 border-accent bg-accent-soft px-5 py-4 text-center">

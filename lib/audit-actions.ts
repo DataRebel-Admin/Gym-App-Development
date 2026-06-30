@@ -187,6 +187,21 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft oefening ${s(meta, "name") ?? ""} verwijderd`.trim(),
   },
+  "exercise.duplicate": {
+    category: "exercises", label: "Oefening gedupliceerd", icon: "📑", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft oefening ${s(meta, "name") ?? ""} gedupliceerd`.trim(),
+  },
+  "exercise.archive": {
+    category: "exercises", label: "Oefening gearchiveerd", icon: "📦", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft oefening ${s(meta, "name") ?? ""} gearchiveerd`.trim(),
+  },
+  "exercise.unarchive": {
+    category: "exercises", label: "Oefening hersteld", icon: "♻️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft oefening ${s(meta, "name") ?? ""} hersteld`.trim(),
+  },
 
   // --- Machines ---
   "machine.create": {

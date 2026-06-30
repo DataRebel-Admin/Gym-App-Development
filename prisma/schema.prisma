@@ -43,6 +43,14 @@ enum MachineType {
   OVERIG
 }
 
+// Moeilijkheidsgraad voor eigen (tenant-)oefeningen. Catalogus-oefeningen leiden
+// hun niveau heuristisch af (zie lib/exercise.ts deriveDifficulty).
+enum ExerciseDifficulty {
+  BEGINNER
+  GEMIDDELD
+  GEVORDERD
+}
+
 enum Gender {
   MAN
   VROUW
@@ -371,6 +379,23 @@ model Exercise {
   targetMuscle String?
   machineId    String? // nullable: lichaamsgewicht-oefeningen hebben geen machine
   catalogId    String? // optioneel: link naar de globale ExerciseCatalog (bron van media/instructies)
+
+  // --- Eigen-oefening content (alleen gevuld bij catalogId == null) ---
+  // Een "eigen oefening" is een tenant-Exercise zonder catalogus-koppeling; deze
+  // velden vervangen dan de catalogus als bron van media/instructies/metadata.
+  // Bij catalogus-gekoppelde oefeningen blijven ze NULL (catalogus is leidend).
+  muscleGroups     String[]            @default([]) // extra spiergroepen (naast targetMuscle)
+  category         String? // categorie (bv. "Kracht", "Cardio")
+  difficulty       ExerciseDifficulty? // moeilijkheidsgraad (expliciet voor eigen oefeningen)
+  equipment        String? // benodigd materiaal
+  tags             String[]            @default([]) // vrije labels
+  executionMd      String?  @db.Text // Uitvoering (Markdown)
+  coachingTipsMd   String?  @db.Text // Coachingtips (Markdown)
+  commonMistakesMd String?  @db.Text // Veelgemaakte fouten (Markdown)
+  notesMd          String?  @db.Text // Opmerkingen (Markdown)
+  imageUrls        String[]            @default([]) // één of meerdere afbeeldingen
+  videoUrl         String? // optionele videolink (YouTube/Vimeo)
+  archivedAt       DateTime? // soft-archive: verbergt uit pickers, schema's blijven werken
 
   tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   machine            Machine?              @relation(fields: [machineId], references: [id], onDelete: SetNull)
