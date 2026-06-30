@@ -38,7 +38,7 @@ export default async function AdminDashboard() {
     usersByRole.find((g) => g.role === r)?._count ?? 0;
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
         Platform-dashboard
       </h1>
@@ -50,7 +50,7 @@ export default async function AdminDashboard() {
         <Stat label="Superadmins" value={roleCount("SUPERADMIN")} />
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Link
           href="/admin/tenants"
           className="rounded-lg bg-accent-gradient px-4 py-2 text-sm font-semibold text-accent-foreground shadow-sm hover:shadow-accent"

@@ -87,7 +87,7 @@ export default async function OwnerMembersPage({
   ]);
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Leden & beheerders"
         description="Beheer wie toegang heeft tot jouw sportschool."
@@ -122,10 +122,10 @@ export default async function OwnerMembersPage({
 
       {/* Zoeken / filteren / sorteren */}
       <form method="get" className="flex flex-wrap items-end gap-3">
-        <Field label="Zoeken" className="w-64">
+        <Field label="Zoeken" className="w-full sm:w-64">
           <Input name="q" defaultValue={sp.q ?? ""} placeholder="naam of e-mail…" />
         </Field>
-        <Field label="Status" className="w-52">
+        <Field label="Status" className="w-full sm:w-52">
           <Select name="status" defaultValue={sp.status ?? ""}>
             <option value="">Alle statussen</option>
             {STATUSES.map((s) => (
@@ -135,7 +135,7 @@ export default async function OwnerMembersPage({
             ))}
           </Select>
         </Field>
-        <Field label="Sorteren" className="w-44">
+        <Field label="Sorteren" className="w-full sm:w-44">
           <Select name="sort" defaultValue={opts.sort}>
             <option value="name">Naam</option>
             <option value="created">Nieuwste eerst</option>
@@ -154,7 +154,52 @@ export default async function OwnerMembersPage({
         </Link>
       </form>
 
-      <TableWrap>
+      {/* Mobiel: kaarten */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {members.length === 0 ? (
+          <p className="py-8 text-center text-sm text-neutral-500">Geen leden gevonden.</p>
+        ) : (
+          members.map((m) => {
+            const self = m.id === owner.id;
+            const canInvite = m.inviteStatus !== "GEACTIVEERD";
+            return (
+              <div
+                key={m.id}
+                className={`rounded-2xl border border-border bg-surface-1 p-4 shadow-sm ${m.archivedAt ? "opacity-60" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar name={m.name ?? m.email} status={m.active ? "online" : "offline"} />
+                    <div className="min-w-0">
+                      <Link href={`/owner/members/${m.id}`} className="block truncate font-medium text-neutral-900 hover:underline">
+                        {m.name ?? m.email}
+                      </Link>
+                      <p className="truncate text-xs text-neutral-500">{m.email}</p>
+                    </div>
+                  </div>
+                  <Badge tone={STATUS_TONE[m.inviteStatus]}>
+                    {INVITE_STATUS_LABEL[m.inviteStatus]}
+                  </Badge>
+                </div>
+                {m.archivedAt ? (
+                  <Badge tone="neutral" className="mt-2">gearchiveerd</Badge>
+                ) : !m.active ? (
+                  <Badge tone="warning" className="mt-2">gedeactiveerd</Badge>
+                ) : null}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <MemberRoleForm id={m.id} role={m.role} />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <MemberActions m={m} self={self} canInvite={canInvite} />
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop: tabel */}
+      <TableWrap className="hidden md:block">
         <Table>
           <Thead>
             <tr>
@@ -202,52 +247,11 @@ export default async function OwnerMembersPage({
                       </Badge>
                     </Td>
                     <Td>
-                      <form action={setMemberRole} className="flex items-center gap-1">
-                        <input type="hidden" name="userId" value={m.id} />
-                        <Select name="role" defaultValue={m.role} className="h-8 w-32 py-1 text-xs">
-                          <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
-                          <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
-                        </Select>
-                        <button type="submit" className={rowBtn}>OK</button>
-                      </form>
+                      <MemberRoleForm id={m.id} role={m.role} />
                     </Td>
                     <Td>
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        {canInvite ? (
-                          <form action={resendInvite}>
-                            <input type="hidden" name="userId" value={m.id} />
-                            <button type="submit" className={rowBtn}>
-                              {m.inviteStatus === "NIET_UITGENODIGD" ? "Uitnodigen" : "Opnieuw"}
-                            </button>
-                          </form>
-                        ) : null}
-                        {!self ? (
-                          <>
-                            <form action={m.archivedAt ? unarchiveMember : archiveMember}>
-                              <input type="hidden" name="userId" value={m.id} />
-                              <button type="submit" className={rowBtn}>
-                                {m.archivedAt ? "Herstel" : "Archiveer"}
-                              </button>
-                            </form>
-                            <form action={setMemberActive}>
-                              <input type="hidden" name="userId" value={m.id} />
-                              <input type="hidden" name="active" value={m.active ? "false" : "true"} />
-                              <button type="submit" className={rowBtn}>
-                                {m.active ? "Deactiveer" : "Activeer"}
-                              </button>
-                            </form>
-                            <ConfirmButton
-                              action={deleteMember}
-                              fields={{ userId: m.id }}
-                              label="Verwijder"
-                              triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                              title="Lid verwijderen?"
-                              message={`Weet je zeker dat je ${m.name ?? m.email} definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt — overweeg archiveren.`}
-                            />
-                          </>
-                        ) : (
-                          <span className="text-xs text-neutral-400">(jij)</span>
-                        )}
+                        <MemberActions m={m} self={self} canInvite={canInvite} />
                       </div>
                     </Td>
                   </Tr>
@@ -278,5 +282,79 @@ export default async function OwnerMembersPage({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Velden die de mobiele kaart + de tabel delen (zelfde server-actions). */
+type MemberActionRow = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  active: boolean;
+  archivedAt: Date | null;
+  inviteStatus: InviteStatus;
+};
+
+function MemberRoleForm({ id, role }: { id: string; role: string }) {
+  return (
+    <form action={setMemberRole} className="flex items-center gap-1">
+      <input type="hidden" name="userId" value={id} />
+      <Select name="role" defaultValue={role} className="h-8 w-32 py-1 text-xs">
+        <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
+        <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
+      </Select>
+      <button type="submit" className={rowBtn}>OK</button>
+    </form>
+  );
+}
+
+function MemberActions({
+  m,
+  self,
+  canInvite,
+}: {
+  m: MemberActionRow;
+  self: boolean;
+  canInvite: boolean;
+}) {
+  return (
+    <>
+      {canInvite ? (
+        <form action={resendInvite}>
+          <input type="hidden" name="userId" value={m.id} />
+          <button type="submit" className={rowBtn}>
+            {m.inviteStatus === "NIET_UITGENODIGD" ? "Uitnodigen" : "Opnieuw"}
+          </button>
+        </form>
+      ) : null}
+      {!self ? (
+        <>
+          <form action={m.archivedAt ? unarchiveMember : archiveMember}>
+            <input type="hidden" name="userId" value={m.id} />
+            <button type="submit" className={rowBtn}>
+              {m.archivedAt ? "Herstel" : "Archiveer"}
+            </button>
+          </form>
+          <form action={setMemberActive}>
+            <input type="hidden" name="userId" value={m.id} />
+            <input type="hidden" name="active" value={m.active ? "false" : "true"} />
+            <button type="submit" className={rowBtn}>
+              {m.active ? "Deactiveer" : "Activeer"}
+            </button>
+          </form>
+          <ConfirmButton
+            action={deleteMember}
+            fields={{ userId: m.id }}
+            label="Verwijder"
+            triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+            title="Lid verwijderen?"
+            message={`Weet je zeker dat je ${m.name ?? m.email} definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt — overweeg archiveren.`}
+          />
+        </>
+      ) : (
+        <span className="text-xs text-neutral-400">(jij)</span>
+      )}
+    </>
   );
 }

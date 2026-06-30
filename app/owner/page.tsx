@@ -50,7 +50,7 @@ export default async function OwnerDashboard() {
   const firstName = owner.name?.split(" ")[0];
 
   return (
-    <Fullscreenable className="flex flex-col gap-6 px-6 py-8">
+    <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {/* Premium hero-header */}
       <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1/80 p-7 shadow-lg backdrop-blur-xl">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />

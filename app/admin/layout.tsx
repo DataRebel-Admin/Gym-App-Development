@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { TopNav, type TopNavLink } from "@/components/nav/top-nav";
+import { SideNavDrawer } from "@/components/nav/side-nav-drawer";
+import type { OwnerNavEntry } from "@/components/nav/owner-nav";
 import { UserMenu } from "@/components/nav/user-menu";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -20,6 +22,14 @@ const LINKS: TopNavLink[] = [
   { href: "/admin/audit", label: "Audit log", iconPath: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 13h6M9 17h4" },
 ];
 
+// Dezelfde bestemmingen als losse links voor het mobiele zijmenu.
+const DRAWER_ENTRIES: OwnerNavEntry[] = LINKS.map((l) => ({
+  type: "link",
+  href: l.href,
+  label: l.label,
+  iconPath: l.iconPath,
+}));
+
 export default async function AdminLayout({
   children,
 }: {
@@ -34,8 +44,19 @@ export default async function AdminLayout({
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/80 backdrop-blur-lg">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-          <div className="flex items-center gap-5 overflow-hidden">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+          <div className="flex items-center gap-3 overflow-hidden sm:gap-5">
+            <SideNavDrawer
+              entries={DRAWER_ENTRIES}
+              rootHref="/admin"
+              brand={{ name: "GymRebel", logoUrl: null }}
+              profile={{
+                name: badge?.name ?? session.user.name ?? null,
+                email: badge?.email ?? session.user.email ?? null,
+                image: badge?.image ?? null,
+              }}
+              className="lg:hidden"
+            />
             <Link
               href="/admin"
               className="flex shrink-0 items-center gap-2.5 font-display text-lg font-bold text-neutral-900"
@@ -43,16 +64,18 @@ export default async function AdminLayout({
               <span className="flex size-8 items-center justify-center rounded-xl bg-accent-gradient text-sm font-bold text-accent-foreground shadow-accent">
                 G
               </span>
-              <span className="hidden sm:inline">
+              <span>
                 GymRebel
                 <span className="ml-1.5 rounded-md bg-accent px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
                   Platform
                 </span>
               </span>
             </Link>
-            <TopNav links={LINKS} rootHref="/admin" layoutId="admin-nav-active" />
+            <div className="hidden lg:block">
+              <TopNav links={LINKS} rootHref="/admin" layoutId="admin-nav-active" />
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
             <ThemeToggle />
             <UserMenu
               name={badge?.name ?? session.user.name ?? null}

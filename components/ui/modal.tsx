@@ -54,12 +54,12 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.97, y: 6 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
-              "relative z-10 w-full max-w-md rounded-2xl border border-border bg-surface-2 shadow-lg",
+              "relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-2 shadow-lg",
               className
             )}
           >
             {title ? (
-              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
                 <h2 className="font-display text-lg font-bold text-neutral-900">
                   {title}
                 </h2>
@@ -73,7 +73,9 @@ export function Modal({
                 </button>
               </div>
             ) : null}
-            <div className="p-5">{children}</div>
+            <div className="overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              {children}
+            </div>
           </m.div>
         </div>
       ) : null}

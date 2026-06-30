@@ -86,7 +86,7 @@ export default async function TenantDetailPage({
   const active = tenant.status === "ACTIVE";
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex items-center justify-between">
         <div>
           <Link href="/admin/tenants" className="text-sm text-neutral-500 hover:text-neutral-900">
@@ -217,7 +217,7 @@ export default async function TenantDetailPage({
               name="email"
               required
               placeholder="naam@voorbeeld.nl"
-              className="w-64 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm sm:w-64"
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">

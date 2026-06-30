@@ -22,7 +22,7 @@ export function InviteUserForm({
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-wrap items-end gap-3">
-      <Field label="Tenant" className="w-56" required>
+      <Field label="Tenant" className="w-full sm:w-56" required>
         <Select name="tenantId" defaultValue="" required>
           <option value="" disabled>
             Kies een tenant…
@@ -34,16 +34,16 @@ export function InviteUserForm({
           ))}
         </Select>
       </Field>
-      <Field label="E-mail" className="w-64" required>
+      <Field label="E-mail" className="w-full sm:w-64" required>
         <Input type="email" name="email" required placeholder="naam@voorbeeld.nl" />
       </Field>
-      <Field label="Rol" className="w-40">
+      <Field label="Rol" className="w-full sm:w-40">
         <Select name="role" defaultValue="TENANT_MEMBER">
           <option value="TENANT_MEMBER">Lid</option>
           <option value="TENANT_ADMIN">Beheerder</option>
         </Select>
       </Field>
-      <Button type="submit" loading={pending}>
+      <Button type="submit" loading={pending} className="w-full sm:w-auto">
         Uitnodigen
       </Button>
       {state.error ? <p className="w-full text-sm text-red-600">{state.error}</p> : null}

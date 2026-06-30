@@ -46,7 +46,7 @@ export default async function MachineDetailPage({
   const publicUrl = machinePublicUrl(tenant?.slug ?? "", machine.qrToken);
 
   return (
-    <div className="flex flex-col gap-8 px-6 py-8">
+    <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <Link
           href="/owner/machines"

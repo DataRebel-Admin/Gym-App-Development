@@ -48,7 +48,7 @@ export default async function InsightsPage({
   const rows = await getMachineInsights(owner.tenantId, period);
 
   return (
-    <Fullscreenable className="flex flex-col gap-6 px-6 py-8">
+    <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Inzichten"
         description="Machinegebruik en trends over de gekozen periode."

@@ -46,7 +46,7 @@ export default async function AdminAuditPage({
   };
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Audit log — platform"
         description="Alle gebeurtenissen over alle tenants."

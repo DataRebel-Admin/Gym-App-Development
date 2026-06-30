@@ -11,6 +11,7 @@ import {
   Td,
 } from "@/components/ui/table";
 import { TableRowLink } from "@/components/ui/table-row-link";
+import { MobileListCard } from "@/components/ui/mobile-list-card";
 
 export const metadata = { title: "Tenants" };
 
@@ -31,8 +32,8 @@ export default async function TenantsPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6 px-6 py-8">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
           Tenants
         </h1>
@@ -47,7 +48,33 @@ export default async function TenantsPage() {
       {tenants.length === 0 ? (
         <p className="text-sm text-neutral-500">Nog geen tenants.</p>
       ) : (
-        <TableWrap>
+        <>
+          {/* Mobiel: kaarten */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {tenants.map((t) => (
+              <MobileListCard key={t.id} href={`/admin/tenants/${t.id}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="inline-block size-3 shrink-0 rounded-full ring-1 ring-inset ring-black/10"
+                      style={{ backgroundColor: t.accentColor ?? "#d4d4d4" }}
+                    />
+                    <span className="truncate font-medium text-neutral-900">{t.name}</span>
+                  </span>
+                  <Badge tone={t.status === "ACTIVE" ? "success" : "neutral"}>
+                    {t.status === "ACTIVE" ? "Actief" : "Inactief"}
+                  </Badge>
+                </div>
+                <p className="mt-2 flex items-center justify-between text-xs text-neutral-500">
+                  <span className="font-mono">{t.slug}</span>
+                  <span>{t._count.users} gebruikers</span>
+                </p>
+              </MobileListCard>
+            ))}
+          </div>
+
+          {/* Desktop: tabel */}
+          <TableWrap className="hidden md:block">
           <Table>
             <Thead>
               <tr>
@@ -90,7 +117,8 @@ export default async function TenantsPage() {
               ))}
             </Tbody>
           </Table>
-        </TableWrap>
+          </TableWrap>
+        </>
       )}
     </div>
   );

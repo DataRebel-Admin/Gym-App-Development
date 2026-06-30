@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { OwnerNav, type OwnerNavEntry } from "@/components/nav/owner-nav";
+import { SideNavDrawer } from "@/components/nav/side-nav-drawer";
 import { UserMenu } from "@/components/nav/user-menu";
 import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { getUserTenants } from "@/lib/tenants";
@@ -91,11 +92,24 @@ export default async function OwnerLayout({
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-          <div className="flex min-w-0 items-center gap-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3 lg:gap-4">
+            <SideNavDrawer
+              entries={NAV}
+              rootHref="/owner"
+              brand={{ name: tenant?.name ?? "GymRebel", logoUrl: tenant?.logoUrl ?? null }}
+              profile={{
+                name: badge?.name ?? session.user.name ?? null,
+                email: badge?.email ?? session.user.email ?? null,
+                image: badge?.image ?? null,
+              }}
+              tenants={tenants}
+              currentSlug={tenant?.slug ?? null}
+              className="lg:hidden"
+            />
             <Link
               href="/owner"
-              className="flex shrink-0 items-center gap-2 font-display text-lg font-bold text-neutral-900"
+              className="flex min-w-0 shrink-0 items-center gap-2 font-display text-lg font-bold text-neutral-900"
             >
               {tenant?.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -109,22 +123,26 @@ export default async function OwnerLayout({
                   {(tenant?.name ?? "G").charAt(0)}
                 </span>
               )}
-              {tenant?.name ?? "GymRebel"}
+              <span className="truncate">{tenant?.name ?? "GymRebel"}</span>
             </Link>
-            <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
-            <OwnerNav entries={NAV} rootHref="/owner" />
+            <div className="hidden items-center gap-4 lg:flex">
+              <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
+              <OwnerNav entries={NAV} rootHref="/owner" />
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <NotificationBell
               unreadCount={notifications.unreadCount}
               items={notifications.items}
             />
-            <ThemeToggle />
-            <UserMenu
-              name={badge?.name ?? session.user.name ?? null}
-              email={badge?.email ?? session.user.email ?? null}
-              image={badge?.image ?? null}
-            />
+            <div className="hidden items-center gap-2 lg:flex">
+              <ThemeToggle />
+              <UserMenu
+                name={badge?.name ?? session.user.name ?? null}
+                email={badge?.email ?? session.user.email ?? null}
+                image={badge?.image ?? null}
+              />
+            </div>
           </div>
         </div>
       </header>
