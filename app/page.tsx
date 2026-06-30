@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { buttonClasses } from "@/components/ui/button-classes";
 
 export const metadata = { title: "Welkom" };
 
@@ -33,6 +35,9 @@ export default async function Home() {
       <p className="mt-4 max-w-md text-lg text-neutral-500">
         Slimmer trainen in jouw sportschool.
       </p>
+      <Link href="/login" className={buttonClasses({ size: "lg", className: "mt-8" })}>
+        Inloggen
+      </Link>
     </main>
   );
 }

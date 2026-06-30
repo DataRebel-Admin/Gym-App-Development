@@ -17,6 +17,11 @@ const RESERVED_LABELS = new Set([
   "0",
 ]);
 
+// Platform-hosts waar het eerste label NIET de tenant is (Vercel-preview/prod
+// draait op `<project>.vercel.app` — het projectnaam-label is geen tenant).
+// Op zulke hosts vallen we terug op ?tenant / cookie / de fallback-tenant.
+const PLATFORM_HOST_SUFFIXES = [".vercel.app"];
+
 export function resolveTenantSlug(
   host: string | null | undefined,
   paramTenant?: string | null,
@@ -24,9 +29,13 @@ export function resolveTenantSlug(
 ): string {
   if (host) {
     const hostname = host.split(":")[0];
+    const isPlatformHost = PLATFORM_HOST_SUFFIXES.some((suffix) =>
+      hostname.endsWith(suffix)
+    );
     const labels = hostname.split(".");
-    // Een echt subdomein heeft minstens 2 labels en het eerste is niet gereserveerd.
-    if (labels.length >= 2 && !RESERVED_LABELS.has(labels[0])) {
+    // Een echt subdomein heeft minstens 2 labels en het eerste is niet gereserveerd
+    // (en de host is geen platform-host zoals *.vercel.app).
+    if (!isPlatformHost && labels.length >= 2 && !RESERVED_LABELS.has(labels[0])) {
       return labels[0];
     }
   }
