@@ -3,12 +3,23 @@
 import { z } from "zod";
 import QRCode from "qrcode";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { auth, signOut } from "@/auth";
 import { requireAccount } from "@/lib/account";
 import { audit } from "@/lib/audit";
 import { hashPassword, verifyPassword, newTotpSecret, totpUri, verifyTotp } from "@/lib/security";
 import { passwordStrength } from "@/lib/password-strength";
+import { loadTenantBranding } from "@/lib/email/branding";
+import { passwordChangedMessage } from "@/lib/email/messages";
+import { sendEmail } from "@/lib/email/send";
+
+async function origin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export type SecurityState = { ok?: boolean; error?: string; qr?: string; secret?: string };
 
@@ -39,7 +50,7 @@ export async function setPassword(
 
   const me = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { passwordHash: true, email: true, role: true, tenantId: true },
+    select: { passwordHash: true, email: true, name: true, role: true, tenantId: true },
   });
   if (!me) return { error: "Account niet gevonden" };
 
@@ -61,6 +72,21 @@ export async function setPassword(
     targetType: "User",
     targetId: session.id,
   });
+
+  // Beveiligingsmelding (best-effort — breekt het opslaan niet).
+  try {
+    const branding = await loadTenantBranding(me.tenantId);
+    await sendEmail({
+      to: me.email,
+      message: passwordChangedMessage({
+        branding,
+        recipientName: me.name,
+        securityUrl: `${await origin()}/account/beveiliging`,
+      }),
+    });
+  } catch (err) {
+    console.error("✗ Wachtwoord-melding mislukt:", (err as Error).message);
+  }
 
   revalidatePath("/account/beveiliging");
   return { ok: true };

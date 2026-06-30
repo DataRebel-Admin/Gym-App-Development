@@ -39,7 +39,7 @@ export async function inviteToTenant(formData: FormData) {
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    select: { name: true, slug: true },
+    select: { id: true },
   });
   if (!tenant) return;
 
@@ -59,7 +59,7 @@ export async function inviteToTenant(formData: FormData) {
 
   await sendInviteEmail({
     email,
-    tenantName: tenant.name,
+    tenantId,
     acceptUrl: `${await origin()}/invite/${token}`,
   });
   await audit("user.invite", { actor: admin, tenantId, targetType: "Invitation", metadata: { email, role } });

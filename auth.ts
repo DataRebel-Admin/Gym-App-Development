@@ -10,6 +10,9 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { verifyPassword, verifyTotp } from "@/lib/security";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
+import { loadTenantBrandingBySlug } from "@/lib/email/branding";
+import { magicLinkMessage } from "@/lib/email/messages";
+import { sendEmail } from "@/lib/email/send";
 import type { Role } from "@prisma/client";
 
 /**
@@ -53,14 +56,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       server: { host: "localhost", port: 1025 },
       from: "no-reply@gymrebel.app",
       async sendVerificationRequest({ identifier, url }) {
-        // Magic link in de console (development).
-        console.log(
-          "\n✉️  [GymRebel] Magic link voor " +
-            identifier +
-            ":\n" +
-            url +
-            "\n"
-        );
+        // Branded magic link met de huisstijl van de tenant (uit de login-cookie).
+        // Met Graph geconfigureerd gaat 'ie de deur uit; anders naar de console.
+        const slug = (await cookies()).get(AUTH_TENANT_COOKIE)?.value ?? null;
+        const branding = await loadTenantBrandingBySlug(slug);
+        await sendEmail({
+          to: identifier,
+          message: magicLinkMessage({ branding, url }),
+          devLink: url,
+        });
       },
     }),
     Credentials({

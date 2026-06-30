@@ -9,7 +9,9 @@ import { requireAccount } from "@/lib/account";
 import { requireOwner } from "@/lib/owner";
 import { uploadAvatar } from "@/lib/blob";
 import { audit } from "@/lib/audit";
-import { graphConfigured, sendMailViaGraph } from "@/lib/email/graph";
+import { loadTenantBranding } from "@/lib/email/branding";
+import { emailChangeMessage } from "@/lib/email/messages";
+import { sendEmail } from "@/lib/email/send";
 import type { Role } from "@prisma/client";
 
 export type AccountFormState = { ok?: boolean; error?: string };
@@ -136,20 +138,13 @@ export async function requestEmailChange(
   });
 
   const url = `${await origin()}/account/verify-email/${token}`;
-  const html = `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
-    <h1 style="font-size:20px">Bevestig je nieuwe e-mailadres</h1>
-    <p style="color:#525252">Klik om je e-mailadres voor GymRebel te wijzigen naar <strong>${newEmail}</strong>.</p>
-    <p style="margin:24px 0"><a href="${url}" style="background:#171717;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:600">Bevestigen</a></p>
-    <p style="color:#a3a3a3;font-size:12px">Niet aangevraagd? Negeer deze mail.</p></div>`;
-  if (graphConfigured()) {
-    try {
-      await sendMailViaGraph({ to: newEmail, subject: "Bevestig je nieuwe e-mailadres", html });
-    } catch {
-      console.log(`\n✉️  [GymRebel] E-mail wijzigen — bevestig:\n${url}\n`);
-    }
-  } else {
-    console.log(`\n✉️  [GymRebel] E-mail wijzigen — bevestig:\n${url}\n`);
-  }
+  const branding = await loadTenantBranding(me.tenantId);
+  // De bevestiging gaat naar het nieuwe adres (dat de gebruiker moet bevestigen).
+  await sendEmail({
+    to: newEmail,
+    message: emailChangeMessage({ branding, url, newEmail }),
+    devLink: url,
+  });
 
   await audit("email.change.requested", {
     actor: actorOf({ id: session.id, email: me.email, role: me.role }),

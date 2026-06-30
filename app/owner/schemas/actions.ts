@@ -4,11 +4,58 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { audit } from "@/lib/audit";
+import { loadTenantBranding } from "@/lib/email/branding";
+import { schemaAssignedMessage } from "@/lib/email/messages";
+import { sendEmail } from "@/lib/email/send";
 
 export type SchemaSaveState = { error?: string; ok?: boolean };
+
+async function origin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+/**
+ * Meld leden dat er een (nieuw) trainingsschema voor ze klaarstaat. Best-effort:
+ * een mailfout mag de toewijzing nooit breken (eigen try/catch). Aanroepen vóór
+ * een eventuele redirect.
+ */
+async function notifySchemaAssigned(
+  tenantId: string,
+  userIds: string[],
+  schemaName: string
+): Promise<void> {
+  try {
+    const [branding, members, viewUrl] = await Promise.all([
+      loadTenantBranding(tenantId),
+      prisma.user.findMany({
+        where: { id: { in: userIds }, tenantId, role: "TENANT_MEMBER", active: true },
+        select: { email: true, name: true },
+      }),
+      origin().then((o) => `${o}/member/schema`),
+    ]);
+    for (const m of members) {
+      await sendEmail({
+        to: m.email,
+        message: schemaAssignedMessage({
+          branding,
+          recipientName: m.name,
+          schemaName,
+          viewUrl,
+        }),
+        devLink: viewUrl,
+      });
+    }
+  } catch (err) {
+    console.error("✗ Schema-toewijzing mail mislukt:", (err as Error).message);
+  }
+}
 
 const itemSchema = z.object({
   exerciseId: z.string().min(1),
@@ -280,6 +327,8 @@ export async function assignFromTemplate(formData: FormData) {
     metadata: { name: source.name, memberCount: 1, member: member.name ?? member.email },
   });
 
+  await notifySchemaAssigned(owner.tenantId, [userId], source.name);
+
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);
 }
@@ -317,6 +366,11 @@ export async function assignTemplateToMembers(formData: FormData) {
       targetId: sourceId,
       metadata: { name: source.name, memberCount: members.length },
     });
+    await notifySchemaAssigned(
+      owner.tenantId,
+      members.map((m) => m.id),
+      source.name
+    );
   }
 
   revalidatePath("/owner/schemas/templates");
@@ -411,6 +465,8 @@ export async function startEmptySchema(formData: FormData) {
     targetId: userId,
     metadata: { name: "Nieuw schema", memberCount: 1, member: member.name ?? member.email },
   });
+
+  await notifySchemaAssigned(owner.tenantId, [userId], "Nieuw schema");
 
   revalidatePath(`/owner/schemas/members/${userId}`);
   redirect(`/owner/schemas/members/${userId}`);

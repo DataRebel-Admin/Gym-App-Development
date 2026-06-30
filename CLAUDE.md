@@ -249,6 +249,39 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
   anders het bestand `app/favicon.ico`. Per request (per tenant) server-rendered, dus wisselt
   mee bij tenant-switch.
 
+### Transactionele e-mails (branded, production-ready)
+
+Eén centraal, herbruikbaar systeem in **`lib/email/`** — net als de
+`audit-actions`-registry: nieuw e-mailtype = één composer toevoegen, layout +
+huisstijl + verzending blijven gedeeld.
+
+- **`branding.ts`** — `EmailBranding` + `resolveEmailBranding(tenant)` /
+  `loadTenantBranding(tenantId)` / `loadTenantBrandingBySlug(slug)`. Vult uit de
+  `Tenant`-velden (logo, accent/secundair, font, naam, contact, socials) met
+  GymRebel-defaults (accent `#e84b1f`). `readableText(hex)` kiest knop-tekstkleur.
+  Gebruikt bewust de base `prisma` (Tenant heeft geen RLS).
+- **`layout.ts`** (`renderEmailLayout`) — de centrale HTML-shell: table-based,
+  600px, inline CSS, `<style>` met responsive + `prefers-color-scheme:dark`, MSO
+  conditionals, verborgen preheader, branded header (logo/wordmark) + footer
+  (contact, socials, reden, auto-bericht, copyright).
+- **`components.ts`** — table-safe string-bouwstenen (`emailButton` = bulletproof
+  VML-knop, `emailHeading/Paragraph/Muted/Divider/LinkFallback/InfoCard`,
+  `escapeHtml` voor álle gebruikers-/tenant-input).
+- **`messages.ts`** — composers `{ subject, html, text }` per type (elk levert óók
+  een **plain-text alternatief**): `magicLink`, `invite`, `emailChange`, `welcome`,
+  `passwordChanged`, `schemaAssigned`.
+- **`mime.ts`** — `buildMimeMessage` → `multipart/alternative` (base64 UTF-8,
+  RFC 2047-subject) voor het meesturen van het plain-text-deel via Graph.
+- **`send.ts`** (`sendEmail`) — **gecentraliseerde** verzending (vervangt de eerder
+  3× gedupliceerde Graph/console-logica). Gelaagd, faalt nooit hard: Graph-MIME →
+  Graph-HTML (backstop) → console-log (dev, `✉️ [GymRebel]` met subject + link).
+- **Hook-punten**: magic link (`auth.ts` `sendVerificationRequest`, tenant uit de
+  login-cookie), uitnodiging (`lib/invitation.ts`, `tenantId`-param), e-mail wijzigen
+  (`app/account/actions.ts`), welkom (`app/invite/[token]/actions.ts`), wachtwoord
+  gewijzigd (`app/account/security-actions.ts`), schema toegewezen
+  (`app/owner/schemas/actions.ts` → `notifySchemaAssigned`). Nieuwe-flow-sends zijn
+  best-effort (try/catch, vóór een eventuele `redirect`) — breken de actie nooit.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,

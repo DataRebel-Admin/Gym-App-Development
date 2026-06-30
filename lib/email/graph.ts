@@ -59,6 +59,11 @@ async function getAccessToken(cfg: GraphConfig): Promise<string> {
   return json.access_token;
 }
 
+/** De afzender-mailbox (UPN), of null wanneer Graph niet is geconfigureerd. */
+export function graphSender(): string | null {
+  return graphConfig()?.sender ?? null;
+}
+
 /** Verstuur een HTML-e-mail via Graph. Gooit bij fout (de caller logt/faalt netjes). */
 export async function sendMailViaGraph(opts: {
   to: string;
@@ -87,5 +92,29 @@ export async function sendMailViaGraph(opts: {
   });
   if (!res.ok) {
     throw new Error(`Graph sendMail ${res.status}: ${await res.text()}`);
+  }
+}
+
+/**
+ * Verstuur een volledig opgebouwd MIME-bericht (base64) via Graph. Hiermee gaat
+ * zowel het plain-text- als het HTML-deel mee (multipart/alternative). Graph
+ * verwacht de base64-MIME als request-body met `Content-Type: text/plain`.
+ */
+export async function sendMimeViaGraph(base64Mime: string): Promise<void> {
+  const cfg = graphConfig();
+  if (!cfg) throw new Error("Graph niet geconfigureerd");
+
+  const token = await getAccessToken(cfg);
+  const url = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(cfg.sender)}/sendMail`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "text/plain",
+    },
+    body: base64Mime,
+  });
+  if (!res.ok) {
+    throw new Error(`Graph sendMail (MIME) ${res.status}: ${await res.text()}`);
   }
 }

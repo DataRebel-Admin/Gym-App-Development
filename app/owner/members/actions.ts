@@ -34,11 +34,6 @@ export async function inviteMember(formData: FormData) {
   });
   if (existing) return;
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: owner.tenantId },
-    select: { name: true },
-  });
-
   const token = inviteToken();
   await prisma.invitation.upsert({
     where: { tenantId_email: { tenantId: owner.tenantId, email } },
@@ -48,7 +43,7 @@ export async function inviteMember(formData: FormData) {
 
   await sendInviteEmail({
     email,
-    tenantName: tenant?.name ?? "GymRebel",
+    tenantId: owner.tenantId,
     acceptUrl: `${await origin()}/invite/${token}`,
   });
   await audit("user.invite", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email, role } });
@@ -214,11 +209,6 @@ export async function resendInvite(formData: FormData) {
   });
   if (!user) return;
 
-  const tenant = await prisma.tenant.findUnique({
-    where: { id: owner.tenantId },
-    select: { name: true },
-  });
-
   const token = inviteToken();
   await prisma.invitation.upsert({
     where: { tenantId_email: { tenantId: owner.tenantId, email: user.email } },
@@ -228,7 +218,7 @@ export async function resendInvite(formData: FormData) {
 
   await sendInviteEmail({
     email: user.email,
-    tenantName: tenant?.name ?? "GymRebel",
+    tenantId: owner.tenantId,
     acceptUrl: `${await origin()}/invite/${token}`,
   });
   await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email: user.email } });
