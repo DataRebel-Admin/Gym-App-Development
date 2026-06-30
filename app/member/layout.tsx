@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
-import { LogoutButton } from "@/components/ui/logout-button";
+import { UserMenu } from "@/components/nav/user-menu";
 import { MemberNav } from "@/components/nav/member-nav";
 import { PageTransition } from "@/components/motion/page-transition";
 
@@ -39,12 +39,10 @@ export default async function MemberLayout({
           )}
           {tenant?.name ?? "GymRebel"}
         </Link>
-        <div className="flex items-center gap-3">
-          <span className="max-w-[8rem] truncate text-sm text-neutral-500">
-            {session.user.name ?? session.user.email}
-          </span>
-          <LogoutButton />
-        </div>
+        <UserMenu
+          name={session.user.name ?? null}
+          email={session.user.email ?? null}
+        />
       </header>
 
       <main className="flex flex-1 flex-col pb-24">

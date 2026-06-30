@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/db";
-import { requireSuperadmin } from "@/lib/superadmin";
+import { requireOwner } from "@/lib/owner";
 import {
   queryAuditLogs,
   getAuditActors,
@@ -12,22 +11,20 @@ import { buttonClasses } from "@/components/ui/button";
 import { AuditFilters } from "@/components/audit/audit-filters";
 import { AuditList } from "@/components/audit/audit-list";
 
-export default async function AdminAuditPage({
+export default async function OwnerAuditPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  await requireSuperadmin();
+  const owner = await requireOwner();
   const sp = await searchParams;
-  const { filters, tenantParam, page } = parseAuditSearchParams(sp);
+  const { filters, page } = parseAuditSearchParams(sp);
 
-  const [result, actors, tenants] = await Promise.all([
-    queryAuditLogs({ tenantId: tenantParam, filters, page }),
-    getAuditActors(undefined),
-    prisma.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  const [result, actors] = await Promise.all([
+    queryAuditLogs({ tenantId: owner.tenantId, filters, page }),
+    getAuditActors(owner.tenantId),
   ]);
-  const tenantName = new Map(tenants.map((t) => [t.id, t.name]));
-  const rows = serializeAuditRows(result.rows, tenantName);
+  const rows = serializeAuditRows(result.rows);
 
   const qs = new URLSearchParams(
     Object.entries(sp).filter(([, v]) => v) as [string, string][]
@@ -35,19 +32,19 @@ export default async function AdminAuditPage({
   const exportQs = (format: string) => {
     const p = new URLSearchParams(qs);
     p.set("format", format);
-    return `/admin/audit/export?${p.toString()}`;
+    return `/owner/audit/export?${p.toString()}`;
   };
   const pageHref = (p: number) => {
     const params = new URLSearchParams(qs);
     params.set("page", String(p));
-    return `/admin/audit?${params.toString()}`;
+    return `/owner/audit?${params.toString()}`;
   };
 
   return (
     <div className="flex flex-col gap-6 px-6 py-8">
       <SectionHeading
-        title="Audit log — platform"
-        description="Alle gebeurtenissen over alle tenants."
+        title="Audit log"
+        description="Wie heeft wat gedaan, en wanneer — binnen jouw sportschool."
         action={
           <>
             <a className={buttonClasses({ variant: "outline", size: "sm" })} href={exportQs("csv")}>
@@ -60,10 +57,10 @@ export default async function AdminAuditPage({
         }
       />
 
-      <AuditFilters actors={actors} tenants={tenants} />
+      <AuditFilters actors={actors} />
 
       <div className="rounded-2xl border border-border bg-surface-1 p-2 shadow-sm">
-        <AuditList rows={rows} showTenant />
+        <AuditList rows={rows} />
       </div>
 
       <div className="flex items-center justify-between text-sm text-neutral-500">

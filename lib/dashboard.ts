@@ -26,7 +26,7 @@ export const WIDGET_META: Record<
   "week-chart": { title: "Sessies per week", span: 1 },
   "top-machines": { title: "Top 5 machines", span: 1 },
   "bottom-machines": { title: "Minst gebruikt", span: 1 },
-  "recent-activity": { title: "Recente activiteit", span: 1 },
+  "recent-activity": { title: "Recente activiteiten", span: 1 },
   "quick-actions": { title: "Snelkoppelingen", span: 1 },
 };
 
