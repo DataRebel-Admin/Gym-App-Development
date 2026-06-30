@@ -1,6 +1,8 @@
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthConfig } from "next-auth";
 import Nodemailer from "next-auth/providers/nodemailer";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { cookies, headers } from "next/headers";
 import { authConfig } from "@/auth.config";
 import { TenantPrismaAdapter } from "@/lib/auth-adapter";
@@ -18,6 +20,30 @@ import type { Role } from "@prisma/client";
  * (zie sendVerificationRequest). Voor productie wordt hier later een echte
  * SMTP/Resend-transport ingehangen.
  */
+// OAuth-providers worden alleen toegevoegd wanneer de credentials zijn gezet,
+// zodat de app zonder OAuth-config blijft werken. Account-linking op e-mail is
+// toegestaan: gebruikers zijn invite-only, dus de tenant-gebruiker bestaat al.
+const oauthProviders: NextAuthConfig["providers"] = [];
+if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
+  oauthProviders.push(
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      allowDangerousEmailAccountLinking: true,
+    })
+  );
+}
+if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET) {
+  oauthProviders.push(
+    MicrosoftEntraID({
+      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
+      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+      issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
+      allowDangerousEmailAccountLinking: true,
+    })
+  );
+}
+
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: TenantPrismaAdapter(),
@@ -77,6 +103,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         };
       },
     }),
+    ...oauthProviders,
   ],
   callbacks: {
     ...authConfig.callbacks,

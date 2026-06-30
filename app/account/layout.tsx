@@ -12,6 +12,7 @@ const ICON = {
   privacy: "M12 2 4 5v6c0 5 8 11 8 11s8-6 8-11V5l-8-3ZM9 12l2 2 4-4",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
   building: "M3 21h18M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M19 21V9h1M9 8h2M9 12h2M9 16h2",
+  plug: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
 };
 
 export default async function AccountLayout({
@@ -30,6 +31,7 @@ export default async function AccountLayout({
     { href: "/account/beveiliging", label: "Beveiliging", iconPath: ICON.shield },
     { href: "/account/meldingen", label: "Meldingen", iconPath: ICON.bell },
     { href: "/account/privacy", label: "Privacy", iconPath: ICON.privacy },
+    { href: "/account/integraties", label: "Integraties", iconPath: ICON.plug },
     { href: "/account/activiteit", label: "Activiteit", iconPath: ICON.activity },
   ];
   if (role === "TENANT_ADMIN") {

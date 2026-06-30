@@ -1,11 +1,13 @@
 import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
+import { oauthEnabled } from "@/lib/oauth";
 
 export default async function LoginPage() {
   // Tenant komt uit de proxy-header (subdomein of ?tenant), niet rechtstreeks
   // uit de query — zo werkt zowel productie (subdomein) als dev (?tenant).
   const slug = await getTenantSlug();
   const tenant = await getCurrentTenant();
+  const oauth = oauthEnabled();
 
   return (
     <main className="flex flex-1 items-center justify-center px-6 py-12">
@@ -31,7 +33,7 @@ export default async function LoginPage() {
           </p>
         </div>
 
-        <LoginForm tenant={slug} />
+        <LoginForm tenant={slug} oauth={oauth} />
 
         {!tenant ? (
           <p className="mt-4 text-center text-xs text-neutral-500">

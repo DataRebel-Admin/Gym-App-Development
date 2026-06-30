@@ -1,11 +1,17 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { requestMagicLink, loginWithPassword, type LoginState } from "./actions";
+import { requestMagicLink, loginWithPassword, oauthSignIn, type LoginState } from "./actions";
 import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 
-export function LoginForm({ tenant }: { tenant: string }) {
+export function LoginForm({
+  tenant,
+  oauth,
+}: {
+  tenant: string;
+  oauth?: { google: boolean; microsoft: boolean };
+}) {
   const [mode, setMode] = useState<"link" | "password">("link");
   const [linkState, linkAction, linkPending] = useActionState<LoginState, FormData>(requestMagicLink, {});
   const [pwState, pwAction, pwPending] = useActionState<LoginState, FormData>(loginWithPassword, {});
@@ -47,6 +53,34 @@ export function LoginForm({ tenant }: { tenant: string }) {
       >
         {mode === "link" ? "Inloggen met wachtwoord" : "Inloggen met magic link"}
       </button>
+
+      {oauth?.google || oauth?.microsoft ? (
+        <>
+          <div className="flex items-center gap-3 py-1 text-xs text-neutral-400">
+            <span className="h-px flex-1 bg-border" /> of <span className="h-px flex-1 bg-border" />
+          </div>
+          <div className="flex flex-col gap-2">
+            {oauth.microsoft ? (
+              <form action={oauthSignIn}>
+                <input type="hidden" name="provider" value="microsoft-entra-id" />
+                <input type="hidden" name="tenant" value={tenant} />
+                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl border border-border-strong bg-surface-1 px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+                  Inloggen met Microsoft
+                </button>
+              </form>
+            ) : null}
+            {oauth.google ? (
+              <form action={oauthSignIn}>
+                <input type="hidden" name="provider" value="google" />
+                <input type="hidden" name="tenant" value={tenant} />
+                <button type="submit" className="flex w-full items-center justify-center gap-2 rounded-xl border border-border-strong bg-surface-1 px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+                  Inloggen met Google
+                </button>
+              </form>
+            ) : null}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
