@@ -257,6 +257,55 @@ meertalige instructies) is dé bron van waarheid voor oefening-content. Media st
   (`archivedAt: null`). Volledig tenant-geïsoleerd (bestaande `tenantId` + RLS). Alle mutaties
   geaudit (`exercise.add/update/duplicate/archive/unarchive/remove`).
 
+### Slimme oefeningen: oefeningstypes & dynamische parameters
+
+Elke oefening heeft een **type** dat bepaalt wélke parameters relevant zijn — een
+coach/sporter ziet nooit irrelevante velden (hardlopen heeft geen gewicht, planken geen
+herhalingen, fietsen wel afstand/tijd). Volledig backward-compatible: kracht blijft
+ongewijzigd.
+
+- **Code-registry `lib/exercise-types.ts`** (géén `server-only`, ook client) = bron van
+  waarheid, idiomatisch zoals `audit-actions`/`rbac`/`email/template-defaults`. Per type
+  (`strength, cardio, endurance, isometric, mobility, stretch, circuit, hiit, core, other`):
+  `label/icon/tone`, `logModel` (`"sets"` vs `"single"`), `targetFields` (wat de coach in
+  het schema invult) en `logFields` (wat de sporter logt). Elk `ParamField` heeft
+  `kind` (`int/float/duration/distance/enum/text`), `unit`, optioneel `column`
+  (sets/reps/weightKg/restSeconds/tempo → bestaande kolom) en validatie-grenzen.
+  **Nieuw type = één record** (geen DB-migratie). `inferExerciseType(catalog)` raadt het
+  type bij catalogus-import (mirror van `suggestMachineType`).
+- **Opslag (hybride, geen data-migratie-risico)**: `Exercise.exerciseType String
+  @default("strength")` (String, geen enum → uitbreidbaar zonder migratie).
+  `WorkoutExerciseItem.params Json?` + `PerformanceEntry.params Json?` houden de
+  type-specifieke waarden; velden met een `column` blijven in de bestaande kolommen
+  (sets/reps/weightKg/restSeconds/tempo) → álle bestaande kracht-leessites werken
+  ongewijzigd. Canoniek: durations in **seconden**, afstanden in **meters**.
+- **Pure helpers `lib/exercise-params.ts`**: `validateItemParams`/`itemColumnsFromParams`
+  (kolommen+JSON splitsen), `paramsFromItem`/`itemToInputValues` (reconstructie voor de
+  editor), `formatItemSummary`/`targetSummaryFromItem` (centrale samenvatting "4 × 10 @ 70
+  kg" of "30 min · 5 km · Zone 3" — hergebruikt door checklist, PDF, owner-overzicht én
+  editor-preview), en de tracking-varianten `logParamsFromInputValues`/`logColumnsFromParams`/
+  `entryToLogInputValues`.
+- **Owner**: type-keuze bovenaan het eigen-oefeningformulier; catalogus-adds krijgen een
+  automatisch type via `inferExerciseType`; inline `ExerciseTypeSelect` (auto-submit naar
+  `setExerciseType`) op elke oefeningkaart (eigen + catalogus) om bij te sturen. Audit
+  `exercise.type.change`.
+- **Schema-editor** (`components/schema-editor.tsx`): `EditorItem` draagt `exerciseType` +
+  `values` (input-strings per veld-id); de rij rendert de `targetFields` dynamisch met
+  type-icoon/-chip. Serialisatie → `{ exerciseId, exerciseType, values, notes }`;
+  `saveSchema` zet ze met de registry om naar kolommen+params (lenient/best-effort, zodat
+  autosave nooit blokkeert). `cloneToAssignment`/`duplicateTemplate` nemen `params` mee.
+- **Sporter**: `/member/schema` toont de type-bewuste samenvatting. Live tracking:
+  **kracht volgt het ongewijzigde `ExerciseBlock`-pad** (reps×kg, PR/1RM/rusttimer);
+  alle overige types gebruiken **`DynamicExerciseBlock`** (`single` = één resultaat,
+  `sets` = per set), met alléén de `logFields`. Opslaan via server-action **`saveLog`**
+  (reps/weightKg-kolommen voor kracht + JSON-params). 1RM/volume/PR blijven kracht-only —
+  niet-kracht-entries hebben reps=0/weightKg=0 en tellen vanzelf niet mee.
+- **PDF** (`lib/schema-pdf.ts`): niet-kracht-rijen tonen `summary` over de getalkolommen
+  i.p.v. sets/reps/gewicht.
+- **Bewust (nog) niet meegenomen**: de **3-weg-sync** (`lib/schema-diff.ts`) en de
+  **bulk-edit** werken op de kracht-kolommen (sets/reps/weight/rest/tempo) en synchroniseren
+  `params` nog niet — niet-kracht-oefeningen doen daar (nog) niet aan mee.
+
 ### Superadmin + RBAC (platform-laag)
 
 Drie rollen (`enum Role`): **SUPERADMIN** (platform, `tenantId == null`), **TENANT_ADMIN**
