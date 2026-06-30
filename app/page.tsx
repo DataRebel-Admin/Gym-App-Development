@@ -19,7 +19,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
+    <main className="relative flex min-h-dvh flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
       {/* Zachte accent-gloed op de achtergrond */}
       <div
         aria-hidden
