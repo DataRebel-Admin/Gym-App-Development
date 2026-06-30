@@ -156,6 +156,9 @@ model User {
   timezone      String? // IANA, bv. "Europe/Amsterdam"
   locale        Locale? // persoonlijke taal (override op tenant.locale)
   preferences   Json? // persoonlijke voorkeuren (thema, dichtheid, datum/tijd-notatie, …)
+  notificationPrefs Json? // per categorie × kanaal (e-mail/in-app/push)
+  consents      Json? // privacy-toestemmingen (bv. marketing)
+  deletionRequestedAt DateTime? // verzoek tot accountverwijdering
   // E-mailwijziging met verificatie.
   pendingEmail       String?
   emailChangeToken   String?   @unique

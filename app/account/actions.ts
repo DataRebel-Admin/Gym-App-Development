@@ -161,3 +161,70 @@ export async function requestEmailChange(
   revalidatePath("/account");
   return { ok: true };
 }
+
+/** Meldingsvoorkeuren opslaan (autosave). Het hele matrix-object komt als JSON binnen. */
+export async function saveNotificationPrefs(
+  _prev: AccountFormState,
+  formData: FormData
+): Promise<AccountFormState> {
+  const session = await requireAccount();
+  let prefs: unknown;
+  try {
+    prefs = JSON.parse(String(formData.get("prefs") ?? "{}"));
+  } catch {
+    return { error: "Ongeldige invoer" };
+  }
+  if (typeof prefs !== "object" || prefs === null) return { error: "Ongeldige invoer" };
+
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { notificationPrefs: prefs as object },
+  });
+  revalidatePath("/account/meldingen");
+  return { ok: true };
+}
+
+/** Privacy-toestemmingen opslaan (autosave). */
+export async function saveConsents(
+  _prev: AccountFormState,
+  formData: FormData
+): Promise<AccountFormState> {
+  const session = await requireAccount();
+  let consents: unknown;
+  try {
+    consents = JSON.parse(String(formData.get("consents") ?? "{}"));
+  } catch {
+    return { error: "Ongeldige invoer" };
+  }
+  if (typeof consents !== "object" || consents === null) return { error: "Ongeldige invoer" };
+
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { consents: consents as object },
+  });
+  await audit("privacy.consent.update", {
+    actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),
+    tenantId: session.tenantId ?? null,
+    targetType: "User",
+    targetId: session.id,
+  });
+  revalidatePath("/account/privacy");
+  return { ok: true };
+}
+
+/** Verzoek tot accountverwijdering (zet vlag; daadwerkelijke verwijdering is handmatig). */
+export async function requestAccountDeletion(formData: FormData) {
+  const session = await requireAccount();
+  const cancel = formData.get("cancel") === "true";
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { deletionRequestedAt: cancel ? null : new Date() },
+  });
+  await audit(cancel ? "account.deletion.cancel" : "account.deletion.request", {
+    actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),
+    tenantId: session.tenantId ?? null,
+    targetType: "User",
+    targetId: session.id,
+  });
+  revalidatePath("/account/privacy");
+}

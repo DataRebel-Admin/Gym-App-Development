@@ -25,6 +25,9 @@ const ACCOUNT_SELECT = {
   image: true,
   role: true,
   preferences: true,
+  notificationPrefs: true,
+  consents: true,
+  deletionRequestedAt: true,
   createdAt: true,
 } as const;
 

@@ -26,6 +26,9 @@ export default async function AccountLayout({
   // Tabs groeien mee terwijl de secties landen.
   const items: AccountNavItem[] = [
     { href: "/account", label: "Profiel", iconPath: ICON.profile },
+    { href: "/account/meldingen", label: "Meldingen", iconPath: ICON.bell },
+    { href: "/account/privacy", label: "Privacy", iconPath: ICON.privacy },
+    { href: "/account/activiteit", label: "Activiteit", iconPath: ICON.activity },
   ];
 
   return (
