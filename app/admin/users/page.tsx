@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
+import { listPendingInvitations } from "@/lib/invitation";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
 import {
   TableWrap,
@@ -13,6 +15,9 @@ import {
   Tr,
   Td,
 } from "@/components/ui/table";
+import { PendingInvitationsTable } from "@/components/invitations/pending-invitations-table";
+import { InviteUserForm } from "./invite-user-form";
+import { resendInvitation, revokeInvitation } from "./actions";
 
 const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: "Superadmin",
@@ -35,6 +40,15 @@ export default async function AdminUsersPage({
 }) {
   await requireSuperadmin();
   const sp = await searchParams;
+
+  const [tenants, pendingInvites] = await Promise.all([
+    prisma.tenant.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    listPendingInvitations(),
+  ]);
 
   const users = await prisma.user.findMany({
     where: sp.q
@@ -63,6 +77,32 @@ export default async function AdminUsersPage({
         title="Alle gebruikers"
         description="Elke gebruiker over alle tenants van het platform."
       />
+
+      <Card className="flex flex-col gap-3 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Gebruiker uitnodigen</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Kies een tenant en verstuur een uitnodiging. De link is 7 dagen geldig
+            (in dev verschijnt 'ie in de server-console).
+          </p>
+        </div>
+        <InviteUserForm tenants={tenants} />
+      </Card>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold text-neutral-900">Uitstaande uitnodigingen</h2>
+          {pendingInvites.length > 0 ? (
+            <span className="text-xs text-neutral-500">{pendingInvites.length} openstaand</span>
+          ) : null}
+        </div>
+        <PendingInvitationsTable
+          rows={pendingInvites}
+          showTenant
+          resendAction={resendInvitation}
+          revokeAction={revokeInvitation}
+        />
+      </section>
 
       <form method="get" className="flex items-end gap-2">
         <input

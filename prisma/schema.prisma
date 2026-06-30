@@ -43,6 +43,13 @@ enum MachineType {
   OVERIG
 }
 
+enum Gender {
+  MAN
+  VROUW
+  NON_BINAIR
+  ONBEKEND
+}
+
 model Tenant {
   id          String   @id @default(cuid())
   slug        String   @unique // subdomein, bv. "fitpower"
@@ -165,6 +172,9 @@ model User {
   lastName      String?
   jobTitle      String?
   phone         String?
+  birthDate     DateTime? // geboortedatum (o.a. via bulk-import)
+  gender        Gender? // geslacht (o.a. via bulk-import)
+  memberNumber  String? // sportschool-lidnummer (uniek per tenant; o.a. via bulk-import)
   timezone      String? // IANA, bv. "Europe/Amsterdam"
   locale        Locale? // persoonlijke taal (override op tenant.locale)
   preferences   Json? // persoonlijke voorkeuren (thema, dichtheid, datum/tijd-notatie, …)
@@ -198,6 +208,8 @@ model User {
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
   // SUPERADMIN (tenantId NULL) is globaal uniek via een partial index (zie migratie).
   @@unique([tenantId, email])
+  // Lidnummer uniek per tenant (NULLs mogen meermaals voorkomen in Postgres).
+  @@unique([tenantId, memberNumber])
   @@index([tenantId])
 }
 

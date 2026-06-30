@@ -102,6 +102,16 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft een rol gewijzigd naar ${s(meta, "role") ?? "?"}`,
   },
+  "user.import": {
+    category: "members", label: "Leden geïmporteerd", icon: "📥", tone: "success",
+    sentence: ({ actor, meta }) => {
+      const created = s(meta, "created") ?? "0";
+      const skipped = s(meta, "skipped");
+      return skipped && skipped !== "0"
+        ? `${actor} heeft ${created} leden geïmporteerd (${skipped} overgeslagen)`
+        : `${actor} heeft ${created} leden geïmporteerd`;
+    },
+  },
   "user.invite": {
     category: "members", label: "Uitnodiging verzonden", icon: "✉️", tone: "accent",
     sentence: ({ actor, meta }) =>

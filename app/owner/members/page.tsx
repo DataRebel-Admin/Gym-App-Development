@@ -22,6 +22,8 @@ import {
   Tr,
   Td,
 } from "@/components/ui/table";
+import { listPendingInvitations } from "@/lib/invitation";
+import { PendingInvitationsTable } from "@/components/invitations/pending-invitations-table";
 import { MemberAddForm } from "./member-add-form";
 import {
   setMemberRole,
@@ -30,6 +32,8 @@ import {
   archiveMember,
   unarchiveMember,
   resendInvite,
+  resendMemberInviteById,
+  revokeMemberInvite,
 } from "./actions";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -77,7 +81,10 @@ export default async function OwnerMembersPage({
     includeArchived: sp.archived === "1",
     page: Math.max(1, Number(sp.page ?? "1") || 1),
   };
-  const { rows: members, page, totalPages } = await listMembers(owner.tenantId, opts);
+  const [{ rows: members, page, totalPages }, pendingInvites] = await Promise.all([
+    listMembers(owner.tenantId, opts),
+    listPendingInvitations({ tenantId: owner.tenantId }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6 px-6 py-8">
@@ -87,9 +94,31 @@ export default async function OwnerMembersPage({
       />
 
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">Nieuw lid toevoegen</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-neutral-900">Nieuw lid toevoegen</h2>
+          <Link
+            href="/owner/members/import"
+            className={buttonClasses({ variant: "outline", size: "sm" })}
+          >
+            📥 Bulk importeren
+          </Link>
+        </div>
         <MemberAddForm />
       </Card>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold text-neutral-900">Uitstaande uitnodigingen</h2>
+          {pendingInvites.length > 0 ? (
+            <span className="text-xs text-neutral-500">{pendingInvites.length} openstaand</span>
+          ) : null}
+        </div>
+        <PendingInvitationsTable
+          rows={pendingInvites}
+          resendAction={resendMemberInviteById}
+          revokeAction={revokeMemberInvite}
+        />
+      </section>
 
       {/* Zoeken / filteren / sorteren */}
       <form method="get" className="flex flex-wrap items-end gap-3">

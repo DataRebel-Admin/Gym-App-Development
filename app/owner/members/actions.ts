@@ -6,13 +6,13 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { audit } from "@/lib/audit";
-import { inviteToken, inviteExpiry, sendInviteEmail } from "@/lib/invitation";
+import { createInvitation } from "@/lib/invitation";
 
 const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_MEMBER"]);
 
 async function origin(): Promise<string> {
   const h = await headers();
-  const host = h.get("host") ?? "localhost:3000";
+  const host = h.get("host") ?? "localhost:3001";
   const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }
@@ -34,18 +34,7 @@ export async function inviteMember(formData: FormData) {
   });
   if (existing) return;
 
-  const token = inviteToken();
-  await prisma.invitation.upsert({
-    where: { tenantId_email: { tenantId: owner.tenantId, email } },
-    update: { role, token, expiresAt: inviteExpiry(), invitedById: owner.id, acceptedAt: null },
-    create: { tenantId: owner.tenantId, email, role, token, expiresAt: inviteExpiry(), invitedById: owner.id },
-  });
-
-  await sendInviteEmail({
-    email,
-    tenantId: owner.tenantId,
-    acceptUrl: `${await origin()}/invite/${token}`,
-  });
+  await createInvitation({ tenantId: owner.tenantId, email, role, invitedById: owner.id, origin: await origin() });
   await audit("user.invite", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email, role } });
 
   revalidatePath("/owner/members");
@@ -57,6 +46,24 @@ export async function revokeMemberInvite(formData: FormData) {
   if (!id) return;
   await prisma.invitation.deleteMany({ where: { id, tenantId: owner.tenantId } });
   await audit("user.invite.revoke", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", targetId: id });
+  revalidatePath("/owner/members");
+}
+
+/** (Her)verstuur een uitstaande uitnodiging op basis van haar id (gescoped op tenant). */
+export async function resendMemberInviteById(formData: FormData) {
+  const owner = await requireOwner();
+  const id = String(formData.get("invitationId") ?? "");
+  if (!id) return;
+
+  const inv = await prisma.invitation.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: { email: true, role: true },
+  });
+  if (!inv) return;
+
+  await createInvitation({ tenantId: owner.tenantId, email: inv.email, role: inv.role, invitedById: owner.id, origin: await origin() });
+  await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", targetId: id, metadata: { email: inv.email } });
+
   revalidatePath("/owner/members");
 }
 
@@ -209,18 +216,7 @@ export async function resendInvite(formData: FormData) {
   });
   if (!user) return;
 
-  const token = inviteToken();
-  await prisma.invitation.upsert({
-    where: { tenantId_email: { tenantId: owner.tenantId, email: user.email } },
-    update: { token, expiresAt: inviteExpiry(), invitedById: owner.id, acceptedAt: null },
-    create: { tenantId: owner.tenantId, email: user.email, role: user.role, token, expiresAt: inviteExpiry(), invitedById: owner.id },
-  });
-
-  await sendInviteEmail({
-    email: user.email,
-    tenantId: owner.tenantId,
-    acceptUrl: `${await origin()}/invite/${token}`,
-  });
+  await createInvitation({ tenantId: owner.tenantId, email: user.email, role: user.role, invitedById: owner.id, origin: await origin() });
   await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email: user.email } });
 
   revalidatePath("/owner/members");
