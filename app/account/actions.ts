@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAccount } from "@/lib/account";
+import { requireOwner } from "@/lib/owner";
 import { uploadAvatar } from "@/lib/blob";
 import { audit } from "@/lib/audit";
 import { graphConfigured, sendMailViaGraph } from "@/lib/email/graph";
@@ -227,4 +228,76 @@ export async function requestAccountDeletion(formData: FormData) {
     targetId: session.id,
   });
   revalidatePath("/account/privacy");
+}
+
+const tenantSchema = z.object({
+  contactEmail: z.string().trim().email().optional().or(z.literal("")),
+  contactPhone: z.string().trim().max(40).optional().or(z.literal("")),
+  addressLine: z.string().trim().max(120).optional().or(z.literal("")),
+  postalCode: z.string().trim().max(16).optional().or(z.literal("")),
+  city: z.string().trim().max(80).optional().or(z.literal("")),
+  country: z.string().trim().max(80).optional().or(z.literal("")),
+  website: z.string().trim().url().optional().or(z.literal("")),
+  vatNumber: z.string().trim().max(40).optional().or(z.literal("")),
+  cocNumber: z.string().trim().max(40).optional().or(z.literal("")),
+});
+
+const SOCIAL_KEYS = ["instagram", "facebook", "linkedin", "tiktok"] as const;
+const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+function collect(formData: FormData, prefix: string, keys: readonly string[]) {
+  const out: Record<string, string> = {};
+  for (const k of keys) {
+    const v = String(formData.get(`${prefix}_${k}`) ?? "").trim();
+    if (v) out[k] = v;
+  }
+  return out;
+}
+
+/** Tenant-instellingen (zakelijke gegevens) opslaan — alleen tenant-admin. */
+export async function saveTenantBusiness(
+  _prev: AccountFormState,
+  formData: FormData
+): Promise<AccountFormState> {
+  const owner = await requireOwner();
+  const parsed = tenantSchema.safeParse({
+    contactEmail: formData.get("contactEmail") ?? "",
+    contactPhone: formData.get("contactPhone") ?? "",
+    addressLine: formData.get("addressLine") ?? "",
+    postalCode: formData.get("postalCode") ?? "",
+    city: formData.get("city") ?? "",
+    country: formData.get("country") ?? "",
+    website: formData.get("website") ?? "",
+    vatNumber: formData.get("vatNumber") ?? "",
+    cocNumber: formData.get("cocNumber") ?? "",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+  const d = parsed.data;
+  const socials = collect(formData, "social", SOCIAL_KEYS);
+  const openingHours = collect(formData, "hours", DAY_KEYS);
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: {
+      contactEmail: d.contactEmail || null,
+      contactPhone: d.contactPhone || null,
+      addressLine: d.addressLine || null,
+      postalCode: d.postalCode || null,
+      city: d.city || null,
+      country: d.country || null,
+      website: d.website || null,
+      vatNumber: d.vatNumber || null,
+      cocNumber: d.cocNumber || null,
+      socials: Object.keys(socials).length ? socials : undefined,
+      openingHours: Object.keys(openingHours).length ? openingHours : undefined,
+    },
+  });
+  await audit("tenant.business.update", {
+    actor: { id: owner.id, email: owner.email ?? null, role: owner.role },
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+  });
+  revalidatePath("/account/tenant");
+  return { ok: true };
 }
