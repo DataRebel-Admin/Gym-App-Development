@@ -3,6 +3,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { UserMenu } from "@/components/nav/user-menu";
+import { TenantSwitcher } from "@/components/nav/tenant-switcher";
+import { getUserTenants } from "@/lib/tenants";
 import { MemberNav } from "@/components/nav/member-nav";
 import { PageTransition } from "@/components/motion/page-transition";
 
@@ -17,10 +19,14 @@ export default async function MemberLayout({
   if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
 
   const tenant = await getCurrentTenant();
+  const tenants = session.user.email
+    ? await getUserTenants(session.user.email)
+    : [];
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-surface-0">
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-surface-1/85 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border bg-surface-1/85 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-2 overflow-hidden">
         <Link
           href="/member"
           className="flex items-center gap-2 font-display font-bold text-neutral-900"
@@ -39,6 +45,8 @@ export default async function MemberLayout({
           )}
           {tenant?.name ?? "GymRebel"}
         </Link>
+        <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
+        </div>
         <UserMenu
           name={session.user.name ?? null}
           email={session.user.email ?? null}
