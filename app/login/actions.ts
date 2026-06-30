@@ -127,6 +127,23 @@ export async function loginWithPassword(
   return {};
 }
 
+/** Start OAuth-login (Microsoft Entra of Google). Zet de tenant-cookie zodat de
+ *  adapter na de callback het juiste tenant-account koppelt. */
+export async function oauthSignIn(formData: FormData) {
+  const provider = String(formData.get("provider") ?? "");
+  const tenant = String(formData.get("tenant") ?? "");
+  if (provider !== "google" && provider !== "microsoft-entra-id") return;
+  if (tenant) {
+    (await cookies()).set(AUTH_TENANT_COOKIE, tenant, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 15,
+    });
+  }
+  await signIn(provider, { redirectTo: "/" });
+}
+
 /** Log de huidige gebruiker uit en stuur terug naar de loginpagina. */
 export async function logout() {
   await signOut({ redirectTo: "/login" });
