@@ -9,6 +9,9 @@ import { TenantPrismaAdapter } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { verifyPassword, verifyTotp } from "@/lib/security";
+import { resolveLoginUser } from "@/lib/login-user";
+import { verifyLoginChallenge } from "@/lib/login-challenge";
+import { devLoginEnabled } from "@/lib/dev-login";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
 import { loadTenantBrandingBySlug } from "@/lib/email/branding";
 import { magicLinkMessage } from "@/lib/email/messages";
@@ -47,6 +50,36 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_I
   );
 }
 
+// Dev-only: wachtwoordloze login voor demo-accounts (zie lib/dev-login.ts).
+// Wordt NIET geregistreerd in productie of zonder DEV_LOGIN="true".
+const devProviders: NextAuthConfig["providers"] = [];
+if (devLoginEnabled()) {
+  devProviders.push(
+    Credentials({
+      id: "dev-login",
+      name: "Developer login",
+      credentials: { email: {} },
+      async authorize(creds) {
+        // Tweede slot op de deur: nooit autoriseren als dev-login uit staat.
+        if (!devLoginEnabled()) return null;
+        const email = String(creds?.email ?? "").toLowerCase().trim();
+        if (!email) return null;
+        // Tenant-scoped resolutie via de login-cookie (zoals de wachtwoord-login).
+        const user = await resolveLoginUser(email);
+        if (!user || !user.active) return null;
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          tenantId: user.tenantId,
+          active: user.active,
+        };
+      },
+    })
+  );
+}
+
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   adapter: TenantPrismaAdapter(),
@@ -69,30 +102,45 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     }),
     Credentials({
       name: "Wachtwoord",
-      credentials: { email: {}, password: {}, code: {} },
+      credentials: { email: {}, password: {}, code: {}, challenge: {} },
       async authorize(creds) {
         const email = String(creds?.email ?? "").toLowerCase().trim();
         const password = String(creds?.password ?? "");
         const code = String(creds?.code ?? "");
-        if (!email || !password) return null;
+        const challenge = String(creds?.challenge ?? "");
+        if (!email) return null;
 
-        // Tenant uit de login-cookie (zoals de magic-link-flow); geen cookie → superadmin.
-        const slug = (await cookies()).get(AUTH_TENANT_COOKIE)?.value;
-        const user = slug
-          ? await prisma.tenant
-              .findUnique({ where: { slug }, select: { id: true } })
-              .then((t) =>
-                t
-                  ? prisma.user.findUnique({
-                      where: { tenantId_email: { tenantId: t.id, email } },
-                    })
-                  : null
-              )
-          : await prisma.user.findFirst({
-              where: { email, tenantId: null, role: "SUPERADMIN" },
-            });
+        const user = await resolveLoginUser(email);
+        if (!user || !user.active) return null;
 
-        if (!user || !user.active || !user.passwordHash) return null;
+        // Stap 2 van de tweestaps-login: een geldige challenge bewijst dat het
+        // wachtwoord al in stap 1 (server action) is geverifieerd. We hoeven het
+        // wachtwoord dus niet opnieuw te checken — alleen de 2FA-code indien actief.
+        if (challenge) {
+          if (
+            !verifyLoginChallenge(challenge, {
+              email: user.email,
+              tenantId: user.tenantId,
+            })
+          ) {
+            return null;
+          }
+          if (user.twoFactorEnabled) {
+            if (!user.twoFactorSecret || !verifyTotp(code, user.twoFactorSecret)) return null;
+          }
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            tenantId: user.tenantId,
+            active: user.active,
+          };
+        }
+
+        // Directe wachtwoord-login (defense-in-depth; de UI gebruikt de
+        // challenge-flow). 2FA-code blijft hier verplicht voor 2FA-gebruikers.
+        if (!password || !user.passwordHash) return null;
         if (!(await verifyPassword(password, user.passwordHash))) return null;
         if (user.twoFactorEnabled) {
           if (!user.twoFactorSecret || !verifyTotp(code, user.twoFactorSecret)) return null;
@@ -108,6 +156,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       },
     }),
     ...oauthProviders,
+    ...devProviders,
   ],
   callbacks: {
     ...authConfig.callbacks,
