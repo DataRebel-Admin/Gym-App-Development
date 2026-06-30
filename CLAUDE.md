@@ -93,6 +93,16 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
     leden worden door de owner aangemaakt, nooit auto-provisioned bij login.
   - **Dev**: magic link wordt naar de server-console geprint (geen echte mail). Productie:
     later een echte SMTP/Resend-transport in `sendVerificationRequest`.
+  - **Wachtwoord-login is tweestaps.** Stap 1 (`loginWithPassword`) verifieert e-mail+
+    wachtwoord server-side en logt direct in als er géén 2FA is. Heeft de gebruiker 2FA
+    aanstaan, dan vraagt stap 1 de code NIET maar mint een **ondertekende, kortlevende
+    challenge** (`lib/login-challenge.ts`, HMAC met `AUTH_SECRET`, 5 min, gebonden aan
+    e-mail+tenant) in een httpOnly-cookie en redirect naar de aparte pagina `/login/2fa`.
+    Stap 2 (`verifyTwoFactor`) verzamelt alleen de TOTP-code. De credentials-`authorize`
+    accepteert óf een geldige challenge (bewijs dat het wachtwoord al geverifieerd is, +
+    de 2FA-code) óf het klassieke wachtwoord-pad (defense-in-depth). De challenge maakt het
+    onmogelijk het credentials-endpoint direct te misbruiken om 2FA te omzeilen. Tenant-
+    scoped user-lookup is gedeeld in `lib/login-user.ts` (`resolveLoginUser`).
   - Auth.js infra-tabellen (`Account`, `Session`, `VerificationToken`) hebben **geen**
     `tenantId`/RLS — het zijn framework-tabellen.
 - **Tenant-resolutie (prompt 04).** `proxy.ts` lost de tenant op (subdomein of `?tenant`)
@@ -281,6 +291,35 @@ huisstijl + verzending blijven gedeeld.
   gewijzigd (`app/account/security-actions.ts`), schema toegewezen
   (`app/owner/schemas/actions.ts` → `notifySchemaAssigned`). Nieuwe-flow-sends zijn
   best-effort (try/catch, vóór een eventuele `redirect`) — breken de actie nooit.
+
+### Foutpagina's (premium error-architectuur)
+
+Eén config-gedreven systeem zodat een gebruiker nooit een kale framework-fout
+ziet — alle foutpagina's delen dezelfde premium shell, illustratie en
+tenant-branding.
+
+- **`lib/errors.ts`** = bron van waarheid (geen `server-only`, ook client-bruikbaar):
+  `ERROR_PRESETS` voor **401/403/404/500/503** (kicker/titel/uitleg/tone/acties),
+  `buildErrorNav(role)` (rol → juiste dashboard + ingelogd-status), `KNOWN_ROUTES`
+  (rol-gefilterde bestemmingen) en de fuzzy-helpers (`levenshtein`, `suggestRoutes`,
+  `isHighConfidence`) voor typo-detectie. **Nieuwe foutcode = één preset-regel.**
+- **`components/error/`**: `error-layout.tsx` (client, herbruikbare shell — leest
+  `useTenant()`, behoudt `?tenant=` op alle links, fade-in via `motion`),
+  `error-illustration.tsx` (zwevende lijn-SVG per code, accent = `currentColor`),
+  `route-suggestions.tsx` (client; "Bedoelde je…?" + **auto-redirect met countdown
+  bij hoge zekerheid** + zoek/quick-links), `error-view.tsx` (**server-entry**:
+  resolved `auth()` → rendert `ErrorLayout`; gebruik `<ErrorView code={…} />` voor
+  élke foutcode).
+- **Next-wiring**: `app/not-found.tsx` (404, auth-bewust + suggesties),
+  `app/error.tsx` (500, client, met `reset`), `app/global-error.tsx` (catastrofaal —
+  standalone `<html>`/`<body>`, géén providers, pure-CSS animaties),
+  `app/forbidden.tsx` (403) en `app/unauthorized.tsx` (401).
+- **Guards → interrupts**: `requireOwner/requireMember/requireSuperadmin` roepen
+  `unauthorized()` (niet ingelogd) resp. `forbidden()` (verkeerde rol) aan i.p.v. te
+  redirecten. Vereist **`experimental.authInterrupts: true`** (next.config.ts). N.B.:
+  `proxy.ts` vangt de cross-area rol-mismatch op `/owner`↔`/member`↔`/admin` al af met
+  een redirect (bewust — betere UX dan een 403); de guard-`forbidden()` is daar dus
+  defense-in-depth en de echte 403-UX is voor andere `forbidden()`-call-sites.
 
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
