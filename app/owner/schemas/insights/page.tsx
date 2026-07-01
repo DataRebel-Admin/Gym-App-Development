@@ -75,7 +75,7 @@ export default async function CoachInsightsPage() {
           hint="Per master: hoeveel toewijzingen gepersonaliseerd zijn."
         >
           {insights.deviatingSchemas.length === 0 ? (
-            <p className="text-sm text-neutral-500">Nog geen schema's toegewezen.</p>
+            <p className="text-sm text-neutral-500">Nog geen schema&apos;s toegewezen.</p>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {insights.deviatingSchemas.map((s) => (

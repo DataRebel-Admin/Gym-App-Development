@@ -30,6 +30,30 @@ function Row({
   );
 }
 
+function ConnectButton({
+  provider,
+  enabled,
+  connected,
+  tenantSlug,
+}: {
+  provider: string;
+  enabled: boolean;
+  connected: Set<string>;
+  tenantSlug: string;
+}) {
+  if (connected.has(provider)) return <StatusBadge ok />;
+  if (!enabled) return <Badge tone="neutral">Niet geconfigureerd</Badge>;
+  return (
+    <form action={oauthSignIn}>
+      <input type="hidden" name="provider" value={provider} />
+      <input type="hidden" name="tenant" value={tenantSlug} />
+      <button type="submit" className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+        Verbinden
+      </button>
+    </form>
+  );
+}
+
 export const metadata = { title: "Integraties" };
 
 export default async function IntegrationsPage() {
@@ -42,20 +66,7 @@ export default async function IntegrationsPage() {
     select: { provider: true },
   });
   const connected = new Set(accounts.map((a) => a.provider));
-
-  function ConnectButton({ provider, enabled }: { provider: string; enabled: boolean }) {
-    if (connected.has(provider)) return <StatusBadge ok />;
-    if (!enabled) return <Badge tone="neutral">Niet geconfigureerd</Badge>;
-    return (
-      <form action={oauthSignIn}>
-        <input type="hidden" name="provider" value={provider} />
-        <input type="hidden" name="tenant" value={tenant?.slug ?? ""} />
-        <button type="submit" className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
-          Verbinden
-        </button>
-      </form>
-    );
-  }
+  const tenantSlug = tenant?.slug ?? "";
 
   const isAdmin = user.role === "TENANT_ADMIN";
 
@@ -69,10 +80,10 @@ export default async function IntegrationsPage() {
       <section className="rounded-2xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">Verbonden accounts</h2>
         <Row title="Microsoft" desc="Inloggen met je Microsoft Entra-account.">
-          <ConnectButton provider="microsoft-entra-id" enabled={oauth.microsoft} />
+          <ConnectButton provider="microsoft-entra-id" enabled={oauth.microsoft} connected={connected} tenantSlug={tenantSlug} />
         </Row>
         <Row title="Google" desc="Inloggen met je Google-account.">
-          <ConnectButton provider="google" enabled={oauth.google} />
+          <ConnectButton provider="google" enabled={oauth.google} connected={connected} tenantSlug={tenantSlug} />
         </Row>
       </section>
 

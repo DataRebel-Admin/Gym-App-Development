@@ -105,6 +105,7 @@ export function ExerciseDetailView({
           <img
             src={media}
             alt={detail.name}
+            decoding="async"
             className="h-64 w-full object-contain"
           />
         </div>
@@ -123,7 +124,7 @@ export function ExerciseDetailView({
               className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-surface-2"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img} alt="" aria-hidden className="h-full w-full object-cover" />
+              <img src={img} alt="" aria-hidden loading="lazy" decoding="async" className="h-full w-full object-cover" />
             </div>
           ))}
         </div>

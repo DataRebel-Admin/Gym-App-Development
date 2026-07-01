@@ -20,7 +20,6 @@ import { saveSchema, type SchemaSaveState } from "@/app/owner/schemas/actions";
 import Link from "next/link";
 import { Info } from "@/components/ui/icons";
 import {
-  EXERCISE_TYPES,
   getExerciseType,
   exerciseTypeLabel,
   type ParamField,

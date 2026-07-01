@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
     // guards naar de premium 403/401-pagina's kunnen onderbreken i.p.v. te
     // redirecten. Rendert app/forbidden.tsx resp. app/unauthorized.tsx.
     authInterrupts: true,
+    // Barrel-tree-shaking: importeert alleen de daadwerkelijk gebruikte modules
+    // uit deze packages i.p.v. de hele barrel → kleinere client-bundles en
+    // snellere cold starts. Puur een build-optimalisatie, geen gedragswijziging.
+    optimizePackageImports: ["lucide-react", "recharts", "motion", "react-markdown"],
   },
 };
 

@@ -164,7 +164,7 @@ export function DynamicExerciseBlock({
       >
         {exercise.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={exercise.thumbUrl} alt="" aria-hidden className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-sm" />
+          <img src={exercise.thumbUrl} alt="" aria-hidden loading="lazy" decoding="async" className="h-16 w-16 shrink-0 rounded-2xl object-cover shadow-sm" />
         ) : (
           <span className={cn("flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl", type.tone)}>
             <TypeIcon className="size-7" />

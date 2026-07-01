@@ -6,7 +6,6 @@ import {
   asSnapshot,
   diffSnapshots,
   summarizeDiff,
-  type DiffEntry,
 } from "@/lib/schema-diff";
 
 /**

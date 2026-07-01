@@ -172,6 +172,8 @@ export function MeasurementForm({
                   <img
                     src={p.url}
                     alt={POSE_LABEL[p.pose] ?? p.pose}
+                    loading="lazy"
+                    decoding="async"
                     className={`h-28 w-20 rounded-lg border-2 object-cover ${kept ? "border-accent" : "border-border opacity-40"}`}
                   />
                   <input

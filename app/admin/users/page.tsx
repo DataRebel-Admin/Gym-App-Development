@@ -84,7 +84,7 @@ export default async function AdminUsersPage({
           <h2 className="text-sm font-semibold text-neutral-900">Gebruiker uitnodigen</h2>
           <p className="mt-1 text-sm text-neutral-500">
             Kies een tenant en verstuur een uitnodiging. De link is 7 dagen geldig
-            (in dev verschijnt 'ie in de server-console).
+            (in dev verschijnt &apos;ie in de server-console).
           </p>
         </div>
         <InviteUserForm tenants={tenants} />

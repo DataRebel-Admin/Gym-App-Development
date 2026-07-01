@@ -29,7 +29,6 @@ import { getExerciseType, exerciseTypeLabel, type ParamField } from "@/lib/exerc
 import {
   defaultInputValues,
   summaryFromInputValues,
-  type InputValues,
 } from "@/lib/exercise-params";
 import {
   isExerciseAllowed,

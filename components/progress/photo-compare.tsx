@@ -64,7 +64,7 @@ function CompareImg({ url }: { url: string | null }) {
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt="" className="aspect-[3/4] w-full rounded-xl border border-border object-cover" />;
+  return <img src={url} alt="" loading="lazy" decoding="async" className="aspect-[3/4] w-full rounded-xl border border-border object-cover" />;
 }
 
 function Selector({

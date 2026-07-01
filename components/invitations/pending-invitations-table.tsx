@@ -62,8 +62,6 @@ export function PendingInvitationsTable({
     );
   }
 
-  const colSpan = showTenant ? 6 : 5;
-
   return (
     <TableWrap>
       <Table>

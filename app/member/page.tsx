@@ -6,7 +6,6 @@ import { getMemberStats } from "@/lib/member-stats";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getAchievementUiState, getAchievementsView } from "@/lib/achievements/evaluate";
 import { AchievementDashboardSummary } from "@/components/achievements/dashboard-summary";
-import { parseTrainingGoals, getTrainingGoal } from "@/lib/training-goals";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { AssistantWidget } from "@/components/assistant-widget";
 import { surfaceSuggestions } from "@/lib/ai";

@@ -1140,12 +1140,14 @@ export async function bulkEditChunk(userIds: string[], rawOp: BulkOp): Promise<B
           where: { templateId, ...(op.exerciseId ? { exerciseId: op.exerciseId } : {}) },
           data: { restSeconds: op.restSeconds },
         });
-        r.count > 0 ? updated++ : skipped++;
+        if (r.count > 0) updated++;
+        else skipped++;
       } else if (op.type === "removeExercise" && op.exerciseId) {
         const r = await prisma.workoutExerciseItem.deleteMany({
           where: { templateId, exerciseId: op.exerciseId },
         });
-        r.count > 0 ? updated++ : skipped++;
+        if (r.count > 0) updated++;
+        else skipped++;
       } else if (op.type === "addExercise" && op.exerciseId) {
         const day = await prisma.workoutDay.findFirst({
           where: { templateId },

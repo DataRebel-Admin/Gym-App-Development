@@ -8,7 +8,6 @@
 
 import {
   getExerciseType,
-  type ExerciseTypeDef,
   type ParamField,
 } from "@/lib/exercise-types";
 
