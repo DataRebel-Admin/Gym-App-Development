@@ -148,7 +148,7 @@ enum SchemaRequestStatus {
 
 model Tenant {
   id          String   @id @default(cuid())
-  slug        String   @unique // subdomein, bv. "fitpower"
+  slug        String   @unique // subdomein, bv. "gymrebel"
   name        String
   logoUrl     String?
   accentColor String? // primaire kleur (hex), bv. "#E84B1F"

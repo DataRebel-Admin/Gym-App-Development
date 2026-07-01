@@ -25,7 +25,7 @@ export function TenantCreateForm() {
         <input
           name="slug"
           required
-          placeholder="fitpower"
+          placeholder="sportschool-x"
           className="rounded-lg border border-neutral-300 px-3 py-2 font-mono text-sm text-neutral-900"
         />
       </label>

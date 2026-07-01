@@ -29,15 +29,16 @@ export type DemoAccount = {
 };
 
 /**
- * De demo-accounts uit prisma/seed.ts. E-mail is uniek *per tenant*: sven komt
+ * De demo-accounts uit prisma/seed.ts. E-mail is uniek *per tenant*: duco komt
  * bewust in beide tenants voor (de tenant-slug bepaalt welk account je krijgt).
  */
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   { email: "admin@datarebel.nl", name: "Platform Beheer", tenant: null, role: "Superadmin", area: "/admin" },
-  { email: "owner@fitpower.nl", name: "Bea Eigenaar", tenant: "fitpower", role: "Owner", area: "/owner" },
-  { email: "sven@fitpower.nl", name: "Sven Sporter", tenant: "fitpower", role: "Lid", area: "/member" },
-  { email: "lisa@fitpower.nl", name: "Lisa Lifter", tenant: "fitpower", role: "Lid", area: "/member" },
-  { email: "tom@fitpower.nl", name: "Tom Trainer", tenant: "fitpower", role: "Lid", area: "/member" },
+  { email: "keimpe@gymrebel.nl", name: "Keimpe Krachtpatser", tenant: "gymrebel", role: "Owner", area: "/owner" },
+  { email: "coach@gymrebel.nl", name: "Coen Coach", tenant: "gymrebel", role: "Medewerker", area: "/owner" },
+  { email: "duco@gymrebel.nl", name: "Duco Dumbbell", tenant: "gymrebel", role: "Lid", area: "/member" },
+  { email: "lisa@gymrebel.nl", name: "Lisa Lifter", tenant: "gymrebel", role: "Lid", area: "/member" },
+  { email: "tom@gymrebel.nl", name: "Tom Trainer", tenant: "gymrebel", role: "Lid", area: "/member" },
   { email: "owner@ironhouse.nl", name: "Ivo IJzer", tenant: "ironhouse", role: "Owner", area: "/owner" },
-  { email: "sven@fitpower.nl", name: "Sven (IronHouse)", tenant: "ironhouse", role: "Lid", area: "/member" },
+  { email: "duco@gymrebel.nl", name: "Duco (IronHouse)", tenant: "ironhouse", role: "Lid", area: "/member" },
 ];

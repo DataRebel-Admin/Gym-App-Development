@@ -1,4 +1,4 @@
-import { PrismaClient, MachineType, Role, Locale } from "@prisma/client";
+import { PrismaClient, MachineType, Role, Locale, MeasurementSource, GoalMetric } from "@prisma/client";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { snapshotOf } from "../lib/schema-diff";
@@ -153,6 +153,15 @@ async function seedTenant(spec: TenantSpec) {
   await prisma.classSession.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.groupClass.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.aiUsage.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.memberFrameworkAssignment.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.schemaFramework.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.coachNote.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.coachAssignment.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.memberGoal.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.measurementPhoto.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.measurement.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.maintenanceRecord.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.maintenancePolicy.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.performanceEntry.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.workoutSession.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.assignedWorkout.deleteMany({ where: { tenantId: tenant.id } });
@@ -216,14 +225,15 @@ async function seedTenant(spec: TenantSpec) {
   const machineByName = new Map(machines.map((m) => [m.name, m]));
 
   // Demo-onderhoudshistorie (alleen de rijke tenant) zodat de historie/log gevuld is.
-  if (spec.slug === "fitpower" && machines.length > 0) {
+  if (spec.slug === "gymrebel" && machines.length > 0) {
+    const ago = (days: number) => new Date(Date.now() - days * DAY);
     await prisma.maintenanceRecord.createMany({
       data: [
         {
           tenantId: tenant.id,
           machineId: machines[0].id,
           kind: "SERVICE",
-          performedAt: new Date(Date.now() - 100 * DAY),
+          performedAt: ago(100),
           action: "Kabels gecontroleerd en gesmeerd",
           note: "Lichte slijtage aan de linkerkabel — bij volgende beurt vervangen.",
           performedByName: "Externe monteur",
@@ -233,11 +243,33 @@ async function seedTenant(spec: TenantSpec) {
         },
         {
           tenantId: tenant.id,
+          machineId: machines[0].id,
+          kind: "REPAIR",
+          performedAt: ago(40),
+          action: "Linkerkabel vervangen",
+          note: "Kabel volledig vervangen; loopt weer soepel.",
+          performedByName: "Externe monteur",
+          cost: 142.0,
+          usageAtService: 620,
+        },
+        {
+          tenantId: tenant.id,
           machineId: machines[Math.min(1, machines.length - 1)].id,
           kind: "INSPECTION",
-          performedAt: new Date(Date.now() - 45 * DAY),
+          performedAt: ago(45),
           action: "Jaarlijkse veiligheidsinspectie",
+          note: "Geen bijzonderheden.",
           usageAtService: 120,
+        },
+        {
+          tenantId: tenant.id,
+          machineId: machines[Math.min(2, machines.length - 1)].id,
+          kind: "SAFETY_CHECK",
+          performedAt: ago(15),
+          action: "Veiligheidscontrole na melding",
+          note: "Machine tijdelijk buiten gebruik tot vervangend onderdeel binnen is.",
+          performedByName: "Coen Coach",
+          usageAtService: 75,
         },
       ],
     });
@@ -506,7 +538,7 @@ function futureDate(daysAhead: number, hour: number): Date {
 async function seedRooster(slug: string) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
   const lisa = await prisma.user.findFirst({
-    where: { tenantId: tenant.id, email: "lisa@fitpower.nl", role: "TENANT_MEMBER" },
+    where: { tenantId: tenant.id, email: "lisa@gymrebel.nl", role: "TENANT_MEMBER" },
   });
 
   // Spinning — max 1, en meteen vol (Lisa aangemeld) om "vol" te tonen.
@@ -558,6 +590,259 @@ async function seedRooster(slug: string) {
   console.log(`  ↳ rooster ${slug}: 2 lessen, 3 sessies (Spinning is vol)`);
 }
 
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/** Standaard-onderhoudsregels per machinetype (waaruit nieuwe machines putten). */
+async function seedMaintenancePolicies(slug: string) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const policies: {
+    machineType: MachineType;
+    usageThreshold: number | null;
+    intervalDays: number | null;
+  }[] = [
+    { machineType: MachineType.CARDIO, usageThreshold: 500, intervalDays: 90 },
+    { machineType: MachineType.KRACHT, usageThreshold: 1000, intervalDays: 180 },
+    { machineType: MachineType.VRIJE_GEWICHTEN, usageThreshold: null, intervalDays: 365 },
+    { machineType: MachineType.OVERIG, usageThreshold: 300, intervalDays: 120 },
+  ];
+  for (const p of policies) {
+    await prisma.maintenancePolicy.create({ data: { tenantId: tenant.id, ...p } });
+  }
+  console.log(`  ↳ onderhoudsbeleid ${slug}: ${policies.length} regels per machinetype`);
+}
+
+/**
+ * Coach↔lid-koppelingen + coachnotities, zodat "Mijn leden", het ledenprofiel en
+ * de notities-tab gevuld zijn. Coen Coach begeleidt Duco en Lisa.
+ */
+async function seedCoaching(slug: string) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const byEmail = (email: string) =>
+    prisma.user.findFirst({ where: { tenantId: tenant.id, email } });
+  const coach = await byEmail("coach@gymrebel.nl");
+  const owner = await byEmail("keimpe@gymrebel.nl");
+  const duco = await byEmail("duco@gymrebel.nl");
+  const lisa = await byEmail("lisa@gymrebel.nl");
+  if (!coach) return;
+
+  for (const member of [duco, lisa]) {
+    if (!member) continue;
+    await prisma.coachAssignment.create({
+      data: {
+        tenantId: tenant.id,
+        coachId: coach.id,
+        memberId: member.id,
+        assignedById: owner?.id ?? null,
+      },
+    });
+  }
+
+  if (duco) {
+    await prisma.coachNote.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          memberId: duco.id,
+          authorId: coach.id,
+          pinned: true,
+          body: "Doel: 6 kg afvallen vóór de zomer. Focus op techniek bij de squat — knieën naar buiten. Blessuregevoelige onderrug, dus deadlift voorlopig vermijden.",
+          createdAt: new Date(Date.now() - 60 * DAY_MS),
+        },
+        {
+          tenantId: tenant.id,
+          memberId: duco.id,
+          authorId: coach.id,
+          body: "Week 4: mooie progressie op de beenpers (+15 kg). Motivatie hoog. Volgende blok cardio-volume iets omhoog.",
+          createdAt: new Date(Date.now() - 28 * DAY_MS),
+        },
+        {
+          tenantId: tenant.id,
+          memberId: duco.id,
+          authorId: coach.id,
+          body: "Besproken: voeding rondom training. Duco gaat zijn eiwitinname bijhouden.",
+          createdAt: new Date(Date.now() - 7 * DAY_MS),
+        },
+      ],
+    });
+  }
+  console.log(`  ↳ coaching ${slug}: koppelingen + coachnotities`);
+}
+
+/**
+ * Metingen (lichaamssamenstelling + omtrek + conditie) over ~12 weken plus doelen,
+ * zodat de voortgangsgrafieken en het ledenprofiel gevuld zijn. Coen Coach voert ze in.
+ */
+async function seedProgress(slug: string) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  const byEmail = (email: string) =>
+    prisma.user.findFirst({ where: { tenantId: tenant.id, email } });
+  const coach = await byEmail("coach@gymrebel.nl");
+  const duco = await byEmail("duco@gymrebel.nl");
+  const lisa = await byEmail("lisa@gymrebel.nl");
+  const now = new Date();
+  const weeksAgo = (w: number) => new Date(now.getTime() - w * 7 * DAY_MS);
+
+  // Duco: 7 metingen over 12 weken — dalend gewicht/vet, stijgende spiermassa.
+  if (duco) {
+    const weeks = [12, 10, 8, 6, 4, 2, 0];
+    await prisma.measurement.createMany({
+      data: weeks.map((w, i) => {
+        const t = i / (weeks.length - 1); // 0 → 1 progressie
+        return {
+          tenantId: tenant.id,
+          userId: duco.id,
+          recordedById: coach?.id ?? null,
+          measuredAt: weeksAgo(w),
+          source: MeasurementSource.MANUAL,
+          weightKg: round1(88 - t * 6),
+          bodyFatPct: round1(24 - t * 5),
+          muscleMassKg: round1(60 + t * 3),
+          bmi: round1(27.2 - t * 1.9),
+          waistCm: round1(96 - t * 8),
+          chestCm: round1(102 + t * 2),
+          restingHrBpm: Math.round(66 - t * 8),
+          notes:
+            i === 0
+              ? "Nulmeting bij intake."
+              : i === weeks.length - 1
+                ? "Mooie progressie — doel bijna gehaald!"
+                : null,
+        };
+      }),
+    });
+    await prisma.memberGoal.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          userId: duco.id,
+          metric: GoalMetric.WEIGHT,
+          startValue: 88,
+          targetValue: 80,
+          targetDate: futureDate(28, 9),
+          createdById: coach?.id ?? null,
+        },
+        {
+          tenantId: tenant.id,
+          userId: duco.id,
+          metric: GoalMetric.BODY_FAT,
+          startValue: 24,
+          targetValue: 15,
+          targetDate: futureDate(70, 9),
+          createdById: coach?.id ?? null,
+        },
+      ],
+    });
+  }
+
+  // Lisa: 3 metingen + één reeds behaald doel.
+  if (lisa) {
+    const weeks = [8, 4, 0];
+    await prisma.measurement.createMany({
+      data: weeks.map((w, i) => {
+        const t = i / (weeks.length - 1);
+        return {
+          tenantId: tenant.id,
+          userId: lisa.id,
+          recordedById: coach?.id ?? null,
+          measuredAt: weeksAgo(w),
+          source: MeasurementSource.MANUAL,
+          weightKg: round1(64 - t),
+          bodyFatPct: round1(22 - t * 2),
+          muscleMassKg: round1(46 + t * 2),
+          waistCm: round1(74 - t * 4),
+          restingHrBpm: Math.round(62 - t * 4),
+        };
+      }),
+    });
+    await prisma.memberGoal.create({
+      data: {
+        tenantId: tenant.id,
+        userId: lisa.id,
+        metric: GoalMetric.MUSCLE_MASS,
+        startValue: 46,
+        targetValue: 48,
+        achievedAt: now,
+        createdById: coach?.id ?? null,
+      },
+    });
+  }
+  console.log(`  ↳ voortgang ${slug}: metingen + doelen voor Duco & Lisa`);
+}
+
+/**
+ * Zelf-schema-kaders: zet de tenant op APPROVAL en definieert twee kaders (een
+ * brede tenant-standaard + een strikt beginnerskader). Duco krijgt het
+ * beginnerskader toegewezen — vult /owner/schemas/frameworks + de lid-builder.
+ */
+async function seedFrameworks(slug: string) {
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: { memberSchemaMode: "APPROVAL" },
+  });
+  const byEmail = (email: string) =>
+    prisma.user.findFirst({ where: { tenantId: tenant.id, email } });
+  const owner = await byEmail("keimpe@gymrebel.nl");
+  const duco = await byEmail("duco@gymrebel.nl");
+
+  const standaard = await prisma.schemaFramework.create({
+    data: {
+      tenantId: tenant.id,
+      name: "Standaardkader",
+      description:
+        "Ruime kaders voor ervaren leden — bijna vrij samenstellen, de coach kijkt mee.",
+      isDefault: true,
+      minDays: 2,
+      maxDays: 5,
+      minExercisesPerDay: 3,
+      maxExercisesPerDay: 8,
+      setsMin: 2,
+      setsMax: 6,
+      repsMin: 4,
+      repsMax: 20,
+      restMin: 30,
+      restMax: 180,
+    },
+  });
+
+  const beginner = await prisma.schemaFramework.create({
+    data: {
+      tenantId: tenant.id,
+      name: "Beginnerskader",
+      description:
+        "Veilige, overzichtelijke kaders voor nieuwe leden. Altijd eerst goedkeuring door de coach.",
+      minDays: 2,
+      maxDays: 3,
+      minExercisesPerDay: 3,
+      maxExercisesPerDay: 5,
+      setsMin: 2,
+      setsMax: 4,
+      repsMin: 8,
+      repsMax: 15,
+      restMin: 45,
+      restMax: 120,
+      allowedTypes: ["strength", "cardio", "core", "mobility"],
+      requireApproval: true,
+    },
+  });
+
+  if (duco) {
+    await prisma.memberFrameworkAssignment.create({
+      data: {
+        tenantId: tenant.id,
+        frameworkId: beginner.id,
+        memberId: duco.id,
+        assignedById: owner?.id ?? null,
+      },
+    });
+  }
+  console.log(
+    `  ↳ kaders ${slug}: ${standaard.name} (default) + ${beginner.name}, Duco gekoppeld`
+  );
+}
+
 async function main() {
   // SUPERADMIN — platform-beheerder, geen tenant (transcendeert tenants).
   await prisma.user.deleteMany({ where: { role: Role.SUPERADMIN } });
@@ -575,16 +860,16 @@ async function main() {
 
   // Tenant 1 — rijke demo.
   await seedTenant({
-    slug: "fitpower",
-    name: "FitPower Leeuwarden",
+    slug: "gymrebel",
+    name: "GymRebel Sportschool",
     accentColor: "#E84B1F",
     locale: Locale.NL,
-    owner: { email: "owner@fitpower.nl", name: "Bea Eigenaar" },
-    staff: [{ email: "coach@fitpower.nl", name: "Coen Coach" }],
+    owner: { email: "keimpe@gymrebel.nl", name: "Keimpe Krachtpatser" },
+    staff: [{ email: "coach@gymrebel.nl", name: "Coen Coach" }],
     members: [
-      { email: "sven@fitpower.nl", name: "Sven Sporter" },
-      { email: "lisa@fitpower.nl", name: "Lisa Lifter" },
-      { email: "tom@fitpower.nl", name: "Tom Trainer" },
+      { email: "duco@gymrebel.nl", name: "Duco Dumbbell" },
+      { email: "lisa@gymrebel.nl", name: "Lisa Lifter" },
+      { email: "tom@gymrebel.nl", name: "Tom Trainer" },
     ],
     machines: [
       { name: "Loopband", type: MachineType.CARDIO, description: "Hardlopen en wandelen op snelheid." },
@@ -812,9 +1097,9 @@ async function main() {
     accentColor: "#2563EB", // blauw i.p.v. oranje
     locale: Locale.EN,
     owner: { email: "owner@ironhouse.nl", name: "Ivo IJzer" },
-    // Bewust hetzelfde e-mailadres als een FitPower-lid: dezelfde persoon kan
+    // Bewust hetzelfde e-mailadres als een GymRebel-lid: dezelfde persoon kan
     // bij meerdere sportscholen sporten (e-mail is uniek *per tenant*).
-    members: [{ email: "sven@fitpower.nl", name: "Sven (IronHouse)" }],
+    members: [{ email: "duco@gymrebel.nl", name: "Duco (IronHouse)" }],
     machines: [
       { name: "Rowing machine", type: MachineType.CARDIO, description: "Full-body cardio rower." },
       { name: "Squat rack", type: MachineType.VRIJE_GEWICHTEN, description: "Rack for barbell squats." },
@@ -838,28 +1123,36 @@ async function main() {
   });
 
   // Trainingsactiviteit voor het owner-dashboard (laatste ~12 weken).
-  await seedActivity("fitpower", { days: 84, trainProbability: 0.5 });
+  await seedActivity("gymrebel", { days: 84, trainProbability: 0.5 });
   await seedActivity("ironhouse", { days: 30, trainProbability: 0.45 });
 
   // Toegewezen schema's zodat de member-views data tonen.
-  // Sven: gepersonaliseerd schema (badge "Aangepast" + vergelijking).
-  const svenClone = await seedAssignment("fitpower", "sven@fitpower.nl", "Beginner Full Body", {
-    trainerMessage: "Welkom Sven! Dit is je startschema — vragen? App me gerust.",
+  // Duco: gepersonaliseerd schema (badge "Aangepast" + vergelijking).
+  const ducoClone = await seedAssignment("gymrebel", "duco@gymrebel.nl", "Beginner Full Body", {
+    trainerMessage: "Welkom Duco! Dit is je startschema — vragen? App me gerust.",
   });
-  if (svenClone) await personalizeClone(svenClone);
+  if (ducoClone) await personalizeClone(ducoClone);
   // Lisa: standaard kopie van hetzelfde schema (badge "Standaard").
-  await seedAssignment("fitpower", "lisa@fitpower.nl", "Beginner Full Body", { seen: false });
-  await seedAssignment("fitpower", "tom@fitpower.nl", "Hardlopen");
+  await seedAssignment("gymrebel", "lisa@gymrebel.nl", "Beginner Full Body", { seen: false });
+  await seedAssignment("gymrebel", "tom@gymrebel.nl", "Hardlopen");
 
-  // Master ná toewijzing wijzigen → "Sync beschikbaar" bij Sven & Lisa.
-  await bumpMaster("fitpower", "Beginner Full Body");
+  // Master ná toewijzing wijzigen → "Sync beschikbaar" bij Duco & Lisa.
+  await bumpMaster("gymrebel", "Beginner Full Body");
 
-  // Trofeeën/achievements aan voor fitpower + demo-toekenningen op basis van de
+  // Trofeeën/achievements aan voor gymrebel + demo-toekenningen op basis van de
   // geseede trainingsactiviteit (zodat dashboards/coach-overzicht data tonen).
-  await seedAchievements("fitpower");
+  await seedAchievements("gymrebel");
 
   // Groepslessen.
-  await seedRooster("fitpower");
+  await seedRooster("gymrebel");
+
+  // Recentste features met demodata vullen: onderhoudsbeleid per machinetype,
+  // coach↔lid-koppelingen + coachnotities, voortgangsmetingen + doelen, en
+  // zelf-schema-kaders (frameworks).
+  await seedMaintenancePolicies("gymrebel");
+  await seedCoaching("gymrebel");
+  await seedProgress("gymrebel");
+  await seedFrameworks("gymrebel");
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

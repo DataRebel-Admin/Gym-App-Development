@@ -11,7 +11,7 @@ export const TENANT_HEADER = "x-tenant-slug";
 export const PATHNAME_HEADER = "x-pathname";
 
 /** Fallback-tenant in development wanneer geen subdomein/param aanwezig is. */
-export const DEV_FALLBACK_TENANT = "fitpower";
+export const DEV_FALLBACK_TENANT = "gymrebel";
 
 /** Cookie met de ondertekende 2FA-challenge tussen stap 1 (wachtwoord) en stap 2
  *  (code) van de wachtwoord-login. HttpOnly + kortlevend (zie lib/login-challenge.ts). */

@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { AnimatePresence, m } from "motion/react";
 import {
   requestMagicLink,
   loginWithPassword,
@@ -103,15 +104,40 @@ export function LoginForm({
   );
 }
 
-/** Demo snel-inlog-paneel: subtiel ingeklapt; één klik logt in als demo-account. */
+/**
+ * Demo snel-inlog-paneel: een subtiele trigger die de accounts als zwevende
+ * overlay uitklapt (zoals de taalwisselaar) — de kaart groeit dus niet mee.
+ * Sluit bij klik-buiten en Escape.
+ */
 function DemoPanel({ accounts }: { accounts: DemoAccount[] }) {
   const t = useTranslations("auth");
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
   return (
-    <div className="mt-1 border-t border-border pt-3">
+    <div ref={rootRef} className="relative mt-1 border-t border-border pt-3">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
         aria-expanded={open}
         className="mx-auto flex items-center gap-1.5 text-[11px] font-medium text-neutral-400 transition-colors hover:text-neutral-600 focus-ring"
       >
@@ -120,31 +146,39 @@ function DemoPanel({ accounts }: { accounts: DemoAccount[] }) {
         <ChevronIcon open={open} />
       </button>
 
-      {open ? (
-        <div className="mt-2.5 flex flex-col gap-1.5">
-          {accounts.map((a) => (
-            <form key={`${a.tenant ?? "_"}:${a.email}`} action={demoSignIn}>
-              <input type="hidden" name="email" value={a.email} />
-              <input type="hidden" name="tenant" value={a.tenant ?? ""} />
-              <button
-                type="submit"
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-surface-0 px-3 py-2 text-left text-sm transition-colors hover:bg-neutral-100 focus-ring active:scale-[0.99]"
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium text-neutral-800">{a.name}</span>
-                  <span className="truncate text-[11px] text-neutral-400">{a.email}</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-neutral-400">
-                  <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 font-medium text-neutral-500">
-                    {a.role}
+      <AnimatePresence>
+        {open ? (
+          <m.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full left-0 z-20 mb-2 flex max-h-72 w-full flex-col gap-1.5 overflow-y-auto rounded-xl border border-border bg-surface-1 p-2 shadow-lg"
+          >
+            {accounts.map((a) => (
+              <form key={`${a.tenant ?? "_"}:${a.email}`} action={demoSignIn}>
+                <input type="hidden" name="email" value={a.email} />
+                <input type="hidden" name="tenant" value={a.tenant ?? ""} />
+                <button
+                  type="submit"
+                  className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-surface-0 px-3 py-2 text-left text-sm transition-colors hover:bg-neutral-100 focus-ring active:scale-[0.99]"
+                >
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium text-neutral-800">{a.name}</span>
+                    <span className="truncate text-[11px] text-neutral-400">{a.email}</span>
                   </span>
-                  {a.tenant ?? "platform"}
-                </span>
-              </button>
-            </form>
-          ))}
-        </div>
-      ) : null}
+                  <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-neutral-400">
+                    <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 font-medium text-neutral-500">
+                      {a.role}
+                    </span>
+                    {a.tenant ?? "platform"}
+                  </span>
+                </button>
+              </form>
+            ))}
+          </m.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

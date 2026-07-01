@@ -4,8 +4,8 @@ import { DEV_FALLBACK_TENANT } from "@/lib/constants";
  * Pure tenant-resolutie (geen DB / geen next/headers) zodat dit ook in de
  * edge-runtime van de proxy/middleware kan draaien.
  *
- * Productie: subdomein → `fitpower.gymrebel.app` levert "fitpower".
- * Development: subdomein `fitpower.localhost` of de query-param `?tenant=fitpower`.
+ * Productie: subdomein → `sportschool-x.gymrebel.app` levert "sportschool-x".
+ * Development: subdomein `sportschool-x.localhost` of de query-param `?tenant=gymrebel`.
  */
 const RESERVED_LABELS = new Set([
   "localhost",

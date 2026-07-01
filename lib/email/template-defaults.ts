@@ -56,7 +56,7 @@ export const GLOBAL_PLACEHOLDERS: PlaceholderDef[] = [
   { token: "accentColor", label: "Accentkleur (hex)", sample: "#e84b1f" },
   { token: "accentText", label: "Tekstkleur op accent", sample: "#ffffff" },
   { token: "logoUrl", label: "Logo-URL", sample: "" },
-  { token: "supportEmail", label: "Support-e-mailadres", sample: "info@fitpower.nl" },
+  { token: "supportEmail", label: "Support-e-mailadres", sample: "info@gymrebel.nl" },
 ];
 
 const INK = "#1f2937";
@@ -101,7 +101,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       "Je ontvangt deze e-mail omdat er een inloglink is aangevraagd voor je account bij {{gymName}}.",
     hasTrigger: true,
     placeholders: [
-      { token: "loginLink", label: "Inloglink", sample: "https://fitpower.gymrebel.app/auth/verify?token=…", required: true },
+      { token: "loginLink", label: "Inloglink", sample: "https://gymrebel.app/auth/verify?token=…", required: true },
     ],
     defaultSubject: "Je inloglink voor {{gymName}}",
     defaultPreheader: "Je persoonlijke, eenmalige inloglink staat klaar.",
@@ -125,7 +125,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
     reason: "Je ontvangt deze e-mail omdat {{gymName}} je heeft uitgenodigd voor een account.",
     hasTrigger: true,
     placeholders: [
-      { token: "activationLink", label: "Activatielink", sample: "https://fitpower.gymrebel.app/invite/…", required: true },
+      { token: "activationLink", label: "Activatielink", sample: "https://gymrebel.app/invite/…", required: true },
     ],
     defaultSubject: "Uitnodiging voor {{gymName}}",
     defaultPreheader: "Activeer je account bij {{gymName}}.",
@@ -150,7 +150,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
     hasTrigger: true,
     placeholders: [
       P_FIRSTNAME,
-      { token: "loginLink", label: "Inloglink", sample: "https://fitpower.gymrebel.app/login", required: true },
+      { token: "loginLink", label: "Inloglink", sample: "https://gymrebel.app/login", required: true },
     ],
     defaultSubject: "Welkom bij {{gymName}}",
     defaultPreheader: "Je account is geactiveerd — log in om te beginnen.",
@@ -173,7 +173,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
     hasTrigger: true,
     placeholders: [
       P_FIRSTNAME,
-      { token: "securityLink", label: "Beveiligingslink", sample: "https://fitpower.gymrebel.app/account/security", required: true },
+      { token: "securityLink", label: "Beveiligingslink", sample: "https://gymrebel.app/account/security", required: true },
     ],
     defaultSubject: "Je wachtwoord bij {{gymName}} is gewijzigd",
     defaultPreheader: "Een beveiligingsmelding over je account.",
@@ -198,7 +198,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
     placeholders: [
       P_FIRSTNAME,
       { token: "workoutName", label: "Naam trainingsschema", sample: "Full Body Beginner", required: true },
-      { token: "schemaLink", label: "Link naar het schema", sample: "https://fitpower.gymrebel.app/member/schema", required: true },
+      { token: "schemaLink", label: "Link naar het schema", sample: "https://gymrebel.app/member/schema", required: true },
     ],
     defaultSubject: "Nieuw trainingsschema: {{workoutName}}",
     defaultPreheader: "{{workoutName}} staat voor je klaar.",
@@ -222,7 +222,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
     hasTrigger: true,
     placeholders: [
       { token: "newEmail", label: "Nieuw e-mailadres", sample: "nieuw@voorbeeld.nl", required: true },
-      { token: "confirmLink", label: "Bevestigingslink", sample: "https://fitpower.gymrebel.app/account/confirm-email?token=…", required: true },
+      { token: "confirmLink", label: "Bevestigingslink", sample: "https://gymrebel.app/account/confirm-email?token=…", required: true },
     ],
     defaultSubject: "Bevestig je nieuwe e-mailadres",
     defaultPreheader: "Bevestig de wijziging naar {{newEmail}}.",
@@ -250,7 +250,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       { token: "title", label: "Titel", sample: "Je sportschool is op zondag gesloten" },
       { token: "message", label: "Bericht", sample: "Let op: aanstaande zondag zijn we wegens onderhoud gesloten." },
       { token: "actionLabel", label: "Knoptekst (optioneel)", sample: "Bekijk de openingstijden" },
-      { token: "actionLink", label: "Knoplink (optioneel)", sample: "https://fitpower.gymrebel.app" },
+      { token: "actionLink", label: "Knoplink (optioneel)", sample: "https://gymrebel.app" },
     ],
     defaultSubject: "{{title}}",
     defaultPreheader: "Een bericht van {{gymName}}.",
