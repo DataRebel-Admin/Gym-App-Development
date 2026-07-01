@@ -30,6 +30,18 @@ export default async function SchemasLayout({
             {t("navMembers")}
           </Link>
           <Link
+            href="/owner/schemas/member-built"
+            className="text-neutral-500 hover:text-neutral-900"
+          >
+            {t("navMemberBuilt")}
+          </Link>
+          <Link
+            href="/owner/schemas/frameworks"
+            className="text-neutral-500 hover:text-neutral-900"
+          >
+            {t("navFrameworks")}
+          </Link>
+          <Link
             href="/owner/schemas/bulk"
             className="text-neutral-500 hover:text-neutral-900"
           >

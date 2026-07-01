@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   COMPOSITION_METRICS,
   CIRCUMFERENCE_METRICS,
+  CONDITION_METRICS,
   MEASUREMENT_SOURCE_LABEL,
   POSE_LABEL,
   type MetricDef,
@@ -133,6 +134,16 @@ export function MeasurementForm({
         <h3 className="text-sm font-semibold text-neutral-900">Lichaamssamenstelling</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {COMPOSITION_METRICS.map((def) => (
+            <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
+          ))}
+        </div>
+      </section>
+
+      {/* Conditie */}
+      <section className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-neutral-900">Conditie</h3>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {CONDITION_METRICS.map((def) => (
             <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
           ))}
         </div>

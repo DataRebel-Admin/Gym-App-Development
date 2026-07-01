@@ -10,6 +10,8 @@ import { MemberDrawer } from "@/components/nav/member-drawer";
 import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { MemberOnboarding } from "@/components/member/onboarding";
+import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
+import { CelebrationOverlay } from "@/components/achievements/celebration-overlay";
 
 export default async function MemberLayout({
   children,
@@ -26,6 +28,14 @@ export default async function MemberLayout({
   const notifications = await getNotificationOverview(session.user.id);
   const tenants = session.user.email
     ? await getUserTenants(session.user.email)
+    : [];
+
+  // Celebration-overlay: alleen tonen als trofeeën aan zijn én niet verborgen.
+  const achievementUi = session.user.tenantId
+    ? await getAchievementUiState(session.user.id, session.user.tenantId)
+    : { visible: false };
+  const celebrations = achievementUi.visible
+    ? await getPendingCelebrations(session.user.id, session.user.tenantId!)
     : [];
 
   return (
@@ -60,6 +70,7 @@ export default async function MemberLayout({
             image={badge?.image ?? null}
             tenants={tenants}
             currentSlug={tenant?.slug ?? null}
+            showAchievements={achievementUi.visible}
           />
         </div>
       </header>
@@ -70,6 +81,7 @@ export default async function MemberLayout({
 
       <MemberNav />
       <MemberOnboarding />
+      <CelebrationOverlay celebrations={celebrations} />
     </div>
   );
 }

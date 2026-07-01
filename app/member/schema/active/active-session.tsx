@@ -52,6 +52,13 @@ export type WorkoutContextProps = {
   workoutsThisWeekIncl: number;
 };
 
+/** Afrondscherm-beloning: mood-registratie + motiverende quote + hersteltip. */
+export type RewardProps = {
+  initialMood: string | null;
+  recoveryTip: string;
+  quote: string | null;
+};
+
 const DEFAULT_REST = 90;
 
 function fmtClock(totalSec: number) {
@@ -76,11 +83,13 @@ export function ActiveSession({
   startedAt,
   exercises,
   context,
+  reward,
 }: {
   sessionId: string;
   startedAt: string;
   exercises: ActiveExercise[];
   context: WorkoutContextProps;
+  reward: RewardProps;
 }) {
   const t = useTranslations("member.active");
   const timer = useRestTimer();
@@ -384,6 +393,7 @@ export function ActiveSession({
             weeklyGoal={context.weeklyGoal}
             weeklyGoalReached={context.weeklyGoalReached}
             workoutsThisWeek={context.workoutsThisWeekIncl}
+            reward={reward}
             onContinue={() => {
               setShowCompletion(false);
               setDismissed(true);

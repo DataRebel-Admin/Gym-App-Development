@@ -14,8 +14,11 @@ export type AuditCategory =
   | "exercises"
   | "machines"
   | "measurements"
+  | "engagement"
   | "tenant"
   | "email"
+  | "support"
+  | "platform"
   | "auth";
 
 export type AuditActionDef = {
@@ -43,8 +46,11 @@ export const CATEGORY_META: Record<
   exercises: { label: "Oefeningen", icon: "🏋️", tone: "warning" },
   machines: { label: "Machines", icon: "⚙️", tone: "neutral" },
   measurements: { label: "Metingen", icon: "📏", tone: "accent" },
+  engagement: { label: "Betrokkenheid", icon: "🏆", tone: "success" },
   tenant: { label: "Tenant", icon: "🏢", tone: "neutral" },
   email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
+  support: { label: "Support", icon: "🛟", tone: "accent" },
+  platform: { label: "Platform", icon: "🛠️", tone: "neutral" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
 };
 
@@ -66,10 +72,18 @@ export function categoryFromAction(action: string): AuditCategory {
     case "measurement":
     case "goal":
       return "measurements";
+    case "achievement":
+    case "milestone":
+    case "passport":
+      return "engagement";
     case "auth":
       return "auth";
     case "email":
       return "email";
+    case "support":
+      return "support";
+    case "platform":
+      return "platform";
     case "tenant":
     case "branding":
     default:
@@ -141,6 +155,22 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
   "user.invite.accept": {
     category: "members", label: "Uitnodiging geaccepteerd", icon: "🎉", tone: "success",
     sentence: ({ actor }) => `${actor} heeft zich geactiveerd`,
+  },
+  "user.activate.opened": {
+    category: "members", label: "Activatielink geopend", icon: "👀", tone: "neutral",
+    sentence: ({ meta }) => `${s(meta, "email") ?? "Iemand"} heeft de activatielink geopend`,
+  },
+  "user.activate.expired": {
+    category: "members", label: "Activatielink verlopen", icon: "⌛", tone: "warning",
+    sentence: ({ meta }) => `Een activatielink voor ${s(meta, "email") ?? "een lid"} was verlopen`,
+  },
+  "user.activate.resend": {
+    category: "members", label: "Nieuwe activatielink verstuurd", icon: "📨", tone: "accent",
+    sentence: ({ meta }) => `Een nieuwe activatielink is verstuurd naar ${s(meta, "email") ?? "een lid"}`,
+  },
+  "user.password.set": {
+    category: "members", label: "Wachtwoord ingesteld", icon: "🔐", tone: "success",
+    sentence: ({ actor }) => `${actor} heeft bij activatie een wachtwoord ingesteld`,
   },
   "user.permissions.change": {
     category: "members", label: "Rechten aangepast", icon: "🛡️", tone: "accent",
@@ -275,6 +305,53 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
       `${actor} heeft een veelvoorkomende aanpassing in master '${s(meta, "name") ?? ""}' toegepast`.trim(),
   },
 
+  // --- Zelf-gebouwde lid-schema's (sporter bouwt zelf) ---
+  "schema.member.start": {
+    category: "schemas", label: "Zelf schema gestart", icon: "🧩", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} is zelf een trainingsschema '${s(meta, "name") ?? ""}' gaan samenstellen`.trim(),
+  },
+  "schema.member.submit": {
+    category: "schemas", label: "Zelf-schema ingediend", icon: "📨", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft zelf-schema '${s(meta, "name") ?? ""}' ingediend ter controle`.trim(),
+  },
+  "schema.member.approve": {
+    category: "schemas", label: "Zelf-schema goedgekeurd", icon: "✅", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het zelf-gebouwde schema van ${s(meta, "member") ?? "een lid"} goedgekeurd`,
+  },
+  "schema.member.reject": {
+    category: "schemas", label: "Zelf-schema afgewezen", icon: "🚫", tone: "danger",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het zelf-gebouwde schema van ${s(meta, "member") ?? "een lid"} afgewezen`,
+  },
+  "schema.member.activate": {
+    category: "schemas", label: "Zelf-schema geactiveerd", icon: "🚀", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft zelf-schema '${s(meta, "name") ?? ""}' geactiveerd`.trim(),
+  },
+  "schema.member.pause": {
+    category: "schemas", label: "Zelf-schema gepauzeerd", icon: "⏸️", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft zelf-schema '${s(meta, "name") ?? ""}' gepauzeerd`.trim(),
+  },
+  "schema.framework.save": {
+    category: "schemas", label: "Kader opgeslagen", icon: "🧭", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft kader '${s(meta, "name") ?? ""}' voor zelf-schema's opgeslagen`.trim(),
+  },
+  "schema.framework.delete": {
+    category: "schemas", label: "Kader verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft kader '${s(meta, "name") ?? ""}' verwijderd`.trim(),
+  },
+  "schema.framework.assign": {
+    category: "schemas", label: "Kader gekoppeld aan lid", icon: "🔗", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een kader gekoppeld aan ${s(meta, "member") ?? "een lid"}`,
+  },
+
   // --- Schema-aanvragen (sporter → coach) ---
   "request.submit": {
     category: "schemas", label: "Schema-aanvraag ingediend", icon: "📨", tone: "accent",
@@ -384,6 +461,23 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor }) => `${actor} heeft een doel verwijderd`,
   },
 
+  // --- Trofeeën / achievements / mijlpalen ---
+  "achievement.earned": {
+    category: "engagement", label: "Achievement behaald", icon: "🏆", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${s(meta, "member") ?? actor} heeft de trofee '${s(meta, "name") ?? ""}' behaald`.trim(),
+  },
+  "achievement.notify.sent": {
+    category: "engagement", label: "Achievement-melding verzonden", icon: "🔔", tone: "neutral",
+    sentence: ({ meta }) =>
+      `Melding over trofee '${s(meta, "name") ?? "een achievement"}' verzonden aan ${s(meta, "member") ?? "een lid"}`,
+  },
+  "milestone.reached": {
+    category: "engagement", label: "Mijlpaal bereikt", icon: "🎯", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${s(meta, "member") ?? actor} heeft een mijlpaal bereikt: ${s(meta, "name") ?? ""}`.trim(),
+  },
+
   // --- Tenant / instellingen ---
   "tenant.settings.update": {
     category: "tenant", label: "Instellingen aangepast", icon: "⚙️", tone: "accent",
@@ -440,6 +534,24 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "email", label: "Testmail verzonden", icon: "📨", tone: "neutral",
     sentence: ({ actor, meta }) =>
       `${actor} heeft een testmail '${s(meta, "name") ?? s(meta, "key") ?? ""}' verstuurd naar ${s(meta, "to") ?? "een adres"}`,
+  },
+
+  // --- Support (contact opnemen) ---
+  "support.open": {
+    category: "support", label: "Contactformulier geopend", icon: "🛟", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft het contactformulier geopend`,
+  },
+  "support.send": {
+    category: "support", label: "Supportbericht verzonden", icon: "📨", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een supportbericht verzonden${s(meta, "subject") ? `: '${s(meta, "subject")}'` : ""}`,
+  },
+
+  // --- Platform-instellingen (Superadmin) ---
+  "platform.settings.update": {
+    category: "platform", label: "Platforminstelling aangepast", icon: "🛠️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de platforminstelling '${s(meta, "setting") ?? ""}' aangepast`.trim(),
   },
 
   // --- Auth ---

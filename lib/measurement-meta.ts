@@ -28,16 +28,23 @@ export type MetricKey =
   | "thighLeftCm"
   | "thighRightCm"
   | "calfLeftCm"
-  | "calfRightCm";
+  | "calfRightCm"
+  // Conditie (fitness)
+  | "restingHrBpm";
 
-export type MetricGroup = "composition" | "circumference";
+export type MetricGroup = "composition" | "circumference" | "condition";
 
 export type MetricDef = {
   key: MetricKey;
   label: string;
   unit: string;
   group: MetricGroup;
-  /** Welke richting "vooruitgang" is — voor de kleur van delta-indicatoren. */
+  /**
+   * Typische gezondheids-/fitnessrichting van een metric — puur een *hint*.
+   * De delta-kleur in de UI is doel-relatief (t.o.v. het persoonlijke doel van
+   * de sporter), niet o.b.v. een universele aanname over wat "beter" is. Zo
+   * legt de app geen doel op: afvallen, aankomen of behouden is allemaal geldig.
+   */
   goodDirection: "up" | "down" | "neutral";
   decimals: number;
   /** Geheel getal (geen decimalen, INT-kolom). */
@@ -67,6 +74,8 @@ export const METRICS: MetricDef[] = [
   { key: "thighRightCm", label: "Bovenbeen rechts", unit: "cm", group: "circumference", goodDirection: "neutral", decimals: 1 },
   { key: "calfLeftCm", label: "Kuit links", unit: "cm", group: "circumference", goodDirection: "neutral", decimals: 1 },
   { key: "calfRightCm", label: "Kuit rechts", unit: "cm", group: "circumference", goodDirection: "neutral", decimals: 1 },
+  // Conditie (fitness) — een lagere rusthartslag duidt doorgaans op een betere conditie.
+  { key: "restingHrBpm", label: "Rusthartslag", unit: "bpm", group: "condition", goodDirection: "down", decimals: 0, integer: true, primary: true },
 ];
 
 export const METRIC_BY_KEY: Record<MetricKey, MetricDef> = Object.fromEntries(
@@ -75,6 +84,7 @@ export const METRIC_BY_KEY: Record<MetricKey, MetricDef> = Object.fromEntries(
 
 export const COMPOSITION_METRICS = METRICS.filter((m) => m.group === "composition");
 export const CIRCUMFERENCE_METRICS = METRICS.filter((m) => m.group === "circumference");
+export const CONDITION_METRICS = METRICS.filter((m) => m.group === "condition");
 export const PRIMARY_METRICS = METRICS.filter((m) => m.primary);
 
 /** Welke Measurement-kolom hoort bij een doel-metric. */

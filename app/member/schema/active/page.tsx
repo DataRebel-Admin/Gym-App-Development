@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getWorkoutContext } from "@/lib/member-stats";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { getHideQuotes } from "@/lib/user-preferences";
+import { resolveQuotes, pickQuote } from "@/lib/workout-quotes";
+import { pickRecoveryTip } from "@/lib/recovery-tips";
 import { ActiveSession, type ActiveExercise } from "./active-session";
 
 export const metadata = { title: "Actieve training" };
@@ -123,12 +126,33 @@ export default async function ActiveSessionPage() {
 
   const context = await getWorkoutContext(open.id, member.id, member.tenantId);
 
+  // Afrondscherm-beloning: herstelboodschap (altijd) + motiverende quote (alleen
+  // als de sportschool het aanheeft én het lid het niet heeft uitgezet). Beide
+  // deterministisch per sessie → stabiel binnen een training, afwisselend erna.
+  const [tenant, userRow] = await Promise.all([
+    prisma.tenant.findUnique({
+      where: { id: member.tenantId },
+      select: { quotesEnabled: true, customQuotes: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: member.id },
+      select: { preferences: true },
+    }),
+  ]);
+  const quotesOn = (tenant?.quotesEnabled ?? true) && !getHideQuotes(userRow?.preferences);
+  const reward = {
+    initialMood: open.mood ?? null,
+    recoveryTip: pickRecoveryTip(open.id),
+    quote: quotesOn ? pickQuote(resolveQuotes(tenant?.customQuotes), open.id) : null,
+  };
+
   return (
     <ActiveSession
       sessionId={open.id}
       startedAt={open.startedAt.toISOString()}
       exercises={exercises}
       context={context}
+      reward={reward}
     />
   );
 }

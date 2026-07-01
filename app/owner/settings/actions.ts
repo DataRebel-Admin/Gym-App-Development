@@ -83,6 +83,126 @@ export async function setTenantContact(
   return { ok: true };
 }
 
+/** Zet de controle-modus voor zelf-gebouwde lid-schema's (UIT/goedkeuring/direct). */
+export async function setMemberSchemaMode(formData: FormData) {
+  const owner = await requireOwner();
+  const raw = String(formData.get("mode") ?? "");
+  const parsed = z.enum(["DISABLED", "APPROVAL", "DIRECT"]).safeParse(raw);
+  if (!parsed.success) return;
+  const mode = parsed.data;
+
+  const before = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: { memberSchemaMode: true },
+  });
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { memberSchemaMode: mode },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    oldValue: { memberSchemaMode: before?.memberSchemaMode ?? null },
+    newValue: { memberSchemaMode: mode },
+    metadata: { setting: "memberSchemaMode" },
+  });
+
+  revalidatePath("/owner/settings");
+}
+
+/** Zet het trofeeën-/achievementssysteem aan of uit voor de tenant van de owner. */
+export async function setAchievementsEnabled(formData: FormData) {
+  const owner = await requireOwner();
+  const enabled = formData.get("enabled") === "true";
+
+  const before = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: { achievementsEnabled: true },
+  });
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { achievementsEnabled: enabled },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    oldValue: { achievementsEnabled: before?.achievementsEnabled ?? null },
+    newValue: { achievementsEnabled: enabled },
+    metadata: { setting: "achievementsEnabled" },
+  });
+
+  revalidatePath("/owner/settings");
+  revalidatePath("/member");
+}
+
+/** Zet de motiverende Workout Quotes aan of uit voor de tenant van de owner. */
+export async function setQuotesEnabled(formData: FormData) {
+  const owner = await requireOwner();
+  const enabled = formData.get("enabled") === "true";
+
+  const before = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: { quotesEnabled: true },
+  });
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { quotesEnabled: enabled },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    oldValue: { quotesEnabled: before?.quotesEnabled ?? null },
+    newValue: { quotesEnabled: enabled },
+    metadata: { setting: "quotesEnabled" },
+  });
+
+  revalidatePath("/owner/settings");
+}
+
+/** Beheer de eigen quotes van de sportschool (naast de standaard-quotes). */
+export async function setCustomQuotes(
+  _prev: ContactFormState,
+  formData: FormData
+): Promise<ContactFormState> {
+  const owner = await requireOwner();
+
+  // Verzamel alle regels uit de textarea, één quote per regel; schoon + begrens.
+  const raw = String(formData.get("quotes") ?? "");
+  const quotes = raw
+    .split("\n")
+    .map((q) => q.trim())
+    .filter(Boolean)
+    .slice(0, 50);
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { customQuotes: quotes.length > 0 ? quotes : Prisma.JsonNull },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    metadata: { setting: "customQuotes", count: quotes.length },
+  });
+
+  revalidatePath("/owner/settings");
+  return { ok: true };
+}
+
 /** Zet de AI-assistent aan of uit voor de tenant van de owner. */
 export async function setAiEnabled(formData: FormData) {
   const owner = await requireOwner();

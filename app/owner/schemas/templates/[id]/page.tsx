@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requirePermission } from "@/lib/staff";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
-import { deleteTemplate, duplicateTemplate } from "../../actions";
+import { deleteTemplate, duplicateTemplate, setTemplateMemberVisible } from "../../actions";
 import { SchemaAssignPanel } from "@/components/schema-assign-panel";
 import { SchemaAssignmentOverview } from "@/components/schema-assignment-overview";
 import { getAssignmentsForTemplate, toOverviewRows } from "@/lib/schema-assignments";
@@ -124,6 +124,8 @@ export default async function TemplateEditPage({
         initialDescription={template.description ?? ""}
         initialCoachNote={template.coachNote ?? ""}
         initialValidityWeeks={template.validityWeeks}
+        initialGoal={template.goal}
+        initialBadges={template.badges}
         showValidity={isSchema}
         initialDays={initialDays}
         availableExercises={exercises}
@@ -156,6 +158,33 @@ export default async function TemplateEditPage({
             <SchemaAssignmentOverview rows={toOverviewRows(assignments)} />
           </section>
         </>
+      ) : null}
+
+      {isSchema ? (
+        <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">Beschikbaar voor leden</h2>
+            <p className="text-sm text-neutral-500">
+              {template.memberVisible
+                ? "Leden kunnen dit schema kiezen als startpunt bij zelf-samenstellen."
+                : "Geef dit schema vrij als startsjabloon voor leden die zelf een schema maken."}
+            </p>
+          </div>
+          <form action={setTemplateMemberVisible}>
+            <input type="hidden" name="id" value={template.id} />
+            <input type="hidden" name="visible" value={template.memberVisible ? "false" : "true"} />
+            <button
+              type="submit"
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                template.memberVisible
+                  ? "border border-border text-neutral-900 hover:bg-neutral-50"
+                  : "bg-accent text-accent-foreground hover:opacity-90"
+              }`}
+            >
+              {template.memberVisible ? "Verbergen" : "Vrijgeven"}
+            </button>
+          </form>
+        </section>
       ) : null}
 
       <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">

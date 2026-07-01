@@ -101,26 +101,48 @@ export type DeltaItem = {
   unit: string;
   current: number | null;
   delta: number | null;
-  /** Goed (groen), slecht (rood) of neutraal — o.b.v. goodDirection. */
+  /**
+   * Goed (groen), slecht (rood) of neutraal. Bewust **doel-relatief**: alleen
+   * gekleurd als de sporter een persoonlijk doel voor deze metric heeft en er
+   * naartoe/vanaf beweegt. Zonder doel is elke verandering neutraal — de app
+   * bestempelt aankomen/afvallen/behouden niet als "goed" of "slecht".
+   */
   tone: "good" | "bad" | "neutral";
 };
 
 /** Verschil tussen de laatste en de voorlaatste meting, per headline-metric. */
 export async function getDeltas(tenantId: string, userId: string): Promise<DeltaItem[]> {
-  const [latest, previous] = await prisma.measurement.findMany({
-    where: { tenantId, userId },
-    orderBy: { measuredAt: "desc" },
-    take: 2,
-  });
+  const [measurements, goals] = await Promise.all([
+    prisma.measurement.findMany({
+      where: { tenantId, userId },
+      orderBy: { measuredAt: "desc" },
+      take: 2,
+    }),
+    prisma.memberGoal.findMany({
+      where: { tenantId, userId, achievedAt: null },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  const [latest, previous] = measurements;
   if (!latest) return [];
+
+  // Doel-target per metric-kolom (meest recente per metric).
+  const targetByKey = new Map<MetricKey, number>();
+  for (const g of goals) {
+    const key = GOAL_METRIC_KEY[g.metric];
+    if (!targetByKey.has(key)) targetByKey.set(key, g.targetValue);
+  }
+
   return PRIMARY_METRICS.map((def) => {
     const cur = (latest[def.key] as number | null) ?? null;
     const prev = previous ? ((previous[def.key] as number | null) ?? null) : null;
     const delta = cur != null && prev != null ? Number((cur - prev).toFixed(2)) : null;
     let tone: DeltaItem["tone"] = "neutral";
-    if (delta != null && delta !== 0 && def.goodDirection !== "neutral") {
-      const improving = def.goodDirection === "up" ? delta > 0 : delta < 0;
-      tone = improving ? "good" : "bad";
+    const target = targetByKey.get(def.key);
+    // Kleur alléén relatief aan het persoonlijke doel van de sporter.
+    if (target != null && delta != null && delta !== 0 && cur != null && prev != null) {
+      const closer = Math.abs(cur - target) < Math.abs(prev - target);
+      tone = closer ? "good" : "bad";
     }
     return { key: def.key, label: def.label, unit: def.unit, current: cur, delta, tone };
   });

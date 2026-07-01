@@ -44,7 +44,7 @@ export async function createInvitation(opts: {
   tenantId: string;
   email: string;
   role: Role;
-  invitedById: string;
+  invitedById: string | null;
   origin: string;
 }): Promise<void> {
   const token = inviteToken();

@@ -213,6 +213,58 @@ multi-dag, eigen + standaardoefeningen) en wijst ze toe met een volledige
 - **Bewust niet gebouwd**: lidmaatschapsgroepen (toewijs-flow is er wel op voorbereid via
   multi-select; "filter op groep" volgt zodra een MemberGroup-model bestaat).
 
+### Leden bouwen zelf een schema (self-service, coach houdt controle)
+
+Een lid kan **zelf een trainingsschema samenstellen** binnen door de sportschool
+gestelde kaders, met optionele goedkeuring. Hergebruikt volledig de bestaande
+`WorkoutTemplate → WorkoutDay → WorkoutExerciseItem`-structuur, de dynamische
+oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
+
+- **Controle-modus per tenant**: `Tenant.memberSchemaMode` (`enum MemberSchemaMode
+  DISABLED | APPROVAL | DIRECT`, default DISABLED — opt-in). Owner kiest op
+  `/owner/settings` (`setMemberSchemaMode`). DISABLED = functie uit; APPROVAL = lid
+  dient in → coach keurt goed; DIRECT = lid activeert zelf (gym ziet mee).
+- **Lid-levenscyclus op `AssignedWorkout`** (naast de zichtbaarheids-`status`):
+  `origin AssignmentOrigin (COACH|MEMBER)`, `memberStatus MemberSchemaStatus
+  (DRAFT|IN_REVIEW|APPROVED|REJECTED|ACTIVE|PAUSED)`, `submittedAt/reviewedAt/
+  reviewedById/reviewNote`, `goal SchemaRequestGoal?`, `focusNote`, `frameworkId`.
+  **Statusbrug** houdt bestaande zichtbaarheid intact: DRAFT/IN_REVIEW/REJECTED/APPROVED →
+  `status=DRAFT` (verborgen), ACTIVE → `status=PUBLISHED` (zichtbaar via het ongewijzigde
+  `getAssignedSchema`), PAUSED → `status=ARCHIVED`.
+- **Kaders (`SchemaFramework`, tenant-scoped + RLS)**: toegestane oefeningen/types,
+  min/max dagen, oefeningen-per-dag, sets/reps/rust, en `requireApproval`-override.
+  Resolutie per lid: **per-lid koppeling (`MemberFrameworkAssignment`, uniek per lid) →
+  tenant-default (`isDefault`) → geen** (vrij). Owner beheert op
+  `/owner/schemas/frameworks` (+ `[id]`) en koppelt per lid op het lid-schema-profiel.
+  Validatie is puur in **`lib/member-schema-constraints.ts`** (`validateAgainstFramework`,
+  `isExerciseAllowed`, `describeLimits`) — de mobiele builder gebruikt het live
+  (picker filteren, invoer clampen) én de server-action autoritatief (nooit de client
+  vertrouwen; minimums pas bij indienen).
+- **Startsjablonen = beide**: code-blueprints `lib/member-schema-blueprints.ts` (Full body,
+  Upper/Lower, PPL, Cardio, Kracht, Conditie, Herstel, leeg) + door de owner vrijgegeven
+  library-templates (`WorkoutTemplate.memberVisible`, toggle op de template-pagina).
+- **Mobile-first lid-builder** (`app/member/schema/builder/*`,
+  `components/member/member-schema-editor.tsx`): eigen mobiele editor die de pure logica
+  hergebruikt (exercise-types/params, dnd-kit, autosave, type-bewuste velden) — géén
+  owner-links. Zoeken, favorieten (`User.preferences.favoriteExerciseIds`), kopieer vorige
+  dag, dupliceer oefening, voortgangsindicator, live voorbeeld. Serialisatie-contract
+  identiek aan de owner-editor → gedeelde opslaglogica. Server-actions
+  (`app/member/schema/builder/actions.ts`): `startMemberSchema`, `saveMemberDraft`
+  (autosave) en `submitMemberSchema` delen `persistDraft` (voorkomt save-race bij
+  indienen); verder `activateMemberSchema`, `pauseMemberSchema`, `deleteMemberSchema`,
+  `setFavoriteExercises`. Toegang gegate via `requireMemberSchemaEnabled` (lib/member-schema.ts).
+- **Coach-review** (`/owner/schemas/member-built` + `[id]`): queue van ingediende schema's;
+  de coach opent het lid-schema in de bestaande owner `SchemaEditor` (het is een gewone
+  niet-library `WorkoutTemplate`) om te bewerken, en keurt goed / goed+activeer / af
+  (`reviewMemberSchema` in `app/owner/schemas/actions.ts`).
+- **Meldingen** (`lib/member-schema-notify.ts`): indienen → coaches met `schemas:manage`
+  (in-app via `notifyStaffWithPermission` + e-mail `memberSchemaSubmittedMessage`);
+  beoordeling → lid (in-app + e-mail `memberSchemaReviewedMessage`). Best-effort.
+- **Audit** (categorie `schemas`): `schema.member.start/submit/approve/reject/activate/pause`
+  + `schema.framework.save/delete/assign`.
+- **Bewust**: de 3-weg-sync/bulk-edit gelden alleen voor coach-master-schema's; zelf-gebouwde
+  schema's hebben geen master (`sourceTemplateId = null`).
+
 ### Fase 3 (member-functionaliteit, prompts 08–10)
 
 - **`requireMember()`** (lib/member.ts) = guard; member-area is mobile-first (`max-w-md`,
@@ -316,6 +368,77 @@ ongewijzigd.
 - **Bewust (nog) niet meegenomen**: de **3-weg-sync** (`lib/schema-diff.ts`) en de
   **bulk-edit** werken op de kracht-kolommen (sets/reps/weight/rest/tempo) en synchroniseren
   `params` nog niet — niet-kracht-oefeningen doen daar (nog) niet aan mee.
+
+### Spier-heatmap & -analyse (lid)
+
+Een lid ziet op **`/member/muscles`** welke spiergroepen zijn schema traint (body-
+heatmap) en of hij het schema volgt (radar: **schema-plan vs. echt getraind, 4 wkn**).
+Volledig afgeleid — géén nieuw DB-model, géén migratie.
+
+- **`lib/muscle-map.ts`** (puur, ook client — zoals `exercise-types.ts`): 16 canonieke
+  `MuscleRegion`'s (chest/shoulders/biceps/…/calves) met NL-label + aanzicht (front/back).
+  `RAW_TO_REGION` normaliseert de vrije spier-labels uit de catalogus (`target`,
+  `secondaryMuscles`) én eigen oefeningen (`targetMuscle`, `muscleGroups`) naar een regio;
+  `resolveRegion()` is de enige lookup. Volume-schaal `MUSCLE_LEVELS` (0=grijs…5=donkergroen)
+  + `levelForWeeklySets()` (grenzen ~hypertrofie-richtlijn).
+- **`lib/muscle-analysis.ts`** (`server-only`): `getMuscleAnalysis(memberId, tenantId)` telt
+  wekelijks set-volume per regio uit het actieve schema (**plan**, aanname 1×/week) en uit de
+  laatste 28 dagen `PerformanceEntry` (**echt getraind**, ÷4). Primaire spier telt vol,
+  secundaire half (0.5). Serialiseert `regions[]` (plan/actual/level) + `topRegions`/`neglected`.
+  Base `prisma` + expliciete `tenantId` (zoals `member-stats.ts`).
+- **Visuals** (client): `components/muscle/body-heatmap.tsx` — gestileerd voor/achter-silhouet
+  (geen anatomie), klikbare regio's, front/back-toggle, legenda. `components/muscle/muscle-radar.tsx`
+  — recharts `RadarChart` met twee lijnen (schema grijs-gestippeld vs. getraind accent).
+- **Ingangen**: drawer-link, tikbaar spiergroep-blok op `/member` en een link op `/member/schema`.
+  Toont "geen medisch advies"-melding (ontwerpprincipe 2). Nog niet i18n-gemigreerd (hardcoded NL,
+  zoals `/member/progress`).
+
+### Trofeeën, Achievements & Mijlpalen (Gym Passport)
+
+Een motivatielaag die de bestaande trainings-/meet-/doeldata beloont met trofeeën, een
+digitaal **Gym Passport** en automatisch gevierde mijlpalen. **Optioneel** en
+**niet-brekend** (alles afgeleid — geen bestaande functionaliteit gewijzigd).
+
+- **Opt-in**: per tenant `Tenant.achievementsEnabled` (owner-toggle op `/owner/settings`) **én**
+  per lid verbergbaar (`User.preferences.hideAchievements`, toggle op `/account/meldingen`).
+  Zichtbaarheids-helper `getAchievementUiState()` (lib/achievements/evaluate.ts) → `{enabled,
+  hidden, visible}`.
+- **Config-gestuurd (bron van waarheid, uitbreidbaar)** — idiomatisch zoals
+  `lib/exercise-types.ts`/`training-goals.ts` (géén `server-only`, ook client-badges):
+  **`lib/achievements/definitions.ts`** (`ACHIEVEMENTS[]` — key/category/rarity/metric/threshold;
+  categorieën training|consistency|strength|cardio|goals|community) + **`rarity.ts`**
+  (`bronze→legendary` styling). **Nieuwe achievement = één record**, geen migratie.
+- **Engine** (`server-only`): **`metrics.ts`** `computeMemberMetrics` (leidt alles af uit
+  `WorkoutSession`/`PerformanceEntry`/`Measurement`/`MemberGoal`/`User`; `goalsAchieved`
+  hergebruikt `getGoals` uit lib/measurements). **`evaluate.ts`** `evaluateAndAward` (idempotent
+  via `@@unique([tenantId,userId,key])` + `createMany skipDuplicates`) + `getAchievementsView`
+  (behaald/vergrendeld/voortgang gegroepeerd) + `getPendingCelebrations`/`markCelebrated`.
+  **`passport.ts`** `buildPassport` (stempels + levensfeiten). **`notify.ts`**
+  `notifyAchievementsEarned` (in-app/push/e-mail, categorie **`achievements`**, `prefAllows`-gate,
+  patroon van schema-notify). **`coach.ts`** `getCoachEngagement`.
+- **Model `EarnedAchievement`** (tenant-scoped + RLS; migratie `20260701090000_achievements`):
+  bewaart alleen wélke (`key`) + wanneer (`earnedAt`), met gedenormaliseerd category/rarity/value
+  en `celebratedAt`. Definities blijven code-gestuurd.
+- **Award-triggers** (best-effort, breken de actie nooit): `endSession`
+  (app/member/schema/actions.ts), meting/doel-mutaties
+  (app/owner/members/[userId]/progress/actions.ts), én **lazy** bij het openen van `/member/trophies`.
+- **Celebration**: `celebratedAt==null` → `CelebrationOverlay` (confetti + `navigator.vibrate`,
+  één-voor-één, `useReducedMotion`), gemount in `app/member/layout.tsx` (dekt álle pagina's, ook
+  post-workout `/member/history`).
+- **Leden-UI**: `/member/trophies` (kaarten + rariteit + voortgangsringen/-balken) en
+  `/member/passport`; dashboard-widget `AchievementDashboardSummary` op `/member`; drawer-entry.
+  Componenten in `components/achievements/`.
+- **Coach/profiel**: `/owner/engagement` (`CoachOverview`, permissie `members:view`, `?mine=1`
+  scoopt op coach-koppeling) — recente mijlpalen, bijna-behaald, langste streaks, meest actief,
+  stale; compacte sectie op `StaffDashboard`; `MemberProfileAchievements` op `/owner/members/[userId]`.
+- **Audit**: nieuwe categorie **`engagement`** + acties `achievement.earned`,
+  `achievement.notify.sent`, `milestone.reached`.
+- **Voorkeuren** consolideren in `lib/user-preferences.ts` (`getHideAchievements`/
+  `withHideAchievements`, naast de Workout-Quotes-helpers). **i18n**: registry-titels hardcoded NL
+  (precedent `training-goals.ts`/`staff-dashboard.tsx`); alleen de meldingscategorie is toegevoegd.
+- **Seed**: `seedAchievements("fitpower")` in `prisma/seed.ts` zet de vlag aan + kent demo-trofeeën
+  toe (zelfstandige tier-tabellen — importeert bewust **niet** de `server-only` engine, die throwt
+  onder tsx).
 
 ### Superadmin + RBAC (platform-laag)
 

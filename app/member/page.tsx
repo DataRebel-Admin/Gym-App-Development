@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getMemberStats } from "@/lib/member-stats";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getAchievementUiState, getAchievementsView } from "@/lib/achievements/evaluate";
+import { AchievementDashboardSummary } from "@/components/achievements/dashboard-summary";
+import { parseTrainingGoals, getTrainingGoal } from "@/lib/training-goals";
+import { SchemaBadges } from "@/components/schema/schema-badges";
 import { AssistantWidget } from "@/components/assistant-widget";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -49,6 +53,12 @@ export default async function MemberHome() {
     }),
     getTranslations("member.home"),
   ]);
+  // Trofeeën-widget: alleen als aan voor de gym én niet persoonlijk verborgen.
+  const achievementUi = await getAchievementUiState(member.id, member.tenantId);
+  const achievementsView = achievementUi.visible
+    ? await getAchievementsView(member.id, member.tenantId)
+    : null;
+
   const schema = assignment?.template;
   const isNewSchema = assignment ? assignment.seenAt === null : false;
   const trainerMessage = assignment?.trainerMessage?.trim() || null;
@@ -152,6 +162,13 @@ export default async function MemberHome() {
         />
       </RevealItem>
 
+      {/* Trofeeën & mijlpalen */}
+      {achievementsView ? (
+        <RevealItem>
+          <AchievementDashboardSummary view={achievementsView} />
+        </RevealItem>
+      ) : null}
+
       {/* Schema-hero + CTA */}
       <RevealItem className="panel-sheen relative overflow-hidden rounded-3xl bg-accent-gradient p-6 text-accent-foreground shadow-accent">
         <div
@@ -168,6 +185,9 @@ export default async function MemberHome() {
               {t("exercisesCount", { count: schema.items.length })}
               {schema.days.length > 1 ? ` · ${t("daysCount", { count: schema.days.length })}` : ""}
             </p>
+            <div className="relative mt-2">
+              <SchemaBadges badges={schema.badges} size="xs" max={4} />
+            </div>
             <Link
               href={openSession ? "/member/schema/active" : "/member/schema"}
               className="relative mt-4 flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-center text-lg font-bold text-[#171717] shadow-md transition-transform active:scale-[0.98]"
@@ -242,11 +262,17 @@ export default async function MemberHome() {
 
       {/* Spiergroepen */}
       {stats.muscleGroups.length > 0 ? (
-        <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-            {t("muscleGroupsTrained")}
-          </p>
-          <MuscleGroupBars data={stats.muscleGroups} />
+        <RevealItem>
+          <Link
+            href="/member/muscles"
+            className="block rounded-3xl border border-border bg-surface-1 p-5 shadow-sm transition-colors active:bg-surface-2"
+          >
+            <p className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-wide text-neutral-400">
+              {t("muscleGroupsTrained")}
+              <ChevronRight className="size-4 text-neutral-300" />
+            </p>
+            <MuscleGroupBars data={stats.muscleGroups} />
+          </Link>
         </RevealItem>
       ) : null}
 

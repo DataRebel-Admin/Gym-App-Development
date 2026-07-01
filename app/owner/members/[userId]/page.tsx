@@ -6,6 +6,10 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { requirePermission } from "@/lib/staff";
 import { deriveInviteStatus, INVITE_STATUS_LABEL, type InviteStatus } from "@/lib/members";
 import { listMemberCoaches, listAvailableCoaches } from "@/lib/coach-assignments";
+import { getMemberMoodInsight, getMemberFavorites } from "@/lib/member-insights";
+import { getAchievementsView } from "@/lib/achievements/evaluate";
+import { MoodInsightCard } from "@/components/members/mood-insight-card";
+import { MemberProfileAchievements } from "@/components/achievements/member-profile-panel";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Select } from "@/components/ui/field";
 import { buttonClasses } from "@/components/ui/button-classes";
@@ -58,19 +62,25 @@ export default async function MemberDetailPage({
   const canSchema = me.permissions.has("schemas:manage");
   const { userId } = await params;
 
-  const member = await prisma.user.findFirst({
-    where: { id: userId, tenantId: me.tenantId },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      active: true,
-      archivedAt: true,
-      createdAt: true,
-      emailVerified: true,
-    },
-  });
+  const [member, tenantFlags] = await Promise.all([
+    prisma.user.findFirst({
+      where: { id: userId, tenantId: me.tenantId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        active: true,
+        archivedAt: true,
+        createdAt: true,
+        emailVerified: true,
+      },
+    }),
+    prisma.tenant.findUnique({
+      where: { id: me.tenantId },
+      select: { achievementsEnabled: true },
+    }),
+  ]);
   if (!member) notFound();
 
   const invitation = await prisma.invitation.findUnique({
@@ -95,6 +105,20 @@ export default async function MemberDetailPage({
     : [[], []];
   const assignedCoachIds = new Set(coaches.map((c) => c.coachId));
   const assignable = availableCoaches.filter((c) => !assignedCoachIds.has(c.id));
+
+  // Coach-inzichten (alleen voor sporters): trainingsbeleving + favorieten.
+  const [moodInsight, favorites] = isMember
+    ? await Promise.all([
+        getMemberMoodInsight(me.tenantId, member.id),
+        getMemberFavorites(me.tenantId, member.id),
+      ])
+    : [null, []];
+
+  // Achievements-samenvatting (alleen voor sporters bij een gym met trofeeën aan).
+  const achievementsView =
+    isMember && tenantFlags?.achievementsEnabled
+      ? await getAchievementsView(member.id, me.tenantId)
+      : null;
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -207,6 +231,33 @@ export default async function MemberDetailPage({
               </form>
             )
           ) : null}
+        </section>
+      ) : null}
+
+      {achievementsView ? <MemberProfileAchievements view={achievementsView} /> : null}
+
+      {isMember && moodInsight ? <MoodInsightCard insight={moodInsight} /> : null}
+
+      {isMember ? (
+        <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
+          <h2 className="text-sm font-semibold text-neutral-900">Favoriete oefeningen</h2>
+          {favorites.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              Dit lid heeft nog geen oefeningen als favoriet gemarkeerd.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {favorites.map((f) => (
+                <li
+                  key={f.id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1 text-sm capitalize text-neutral-800"
+                >
+                  <span className="text-accent">★</span>
+                  {f.name}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
 

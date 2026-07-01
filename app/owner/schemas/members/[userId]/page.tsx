@@ -28,6 +28,7 @@ import {
   archiveAssignment,
   removeAssignment,
 } from "../../actions";
+import { setMemberFramework } from "../../frameworks/actions";
 
 export async function generateMetadata({
   params,
@@ -60,6 +61,20 @@ export default async function MemberSchemaPage({
   if (!member) notFound();
 
   const assignments = await getAssignmentsForMember(owner.tenantId, userId);
+
+  // Kaders voor zelf-gebouwde schema's (per-lid koppeling + tenant-default).
+  const [frameworks, memberFramework] = await Promise.all([
+    prisma.schemaFramework.findMany({
+      where: { tenantId: owner.tenantId },
+      orderBy: [{ isDefault: "desc" }, { name: "asc" }],
+      select: { id: true, name: true, isDefault: true },
+    }),
+    prisma.memberFrameworkAssignment.findFirst({
+      where: { tenantId: owner.tenantId, memberId: userId },
+      select: { frameworkId: true },
+    }),
+  ]);
+  const defaultFramework = frameworks.find((f) => f.isDefault) ?? null;
   const liveOrDraft = assignments.filter((a) => a.status !== "ARCHIVED");
   // Het te bewerken schema: het actieve gepubliceerde, anders het eerste concept/geplande.
   const primary =
@@ -168,6 +183,43 @@ export default async function MemberSchemaPage({
           {member.name ?? member.email}
         </h2>
       </div>
+
+      {/* Kader voor zelf-gebouwde schema's */}
+      {frameworks.length > 0 ? (
+        <section className="flex max-w-3xl flex-col gap-2 rounded-2xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-neutral-900">
+            Kader voor zelf-samenstellen
+          </h3>
+          <p className="text-sm text-neutral-500">
+            Bepaalt binnen welke grenzen dit lid zelf een schema mag maken. Geen keuze =
+            {defaultFramework ? ` tenant-standaard "${defaultFramework.name}"` : " geen beperkingen"}.
+          </p>
+          <form action={setMemberFramework} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="userId" value={userId} />
+            <select
+              name="frameworkId"
+              defaultValue={memberFramework?.frameworkId ?? ""}
+              className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+            >
+              <option value="">
+                {defaultFramework ? `Standaard (${defaultFramework.name})` : "Geen kader"}
+              </option>
+              {frameworks.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                  {f.isDefault ? " (standaard)" : ""}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              Opslaan
+            </button>
+          </form>
+        </section>
+      ) : null}
 
       {/* Overzicht van toewijzingen (status + acties) */}
       {liveOrDraft.length > 0 ? (
@@ -286,6 +338,8 @@ export default async function MemberSchemaPage({
               initialDescription={primaryTemplate.description ?? ""}
               initialCoachNote={primaryTemplate.coachNote ?? ""}
               initialValidityWeeks={primaryTemplate.validityWeeks}
+              initialGoal={primaryTemplate.goal}
+              initialBadges={primaryTemplate.badges}
               initialDays={primaryTemplate.days.map<EditorDay>((d) => ({
                 key: d.id,
                 name: d.name,

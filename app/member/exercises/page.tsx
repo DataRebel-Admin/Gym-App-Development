@@ -1,5 +1,6 @@
 import { requireMember } from "@/lib/member";
 import { prisma } from "@/lib/db";
+import { getFavoriteIds } from "@/lib/user-preferences";
 import { ExerciseLibrary, type LibraryExercise } from "./exercise-library";
 
 export const metadata = { title: "Oefeningen" };
@@ -7,26 +8,30 @@ export const metadata = { title: "Oefeningen" };
 export default async function MemberExercisesPage() {
   const member = await requireMember();
 
-  const rows = await prisma.exercise.findMany({
-    where: { tenantId: member.tenantId, archivedAt: null },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      targetMuscle: true,
-      equipment: true,
-      imageUrls: true,
-      catalog: {
-        select: {
-          imageUrl: true,
-          gifUrl: true,
-          bodyPart: true,
-          equipment: true,
-          target: true,
+  const [rows, userRow] = await Promise.all([
+    prisma.exercise.findMany({
+      where: { tenantId: member.tenantId, archivedAt: null },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        targetMuscle: true,
+        equipment: true,
+        imageUrls: true,
+        catalog: {
+          select: {
+            imageUrl: true,
+            gifUrl: true,
+            bodyPart: true,
+            equipment: true,
+            target: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.user.findUnique({ where: { id: member.id }, select: { preferences: true } }),
+  ]);
+  const favorites = getFavoriteIds(userRow?.preferences);
 
   const exercises: LibraryExercise[] = rows.map((e) => ({
     id: e.id,
@@ -37,5 +42,5 @@ export default async function MemberExercisesPage() {
     equipment: e.equipment ?? e.catalog?.equipment ?? null,
   }));
 
-  return <ExerciseLibrary exercises={exercises} />;
+  return <ExerciseLibrary exercises={exercises} initialFavorites={favorites} />;
 }

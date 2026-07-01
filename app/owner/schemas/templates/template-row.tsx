@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import type { WorkoutTemplate } from "@prisma/client";
 import { duplicateTemplate } from "../actions";
+import { GoalBadge } from "@/components/schema/goal-badge";
+import { SchemaBadges } from "@/components/schema/schema-badges";
 
 type TemplateRow = WorkoutTemplate & { _count: { items: number } };
 
@@ -23,7 +25,13 @@ export function TemplateRow({ template }: { template: TemplateRow }) {
       }}
       className="cursor-pointer border-t border-neutral-100 hover:bg-neutral-50 focus:bg-neutral-50 focus:outline-none"
     >
-      <td className="px-4 py-2 font-medium text-neutral-900">{template.name}</td>
+      <td className="px-4 py-2 font-medium text-neutral-900">
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{template.name}</span>
+          <GoalBadge goal={template.goal} size="xs" />
+          <SchemaBadges badges={template.badges} size="xs" max={3} />
+        </div>
+      </td>
       <td className="px-4 py-2 text-neutral-700">{template._count.items}</td>
       <td className="px-4 py-2">
         <div className="flex items-center justify-end gap-3">

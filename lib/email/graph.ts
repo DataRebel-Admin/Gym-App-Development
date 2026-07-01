@@ -69,6 +69,7 @@ export async function sendMailViaGraph(opts: {
   to: string;
   subject: string;
   html: string;
+  replyTo?: string;
 }): Promise<void> {
   const cfg = graphConfig();
   if (!cfg) throw new Error("Graph niet geconfigureerd");
@@ -86,6 +87,9 @@ export async function sendMailViaGraph(opts: {
         subject: opts.subject,
         body: { contentType: "HTML", content: opts.html },
         toRecipients: [{ emailAddress: { address: opts.to } }],
+        ...(opts.replyTo
+          ? { replyTo: [{ emailAddress: { address: opts.replyTo } }] }
+          : {}),
       },
       saveToSentItems: false,
     }),

@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   COMPOSITION_METRICS,
   CIRCUMFERENCE_METRICS,
+  CONDITION_METRICS,
   MEASUREMENT_SOURCE_LABEL,
   POSE_LABEL,
   formatMetric,
@@ -15,8 +16,13 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   year: "numeric",
 });
 
-function ValueGrid({ row, group }: { row: MeasurementRow; group: "composition" | "circumference" }) {
-  const metrics = group === "composition" ? COMPOSITION_METRICS : CIRCUMFERENCE_METRICS;
+function ValueGrid({ row, group }: { row: MeasurementRow; group: "composition" | "circumference" | "condition" }) {
+  const metrics =
+    group === "composition"
+      ? COMPOSITION_METRICS
+      : group === "condition"
+        ? CONDITION_METRICS
+        : CIRCUMFERENCE_METRICS;
   const filled = metrics.filter((m) => row.values[m.key] != null);
   if (filled.length === 0) {
     return <p className="text-sm text-neutral-400">Geen waarden ingevuld.</p>;
@@ -52,6 +58,11 @@ export function MeasurementDetail({ row }: { row: MeasurementRow }) {
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-neutral-900">Lichaamssamenstelling</h3>
         <ValueGrid row={row} group="composition" />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-neutral-900">Conditie</h3>
+        <ValueGrid row={row} group="condition" />
       </section>
 
       <section className="flex flex-col gap-3">

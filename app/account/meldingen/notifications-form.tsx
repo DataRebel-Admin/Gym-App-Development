@@ -8,6 +8,7 @@ const CATEGORIES = [
   { key: "new_members", label: "Nieuwe leden" },
   { key: "invitations", label: "Uitnodigingen" },
   { key: "schemas", label: "Trainingsschema's" },
+  { key: "achievements", label: "Trofeeën" },
   { key: "changes", label: "Wijzigingen" },
   { key: "system", label: "Systeemmeldingen" },
   { key: "news", label: "Nieuws" },

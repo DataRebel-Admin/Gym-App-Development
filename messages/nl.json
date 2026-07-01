@@ -57,6 +57,7 @@
       "coachNote": "Coach-notitie",
       "startTraining": "Start training",
       "downloadPdf": "Download als PDF",
+      "muscleAnalysis": "Spieranalyse",
       "validityExpiringTitle": "Je schema verloopt binnenkort",
       "validityExpiringDesc": "Nog {days, plural, one {# dag} other {# dagen}} geldig. Vraag je trainer om een nieuw schema.",
       "validityExpiredTitle": "Je schema is verlopen",
@@ -109,6 +110,8 @@
       "completedAria": "Workout voltooid",
       "completedTitle": "Workout voltooid! 💪",
       "completedSubtitle": "{completed}/{total} oefeningen afgerond. Sterk gedaan.",
+      "moodQuestion": "Hoe was je training?",
+      "recoveryTitle": "Hersteltip",
       "statDuration": "duur",
       "statVolume": "volume",
       "statSets": "sets",
@@ -141,6 +144,8 @@
       "searchPlaceholder": "Zoek op naam, spier of materiaal…",
       "clear": "Wissen",
       "all": "Alles",
+      "favorites": "Favorieten",
+      "favoriteToggle": "Markeer als favoriet",
       "emptyTitle": "Geen oefeningen gevonden",
       "emptyNone": "Je sportschool heeft nog geen oefeningen toegevoegd.",
       "emptyFilter": "Pas je zoekopdracht of filter aan.",
@@ -213,6 +218,58 @@
       "upcoming": "Komende lessen",
       "emptyTitle": "Nog geen lessen gepland",
       "emptyDesc": "Er staan op dit moment geen groepslessen in het rooster. Kom later terug of vraag je sportschool naar het aanbod."
+    },
+    "muscles": {
+      "metaTitle": "Spieranalyse",
+      "title": "Spieranalyse",
+      "subtitle": "Zie welke spieren je schema traint — en of je het volgt.",
+      "emptyTitle": "Nog geen actief schema",
+      "emptyDesc": "Zodra je een trainingsschema hebt, laat deze pagina zien welke spiergroepen het traint.",
+      "requestSchema": "Schema aanvragen",
+      "heatmapTitle": "Spier-heatmap",
+      "heatmapIntro": "Kleur = wekelijks volume dat <b>{schema}</b> per spiergroep besteedt.",
+      "compareTitle": "Schema vs. getraind",
+      "compareIntro": "Vergelijk het streefvolume met wat je de laatste 4 weken écht deed.",
+      "noActual": "Nog geen trainingen gelogd in de laatste 4 weken. Zodra je traint, verschijnt hier je vergelijking.",
+      "notEnough": "Nog te weinig gegevens om spiergroepen te vergelijken.",
+      "balanceTitle": "Balans",
+      "mostTrained": "Meest getraind",
+      "notInSchema": "Niet in je schema",
+      "disclaimer": "Deze analyse is een hulpmiddel op basis van je schema, geen medisch advies. Twijfel je? Raadpleeg een trainer of professional.",
+      "front": "Voorkant",
+      "back": "Achterkant",
+      "tapHint": "Tik op een spiergroep voor details",
+      "detailPlan": "{plan} sets/week in je schema",
+      "detailPlanActual": "{plan} sets/week in je schema · {actual} echt getraind",
+      "detailNotTrained": "Niet getraind in je schema",
+      "seriesPlan": "Schema",
+      "seriesActual": "Getraind (4 wkn)",
+      "setsPerWeek": "{count} sets/wk",
+      "levels": {
+        "1": "Weinig",
+        "2": "Matig",
+        "3": "Goed",
+        "4": "Veel",
+        "5": "Zeer veel"
+      },
+      "regions": {
+        "chest": "Borst",
+        "shoulders": "Schouders",
+        "biceps": "Biceps",
+        "triceps": "Triceps",
+        "forearms": "Onderarmen",
+        "abs": "Buik",
+        "obliques": "Schuine buik",
+        "traps": "Trapezius",
+        "lats": "Lats",
+        "upperBack": "Bovenrug",
+        "lowerBack": "Onderrug",
+        "glutes": "Bilspieren",
+        "quads": "Quadriceps",
+        "hamstrings": "Hamstrings",
+        "adductors": "Binnen-/buitenbeen",
+        "calves": "Kuiten"
+      }
     }
   },
   "owner": {
@@ -259,7 +316,48 @@
       "questionsThisMonth": "Vragen deze maand:",
       "forCostMonitoring": "(voor kostenmonitoring)",
       "contactTitle": "Contactgegevens",
-      "contactDesc": "Deze gegevens zijn voor je leden zichtbaar op hun <b>Sportschool</b>-pagina. Lege velden worden niet getoond."
+      "contactDesc": "Deze gegevens zijn voor je leden zichtbaar op hun <b>Sportschool</b>-pagina. Lege velden worden niet getoond.",
+      "memberSchemaTitle": "Leden bouwen zelf een schema",
+      "memberSchemaDesc": "Laat leden zelf een trainingsschema samenstellen. Huidige modus: <status>{status}</status>.",
+      "memberSchemaModeDISABLED": "Uit",
+      "memberSchemaModeAPPROVAL": "Goedkeuring vereist",
+      "memberSchemaModeDIRECT": "Direct gebruik",
+      "memberSchemaHintDISABLED": "De functie staat uit. Leden kunnen geen eigen schema samenstellen.",
+      "memberSchemaHintAPPROVAL": "Leden bouwen een schema en dienen het in; een coach keurt het goed voordat het actief wordt.",
+      "memberSchemaHintDIRECT": "Leden activeren hun eigen schema direct. De sportschool ziet alles mee en kan aanpassen.",
+      "memberSchemaSave": "Opslaan",
+      "supportTitle": "Hulp nodig?",
+      "supportDesc": "Stel een vraag, meld een probleem of vraag ondersteuning aan bij het GymRebel-team."
+    },
+    "support": {
+      "title": "Contact opnemen",
+      "intro": "Stel je vraag of meld een probleem. We nemen zo snel mogelijk contact met je op.",
+      "name": "Naam",
+      "email": "E-mailadres",
+      "gym": "Sportschool",
+      "category": "Categorie",
+      "priority": "Prioriteit",
+      "subject": "Onderwerp",
+      "subjectPlaceholder": "Waar gaat het over?",
+      "message": "Bericht",
+      "messageHint": "Beschrijf je vraag of probleem zo duidelijk mogelijk.",
+      "messagePlaceholder": "Typ hier je bericht…",
+      "cancel": "Annuleren",
+      "send": "Versturen",
+      "openButton": "Contact opnemen",
+      "successToast": "Je bericht is verzonden. We nemen zo snel mogelijk contact met je op.",
+      "categories": {
+        "general": "Algemene vraag",
+        "technical": "Technisch probleem",
+        "feature": "Featureverzoek",
+        "billing": "Facturatie",
+        "other": "Overig"
+      },
+      "priorities": {
+        "low": "Laag",
+        "normal": "Normaal",
+        "high": "Hoog"
+      }
     },
     "members": {
       "metaTitle": "Leden",
@@ -480,6 +578,8 @@
       "title": "Schema's",
       "navTemplates": "Templates",
       "navMembers": "Leden",
+      "navMemberBuilt": "Zelf-schema's",
+      "navFrameworks": "Kaders",
       "navBulk": "Bulk",
       "navAnalysis": "Analyse"
     }
@@ -566,6 +666,7 @@
     },
     "userMenu": {
       "account": "Accountinstellingen",
+      "support": "Contact opnemen",
       "logout": "Uitloggen",
       "fallbackName": "Gebruiker"
     }
@@ -580,6 +681,7 @@
       "privacy": "Privacy",
       "integrations": "Integraties",
       "activity": "Activiteit",
+      "goals": "Mijn doelen",
       "gym": "Sportschool"
     },
     "language": {

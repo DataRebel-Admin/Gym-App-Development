@@ -1,8 +1,12 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { setAiEnabled } from "./actions";
+import { setAiEnabled, setAchievementsEnabled, setQuotesEnabled } from "./actions";
 import { TenantContactForm, type ContactInitial } from "@/components/tenant-contact-form";
+import { MemberSchemaModeForm } from "@/components/owner/member-schema-mode-form";
+import { QuotesForm } from "@/components/owner/quotes-form";
+import { ContactSupportButton } from "@/components/support/contact-support-button";
+import { parseCustomQuotes } from "@/lib/workout-quotes";
 
 function startOfMonth(): Date {
   const d = new Date();
@@ -25,6 +29,10 @@ export default async function SettingsPage() {
     select: {
       name: true,
       aiEnabled: true,
+      achievementsEnabled: true,
+      quotesEnabled: true,
+      customQuotes: true,
+      memberSchemaMode: true,
       addressLine: true,
       postalCode: true,
       city: true,
@@ -113,6 +121,81 @@ export default async function SettingsPage() {
 
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
         <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Trofeeën &amp; mijlpalen</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Beloon je leden met trofeeën, een Gym Passport en automatisch gevierde mijlpalen.
+            Momenteel{" "}
+            <span className="font-medium text-neutral-900">
+              {tenant.achievementsEnabled ? "aan" : "uit"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <form action={setAchievementsEnabled}>
+          <input type="hidden" name="enabled" value={tenant.achievementsEnabled ? "false" : "true"} />
+          <button
+            type="submit"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              tenant.achievementsEnabled
+                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
+                : "bg-accent text-accent-foreground hover:opacity-90"
+            }`}
+          >
+            {tenant.achievementsEnabled ? "Uitschakelen" : "Inschakelen"}
+          </button>
+        </form>
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Workout Quotes</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Toon je leden een korte motiverende quote na een afgeronde training. Momenteel{" "}
+            <span className="font-medium text-neutral-900">
+              {tenant.quotesEnabled ? "aan" : "uit"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <form action={setQuotesEnabled}>
+          <input type="hidden" name="enabled" value={tenant.quotesEnabled ? "false" : "true"} />
+          <button
+            type="submit"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              tenant.quotesEnabled
+                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
+                : "bg-accent text-accent-foreground hover:opacity-90"
+            }`}
+          >
+            {tenant.quotesEnabled ? "Uitschakelen" : "Inschakelen"}
+          </button>
+        </form>
+
+        <QuotesForm initial={parseCustomQuotes(tenant.customQuotes)} />
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">
+            {t("memberSchemaTitle")}
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            {t.rich("memberSchemaDesc", {
+              status: () => (
+                <span className="font-medium text-neutral-900">
+                  {t(`memberSchemaMode${tenant.memberSchemaMode}`)}
+                </span>
+              ),
+            })}
+          </p>
+        </div>
+        <MemberSchemaModeForm current={tenant.memberSchemaMode} />
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
           <h2 className="text-sm font-semibold text-neutral-900">{t("contactTitle")}</h2>
           <p className="mt-1 text-sm text-neutral-500">
             {t.rich("contactDesc", {
@@ -121,6 +204,20 @@ export default async function SettingsPage() {
           </p>
         </div>
         <TenantContactForm initial={contactInitial} />
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">{t("supportTitle")}</h2>
+          <p className="mt-1 text-sm text-neutral-500">{t("supportDesc")}</p>
+        </div>
+        <ContactSupportButton
+          initial={{
+            name: owner.name ?? "",
+            email: owner.email ?? "",
+            gymName: tenant.name,
+          }}
+        />
       </section>
     </div>
   );

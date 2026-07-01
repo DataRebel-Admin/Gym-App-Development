@@ -69,6 +69,19 @@ export async function requestMagicLink(
     });
   }
 
+  // Magic link is pas beschikbaar nadat het account is geactiveerd (wachtwoord
+  // ingesteld). Zolang dat niet is gebeurd, sturen we terug naar de activatieflow.
+  // Superadmins (geen tenant) zijn uitgezonderd — die hebben geen activatielink.
+  if (!isSuperadmin) {
+    const user = await resolveLoginUser(email);
+    if (user && user.active && !user.passwordHash) {
+      return {
+        error:
+          "Je account is nog niet geactiveerd. Gebruik de activatielink uit je uitnodigingsmail om een wachtwoord in te stellen.",
+      };
+    }
+  }
+
   // signIn verstuurt de magic link (console in dev). Bij succes gooit het een
   // redirect (naar de verifyRequest-pagina) die we moeten doorgooien; bij een
   // weigering gooit het een AuthError die we hier netjes afvangen i.p.v. crashen.

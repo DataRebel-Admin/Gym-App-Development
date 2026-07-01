@@ -31,6 +31,8 @@ const ICON_AUDIT =
   "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2M9 13h6M9 17h4";
 const ICON_STAFF =
   "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6";
+const ICON_ENGAGEMENT =
+  "M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z";
 
 type NavTranslator = Awaited<ReturnType<typeof getTranslations<"nav.owner">>>;
 
@@ -62,6 +64,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
         { href: "/owner/members", label: t("members"), iconPath: ICON_MEMBERS, description: t("membersDesc"), permission: "members:view" },
         { href: "/owner/staff", label: t("staff"), iconPath: ICON_STAFF, description: t("staffDesc"), adminOnly: true },
         { href: "/owner/requests", label: t("requests"), iconPath: ICON_REQUESTS, description: t("requestsDesc"), permission: "schemas:manage" },
+        { href: "/owner/engagement", label: "Betrokkenheid", iconPath: ICON_ENGAGEMENT, description: "Trofeeën, mijlpalen en streaks van je leden", permission: "members:view" },
         { href: "/owner/rooster", label: t("rooster"), iconPath: ICON_ROOSTER, description: t("roosterDesc"), permission: "schedule:manage" },
       ],
     },
@@ -121,6 +124,14 @@ export default async function OwnerLayout({
   const notifications = await getNotificationOverview(user.id);
   const tenants = user.email ? await getUserTenants(user.email) : [];
 
+  // "Contact opnemen"-gegevens (auto-fill). De server-action leidt de echte
+  // waarden opnieuw af — dit is puur voor de UX (read-only tonen).
+  const support = {
+    name: badge?.name ?? user.name ?? "",
+    email: badge?.email ?? user.email ?? "",
+    gymName: tenant?.name ?? "GymRebel",
+  };
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
@@ -137,6 +148,7 @@ export default async function OwnerLayout({
               }}
               tenants={tenants}
               currentSlug={tenant?.slug ?? null}
+              support={support}
               className="lg:hidden"
             />
             <Link
@@ -176,6 +188,7 @@ export default async function OwnerLayout({
                 name={badge?.name ?? user.name ?? null}
                 email={badge?.email ?? user.email ?? null}
                 image={badge?.image ?? null}
+                support={support}
               />
             </div>
           </div>

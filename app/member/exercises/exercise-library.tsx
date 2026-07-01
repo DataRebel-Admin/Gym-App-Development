@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dumbbell, Search, ChevronRight, X } from "@/components/ui/icons";
+import { Dumbbell, Search, ChevronRight, X, Star } from "@/components/ui/icons";
+import { toggleFavoriteExercise } from "./actions";
 
 export type LibraryExercise = {
   id: string;
@@ -22,10 +23,29 @@ export type LibraryExercise = {
  * detailpagina met animatie, stappenplan en uitleg. Filteren op lichaamsdeel
  * en vrije tekst — client-side (gecureerde set is klein).
  */
-export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] }) {
+export function ExerciseLibrary({
+  exercises,
+  initialFavorites,
+}: {
+  exercises: LibraryExercise[];
+  initialFavorites: string[];
+}) {
   const t = useTranslations("member.exercises");
   const [query, setQuery] = useState("");
   const [bodyPart, setBodyPart] = useState<string | null>(null);
+  const [favOnly, setFavOnly] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(() => new Set(initialFavorites));
+  const [, startFav] = useTransition();
+
+  function toggleFavorite(id: string) {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    startFav(() => void toggleFavoriteExercise({ exerciseId: id }));
+  }
 
   const bodyParts = useMemo(() => {
     const set = new Set<string>();
@@ -35,7 +55,8 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return exercises.filter((e) => {
+    const list = exercises.filter((e) => {
+      if (favOnly && !favorites.has(e.id)) return false;
       if (bodyPart && e.bodyPart !== bodyPart) return false;
       if (!q) return true;
       return (
@@ -44,7 +65,14 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
         (e.equipment?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [exercises, query, bodyPart]);
+    // Favorieten bovenaan (stabiel — behoudt de alfabetische volgorde daarbinnen).
+    if (!favOnly) {
+      list.sort(
+        (a, b) => Number(favorites.has(b.id)) - Number(favorites.has(a.id))
+      );
+    }
+    return list;
+  }, [exercises, query, bodyPart, favOnly, favorites]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 py-7">
@@ -79,12 +107,20 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
         ) : null}
       </div>
 
-      {/* Filter op lichaamsdeel */}
-      {bodyParts.length > 0 ? (
+      {/* Filter op favorieten + lichaamsdeel */}
+      {bodyParts.length > 0 || favorites.size > 0 ? (
         <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Chip active={bodyPart === null} onClick={() => setBodyPart(null)}>
-            {t("all")}
-          </Chip>
+          {favorites.size > 0 ? (
+            <Chip active={favOnly} onClick={() => setFavOnly((v) => !v)}>
+              <Star className={cn("size-3.5", favOnly && "fill-current")} />
+              {t("favorites")}
+            </Chip>
+          ) : null}
+          {bodyParts.length > 0 ? (
+            <Chip active={bodyPart === null && !favOnly} onClick={() => { setBodyPart(null); setFavOnly(false); }}>
+              {t("all")}
+            </Chip>
+          ) : null}
           {bodyParts.map((bp) => (
             <Chip key={bp} active={bodyPart === bp} onClick={() => setBodyPart(bp)}>
               {bp}
@@ -107,7 +143,7 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
                 href={`/member/history/exercise/${e.id}`}
                 className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface-1 shadow-sm transition-transform active:scale-[0.98]"
               >
-                <div className="aspect-square w-full overflow-hidden bg-surface-2">
+                <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
                   {e.thumbUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -122,6 +158,24 @@ export function ExerciseLibrary({ exercises }: { exercises: LibraryExercise[] })
                       <Dumbbell className="size-9" />
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={(ev) => {
+                      ev.preventDefault();
+                      ev.stopPropagation();
+                      toggleFavorite(e.id);
+                    }}
+                    aria-label={t("favoriteToggle")}
+                    aria-pressed={favorites.has(e.id)}
+                    className="absolute right-1.5 top-1.5 flex size-8 items-center justify-center rounded-full bg-surface-0/80 text-neutral-400 shadow-sm backdrop-blur transition-colors active:scale-90"
+                  >
+                    <Star
+                      className={cn(
+                        "size-4",
+                        favorites.has(e.id) && "fill-current text-accent"
+                      )}
+                    />
+                  </button>
                 </div>
                 <div className="flex flex-1 flex-col p-3">
                   <p className="line-clamp-2 text-sm font-semibold capitalize leading-tight text-neutral-900">
@@ -159,7 +213,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        "shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize transition-colors",
+        "inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs font-medium capitalize transition-colors",
         active
           ? "border-accent bg-accent text-accent-foreground"
           : "border-border bg-surface-1 text-neutral-600 hover:bg-surface-2"

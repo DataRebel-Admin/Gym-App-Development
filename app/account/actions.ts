@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAccount } from "@/lib/account";
 import { requireOwner } from "@/lib/owner";
+import { withHideQuotes, withHideAchievements } from "@/lib/user-preferences";
 import { uploadAvatar } from "@/lib/blob";
 import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
@@ -187,6 +188,43 @@ export async function saveNotificationPrefs(
   });
   revalidatePath("/account/meldingen");
   return { ok: true };
+}
+
+/**
+ * Trofeeën verbergen/tonen (persoonlijke voorkeur). Merge't `hideAchievements`
+ * in de bestaande `preferences`-JSON via de gedeelde helper.
+ */
+export async function setAchievementVisibility(formData: FormData) {
+  const session = await requireAccount();
+  const hidden = formData.get("hidden") === "true";
+  const me = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { preferences: true },
+  });
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { preferences: withHideAchievements(me?.preferences, hidden) },
+  });
+  revalidatePath("/account/meldingen");
+  revalidatePath("/member", "layout");
+}
+
+/**
+ * Motiverende Workout Quotes verbergen/tonen (persoonlijke voorkeur). Merge't
+ * `hideQuotes` in de bestaande `preferences`-JSON via de gedeelde helper.
+ */
+export async function setQuoteVisibility(formData: FormData) {
+  const session = await requireAccount();
+  const hidden = formData.get("hidden") === "true";
+  const me = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { preferences: true },
+  });
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { preferences: withHideQuotes(me?.preferences, hidden) },
+  });
+  revalidatePath("/account/meldingen");
 }
 
 /** Privacy-toestemmingen opslaan (autosave). */

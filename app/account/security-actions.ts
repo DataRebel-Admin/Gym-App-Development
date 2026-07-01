@@ -9,7 +9,7 @@ import { auth, signOut } from "@/auth";
 import { requireAccount } from "@/lib/account";
 import { audit } from "@/lib/audit";
 import { hashPassword, verifyPassword, newTotpSecret, totpUri, verifyTotp } from "@/lib/security";
-import { passwordStrength } from "@/lib/password-strength";
+import { passwordMeetsPolicy, MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { passwordChangedMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
@@ -30,7 +30,7 @@ function actor(u: { id: string; email?: string | null; role: string; tenantId?: 
 
 const pwSchema = z.object({
   currentPassword: z.string().optional().or(z.literal("")),
-  newPassword: z.string().min(8, "Minimaal 8 tekens"),
+  newPassword: z.string().min(MIN_PASSWORD_LENGTH, `Minimaal ${MIN_PASSWORD_LENGTH} tekens`),
 });
 
 /** Wachtwoord instellen of wijzigen. Bestaand wachtwoord = herauth vereist. */
@@ -45,8 +45,10 @@ export async function setPassword(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
 
-  if (!passwordStrength(parsed.data.newPassword).ok) {
-    return { error: "Wachtwoord te zwak — gebruik 8+ tekens met variatie." };
+  if (!passwordMeetsPolicy(parsed.data.newPassword)) {
+    return {
+      error: `Wachtwoord voldoet niet aan de eisen (min. ${MIN_PASSWORD_LENGTH} tekens, hoofd- en kleine letter, cijfer én speciaal teken).`,
+    };
   }
 
   const me = await prisma.user.findUnique({

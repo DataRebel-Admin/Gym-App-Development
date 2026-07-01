@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireMember, getAssignedSchema } from "@/lib/member";
+import { getMemberSchemaMode } from "@/lib/member-schema";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList } from "@/components/ui/icons";
+import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding } from "@/components/ui/icons";
 import {
   SchemaChecklist,
   type ChecklistItem,
@@ -11,6 +12,7 @@ import {
 } from "./schema-checklist";
 import { startSession } from "./actions";
 import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
+import { SchemaBadges } from "@/components/schema/schema-badges";
 import { exerciseTypeLabel } from "@/lib/exercise-types";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
 import { computeValidity } from "@/lib/schema-status";
@@ -54,10 +56,12 @@ export async function generateMetadata() {
 
 export default async function MemberSchemaPage() {
   const member = await requireMember();
-  const [assignment, t] = await Promise.all([
+  const [assignment, t, memberSchemaMode] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getTranslations("member.schema"),
+    getMemberSchemaMode(member.tenantId),
   ]);
+  const canBuild = memberSchemaMode !== "DISABLED";
   const schema = assignment?.template;
   const isNew = assignment ? assignment.seenAt === null : false;
   const trainerMessage = assignment?.trainerMessage?.trim() || null;
@@ -74,9 +78,21 @@ export default async function MemberSchemaPage() {
           description={t("emptyDesc")}
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
+              {canBuild ? (
+                <Link
+                  href="/member/schema/builder"
+                  className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+                >
+                  <Dumbbell className="size-4" /> Zelf samenstellen
+                </Link>
+              ) : null}
               <Link
                 href="/member/requests"
-                className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+                className={
+                  canBuild
+                    ? "inline-flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+                    : "inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+                }
               >
                 <ClipboardList className="size-4" /> {t("requestSchema")}
               </Link>
@@ -120,6 +136,9 @@ export default async function MemberSchemaPage() {
           {schema.description ? (
             <p className="mt-1 text-sm text-neutral-500">{schema.description}</p>
           ) : null}
+          <div className="mt-2">
+            <SchemaBadges badges={schema.badges} />
+          </div>
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
               <Dumbbell className="size-3.5 text-accent" /> {t("exercisesCount", { count: schema.items.length })}
@@ -206,6 +225,13 @@ export default async function MemberSchemaPage() {
       >
         <Download className="size-4" /> {t("downloadPdf")}
       </a>
+
+      <Link
+        href="/member/muscles"
+        className="flex items-center justify-center gap-2 rounded-2xl border border-border px-6 py-3 text-center text-sm font-medium text-neutral-700 active:bg-surface-2"
+      >
+        <PersonStanding className="size-4 text-accent" /> {t("muscleAnalysis")}
+      </Link>
     </Fullscreenable>
   );
 }

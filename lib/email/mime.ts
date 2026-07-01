@@ -14,6 +14,8 @@ export type MimeInput = {
   subject: string;
   html: string;
   text: string;
+  /** Optioneel Reply-To (bv. het afzenderadres van een contactbericht). */
+  replyTo?: string;
 };
 
 const CRLF = "\r\n";
@@ -41,6 +43,7 @@ export function buildMimeMessage(input: MimeInput): string {
     [
       `From: ${input.from}`,
       `To: ${input.to}`,
+      ...(input.replyTo ? [`Reply-To: ${input.replyTo}`] : []),
       `Subject: ${encodeHeader(input.subject)}`,
       "MIME-Version: 1.0",
       `Content-Type: multipart/alternative; boundary="${boundary}"`,

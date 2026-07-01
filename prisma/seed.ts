@@ -1,8 +1,15 @@
 import { PrismaClient, MachineType, Role, Locale } from "@prisma/client";
 import { randomBytes } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { snapshotOf } from "../lib/schema-diff";
 
 const prisma = new PrismaClient();
+
+/** Demo-wachtwoord voor álle geseede accounts, zodat wachtwoord- én magic-link-
+ *  login werken (magic link vereist een geactiveerd account = wachtwoord gezet).
+ *  Voldoet aan het wachtwoordbeleid (12+, hoofd/klein/cijfer/speciaal). */
+const DEMO_PASSWORD = "GymRebelDemo123!";
+const DEMO_PASSWORD_HASH = bcrypt.hashSync(DEMO_PASSWORD, 12);
 
 /** Genereer een random 16-karakter qrToken (hex). */
 function qrToken(): string {
@@ -35,6 +42,8 @@ type TemplateSpec = {
   name: string;
   description: string;
   coachNote?: string;
+  /** Neutraal trainingsdoel (key uit lib/training-goals.ts). */
+  goal?: string;
   // Eén van beide: meerdaagse `days` of platte `items` (→ "Dag 1").
   days?: DaySpec[];
   items?: ItemSpec[];
@@ -78,6 +87,7 @@ async function createTemplate(
     coachNote?: string | null;
     isLibrary: boolean;
     kind: "SCHEMA" | "DAY";
+    goal?: string | null;
     days: DaySpec[];
   }
 ) {
@@ -89,6 +99,7 @@ async function createTemplate(
       coachNote: opts.coachNote ?? null,
       isLibrary: opts.isLibrary,
       kind: opts.kind,
+      goal: opts.goal ?? null,
     },
   });
   for (const [di, d] of opts.days.entries()) {
@@ -152,18 +163,19 @@ async function seedTenant(spec: TenantSpec) {
   await prisma.machine.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.user.deleteMany({ where: { tenantId: tenant.id } });
 
-  // Gebruikers.
+  // Gebruikers. Elk demo-account krijgt het demo-wachtwoord (geactiveerd) zodat
+  // zowel wachtwoord- als magic-link-login werkt.
   await prisma.user.create({
-    data: { tenantId: tenant.id, role: Role.TENANT_ADMIN, ...spec.owner },
+    data: { tenantId: tenant.id, role: Role.TENANT_ADMIN, passwordHash: DEMO_PASSWORD_HASH, emailVerified: new Date(), ...spec.owner },
   });
   await Promise.all(
     (spec.staff ?? []).map((s) =>
-      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_STAFF, ...s } })
+      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_STAFF, passwordHash: DEMO_PASSWORD_HASH, emailVerified: new Date(), ...s } })
     )
   );
   await Promise.all(
     spec.members.map((m) =>
-      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_MEMBER, ...m } })
+      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_MEMBER, passwordHash: DEMO_PASSWORD_HASH, emailVerified: new Date(), ...m } })
     )
   );
 
@@ -228,6 +240,7 @@ async function seedTenant(spec: TenantSpec) {
       coachNote: tpl.coachNote ?? null,
       isLibrary: true,
       kind: "SCHEMA",
+      goal: tpl.goal ?? null,
       days: toDays(tpl),
     });
   }
@@ -507,6 +520,8 @@ async function main() {
       name: "Platform Beheer",
       role: Role.SUPERADMIN,
       tenantId: null,
+      passwordHash: DEMO_PASSWORD_HASH,
+      emailVerified: new Date(),
     },
   });
   console.log("✓ admin@datarebel.nl (geen tenant)");
@@ -542,12 +557,24 @@ async function main() {
       { name: "Push-up", targetMuscle: "Borst", machine: null, catalogName: "push-up" },
       { name: "Plank", targetMuscle: "Core", machine: null, catalogName: "front plank with twist", exerciseType: "isometric" },
       { name: "Lunges", targetMuscle: "Benen", machine: null, catalogName: "dumbbell lunge" },
+      // Bredere mix van oefeningstypes — zodat de bibliotheek uiteenlopende
+      // trainingsdoelen bedient (niet alleen kracht/bodybuilding).
+      { name: "Bird dog", targetMuscle: "Core & rug", machine: null, exerciseType: "stability" },
+      { name: "Dead bug", targetMuscle: "Core", machine: null, exerciseType: "core" },
+      { name: "Glute bridge", targetMuscle: "Bilspieren", machine: null, exerciseType: "rehab" },
+      { name: "Kettlebell swing", targetMuscle: "Hele lichaam", machine: null, exerciseType: "functional" },
+      { name: "Farmer's carry", targetMuscle: "Hele lichaam", machine: null, exerciseType: "functional" },
+      { name: "Schoudermobiliteit", targetMuscle: "Schouders", machine: null, exerciseType: "mobility" },
+      { name: "Heupflexor-stretch", targetMuscle: "Heupen", machine: null, exerciseType: "stretch" },
     ],
+    // Bewust een brede spreiding aan trainingsdoelen — de bibliotheek is er voor
+    // élke sporter (kracht, conditie, mobiliteit, herstel …), niet één doelgroep.
     templates: [
       {
-        name: "Full Body Start",
-        description: "Rustige start voor het hele lichaam.",
+        name: "Beginner Full Body",
+        description: "Rustige start voor het hele lichaam — geschikt voor iedereen.",
         coachNote: "Techniek boven gewicht — bouw rustig op deze eerste weken.",
+        goal: "health",
         days: [
           {
             name: "Dag 1 — Onderlichaam",
@@ -569,25 +596,134 @@ async function main() {
         ],
       },
       {
-        name: "Cardio + Core",
-        description: "Conditie en buikspieren.",
+        name: "Kracht & Conditie",
+        description: "Combineer krachtoefeningen met cardio voor een sterke, fitte basis.",
+        goal: "strength",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Squat", sets: 4, reps: 8, restSeconds: 90 },
+              { exercise: "Bankdrukken", sets: 4, reps: 8, restSeconds: 90, weightKg: 35 },
+              { exercise: "Lat pulldown", sets: 3, reps: 10, restSeconds: 75 },
+              {
+                exercise: "Hardlopen", sets: 1, reps: 0, restSeconds: 0,
+                params: { timeSeconds: 600, distanceM: 2000, intensity: "hoog", hrZone: "zone4" },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Mobiliteit & Herstel",
+        description: "Soepeler bewegen en spanning loslaten — ideaal op een rustdag.",
+        goal: "mobility",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Schoudermobiliteit", sets: 1, reps: 0, restSeconds: 0, params: { timeSeconds: 90, side: "beide" } },
+              { exercise: "Heupflexor-stretch", sets: 1, reps: 0, restSeconds: 0, params: { timeSeconds: 60, reps: 2 } },
+              { exercise: "Bird dog", sets: 1, reps: 0, restSeconds: 0, params: { holdSeconds: 30, side: "beide" } },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Functional Fitness",
+        description: "Samengestelde bewegingen voor kracht die je dagelijks gebruikt.",
+        goal: "sport",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Kettlebell swing", sets: 4, reps: 15, restSeconds: 60 },
+              { exercise: "Farmer's carry", sets: 3, reps: 0, restSeconds: 60, notes: "Loop 20 meter." },
+              { exercise: "Lunges", sets: 3, reps: 12, restSeconds: 60 },
+              { exercise: "Push-up", sets: 3, reps: 12, restSeconds: 45 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Core Stability",
+        description: "Bouw een stabiele romp en betere balans op.",
+        goal: "stability",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Dead bug", sets: 3, reps: 12, restSeconds: 45 },
+              { exercise: "Bird dog", sets: 3, reps: 0, restSeconds: 45, params: { holdSeconds: 30, side: "beide" } },
+              { exercise: "Plank", sets: 3, reps: 40, restSeconds: 45, params: { holdSeconds: 40 } },
+              { exercise: "Glute bridge", sets: 3, reps: 15, restSeconds: 45 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Hypertrofie",
+        description: "Gericht op spieropbouw met hogere volumes.",
+        goal: "muscle",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Bankdrukken", sets: 4, reps: 12, restSeconds: 75, weightKg: 30 },
+              { exercise: "Lat pulldown", sets: 4, reps: 12, restSeconds: 75 },
+              { exercise: "Beenpers", sets: 4, reps: 12, restSeconds: 75, weightKg: 50 },
+              { exercise: "Biceps curl", sets: 3, reps: 15, restSeconds: 45 },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Afvallen",
+        description: "Vet verliezen met een mix van cardio en circuittraining.",
+        goal: "fat_loss",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              {
+                exercise: "Crosstrainen", sets: 1, reps: 0, restSeconds: 0,
+                params: { timeSeconds: 900, distanceM: 3000, intensity: "middel" },
+              },
+              { exercise: "Squat", sets: 3, reps: 15, restSeconds: 40 },
+              { exercise: "Lunges", sets: 3, reps: 12, restSeconds: 40 },
+              { exercise: "Plank", sets: 3, reps: 40, restSeconds: 40, params: { holdSeconds: 40 } },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Hardlopen",
+        description: "Bouw je conditie en uithoudingsvermogen op.",
+        goal: "conditioning",
         days: [
           {
             name: "Dag 1",
             items: [
               {
                 exercise: "Hardlopen", sets: 1, reps: 0, restSeconds: 0,
-                params: { timeSeconds: 1200, distanceM: 4000, intensity: "middel", hrZone: "zone3" },
+                params: { timeSeconds: 1800, distanceM: 5000, intensity: "middel", hrZone: "zone3" },
               },
-              {
-                exercise: "Crosstrainen", sets: 1, reps: 0, restSeconds: 0,
-                params: { timeSeconds: 900, distanceM: 3000, intensity: "middel" },
-              },
-              { exercise: "Squat", sets: 3, reps: 15, restSeconds: 45 },
-              {
-                exercise: "Plank", sets: 3, reps: 40, restSeconds: 45,
-                notes: "Span je buik aan.", params: { holdSeconds: 40 },
-              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "Hersteltraining",
+        description: "Rustige, gecontroleerde oefeningen om blessurevrij te blijven.",
+        coachNote: "Twijfel je bij een oefening? Raadpleeg altijd een professional.",
+        goal: "rehab",
+        days: [
+          {
+            name: "Dag 1",
+            items: [
+              { exercise: "Glute bridge", sets: 3, reps: 12, restSeconds: 60, params: { reps: 12, side: "beide" } },
+              { exercise: "Bird dog", sets: 3, reps: 0, restSeconds: 45, params: { holdSeconds: 20, side: "beide" } },
+              { exercise: "Heupflexor-stretch", sets: 1, reps: 0, restSeconds: 0, params: { timeSeconds: 60, reps: 2 } },
             ],
           },
         ],
@@ -660,19 +796,121 @@ async function main() {
 
   // Toegewezen schema's zodat de member-views data tonen.
   // Sven: gepersonaliseerd schema (badge "Aangepast" + vergelijking).
-  const svenClone = await seedAssignment("fitpower", "sven@fitpower.nl", "Full Body Start", {
+  const svenClone = await seedAssignment("fitpower", "sven@fitpower.nl", "Beginner Full Body", {
     trainerMessage: "Welkom Sven! Dit is je startschema — vragen? App me gerust.",
   });
   if (svenClone) await personalizeClone(svenClone);
   // Lisa: standaard kopie van hetzelfde schema (badge "Standaard").
-  await seedAssignment("fitpower", "lisa@fitpower.nl", "Full Body Start", { seen: false });
-  await seedAssignment("fitpower", "tom@fitpower.nl", "Cardio + Core");
+  await seedAssignment("fitpower", "lisa@fitpower.nl", "Beginner Full Body", { seen: false });
+  await seedAssignment("fitpower", "tom@fitpower.nl", "Hardlopen");
 
   // Master ná toewijzing wijzigen → "Sync beschikbaar" bij Sven & Lisa.
-  await bumpMaster("fitpower", "Full Body Start");
+  await bumpMaster("fitpower", "Beginner Full Body");
+
+  // Trofeeën/achievements aan voor fitpower + demo-toekenningen op basis van de
+  // geseede trainingsactiviteit (zodat dashboards/coach-overzicht data tonen).
+  await seedAchievements("fitpower");
 
   // Groepslessen.
   await seedRooster("fitpower");
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Zet het trofeeën-systeem aan voor een tenant en kent demo-achievements toe op
+ * basis van de geseede trainingsactiviteit. Zelfstandig (geen import van de
+ * `server-only` engine): de tier-tabellen spiegelen lib/achievements/definitions.ts.
+ * `celebratedAt` wordt gezet zodat demo-leden geen celebration-vloedgolf krijgen.
+ */
+async function seedAchievements(slug: string) {
+  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
+  if (!tenant) return;
+  await prisma.tenant.update({ where: { id: tenant.id }, data: { achievementsEnabled: true } });
+
+  const trainingTiers: [string, number, string][] = [
+    ["training.first", 1, "bronze"],
+    ["training.count_10", 10, "bronze"],
+    ["training.count_50", 50, "silver"],
+    ["training.count_100", 100, "gold"],
+    ["training.count_250", 250, "platinum"],
+    ["training.count_500", 500, "diamond"],
+  ];
+  const streakTiers: [string, number, string][] = [
+    ["consistency.streak_3", 3, "bronze"],
+    ["consistency.streak_7", 7, "silver"],
+    ["consistency.streak_30", 30, "gold"],
+    ["consistency.streak_100", 100, "diamond"],
+  ];
+  const volumeTiers: [string, number, string][] = [
+    ["strength.volume_100", 100, "bronze"],
+    ["strength.volume_1000", 1000, "silver"],
+    ["strength.volume_10000", 10000, "gold"],
+    ["strength.volume_100000", 100000, "platinum"],
+    ["strength.volume_1000000", 1000000, "legendary"],
+  ];
+
+  const members = await prisma.user.findMany({
+    where: { tenantId: tenant.id, role: "TENANT_MEMBER" },
+    select: { id: true },
+  });
+
+  const now = new Date();
+  for (const member of members) {
+    const sessions = await prisma.workoutSession.findMany({
+      where: { tenantId: tenant.id, userId: member.id, endedAt: { not: null } },
+      select: { startedAt: true, performanceEntries: { select: { reps: true, weightKg: true } } },
+    });
+    if (sessions.length === 0) continue;
+
+    const totalWorkouts = sessions.length;
+    let totalVolume = 0;
+    let hasPr = false;
+    const dayStarts = new Set<number>();
+    for (const s of sessions) {
+      const d = new Date(s.startedAt);
+      d.setHours(0, 0, 0, 0);
+      dayStarts.add(d.getTime());
+      for (const e of s.performanceEntries) {
+        totalVolume += e.reps * e.weightKg;
+        if (e.weightKg > 0) hasPr = true;
+      }
+    }
+    const sortedDays = [...dayStarts].sort((a, b) => a - b);
+    let longestStreak = 1;
+    let run = 1;
+    for (let i = 1; i < sortedDays.length; i++) {
+      run = sortedDays[i] - sortedDays[i - 1] === DAY_MS ? run + 1 : 1;
+      if (run > longestStreak) longestStreak = run;
+    }
+
+    const rows: { key: string; category: string; rarity: string; value: number }[] = [];
+    for (const [key, threshold, rarity] of trainingTiers) {
+      if (totalWorkouts >= threshold) rows.push({ key, category: "training", rarity, value: totalWorkouts });
+    }
+    for (const [key, threshold, rarity] of streakTiers) {
+      if (longestStreak >= threshold) rows.push({ key, category: "consistency", rarity, value: longestStreak });
+    }
+    for (const [key, threshold, rarity] of volumeTiers) {
+      if (totalVolume >= threshold) rows.push({ key, category: "strength", rarity, value: Math.round(totalVolume) });
+    }
+    if (hasPr) rows.push({ key: "strength.first_pr", category: "strength", rarity: "bronze", value: 1 });
+
+    if (rows.length === 0) continue;
+    await prisma.earnedAchievement.createMany({
+      data: rows.map((r) => ({
+        tenantId: tenant.id,
+        userId: member.id,
+        key: r.key,
+        category: r.category,
+        rarity: r.rarity,
+        value: r.value,
+        earnedAt: now,
+        celebratedAt: now,
+      })),
+      skipDuplicates: true,
+    });
+  }
 }
 
 main()

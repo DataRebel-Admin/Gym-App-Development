@@ -57,6 +57,7 @@
       "coachNote": "Coach note",
       "startTraining": "Start workout",
       "downloadPdf": "Download as PDF",
+      "muscleAnalysis": "Muscle analysis",
       "validityExpiringTitle": "Your schema expires soon",
       "validityExpiringDesc": "Valid for {days, plural, one {# more day} other {# more days}}. Ask your trainer for a new schema.",
       "validityExpiredTitle": "Your schema has expired",
@@ -109,6 +110,8 @@
       "completedAria": "Workout completed",
       "completedTitle": "Workout complete! 💪",
       "completedSubtitle": "{completed}/{total} exercises completed. Well done.",
+      "moodQuestion": "How was your workout?",
+      "recoveryTitle": "Recovery tip",
       "statDuration": "duration",
       "statVolume": "volume",
       "statSets": "sets",
@@ -141,6 +144,8 @@
       "searchPlaceholder": "Search by name, muscle or equipment…",
       "clear": "Clear",
       "all": "All",
+      "favorites": "Favorites",
+      "favoriteToggle": "Mark as favorite",
       "emptyTitle": "No exercises found",
       "emptyNone": "Your gym hasn't added any exercises yet.",
       "emptyFilter": "Adjust your search or filter.",
@@ -213,6 +218,58 @@
       "upcoming": "Upcoming classes",
       "emptyTitle": "No classes scheduled yet",
       "emptyDesc": "There are no group classes in the schedule right now. Check back later or ask your gym about availability."
+    },
+    "muscles": {
+      "metaTitle": "Muscle analysis",
+      "title": "Muscle analysis",
+      "subtitle": "See which muscles your schema trains — and whether you're following it.",
+      "emptyTitle": "No active schema yet",
+      "emptyDesc": "Once you have a training schema, this page shows which muscle groups it trains.",
+      "requestSchema": "Request a schema",
+      "heatmapTitle": "Muscle heatmap",
+      "heatmapIntro": "Colour = weekly volume that <b>{schema}</b> spends per muscle group.",
+      "compareTitle": "Schema vs. trained",
+      "compareIntro": "Compare the target volume with what you actually did over the last 4 weeks.",
+      "noActual": "No workouts logged in the last 4 weeks yet. Once you train, your comparison appears here.",
+      "notEnough": "Not enough data yet to compare muscle groups.",
+      "balanceTitle": "Balance",
+      "mostTrained": "Most trained",
+      "notInSchema": "Not in your schema",
+      "disclaimer": "This analysis is a tool based on your schema, not medical advice. In doubt? Consult a trainer or professional.",
+      "front": "Front",
+      "back": "Back",
+      "tapHint": "Tap a muscle group for details",
+      "detailPlan": "{plan} sets/week in your schema",
+      "detailPlanActual": "{plan} sets/week in your schema · {actual} actually trained",
+      "detailNotTrained": "Not trained in your schema",
+      "seriesPlan": "Schema",
+      "seriesActual": "Trained (4 wks)",
+      "setsPerWeek": "{count} sets/wk",
+      "levels": {
+        "1": "Low",
+        "2": "Moderate",
+        "3": "Good",
+        "4": "High",
+        "5": "Very high"
+      },
+      "regions": {
+        "chest": "Chest",
+        "shoulders": "Shoulders",
+        "biceps": "Biceps",
+        "triceps": "Triceps",
+        "forearms": "Forearms",
+        "abs": "Abs",
+        "obliques": "Obliques",
+        "traps": "Trapezius",
+        "lats": "Lats",
+        "upperBack": "Upper back",
+        "lowerBack": "Lower back",
+        "glutes": "Glutes",
+        "quads": "Quadriceps",
+        "hamstrings": "Hamstrings",
+        "adductors": "Inner/outer thigh",
+        "calves": "Calves"
+      }
     }
   },
   "owner": {
@@ -259,7 +316,48 @@
       "questionsThisMonth": "Questions this month:",
       "forCostMonitoring": "(for cost monitoring)",
       "contactTitle": "Contact details",
-      "contactDesc": "These details are visible to your members on their <b>Gym</b> page. Empty fields are not shown."
+      "contactDesc": "These details are visible to your members on their <b>Gym</b> page. Empty fields are not shown.",
+      "memberSchemaTitle": "Members build their own schema",
+      "memberSchemaDesc": "Let members build their own training schema. Current mode: <status>{status}</status>.",
+      "memberSchemaModeDISABLED": "Off",
+      "memberSchemaModeAPPROVAL": "Approval required",
+      "memberSchemaModeDIRECT": "Direct use",
+      "memberSchemaHintDISABLED": "The feature is off. Members cannot build their own schema.",
+      "memberSchemaHintAPPROVAL": "Members build a schema and submit it; a coach approves it before it becomes active.",
+      "memberSchemaHintDIRECT": "Members activate their own schema directly. The gym sees everything and can adjust.",
+      "memberSchemaSave": "Save",
+      "supportTitle": "Need help?",
+      "supportDesc": "Ask a question, report an issue or request support from the GymRebel team."
+    },
+    "support": {
+      "title": "Contact support",
+      "intro": "Ask your question or report an issue. We'll get back to you as soon as possible.",
+      "name": "Name",
+      "email": "Email address",
+      "gym": "Gym",
+      "category": "Category",
+      "priority": "Priority",
+      "subject": "Subject",
+      "subjectPlaceholder": "What is it about?",
+      "message": "Message",
+      "messageHint": "Describe your question or issue as clearly as possible.",
+      "messagePlaceholder": "Type your message here…",
+      "cancel": "Cancel",
+      "send": "Send",
+      "openButton": "Contact support",
+      "successToast": "Your message has been sent. We'll get back to you as soon as possible.",
+      "categories": {
+        "general": "General question",
+        "technical": "Technical issue",
+        "feature": "Feature request",
+        "billing": "Billing",
+        "other": "Other"
+      },
+      "priorities": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High"
+      }
     },
     "members": {
       "metaTitle": "Members",
@@ -480,6 +578,8 @@
       "title": "Plans",
       "navTemplates": "Templates",
       "navMembers": "Members",
+      "navMemberBuilt": "Self-built",
+      "navFrameworks": "Frameworks",
       "navBulk": "Bulk",
       "navAnalysis": "Analytics"
     }
@@ -566,6 +666,7 @@
     },
     "userMenu": {
       "account": "Account settings",
+      "support": "Contact support",
       "logout": "Log out",
       "fallbackName": "User"
     }
@@ -580,6 +681,7 @@
       "privacy": "Privacy",
       "integrations": "Integrations",
       "activity": "Activity",
+      "goals": "My goals",
       "gym": "Gym"
     },
     "language": {

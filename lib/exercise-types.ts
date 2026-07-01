@@ -18,6 +18,9 @@ import {
   RotateCcw,
   Target,
   Sparkles,
+  PersonStanding,
+  Scale,
+  HeartPulse,
   type LucideIcon,
 } from "@/components/ui/icons";
 
@@ -319,6 +322,36 @@ export const EXERCISE_TYPES: Record<string, ExerciseTypeDef> = {
     targetFields: [F.sets(), F.reps(true), F.timeSec("timeSeconds", "Tijd", false), F.rest()],
     logFields: [F.reps(true), F.timeSec("timeSeconds", "Tijd", false)],
   },
+  functional: {
+    key: "functional",
+    label: "Functionele training",
+    icon: PersonStanding,
+    tone: "bg-cyan-50 text-cyan-600",
+    description: "Samengestelde bewegingspatronen — herhalingen met optioneel gewicht en rust.",
+    logModel: "sets",
+    targetFields: [F.sets(), F.reps(), { ...F.weightKg(), optional: true }, F.rest(), F.notes()],
+    logFields: [F.reps(), F.weightKg()],
+  },
+  stability: {
+    key: "stability",
+    label: "Stabiliteit & balans",
+    icon: Scale,
+    tone: "bg-emerald-50 text-emerald-600",
+    description: "Balans- en stabiliteitswerk — vasthouden per kant, met rust.",
+    logModel: "sets",
+    targetFields: [F.sets(), F.timeSec("holdSeconds", "Houdtijd"), F.side(), F.rest()],
+    logFields: [F.timeSec("holdSeconds", "Houdtijd"), F.side()],
+  },
+  rehab: {
+    key: "rehab",
+    label: "Revalidatie",
+    icon: HeartPulse,
+    tone: "bg-pink-50 text-pink-600",
+    description: "Gecontroleerde herstel-/blessurepreventie-oefeningen — rustig, vaak per kant.",
+    logModel: "sets",
+    targetFields: [F.sets(), F.reps(true), F.timeSec("timeSeconds", "Tijd", false), F.side(), F.notes(), F.rest()],
+    logFields: [F.reps(true), F.timeSec("timeSeconds", "Tijd", false), F.side()],
+  },
   other: {
     key: "other",
     label: "Overig",
@@ -382,11 +415,15 @@ export function inferExerciseType(input: {
   const t = (input.target ?? "").toLowerCase();
 
   if (/stretch/.test(c) || /stretch/.test(t)) return "stretch";
+  if (/(rehab|prehab|revalidat|rehabilit)/.test(c) || /(rehab|revalidat)/.test(t)) return "rehab";
   if (/plyometric/.test(c)) return "hiit";
   if (/cardio/.test(c) || /cardio/.test(b)) return "cardio";
   if (/(treadmill|bike|cycle|elliptical|rower|rowing|stair|stepmill|skierg|ergometer)/.test(e))
     return "cardio";
+  if (/(balance|stability|stabili)/.test(c) || /(balance|stability|stabili)/.test(t) || /bosu|balance/.test(e))
+    return "stability";
   if (/(plank|hold|isometric)/.test(t)) return "isometric";
   if (/(waist|abs|core)/.test(b) || /(abdominals|core)/.test(t)) return "core";
+  if (/functional/.test(c) || /functional/.test(t)) return "functional";
   return "strength";
 }

@@ -1,12 +1,15 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { m, useReducedMotion } from "motion/react";
 import { useFormStatus } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
-import { endSession } from "../actions";
-import { Trophy, Flame, Check, Dumbbell, Clock, Target } from "@/components/ui/icons";
+import { endSession, saveWorkoutMood } from "../actions";
+import type { RewardProps } from "./active-session";
+import { Trophy, Flame, Check, Dumbbell, Clock, Target, Sparkles, HeartPulse } from "@/components/ui/icons";
 import { type AppLocale, isLocale } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
+import { moodOptions } from "@/lib/workout-moods";
 
 type ActiveT = ReturnType<typeof useTranslations<"member.active">>;
 
@@ -80,6 +83,7 @@ export function CompletionScreen({
   weeklyGoal,
   weeklyGoalReached,
   workoutsThisWeek,
+  reward,
   onContinue,
 }: {
   sessionId: string;
@@ -95,12 +99,22 @@ export function CompletionScreen({
   weeklyGoal: number;
   weeklyGoalReached: boolean;
   workoutsThisWeek: number;
+  reward: RewardProps;
   onContinue: () => void;
 }) {
   const t = useTranslations("member.active");
   const locale = useLocale();
   const loc: AppLocale = isLocale(locale) ? locale : "nl";
   const goalRemaining = Math.max(0, weeklyGoal - workoutsThisWeek);
+
+  // Workout Mood — one-tap, optimistisch. Kiezen mag altijd (ook wijzigen).
+  const [mood, setMood] = useState<string | null>(reward.initialMood);
+  const [, startMood] = useTransition();
+  function chooseMood(key: string) {
+    const next = mood === key ? null : key;
+    setMood(next);
+    if (next) startMood(() => void saveWorkoutMood({ sessionId, mood: next }));
+  }
 
   return (
     <m.div
@@ -142,6 +156,40 @@ export function CompletionScreen({
         <p className="mt-1 text-sm text-neutral-500">
           {t("completedSubtitle", { completed: completedExercises, total: totalExercises })}
         </p>
+
+        {/* Workout Mood — one-tap trainingsbeleving */}
+        <div className="mt-6 rounded-2xl border border-border bg-surface-1 p-4">
+          <p className="text-sm font-semibold text-neutral-800">{t("moodQuestion")}</p>
+          <div className="mt-3 flex items-stretch justify-between gap-1.5">
+            {moodOptions().map((mo) => {
+              const active = mood === mo.key;
+              return (
+                <button
+                  key={mo.key}
+                  type="button"
+                  onClick={() => chooseMood(mo.key)}
+                  aria-pressed={active}
+                  aria-label={mo.label}
+                  title={mo.label}
+                  className={`flex flex-1 flex-col items-center gap-1 rounded-xl border px-1 py-2 transition-all active:scale-95 ${
+                    active
+                      ? "border-accent bg-accent-soft"
+                      : "border-transparent hover:bg-surface-2"
+                  }`}
+                >
+                  <span className="text-2xl leading-none">{mo.emoji}</span>
+                  <span
+                    className={`text-[10px] font-medium leading-tight ${
+                      active ? "text-accent" : "text-neutral-400"
+                    }`}
+                  >
+                    {mo.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Statistieken */}
         <div className="mt-6 grid grid-cols-2 gap-3 text-left">
@@ -210,6 +258,39 @@ export function CompletionScreen({
             ? t("goalReached")
             : t("goalRemaining", { count: goalRemaining })}
         </p>
+
+        {/* Motiverende quote */}
+        {reward.quote ? (
+          <m.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-5 rounded-2xl bg-accent-gradient p-4 text-left text-accent-foreground shadow-accent"
+          >
+            <Sparkles className="size-5 opacity-90" />
+            <p className="mt-2 font-display text-base font-semibold leading-snug">
+              &ldquo;{reward.quote}&rdquo;
+            </p>
+          </m.div>
+        ) : null}
+
+        {/* Herstelherinnering */}
+        <m.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.42, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-3 flex items-start gap-3 rounded-2xl border border-border bg-surface-1 p-4 text-left"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <HeartPulse className="size-5" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+              {t("recoveryTitle")}
+            </p>
+            <p className="mt-0.5 text-sm text-neutral-700">{reward.recoveryTip}</p>
+          </div>
+        </m.div>
 
         <form action={endSession} className="mt-6">
           <input type="hidden" name="sessionId" value={sessionId} />

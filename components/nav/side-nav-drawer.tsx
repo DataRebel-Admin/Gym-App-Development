@@ -10,9 +10,13 @@ import { cn } from "@/lib/cn";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogOut, Settings, X, Check, ChevronRight } from "@/components/ui/icons";
+import { LogOut, Settings, X, Check, ChevronRight, LifeBuoy } from "@/components/ui/icons";
 import type { OwnerNavEntry } from "@/components/nav/owner-nav";
 import type { UserTenant } from "@/lib/tenants";
+import {
+  ContactSupportModal,
+  type SupportInitial,
+} from "@/components/support/contact-support-modal";
 
 /**
  * Links-inschuivend hamburger-zijmenu voor de beheeromgevingen (Superadmin +
@@ -32,6 +36,7 @@ export function SideNavDrawer({
   tenants = [],
   currentSlug = null,
   accountHref = "/account",
+  support,
   className,
 }: {
   entries: OwnerNavEntry[];
@@ -41,10 +46,13 @@ export function SideNavDrawer({
   tenants?: UserTenant[];
   currentSlug?: string | null;
   accountHref?: string;
+  /** Aanwezig voor tenant-gebruikers → toont "Contact opnemen" (opent modal). */
+  support?: SupportInitial | null;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const pathname = usePathname();
 
   const display = profile.name ?? profile.email ?? "Beheerder";
@@ -235,6 +243,20 @@ export function SideNavDrawer({
                         <span className="flex-1">Accountinstellingen</span>
                         <ChevronRight className="size-4 text-neutral-300" />
                       </Link>
+                      {support ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpen(false);
+                            setSupportOpen(true);
+                          }}
+                          className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
+                        >
+                          <LifeBuoy className="size-5 text-accent" />
+                          <span className="flex-1 text-left">Contact opnemen</span>
+                          <ChevronRight className="size-4 text-neutral-300" />
+                        </button>
+                      ) : null}
                     </div>
                     <div className="mt-1 flex items-center justify-between px-4 py-2">
                       <span className="text-sm font-medium text-neutral-700">
@@ -260,6 +282,13 @@ export function SideNavDrawer({
             document.body
           )
         : null}
+      {support ? (
+        <ContactSupportModal
+          open={supportOpen}
+          onClose={() => setSupportOpen(false)}
+          initial={support}
+        />
+      ) : null}
     </>
   );
 }

@@ -77,6 +77,36 @@ enum WorkoutTemplateKind {
   DAY
 }
 
+// Mate van controle die een sportschool houdt over zelf-gebouwde lid-schema's.
+// DISABLED = functie uit; APPROVAL = lid dient in, coach keurt goed; DIRECT = lid
+// activeert zelf (sportschool ziet mee, geen goedkeuring). Per tenant instelbaar.
+enum MemberSchemaMode {
+  DISABLED
+  APPROVAL
+  DIRECT
+}
+
+// Herkomst van een toegewezen schema: COACH (owner/medewerker stelde samen) of
+// MEMBER (lid bouwde het zelf). Bepaalt of de lid-levenscyclus (`memberStatus`)
+// van toepassing is.
+enum AssignmentOrigin {
+  COACH
+  MEMBER
+}
+
+// Levenscyclus van een zelf-gebouwd lid-schema (los van de zichtbaarheids-`status`
+// op AssignedWorkout). DRAFT = concept; IN_REVIEW = ingediend ter controle;
+// APPROVED = goedgekeurd (klaar om te activeren); REJECTED = afgewezen (met reden);
+// ACTIVE = in gebruik; PAUSED = tijdelijk gepauzeerd.
+enum MemberSchemaStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  ACTIVE
+  PAUSED
+}
+
 // Doel van een schema-aanvraag door een sporter.
 enum SchemaRequestGoal {
   MUSCLE // spiermassa opbouwen
@@ -109,6 +139,15 @@ model Tenant {
   locale      Locale       @default(NL)
   status      TenantStatus @default(ACTIVE)
   aiEnabled   Boolean      @default(false)
+  // Trofeeën/achievements-systeem aan voor deze sportschool (opt-in per gym).
+  achievementsEnabled Boolean @default(false)
+  // Mate van controle over zelf-gebouwde lid-schema's (opt-in per sportschool).
+  memberSchemaMode MemberSchemaMode @default(DISABLED)
+  // Motiverende Workout Quotes na een afgeronde training (aan/uit per sportschool).
+  quotesEnabled Boolean    @default(true)
+  // Door de owner toegevoegde eigen quotes (array van strings). NULL = alleen de
+  // standaard-quotes uit lib/workout-quotes.ts.
+  customQuotes Json?
   // --- Zakelijke gegevens (tenant-instellingen, owner) ---
   contactEmail String?
   contactPhone String?
@@ -147,6 +186,9 @@ model Tenant {
   schemaRequests    SchemaRequest[]
   coachNotes        CoachNote[]
   coachAssignments  CoachAssignment[]
+  schemaFrameworks  SchemaFramework[]
+  memberFrameworkAssignments MemberFrameworkAssignment[]
+  earnedAchievements EarnedAchievement[]
 }
 
 // In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een
@@ -234,6 +276,8 @@ model Measurement {
   thighRightCm Float?
   calfLeftCm   Float?
   calfRightCm  Float?
+  // Conditie (fitness) — voortgang is méér dan lichaamssamenstelling alleen.
+  restingHrBpm Int? // rusthartslag (bpm)
   extra        Json? // extra/toekomstige meetwaarden
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
@@ -280,6 +324,38 @@ model MemberGoal {
 
   @@index([tenantId])
   @@index([userId, metric])
+}
+
+// Eén behaalde trofee/achievement/mijlpaal door een lid. De definities zijn
+// code-gestuurd (lib/achievements/definitions.ts) — hier bewaren we alleen wélke
+// (`key`) en wanneer (`earnedAt`) behaald is. Tenant-scoped business-data (RLS,
+// zie prisma/sql/rls.sql). `@@unique([tenantId, userId, key])` garandeert dat een
+// achievement precies één keer wordt toegekend (geen dubbele toekenning).
+//
+// `category`/`rarity` zijn gedenormaliseerd zodat overzichten (mooiste trofee,
+// filters) niet elke keer de registry hoeven te joinen. `value` bewaart de
+// metricwaarde op het moment van behalen; `celebratedAt` markeert of de
+// celebration-overlay/melding al getoond is (null = nog vieren).
+model EarnedAchievement {
+  id           String    @id @default(cuid())
+  tenantId     String
+  userId       String
+  key          String // definitie-key uit lib/achievements/definitions.ts
+  category     String
+  rarity       String
+  value        Float? // metricwaarde op moment van behalen (bv. 100 trainingen)
+  earnedAt     DateTime  @default(now())
+  celebratedAt DateTime? // celebration getoond? null = nog vieren
+  createdAt    DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, key])
+  @@index([tenantId, userId])
+  @@index([tenantId, category])
+  @@index([tenantId, earnedAt])
+  @@index([userId, celebratedAt])
 }
 
 // Eén rij per AI-assistent-vraag — voor rate-limiting (per lid/dag) en
@@ -371,6 +447,9 @@ model User {
   // Vorm: Record<Permission, boolean> — zie lib/rbac.ts.
   permissions   Json?
   consents      Json? // privacy-toestemmingen (bv. marketing)
+  // Door de sporter zélf gekozen trainingsdoelen (personalisatie). Vorm:
+  // string[] met keys uit lib/training-goals.ts. null/[] = nog niet gekozen.
+  trainingGoals Json?
   deletionRequestedAt DateTime? // verzoek tot accountverwijdering
   // --- Beveiliging ---
   passwordHash     String? // bcrypt; null = alleen magic-link
@@ -403,6 +482,7 @@ model User {
   authoredCoachNotes CoachNote[] @relation("CoachNoteAuthor") // notities geschreven door deze medewerker
   coachingMembers    CoachAssignment[] @relation("CoachAssignmentCoach") // leden die deze coach begeleidt
   assignedCoaches    CoachAssignment[] @relation("CoachAssignmentMember") // coaches van dit lid
+  earnedAchievements EarnedAchievement[]
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
@@ -726,18 +806,80 @@ model CoachAssignment {
   @@index([tenantId, memberId])
 }
 
+// Kader waarbinnen een lid zelf een schema mag samenstellen: toegestane
+// oefeningen/types, min/max dagen en sets/reps/rust-grenzen. Tenant-scoped
+// business-data (RLS, zie prisma/sql/rls.sql). Eén kader mag `isDefault` zijn
+// (tenant-brede standaard); anders per lid gekoppeld via MemberFrameworkAssignment.
+model SchemaFramework {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isDefault   Boolean  @default(false) // tenant-brede standaard (max één zinvol)
+  // Beperkingen — leeg/null = geen beperking op dat aspect.
+  allowedExerciseIds String[] @default([]) // leeg = alle tenant-oefeningen toegestaan
+  allowedTypes       String[] @default([]) // leeg = alle oefeningstypes toegestaan
+  minDays            Int?
+  maxDays            Int?
+  minExercisesPerDay Int?
+  maxExercisesPerDay Int?
+  setsMin            Int?
+  setsMax            Int?
+  repsMin            Int?
+  repsMax            Int?
+  restMin            Int?
+  restMax            Int?
+  // Override op de tenant-modus: true = altijd goedkeuring, false = direct,
+  // null = volg Tenant.memberSchemaMode.
+  requireApproval    Boolean?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments MemberFrameworkAssignment[]
+
+  @@index([tenantId])
+}
+
+// Koppelt een kader aan een specifiek lid (max één per lid). Tenant-scoped
+// business-data (RLS). Geen koppeling → tenant-default kader → geen kader (vrij).
+model MemberFrameworkAssignment {
+  id           String   @id @default(cuid())
+  tenantId     String
+  frameworkId  String
+  memberId     String
+  assignedById String? // wie de koppeling maakte
+  createdAt    DateTime @default(now())
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  framework SchemaFramework @relation(fields: [frameworkId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, memberId])
+  @@index([tenantId, frameworkId])
+}
+
 model WorkoutTemplate {
   id          String   @id @default(cuid())
   tenantId    String
   name        String
   description String?
   isLibrary   Boolean  @default(false) // true = zichtbaar als herbruikbare template
+  // Zichtbaar voor leden als startsjabloon bij zelf-samenstellen (owner-opt-in).
+  // Alleen zinvol op library-templates (kind=SCHEMA).
+  memberVisible Boolean @default(false)
   kind        WorkoutTemplateKind @default(SCHEMA) // SCHEMA = volledig schema; DAY = herbruikbare dag
   coachNote   String?  @db.Text // coach-notitie op schema-niveau (zichtbaar voor het lid)
   // Geldigheid in weken: hoe lang een schema bruikbaar blijft na publicatie.
   // NULL = onbeperkt. Wordt meegekloond naar het lid-schema → per-lid verloop
   // (flag "Verlopen"/"Nieuw schema nodig", zie lib/schema-status.ts).
   validityWeeks Int?
+  // Neutraal trainingsdoel van de template (key uit lib/training-goals.ts).
+  // NULL = geen doel getagd. Wordt gebruikt om templates te matchen met de
+  // door de sporter gekozen doelen (personalisatie) en als filter/badge.
+  goal        String?
+  // Vrij toewijsbare badges (keys uit lib/schema-badges.ts) — visuele labels
+  // zoals ⭐ Beginner, 🔥 Spieropbouw, ⚡ Intensief. Meegekloond naar lid-schema's.
+  badges      String[]  @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -815,6 +957,19 @@ model AssignedWorkout {
   notifiedAt    DateTime? // meldingen verstuurd (voorkomt dubbele meldingen)
   seenAt        DateTime? // lid heeft het schema voor het eerst geopend ("Nieuw")
 
+  // --- Zelf-gebouwd lid-schema (origin=MEMBER) ---
+  // De `status` hierboven blijft de zichtbaarheidspoort; `memberStatus` draagt de
+  // aparte review-/gebruik-levenscyclus. Null bij coach-schema's.
+  origin        AssignmentOrigin    @default(COACH)
+  memberStatus  MemberSchemaStatus?
+  submittedAt   DateTime? // lid diende in ter controle
+  reviewedAt    DateTime? // coach keurde goed/af
+  reviewedById  String? // User.id van de beoordelende coach/owner
+  reviewNote    String? // coach-feedback / afwijsreden (zichtbaar voor het lid)
+  goal          SchemaRequestGoal? // trainingsdoel dat het lid koos
+  focusNote     String? // vrije focus/voorkeur van het lid
+  frameworkId   String? // kader waaronder het lid dit bouwde (informatief)
+
   // --- Master ↔ persoonlijke kopie (3-weg-diff) ---
   // De persoonlijke kopie (`template`) wordt bij toewijzen gekloond van de master
   // (`sourceTemplateId`). `baselineSnapshot` legt de master-staat op koppel-/
@@ -832,6 +987,7 @@ model AssignedWorkout {
   @@index([tenantId, userId, status])
   @@index([status, availableFrom])
   @@index([sourceTemplateId])
+  @@index([tenantId, origin, memberStatus])
 }
 
 // Web-push-abonnement van één gebruiker/apparaat (PushSubscription API). Tenant-
@@ -860,6 +1016,9 @@ model WorkoutSession {
   userId    String
   startedAt DateTime  @default(now())
   endedAt   DateTime?
+  // Trainingsbeleving (Workout Mood) — mood-key uit lib/workout-moods.ts.
+  // NULL = het lid heeft (nog) geen beleving gekozen. One-tap na afronden.
+  mood      String?
 
   tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -892,4 +1051,20 @@ model PerformanceEntry {
   @@index([tenantId])
   @@index([sessionId])
   @@index([exerciseId])
+}
+
+// --- Platform-instellingen (Superadmin) ---
+// Globale key/value-tabel (géén tenantId/RLS, zoals AuditLog/ExerciseCatalog/
+// EmailTemplate): configureerbare platformwaarden die de Superadmin zonder
+// redeploy kan wijzigen (bv. het support-e-mailadres). Nieuwe instelling =
+// één key erbij; lezen/schrijven via lib/platform-settings.ts.
+model PlatformSetting {
+  key            String   @id
+  value          String
+  updatedById    String?
+  updatedByEmail String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("platform_setting")
 }

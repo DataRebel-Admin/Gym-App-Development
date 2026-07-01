@@ -2,7 +2,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { Permission } from "@/lib/rbac";
 import { listCoachMembers } from "@/lib/coach-assignments";
+import { getAchievementDef } from "@/lib/achievements/definitions";
+import { rarityMeta } from "@/lib/achievements/rarity";
 import { Card } from "@/components/ui/card";
+import { Trophy } from "@/components/ui/icons";
 
 const TIME_FMT = new Intl.DateTimeFormat("nl-NL", {
   weekday: "short",
@@ -59,7 +62,7 @@ export async function StaffDashboard({
 
   const canMembers = permissions.has("members:view");
 
-  const [activeToday, openRequests, newMeasurements, upcoming, myMembers] = await Promise.all([
+  const [activeToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements] = await Promise.all([
     prisma.workoutSession.count({ where: { tenantId, startedAt: { gte: today } } }),
     canSchemas
       ? prisma.schemaRequest.count({ where: { tenantId, status: "NEW" } })
@@ -81,7 +84,16 @@ export async function StaffDashboard({
         })
       : Promise.resolve([]),
     canMembers ? listCoachMembers(tenantId, coachId, 6) : Promise.resolve([]),
+    prisma.tenant.findUnique({ where: { id: tenantId }, select: { achievementsEnabled: true } }),
+    prisma.earnedAchievement.findMany({
+      where: { tenantId },
+      orderBy: { earnedAt: "desc" },
+      take: 5,
+      select: { userId: true, key: true, earnedAt: true, user: { select: { name: true, email: true } } },
+    }),
   ]);
+
+  const showAchievements = tenantFlags?.achievementsEnabled ?? false;
 
   const firstName = name?.split(" ")[0];
 
@@ -180,6 +192,44 @@ export async function StaffDashboard({
               ))}
             </div>
           )}
+        </section>
+      ) : null}
+
+      {showAchievements && recentAchievements.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+              <Trophy className="size-4 text-accent" /> Recente mijlpalen
+            </h2>
+            <Link href="/owner/engagement" className="text-xs text-accent hover:underline">
+              Alles bekijken →
+            </Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            {recentAchievements.map((a, i) => {
+              const def = getAchievementDef(a.key);
+              if (!def) return null;
+              const meta = rarityMeta(def.rarity);
+              return (
+                <Link key={`${a.userId}-${a.key}-${i}`} href={`/owner/members/${a.userId}`}>
+                  <Card className="flex items-center gap-3 p-3 transition-colors hover:bg-neutral-50">
+                    <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${meta.gradient}`}>
+                      <Trophy className={`size-4 ${meta.onGradient}`} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-neutral-900">
+                        {a.user.name ?? a.user.email}
+                      </span>
+                      <span className="block truncate text-xs text-neutral-500">{def.title}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-neutral-400">
+                      {TIME_FMT.format(a.earnedAt)}
+                    </span>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
         </section>
       ) : null}
 

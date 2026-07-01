@@ -22,8 +22,10 @@ export async function sendEmail(opts: {
   message: EmailMessage;
   /** Optionele link die in de dev-console wordt getoond (magic link, invite, …). */
   devLink?: string;
+  /** Optioneel Reply-To (bv. het afzenderadres bij een contactbericht). */
+  replyTo?: string;
 }): Promise<void> {
-  const { to, message, devLink } = opts;
+  const { to, message, devLink, replyTo } = opts;
 
   if (graphConfigured()) {
     const sender = graphSender();
@@ -34,6 +36,7 @@ export async function sendEmail(opts: {
         subject: message.subject,
         html: message.html,
         text: message.text,
+        replyTo,
       });
       await sendMimeViaGraph(mime);
       return;
@@ -44,7 +47,7 @@ export async function sendEmail(opts: {
       );
     }
     try {
-      await sendMailViaGraph({ to, subject: message.subject, html: message.html });
+      await sendMailViaGraph({ to, subject: message.subject, html: message.html, replyTo });
       return;
     } catch (err) {
       console.error(

@@ -9,7 +9,10 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
+import { notifyMemberSchemaReviewed } from "@/lib/member-schema-notify";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
+import { isTrainingGoal } from "@/lib/training-goals";
+import { parseBadges } from "@/lib/schema-badges";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
 import {
   snapshotOf,
@@ -70,6 +73,14 @@ export async function saveSchema(
   const validityNum = validityRaw ? Math.round(Number(validityRaw)) : NaN;
   const validityWeeks =
     Number.isFinite(validityNum) && validityNum > 0 ? Math.min(104, validityNum) : null;
+  const goalRaw = String(formData.get("goal") ?? "").trim();
+  const goal = isTrainingGoal(goalRaw) ? goalRaw : null;
+  let badges: string[] = [];
+  try {
+    badges = parseBadges(JSON.parse(String(formData.get("badges") ?? "[]")));
+  } catch {
+    badges = [];
+  }
 
   if (!name) return { error: "Naam is verplicht" };
 
@@ -97,7 +108,7 @@ export async function saveSchema(
   await prisma.$transaction([
     prisma.workoutTemplate.update({
       where: { id: template.id },
-      data: { name, description: description || null, coachNote: coachNote || null, validityWeeks },
+      data: { name, description: description || null, coachNote: coachNote || null, validityWeeks, goal, badges },
     }),
     // Items en dagen volledig vervangen (items cascaden via day-FK, maar we
     // ruimen expliciet op voor items zonder dag).
@@ -205,6 +216,8 @@ type SourceTemplate = {
   description: string | null;
   coachNote: string | null;
   validityWeeks: number | null;
+  goal: string | null;
+  badges: string[];
   updatedAt: Date;
   days: {
     order: number;
@@ -266,6 +279,8 @@ async function cloneToAssignment(
       description: source.description,
       coachNote: source.coachNote,
       validityWeeks: source.validityWeeks,
+      goal: source.goal,
+      badges: source.badges,
       isLibrary: false,
     },
   });
@@ -562,6 +577,8 @@ export async function duplicateTemplate(formData: FormData) {
         description: source.description,
         coachNote: source.coachNote,
         validityWeeks: source.validityWeeks,
+        goal: source.goal,
+        badges: source.badges,
         isLibrary: true,
       },
     });
@@ -1249,6 +1266,133 @@ export async function applyMasterSuggestion(formData: FormData) {
     targetType: "WorkoutTemplate",
     targetId: masterId,
     metadata: { name: master.name, kind },
+  });
+
+  revalidatePath(back);
+  redirect(back);
+}
+
+/** Geef een library-template vrij (of verberg) als lid-startsjabloon. */
+export async function setTemplateMemberVisible(formData: FormData) {
+  const owner = await requirePermission("schemas:manage");
+  const id = String(formData.get("id") ?? "");
+  const visible = formData.get("visible") === "true";
+
+  const { count } = await prisma.workoutTemplate.updateMany({
+    where: { id, tenantId: owner.tenantId, isLibrary: true, kind: "SCHEMA" },
+    data: { memberVisible: visible },
+  });
+  if (count > 0) {
+    await audit("schema.update", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "WorkoutTemplate",
+      targetId: id,
+      metadata: { memberVisible: visible },
+    });
+  }
+  revalidatePath(`/owner/schemas/templates/${id}`);
+}
+
+// --- Zelf-gebouwde lid-schema's: coach-review ------------------------------
+
+const reviewSchema = z.object({
+  assignmentId: z.string().min(1),
+  decision: z.enum(["approve", "reject", "approve_activate"]),
+  reviewNote: z.string().trim().max(1000).optional().nullable(),
+});
+
+/**
+ * Keur een door een lid zelf-gebouwd schema goed of af. `approve` → APPROVED
+ * (lid activeert zelf); `approve_activate` → ook meteen activeren namens het lid;
+ * `reject` → REJECTED (+ reden). Informeert het lid (in-app + e-mail).
+ */
+export async function reviewMemberSchema(formData: FormData) {
+  const owner = await requirePermission("schemas:manage");
+  const parsed = reviewSchema.safeParse({
+    assignmentId: formData.get("assignmentId"),
+    decision: formData.get("decision"),
+    reviewNote: formData.get("reviewNote"),
+  });
+  const back = "/owner/schemas/member-built";
+  if (!parsed.success) redirect(back);
+  const { assignmentId, decision, reviewNote } = parsed.data;
+
+  const assignment = await prisma.assignedWorkout.findFirst({
+    where: { id: assignmentId, tenantId: owner.tenantId, origin: "MEMBER" },
+    include: {
+      template: { select: { name: true } },
+      user: { select: { id: true, email: true, name: true } },
+    },
+  });
+  if (!assignment?.template) redirect(back);
+
+  const schemaName = assignment.template.name;
+  const approved = decision === "approve" || decision === "approve_activate";
+  const note = reviewNote?.trim() || null;
+
+  if (approved) {
+    await prisma.$transaction(async (tx) => {
+      await tx.assignedWorkout.update({
+        where: { id: assignment.id },
+        data: {
+          memberStatus: "APPROVED",
+          reviewedAt: new Date(),
+          reviewedById: owner.id,
+          reviewNote: note,
+        },
+      });
+      if (decision === "approve_activate") {
+        // Archiveer het huidige actieve schema van het lid en zet dit live.
+        await tx.assignedWorkout.updateMany({
+          where: {
+            tenantId: owner.tenantId,
+            userId: assignment.userId,
+            status: "PUBLISHED",
+            id: { not: assignment.id },
+          },
+          data: { status: "ARCHIVED" },
+        });
+        await tx.assignedWorkout.update({
+          where: { id: assignment.id },
+          data: {
+            memberStatus: "ACTIVE",
+            status: "PUBLISHED",
+            publishedAt: new Date(),
+            availableFrom: null,
+          },
+        });
+      }
+    });
+  } else {
+    await prisma.assignedWorkout.update({
+      where: { id: assignment.id },
+      data: {
+        memberStatus: "REJECTED",
+        reviewedAt: new Date(),
+        reviewedById: owner.id,
+        reviewNote: note,
+      },
+    });
+  }
+
+  await audit(approved ? "schema.member.approve" : "schema.member.reject", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "AssignedWorkout",
+    targetId: assignment.id,
+    metadata: { name: schemaName, member: assignment.user.name ?? assignment.user.email },
+  });
+
+  await notifyMemberSchemaReviewed({
+    tenantId: owner.tenantId,
+    memberId: assignment.user.id,
+    memberEmail: assignment.user.email,
+    memberName: assignment.user.name,
+    approved,
+    schemaName,
+    reviewNote: note,
+    viewUrl: `${await origin()}/member/schema/builder`,
   });
 
   revalidatePath(back);

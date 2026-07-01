@@ -51,6 +51,11 @@ export function MeasurementCharts({ points }: { points: SeriesPoint[] }) {
               <option key={m.key} value={m.key}>{m.label}</option>
             ))}
           </optgroup>
+          <optgroup label="Conditie">
+            {METRICS.filter((m) => m.group === "condition").map((m) => (
+              <option key={m.key} value={m.key}>{m.label}</option>
+            ))}
+          </optgroup>
           <optgroup label="Omtrek">
             {METRICS.filter((m) => m.group === "circumference").map((m) => (
               <option key={m.key} value={m.key}>{m.label}</option>

@@ -1,27 +1,38 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { logout } from "@/app/login/actions";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { LifeBuoy } from "@/components/ui/icons";
+import {
+  ContactSupportModal,
+  type SupportInitial,
+} from "@/components/support/contact-support-modal";
 
 /** Avatar (foto of initiaal) + dropdown met gebruikersinfo en uitloggen. */
 export function UserMenu({
   name,
   email,
   image,
+  support,
 }: {
   name: string | null;
   email: string | null;
   image?: string | null;
+  /** Aanwezig voor tenant-gebruikers → toont "Contact opnemen" (opent modal). */
+  support?: SupportInitial | null;
 }) {
   const t = useTranslations("nav.userMenu");
   const tLang = useTranslations("account.language");
   const display = name ?? email ?? t("fallbackName");
   const initial = display.charAt(0).toUpperCase();
+  const [supportOpen, setSupportOpen] = useState(false);
 
   return (
+    <>
     <Dropdown
       trigger={({ toggle }) => (
         <button
@@ -43,7 +54,7 @@ export function UserMenu({
         </button>
       )}
     >
-      {() => (
+      {({ close }) => (
         <>
           <div className="flex items-center gap-2.5 px-3 py-2">
             <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-gradient text-sm font-bold text-accent-foreground">
@@ -70,6 +81,17 @@ export function UserMenu({
           >
             {t("account")}
           </Link>
+          {support ? (
+            <DropdownItem
+              onClick={() => {
+                close();
+                setSupportOpen(true);
+              }}
+            >
+              <LifeBuoy size={16} className="text-neutral-500" />
+              {t("support")}
+            </DropdownItem>
+          ) : null}
           <div className="my-1 h-px bg-border" />
           <div className="px-1 pb-1">
             <p className="px-2 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
@@ -86,5 +108,13 @@ export function UserMenu({
         </>
       )}
     </Dropdown>
+    {support ? (
+      <ContactSupportModal
+        open={supportOpen}
+        onClose={() => setSupportOpen(false)}
+        initial={support}
+      />
+    ) : null}
+    </>
   );
 }

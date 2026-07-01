@@ -15,6 +15,7 @@ const ICON = {
   building: "M3 21h18M5 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16M19 21V9h1M9 8h2M9 12h2M9 16h2",
   plug: "M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1",
   globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18",
+  target: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z",
 };
 
 export default async function AccountLayout({
@@ -39,6 +40,10 @@ export default async function AccountLayout({
     { href: "/account/integraties", label: t("nav.integrations"), iconPath: ICON.plug },
     { href: "/account/activiteit", label: t("nav.activity"), iconPath: ICON.activity },
   ];
+  if (role === "TENANT_MEMBER") {
+    // Sporter-gerichte doelen: alleen voor leden zinvol.
+    items.splice(1, 0, { href: "/account/doelen", label: t("nav.goals"), iconPath: ICON.target });
+  }
   if (role === "TENANT_ADMIN") {
     items.push({ href: "/account/tenant", label: t("nav.gym"), iconPath: ICON.building });
   }

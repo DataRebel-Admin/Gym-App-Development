@@ -6,7 +6,7 @@ import type { DeltaItem } from "@/lib/measurements";
 export function ProgressDeltas({ deltas }: { deltas: DeltaItem[] }) {
   if (deltas.length === 0) return null;
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
       {deltas.map((d) => {
         const tone =
           d.tone === "good"

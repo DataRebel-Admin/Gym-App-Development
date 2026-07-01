@@ -8,6 +8,7 @@ import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { uploadProgressPhoto } from "@/lib/blob";
 import { METRICS, GOAL_METRIC_KEY, GOAL_METRIC_LABEL } from "@/lib/measurement-meta";
+import { evaluateAndAward } from "@/lib/achievements/evaluate";
 
 export type MeasurementFormState = { error?: string };
 
@@ -117,6 +118,8 @@ export async function createMeasurement(
     metadata: { member: member.name ?? member.email },
   });
 
+  await evaluateAndAward(userId, owner.tenantId, { actor: owner });
+
   revalidatePath(`/owner/members/${userId}/progress`);
   revalidatePath("/member/progress");
   redirect(`/owner/members/${userId}/progress`);
@@ -174,6 +177,8 @@ export async function updateMeasurement(
     targetType: "Measurement",
     targetId: measurementId,
   });
+
+  await evaluateAndAward(userId, owner.tenantId, { actor: owner });
 
   revalidatePath(`/owner/members/${userId}/progress`);
   revalidatePath("/member/progress");
@@ -243,6 +248,8 @@ export async function setGoal(formData: FormData) {
     targetType: "MemberGoal",
     metadata: { member: member.name ?? member.email, metric: GOAL_METRIC_LABEL[metricRaw] },
   });
+
+  await evaluateAndAward(userId, owner.tenantId, { actor: owner });
 
   revalidatePath(`/owner/members/${userId}/progress`);
   revalidatePath("/member/progress");

@@ -30,6 +30,8 @@ import {
   summaryFromInputValues,
   type InputValues,
 } from "@/lib/exercise-params";
+import { trainingGoalOptions } from "@/lib/training-goals";
+import { schemaBadgeOptions, parseBadges } from "@/lib/schema-badges";
 
 export type EditorItem = {
   key: string;
@@ -371,6 +373,8 @@ export function SchemaEditor({
   initialDescription,
   initialCoachNote = "",
   initialValidityWeeks = null,
+  initialGoal = null,
+  initialBadges = [],
   showValidity = true,
   initialDays,
   availableExercises,
@@ -382,6 +386,10 @@ export function SchemaEditor({
   initialCoachNote?: string;
   /** Geldigheidsduur in weken (alleen zinvol voor volledige schema's). */
   initialValidityWeeks?: number | null;
+  /** Neutraal trainingsdoel (key uit lib/training-goals.ts). */
+  initialGoal?: string | null;
+  /** Toegewezen badges (keys uit lib/schema-badges.ts). */
+  initialBadges?: string[];
   /** Toon het geldigheid-veld (uit voor dag-templates). */
   showValidity?: boolean;
   initialDays: EditorDay[];
@@ -395,9 +403,20 @@ export function SchemaEditor({
   const [validityWeeks, setValidityWeeks] = useState(
     initialValidityWeeks != null ? String(initialValidityWeeks) : ""
   );
+  const [goal, setGoal] = useState(initialGoal ?? "");
+  const [badges, setBadges] = useState<Set<string>>(() => new Set(parseBadges(initialBadges)));
   const [days, setDays] = useState<EditorDay[]>(
     initialDays.length > 0 ? initialDays : [{ key: `d-${dayCounter++}`, name: "Dag 1", notes: "", items: [] }]
   );
+  const serializedBadges = useMemo(() => JSON.stringify([...badges]), [badges]);
+  function toggleBadge(key: string) {
+    setBadges((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
   const formRef = useRef<HTMLFormElement>(null);
   const mounted = useRef(false);
 
@@ -433,7 +452,7 @@ export function SchemaEditor({
       if (name.trim()) formRef.current?.requestSubmit();
     }, 1200);
     return () => clearTimeout(t);
-  }, [serialized, name, description, coachNote, validityWeeks]);
+  }, [serialized, name, description, coachNote, validityWeeks, goal, serializedBadges]);
 
   const dayKeys = days.map((d) => ({ key: d.key, name: d.name.trim() || "Dag" }));
 
@@ -511,6 +530,7 @@ export function SchemaEditor({
       <form ref={formRef} action={formAction} className="flex flex-col gap-5">
         <input type="hidden" name="templateId" value={templateId} />
         <input type="hidden" name="days" value={serialized} />
+        <input type="hidden" name="badges" value={serializedBadges} />
 
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
           Naam *
@@ -524,6 +544,46 @@ export function SchemaEditor({
           Coach-notitie (zichtbaar voor het lid)
           <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
         </label>
+        <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          Trainingsdoel
+          <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent">
+            <option value="">Geen doel</option>
+            {trainingGoalOptions().map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <span className="text-xs text-neutral-400">
+            Helpt leden het juiste schema te vinden dat past bij hun eigen doel.
+          </span>
+        </label>
+        <div className="flex flex-col gap-1.5 text-sm text-neutral-700">
+          Badges
+          <div className="flex flex-wrap gap-2">
+            {schemaBadgeOptions().map((b) => {
+              const Icon = b.icon;
+              const active = badges.has(b.key);
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  onClick={() => toggleBadge(b.key)}
+                  aria-pressed={active}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    active
+                      ? `border-transparent ${b.tone}`
+                      : "border-border bg-surface-1 text-neutral-500 hover:bg-surface-2"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-xs text-neutral-400">
+            Visuele labels in de bibliotheek, op het dashboard en bij het kiezen van een schema.
+          </span>
+        </div>
         {showValidity ? (
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
             Geldigheid (weken)

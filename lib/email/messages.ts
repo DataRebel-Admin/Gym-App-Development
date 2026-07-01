@@ -4,6 +4,7 @@ import { renderEmailLayout } from "@/lib/email/layout";
 import {
   emailButton,
   emailHeading,
+  emailInfoCard,
   emailLinkFallback,
   emailMuted,
   emailParagraph,
@@ -378,6 +379,97 @@ export async function schemaRequestReceivedMessage(opts: {
   };
 }
 
+// ── Zelf-gebouwd schema ingediend (naar de coach/owner) ─────────────────────
+
+export async function memberSchemaSubmittedMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  memberName: string;
+  schemaName: string;
+  reviewUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, memberName, schemaName, reviewUrl } = opts;
+  const reason = `Je ontvangt deze e-mail omdat een lid van ${branding.name} zelf een trainingsschema heeft ingediend ter controle.`;
+  const contentHtml = [
+    emailHeading("Schema ter controle"),
+    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(
+      `<strong>${escapeHtml(memberName)}</strong> heeft zelf een trainingsschema samengesteld en ingediend ter controle: <strong>${escapeHtml(
+        schemaName
+      )}</strong>. Bekijk het, pas het eventueel aan en keur het goed of af.`
+    ),
+    emailButton(reviewUrl, "Schema bekijken", branding),
+    emailLinkFallback(reviewUrl),
+  ].join("");
+  return {
+    subject: `Schema ter controle van ${memberName}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${memberName} diende '${schemaName}' in ter controle.`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      `Schema ter controle\n\n${greeting(recipientName)}\n\n${memberName} heeft zelf "${schemaName}" ingediend ter controle.\n\nBekijk het schema:\n${reviewUrl}`,
+      reason
+    ),
+  };
+}
+
+// ── Zelf-gebouwd schema beoordeeld (naar de sporter) ────────────────────────
+
+export async function memberSchemaReviewedMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  schemaName: string;
+  approved: boolean;
+  reviewNote?: string | null;
+  viewUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, schemaName, approved, reviewNote, viewUrl } = opts;
+  const reason = `Je ontvangt deze e-mail omdat je coach bij ${branding.name} je zelf-gebouwde schema heeft beoordeeld.`;
+  const heading = approved ? "Je schema is goedgekeurd" : "Je schema vraagt aanpassingen";
+  const contentHtml = [
+    emailHeading(heading),
+    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(
+      approved
+        ? `Je zelf-gebouwde schema <strong>${escapeHtml(
+            schemaName
+          )}</strong> is goedgekeurd. Activeer het om ermee te gaan trainen.`
+        : `Je coach vraagt om aanpassingen aan je schema <strong>${escapeHtml(
+            schemaName
+          )}</strong>.`
+    ),
+    reviewNote?.trim() ? emailParagraph(`"${escapeHtml(reviewNote.trim())}"`) : "",
+    emailButton(viewUrl, approved ? "Schema activeren" : "Schema aanpassen", branding),
+    emailLinkFallback(viewUrl),
+  ].join("");
+  return {
+    subject: approved
+      ? `Goedgekeurd: ${schemaName}`
+      : `Aanpassingen gevraagd: ${schemaName}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: approved
+        ? `${schemaName} is goedgekeurd.`
+        : `${schemaName} vraagt om aanpassingen.`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      `${heading}\n\n${greeting(recipientName)}\n\n${
+        approved
+          ? `Je schema "${schemaName}" is goedgekeurd. Activeer het om te trainen.`
+          : `Je coach vraagt om aanpassingen aan "${schemaName}".`
+      }${reviewNote?.trim() ? `\n\n"${reviewNote.trim()}"` : ""}\n\n${viewUrl}`,
+      reason
+    ),
+  };
+}
+
 // ── Status schema-aanvraag gewijzigd (naar de sporter) ──────────────────────
 
 export async function schemaRequestStatusMessage(opts: {
@@ -408,6 +500,158 @@ export async function schemaRequestStatusMessage(opts: {
     text: textFrame(
       branding,
       `Update over je schema-aanvraag\n\n${greeting(recipientName)}\n\nDe status van je aanvraag is nu: ${statusLabel}.\n\nBekijk je aanvraag:\n${viewUrl}`,
+      reason
+    ),
+  };
+}
+
+// ── Achievement/trofee behaald (naar de sporter) ────────────────────────────
+
+export async function achievementEarnedMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  title: string;
+  description: string;
+  rarityLabel: string;
+  viewUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, title, description, rarityLabel, viewUrl } = opts;
+  const reason = `Je ontvangt deze e-mail omdat je een nieuwe trofee hebt behaald bij ${branding.name}.`;
+  const contentHtml = [
+    emailHeading("🏆 Nieuwe trofee behaald!"),
+    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(
+      `Gefeliciteerd! Je hebt de trofee <strong>${escapeHtml(
+        title
+      )}</strong> (${escapeHtml(rarityLabel)}) behaald.`
+    ),
+    emailInfoCard(
+      `<p style="margin:0;font-size:15px;color:#1f2937"><strong>${escapeHtml(
+        title
+      )}</strong></p><p style="margin:6px 0 0;font-size:14px;color:#6b7280">${escapeHtml(
+        description
+      )}</p>`
+    ),
+    emailButton(viewUrl, "Bekijk je trofeeën", branding),
+    emailLinkFallback(viewUrl),
+  ].join("");
+  return {
+    subject: `🏆 Trofee behaald: ${title}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `Je hebt "${title}" behaald — goed bezig!`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      `Nieuwe trofee behaald!\n\n${greeting(
+        recipientName
+      )}\n\nGefeliciteerd! Je hebt de trofee "${title}" (${rarityLabel}) behaald.\n${description}\n\nBekijk je trofeeën:\n${viewUrl}`,
+      reason
+    ),
+  };
+}
+
+// ── Contactbericht van een sportschooleigenaar (naar platform-support) ───────
+
+/**
+ * Supportbericht dat een Tenant Owner via "Contact opnemen" indient. Gaat naar
+ * het (configureerbare) support-adres. Gebrand met de GymRebel-default-branding
+ * (platform-mail, niet tenant-specifiek). De afzendergegevens staan in een
+ * info-card zodat support direct kan antwoorden; `replyTo` wordt door de caller
+ * op het afzenderadres gezet.
+ */
+export async function supportRequestMessage(opts: {
+  branding: EmailBranding;
+  senderName: string;
+  senderEmail: string;
+  gymName: string;
+  subject: string;
+  categoryLabel: string;
+  priorityLabel: string;
+  message: string;
+  submittedAt: Date;
+}): Promise<EmailMessage> {
+  const {
+    branding,
+    senderName,
+    senderEmail,
+    gymName,
+    subject,
+    categoryLabel,
+    priorityLabel,
+    message,
+    submittedAt,
+  } = opts;
+
+  const when = new Intl.DateTimeFormat("nl-NL", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "Europe/Amsterdam",
+  }).format(submittedAt);
+
+  const reason = `Je ontvangt deze e-mail omdat een sportschooleigenaar via het contactformulier van ${branding.name} een bericht heeft verstuurd.`;
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:2px 12px 2px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
+      label
+    )}</td><td style="padding:2px 0;font-size:14px;color:#1f2937">${escapeHtml(value)}</td></tr>`;
+
+  const details = emailInfoCard(
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%">
+      ${row("Afzender", senderName)}
+      ${row("Sportschool", gymName)}
+      ${row("E-mailadres", senderEmail)}
+      ${row("Categorie", categoryLabel)}
+      ${row("Prioriteit", priorityLabel)}
+      ${row("Datum & tijd", when)}
+    </table>`
+  );
+
+  // Bericht met behoud van regeleinden.
+  const messageHtml = escapeHtml(message).replace(/\r?\n/g, "<br>");
+
+  const contentHtml = [
+    emailHeading("Nieuw supportbericht"),
+    emailParagraph(
+      `<strong>${escapeHtml(senderName)}</strong> van <strong>${escapeHtml(
+        gymName
+      )}</strong> heeft een bericht verstuurd via het contactformulier.`
+    ),
+    details,
+    emailParagraph(`<strong>Onderwerp:</strong> ${escapeHtml(subject)}`),
+    emailParagraph(messageHtml),
+    emailButton(`mailto:${encodeURIComponent(senderEmail)}`, "Beantwoorden", branding),
+    emailMuted(`Antwoord rechtstreeks aan ${escapeHtml(senderEmail)}.`),
+  ].join("");
+
+  return {
+    subject: `[${priorityLabel}] Support · ${gymName}: ${subject}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${senderName} (${gymName}): ${subject}`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      [
+        "Nieuw supportbericht",
+        "",
+        `Afzender:     ${senderName}`,
+        `Sportschool:  ${gymName}`,
+        `E-mailadres:  ${senderEmail}`,
+        `Categorie:    ${categoryLabel}`,
+        `Prioriteit:   ${priorityLabel}`,
+        `Datum & tijd: ${when}`,
+        "",
+        `Onderwerp: ${subject}`,
+        "",
+        message,
+        "",
+        `Antwoord rechtstreeks aan ${senderEmail}.`,
+      ].join("\n"),
       reason
     ),
   };

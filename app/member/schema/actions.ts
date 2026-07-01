@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { logParamsFromInputValues, logColumnsFromParams } from "@/lib/exercise-params";
+import { evaluateAndAward } from "@/lib/achievements/evaluate";
+import { isMood } from "@/lib/workout-moods";
 
 /**
  * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
@@ -229,12 +231,38 @@ export async function saveExerciseNote(
   return { ok: true };
 }
 
+const moodSchema = z.object({
+  sessionId: z.string().min(1),
+  mood: z.string().refine(isMood, "Onbekende mood"),
+});
+
+/**
+ * Sla de trainingsbeleving (Workout Mood) op — one-tap na het afronden. Werkt op
+ * een sessie van dit lid (open of net afgesloten). Idempotent: overschrijft de
+ * vorige keuze. Lichtgewicht (geen redirect) — het afrondscherm roept dit
+ * optimistisch aan.
+ */
+export async function saveWorkoutMood(
+  input: z.infer<typeof moodSchema>
+): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const parsed = moodSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, mood } = parsed.data;
+
+  const res = await prisma.workoutSession.updateMany({
+    where: { id: sessionId, tenantId: member.tenantId, userId: member.id },
+    data: { mood },
+  });
+  return { ok: res.count > 0 };
+}
+
 /** Sluit de sessie af (zet endedAt) en ga naar de historie. */
 export async function endSession(formData: FormData) {
   const member = await requireMember();
   const sessionId = String(formData.get("sessionId") ?? "");
 
-  await prisma.workoutSession.updateMany({
+  const res = await prisma.workoutSession.updateMany({
     where: {
       id: sessionId,
       tenantId: member.tenantId,
@@ -243,6 +271,14 @@ export async function endSession(formData: FormData) {
     },
     data: { endedAt: new Date() },
   });
+
+  // Trofeeën evalueren zodra de training is afgerond (best-effort — breekt de
+  // afronding nooit). De celebration-overlay toont het lid het resultaat.
+  if (res.count > 0) {
+    await evaluateAndAward(member.id, member.tenantId, { actor: { id: member.id, email: member.email } });
+    revalidatePath("/member");
+    revalidatePath("/member/trophies");
+  }
 
   revalidatePath("/member/history");
   redirect("/member/history");
