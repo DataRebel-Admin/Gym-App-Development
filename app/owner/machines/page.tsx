@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { computeMaintenanceState, effectiveStatus } from "@/lib/maintenance";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { MachinesTable, type MachineRow } from "./machines-table";
 
 export async function generateMetadata() {
@@ -13,6 +14,7 @@ export async function generateMetadata() {
 export default async function MachinesPage() {
   const owner = await requireOwner();
   const t = await getTranslations("owner.machines");
+  const maintenanceEnabled = await isFeatureEnabled(owner.tenantId, "maintenance");
 
   const machines = await prisma.machine.findMany({
     where: { tenantId: owner.tenantId },
@@ -63,7 +65,7 @@ export default async function MachinesPage() {
         </Link>
       </div>
 
-      <MachinesTable machines={rows} />
+      <MachinesTable machines={rows} showStatus={maintenanceEnabled} />
     </div>
   );
 }

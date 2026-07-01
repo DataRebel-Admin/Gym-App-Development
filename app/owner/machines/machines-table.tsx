@@ -31,7 +31,14 @@ export type MachineRow = {
 
 type SortKey = "name" | "type";
 
-export function MachinesTable({ machines }: { machines: MachineRow[] }) {
+export function MachinesTable({
+  machines,
+  showStatus = true,
+}: {
+  machines: MachineRow[];
+  /** Onderhoudsmodule uit → verberg de onderhouds-statuskolom. */
+  showStatus?: boolean;
+}) {
   const t = useTranslations("owner.machines");
   const typeLabel = (type: string) => {
     const key = `type${type}`;
@@ -79,7 +86,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
             <tr>
               <Th>{t("colMachine")}</Th>
               <Th>{t("colType")}</Th>
-              <Th>Status</Th>
+              {showStatus ? <Th>Status</Th> : null}
               <Th>{t("colQr")}</Th>
               <Th className="text-right" />
             </tr>
@@ -105,9 +112,11 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
                   </div>
                 </Td>
                 <Td className="text-neutral-500">{typeLabel(m.type)}</Td>
-                <Td>
-                  <MachineStatusBadge status={m.status} level={m.level} />
-                </Td>
+                {showStatus ? (
+                  <Td>
+                    <MachineStatusBadge status={m.status} level={m.level} />
+                  </Td>
+                ) : null}
                 <Td>
                   {m.hasQr ? (
                     <span className="text-green-600">✓</span>
@@ -127,7 +136,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
             ))}
             {rows.length === 0 ? (
               <Tr>
-                <Td colSpan={5} className="py-8 text-center text-neutral-500">
+                <Td colSpan={showStatus ? 5 : 4} className="py-8 text-center text-neutral-500">
                   {t("noMachines")}
                 </Td>
               </Tr>

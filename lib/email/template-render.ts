@@ -7,12 +7,24 @@ import { escapeHtml } from "@/lib/email/components";
 import type { EmailMessage } from "@/lib/email/messages";
 import {
   EMAIL_TEMPLATE_DEFS,
+  emailContentFor,
   type EmailTemplateDef,
   type EmailTemplateKey,
 } from "@/lib/email/template-defaults";
 
 /** Placeholder-waarden (alles als string; null/undefined → lege string). */
 export type TemplateData = Record<string, string | null | undefined>;
+
+/**
+ * Gelokaliseerde "automatisch bericht"-footerregel. Één plek zodat zowel de
+ * DB-render (hieronder) als de code-composers (lib/email/messages.ts) dezelfde
+ * tekst per taal gebruiken.
+ */
+export const EMAIL_FOOTER_AUTO: Record<Locale, string> = {
+  NL: "Dit is een automatisch gegenereerd bericht — beantwoorden is niet nodig.",
+  EN: "This is an automatically generated message — no reply needed.",
+  FY: "Dit is in automatysk oanmakke berjocht — antwurdzje is net nedich.",
+};
 
 /**
  * Vervang elke `{{token}}` door de bijbehorende waarde. Onbekende tokens worden
@@ -76,6 +88,10 @@ export function renderTemplateMessage(opts: {
   bodyHtml: string;
   branding: EmailBranding;
   data: TemplateData;
+  /** Footer-reden (gelokaliseerd, mag placeholders bevatten). Default: def.reason (NL). */
+  reason?: string;
+  /** Footer "automatisch bericht"-regel (gelokaliseerd). Default: NL. */
+  footerNote?: string;
   /** On-screen preview: forceer de lichte weergave (geen OS-dark-mode). */
   forceLightScheme?: boolean;
 }): EmailMessage {
@@ -83,13 +99,14 @@ export function renderTemplateMessage(opts: {
   const subject = renderPlaceholders(opts.subject, data, false);
   const preheader = renderPlaceholders(opts.preheader, data, false);
   const contentHtml = renderPlaceholders(opts.bodyHtml, data, true);
-  const reason = renderPlaceholders(opts.def.reason, data, false);
+  const reason = renderPlaceholders(opts.reason ?? opts.def.reason, data, false);
 
   const html = renderEmailLayout({
     branding: opts.branding,
     preheader,
     contentHtml,
     reason,
+    footerNote: opts.footerNote ?? EMAIL_FOOTER_AUTO.NL,
     forceLightScheme: opts.forceLightScheme,
   });
 
@@ -103,10 +120,12 @@ export function renderTemplateMessage(opts: {
 type ComposeMode = "published" | "draft";
 
 /**
- * Render een e-mail uit de DB-template. `mode: "published"` (default) levert de
- * gepubliceerde inhoud — of `null` als er nog niets is gepubliceerd, zodat de
- * call-site terugvalt op de hardgecodeerde composer (lib/email/messages.ts).
- * `mode: "draft"` rendert het werk-concept (voor preview/testmail).
+ * Render een e-mail voor één taal. **Taal-isolatie**: er wordt NOOIT teruggevallen
+ * op een andere taal — ontbreekt (of publiceerde niemand) de rij in deze taal, dan
+ * gebruikt hij de **gelokaliseerde registry-standaard** (`emailContentFor`). Zo kan
+ * het overschrijven van bv. de NL-template de FY-vertaling niet wissen. `mode:
+ * "published"` (default) = live inhoud; `mode: "draft"` = werk-concept (preview).
+ * Geeft altijd een `EmailMessage` terug (nooit `null`).
  */
 export async function composeFromTemplate(opts: {
   key: EmailTemplateKey;
@@ -114,40 +133,53 @@ export async function composeFromTemplate(opts: {
   branding: EmailBranding;
   data: TemplateData;
   mode?: ComposeMode;
-}): Promise<EmailMessage | null> {
+}): Promise<EmailMessage> {
   const { key, branding, data } = opts;
   const locale = opts.locale ?? "NL";
   const mode = opts.mode ?? "published";
   const def = EMAIL_TEMPLATE_DEFS[key];
+  const fallback = emailContentFor(key, locale);
+  const footerNote = EMAIL_FOOTER_AUTO[locale] ?? EMAIL_FOOTER_AUTO.NL;
 
-  let template = await prisma.emailTemplate.findUnique({
+  const renderDefault = () =>
+    renderTemplateMessage({
+      def,
+      subject: fallback.subject,
+      preheader: fallback.preheader,
+      bodyHtml: fallback.bodyHtml,
+      reason: fallback.reason,
+      footerNote,
+      branding,
+      data,
+    });
+
+  const template = await prisma.emailTemplate.findUnique({
     where: { key_locale: { key, locale } },
   });
-  // NL is de hoofdtaal; val voor andere locales terug op NL als die er niet is.
-  if (!template && locale !== "NL") {
-    template = await prisma.emailTemplate.findUnique({
-      where: { key_locale: { key, locale: "NL" } },
-    });
-  }
-  if (!template) return null;
+  if (!template) return renderDefault();
 
-  if (mode === "published") {
-    if (template.publishedBodyHtml == null) return null; // nog niet gepubliceerd
+  if (mode === "draft") {
     return renderTemplateMessage({
       def,
-      subject: template.publishedSubject ?? def.defaultSubject,
-      preheader: template.publishedPreheader ?? def.defaultPreheader,
-      bodyHtml: template.publishedBodyHtml,
+      subject: template.subject,
+      preheader: template.preheader ?? fallback.preheader,
+      bodyHtml: template.bodyHtml,
+      reason: fallback.reason,
+      footerNote,
       branding,
       data,
     });
   }
 
+  // published-mode: alleen deze taal; niet gepubliceerd → gelokaliseerde standaard.
+  if (template.publishedBodyHtml == null) return renderDefault();
   return renderTemplateMessage({
     def,
-    subject: template.subject,
-    preheader: template.preheader ?? "",
-    bodyHtml: template.bodyHtml,
+    subject: template.publishedSubject ?? fallback.subject,
+    preheader: template.publishedPreheader ?? fallback.preheader,
+    bodyHtml: template.publishedBodyHtml,
+    reason: fallback.reason,
+    footerNote,
     branding,
     data,
   });

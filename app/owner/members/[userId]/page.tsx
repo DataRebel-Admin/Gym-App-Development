@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/field";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { MemberProfileTabs } from "@/components/members/profile-tabs";
 import { MemberProfileAssistant } from "@/components/ai/member-profile-assistant";
+import { isAiEnabled } from "@/lib/ai/enabled";
 import { surfaceSuggestions } from "@/lib/ai";
 import { MemberEditForm } from "./member-edit-form";
 import { assignCoach, unassignCoach, selfAssignCoach, selfUnassignCoach } from "../actions";
@@ -85,6 +86,9 @@ export default async function MemberDetailPage({
     }),
   ]);
   if (!member) notFound();
+
+  // AI-coachkaart: alleen als de AI-module beschikbaar is (Superadmin-flag + owner-toggle).
+  const aiEnabled = await isAiEnabled(me.tenantId);
 
   const invitation = await prisma.invitation.findUnique({
     where: { tenantId_email: { tenantId: me.tenantId, email: member.email } },
@@ -161,7 +165,7 @@ export default async function MemberDetailPage({
         )}
       </section>
 
-      {isMember && tenantFlags?.aiEnabled ? (
+      {isMember && aiEnabled ? (
         <MemberProfileAssistant
           ask={askMemberProfileAssistant.bind(null, member.id)}
           onApply={

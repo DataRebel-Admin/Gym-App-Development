@@ -84,12 +84,12 @@ export function ProfileForm({ user }: { user: Profile }) {
         <Avatar image={user.image} name={user.name} email={user.email} />
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-neutral-900">Profielfoto</p>
-          <form action={uploadAvatarAction} className="flex items-center gap-2">
+          <form action={uploadAvatarAction} className="flex flex-wrap items-center gap-2">
             <input
               type="file"
               name="avatar"
               accept="image/*"
-              className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background hover:file:opacity-90"
+              className="min-w-0 max-w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background hover:file:opacity-90"
             />
             <Button type="submit" size="sm" variant="outline" loading={uploading}>
               Uploaden
@@ -133,7 +133,7 @@ export function ProfileForm({ user }: { user: Profile }) {
               <option value="">Volg sportschool</option>
               <option value="NL">Nederlands</option>
               <option value="EN">Engels</option>
-              <option value="FY">Frysk</option>
+              <option value="FY">Frysk (FRL)</option>
             </Select>
           </Field>
           {state.error ? <p className="text-xs text-red-600 sm:col-span-2">{state.error}</p> : null}
@@ -159,10 +159,10 @@ export function ProfileForm({ user }: { user: Profile }) {
           ) : null}
         </div>
         <form action={changeEmail} className="flex flex-wrap items-end gap-3">
-          <Field label="Nieuw e-mailadres" className="w-72">
+          <Field label="Nieuw e-mailadres" className="w-full sm:w-72">
             <Input name="email" type="email" required placeholder="nieuw@voorbeeld.nl" />
           </Field>
-          <Button type="submit" variant="outline" loading={changingEmail}>
+          <Button type="submit" variant="outline" loading={changingEmail} className="w-full sm:w-auto">
             Verificatie versturen
           </Button>
         </form>

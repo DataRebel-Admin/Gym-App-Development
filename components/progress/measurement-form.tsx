@@ -8,7 +8,9 @@ import {
   CONDITION_METRICS,
   MEASUREMENT_SOURCE_LABEL,
   POSE_LABEL,
+  filterEnabledMetrics,
   type MetricDef,
+  type MetricKey,
 } from "@/lib/measurement-meta";
 import type { MeasurementRow } from "@/lib/measurements";
 import type { MeasurementFormState } from "@/app/owner/members/[userId]/progress/actions";
@@ -74,15 +76,22 @@ export function MeasurementForm({
   action,
   initial,
   submitLabel,
+  enabled = null,
 }: {
   action: (state: MeasurementFormState, formData: FormData) => Promise<MeasurementFormState>;
   initial?: MeasurementRow | null;
   submitLabel: string;
+  /** Door de owner geselecteerde meetvelden (`null` = alle). */
+  enabled?: MetricKey[] | null;
 }) {
   const [state, formAction, pending] = useActionState<MeasurementFormState, FormData>(action, {});
   const [keptPhotos, setKeptPhotos] = useState<string[]>(
     () => initial?.photos.map((p) => p.id) ?? []
   );
+
+  const composition = filterEnabledMetrics(COMPOSITION_METRICS, enabled);
+  const condition = filterEnabledMetrics(CONDITION_METRICS, enabled);
+  const circumference = filterEnabledMetrics(CIRCUMFERENCE_METRICS, enabled);
 
   const measuredAtDefault = initial ? initial.measuredAt.slice(0, 10) : todayISO();
 
@@ -130,34 +139,40 @@ export function MeasurementForm({
       </section>
 
       {/* Lichaamssamenstelling */}
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Lichaamssamenstelling</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {COMPOSITION_METRICS.map((def) => (
-            <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
-          ))}
-        </div>
-      </section>
+      {composition.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-neutral-900">Lichaamssamenstelling</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {composition.map((def) => (
+              <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Conditie */}
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Conditie</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {CONDITION_METRICS.map((def) => (
-            <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
-          ))}
-        </div>
-      </section>
+      {condition.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-neutral-900">Conditie</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {condition.map((def) => (
+              <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Omtrek */}
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Omtrekmetingen (cm)</h3>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {CIRCUMFERENCE_METRICS.map((def) => (
-            <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
-          ))}
-        </div>
-      </section>
+      {circumference.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-neutral-900">Omtrekmetingen (cm)</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {circumference.map((def) => (
+              <NumberField key={def.key} def={def} initial={initial?.values[def.key]} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Foto's */}
       <section className="flex flex-col gap-3">

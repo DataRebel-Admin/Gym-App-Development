@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { MachineStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { requireFeature } from "@/lib/features/service";
 import { audit } from "@/lib/audit";
 import { computeNextMaintenance } from "@/lib/maintenance";
 import { MACHINE_TYPES } from "@/lib/machine";
@@ -50,6 +51,7 @@ export async function saveMaintenanceRules(
   formData: FormData
 ): Promise<MaintenanceActionState> {
   const user = await requirePermission("maintenance:manage");
+  await requireFeature(user.tenantId, "maintenance");
   const rawThreshold = formData.get("usageThreshold");
   const rawInterval = formData.get("intervalDays");
   const parsed = rulesSchema.safeParse({
@@ -110,6 +112,7 @@ export async function logMaintenance(
   formData: FormData
 ): Promise<MaintenanceActionState> {
   const user = await requirePermission("maintenance:manage");
+  await requireFeature(user.tenantId, "maintenance");
   const parsed = logSchema.safeParse({
     machineId: formData.get("machineId"),
     kind: formData.get("kind"),
@@ -198,6 +201,7 @@ const statusSchema = z.object({
 
 export async function setMachineStatus(formData: FormData): Promise<void> {
   const user = await requirePermission("maintenance:manage");
+  await requireFeature(user.tenantId, "maintenance");
   const parsed = statusSchema.safeParse({
     machineId: formData.get("machineId"),
     status: formData.get("status"),
@@ -249,6 +253,7 @@ const usageSchema = z.object({
 
 export async function adjustUsage(formData: FormData): Promise<void> {
   const user = await requirePermission("maintenance:manage");
+  await requireFeature(user.tenantId, "maintenance");
   const parsed = usageSchema.safeParse({
     machineId: formData.get("machineId"),
     usageCount: formData.get("usageCount"),
@@ -295,6 +300,7 @@ export async function saveMaintenancePolicy(
   formData: FormData
 ): Promise<MaintenanceActionState> {
   const user = await requirePermission("maintenance:manage");
+  await requireFeature(user.tenantId, "maintenance");
   const parsed = policySchema.safeParse({
     machineType: formData.get("machineType"),
     usageThreshold: formData.get("usageThreshold") ? Number(formData.get("usageThreshold")) : 0,

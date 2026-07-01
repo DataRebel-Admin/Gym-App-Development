@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { areClassesEnabled } from "@/lib/classes";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
 
@@ -12,6 +14,7 @@ export async function generateMetadata() {
 
 export default async function RoosterPage() {
   const owner = await requirePermission("schedule:manage");
+  if (!(await areClassesEnabled(owner.tenantId))) notFound();
   const t = await getTranslations("owner.rooster");
 
   const [classes, upcoming] = await Promise.all([

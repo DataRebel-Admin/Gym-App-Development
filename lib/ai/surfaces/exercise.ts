@@ -27,7 +27,7 @@ export const exerciseSurface: Surface = {
         : "De gebruiker is een sporter. Houd het praktisch en toegankelijk.";
 
     const system = [
-      baseSystemPreamble(tenantName),
+      baseSystemPreamble(tenantName, user.locale),
       "",
       "CONTEXT — de oefening waar de gebruiker naar kijkt:",
       `Naam: ${detail.name}`,

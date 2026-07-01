@@ -1,7 +1,8 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { getAchievementDef } from "@/lib/achievements/definitions";
-import { rarityMeta, type Rarity } from "@/lib/achievements/rarity";
+import { type Rarity } from "@/lib/achievements/rarity";
+import { getAchievementTranslator } from "@/lib/achievements/i18n";
 import { getAchievementsView } from "@/lib/achievements/evaluate";
 
 /**
@@ -88,7 +89,8 @@ export async function getCoachEngagement(
     }),
   ]);
 
-  // Recente mijlpalen.
+  // Recente mijlpalen (labels in de UI-taal van de coach).
+  const tr = await getAchievementTranslator();
   const recentMilestones: MilestoneRow[] = recentRows.flatMap((r) => {
     const def = getAchievementDef(r.key);
     if (!def) return [];
@@ -96,9 +98,9 @@ export async function getCoachEngagement(
       {
         userId: r.userId,
         name: r.user.name ?? r.user.email,
-        title: def.title,
+        title: tr.title(def.key),
         rarity: def.rarity,
-        rarityLabel: rarityMeta(def.rarity).label,
+        rarityLabel: tr.rarity(def.rarity),
         earnedAt: r.earnedAt,
       },
     ];

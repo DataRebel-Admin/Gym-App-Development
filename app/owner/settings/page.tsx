@@ -1,10 +1,13 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
-import { setAiEnabled, setAchievementsEnabled, setQuotesEnabled } from "./actions";
+import { getTenantFeatures } from "@/lib/features/service";
+import { setAiEnabled, setAchievementsEnabled, setQuotesEnabled, setClassesEnabled } from "./actions";
 import { TenantContactForm, type ContactInitial } from "@/components/tenant-contact-form";
 import { MemberSchemaModeForm } from "@/components/owner/member-schema-mode-form";
+import { MeasurementFieldsForm } from "@/components/owner/measurement-fields-form";
 import { QuotesForm } from "@/components/owner/quotes-form";
+import { parseEnabledMetricKeys } from "@/lib/measurement-meta";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { parseCustomQuotes } from "@/lib/workout-quotes";
 
@@ -31,6 +34,8 @@ export default async function SettingsPage() {
       aiEnabled: true,
       achievementsEnabled: true,
       quotesEnabled: true,
+      classesEnabled: true,
+      enabledMeasurementFields: true,
       customQuotes: true,
       memberSchemaMode: true,
       addressLine: true,
@@ -70,54 +75,60 @@ export default async function SettingsPage() {
     where: { tenantId: owner.tenantId, createdAt: { gte: startOfMonth() } },
   });
 
+  // Feature-flags (Superadmin): een uitgeschakelde module verbergt ook z'n
+  // owner-instelling — de eigenaar kan 'm dan niet zelf heractiveren.
+  const features = await getTenantFeatures(owner.tenantId);
+
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
         {t("title")}
       </h1>
 
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">
-            {t("aiTitle")}
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            {t.rich("aiDesc", {
-              status: () => (
-                <span className="font-medium text-neutral-900">
-                  {tenant.aiEnabled ? t("statusOn") : t("statusOff")}
-                </span>
-              ),
-            })}
-          </p>
-        </div>
+      {features.ai ? (
+        <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">
+              {t("aiTitle")}
+            </h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              {t.rich("aiDesc", {
+                status: () => (
+                  <span className="font-medium text-neutral-900">
+                    {tenant.aiEnabled ? t("statusOn") : t("statusOff")}
+                  </span>
+                ),
+              })}
+            </p>
+          </div>
 
-        <form action={setAiEnabled}>
-          <input
-            type="hidden"
-            name="enabled"
-            value={tenant.aiEnabled ? "false" : "true"}
-          />
-          <button
-            type="submit"
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${
-              tenant.aiEnabled
-                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
-                : "bg-accent text-accent-foreground hover:opacity-90"
-            }`}
-          >
-            {tenant.aiEnabled ? t("turnOff") : t("turnOn")}
-          </button>
-        </form>
+          <form action={setAiEnabled}>
+            <input
+              type="hidden"
+              name="enabled"
+              value={tenant.aiEnabled ? "false" : "true"}
+            />
+            <button
+              type="submit"
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                tenant.aiEnabled
+                  ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
+                  : "bg-accent text-accent-foreground hover:opacity-90"
+              }`}
+            >
+              {tenant.aiEnabled ? t("turnOff") : t("turnOn")}
+            </button>
+          </form>
 
-        <div className="rounded-lg bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-          {t("questionsThisMonth")}{" "}
-          <span className="font-semibold text-neutral-900">
-            {questionsThisMonth}
-          </span>{" "}
-          <span className="text-neutral-500">{t("forCostMonitoring")}</span>
-        </div>
-      </section>
+          <div className="rounded-lg bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+            {t("questionsThisMonth")}{" "}
+            <span className="font-semibold text-neutral-900">
+              {questionsThisMonth}
+            </span>{" "}
+            <span className="text-neutral-500">{t("forCostMonitoring")}</span>
+          </div>
+        </section>
+      ) : null}
 
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
         <div>
@@ -176,6 +187,36 @@ export default async function SettingsPage() {
         <QuotesForm initial={parseCustomQuotes(tenant.customQuotes)} />
       </section>
 
+      {features.group_classes ? (
+        <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">Lesrooster</h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              Laat leden zich aanmelden voor groepslessen. Momenteel{" "}
+              <span className="font-medium text-neutral-900">
+                {tenant.classesEnabled ? "aan" : "uit"}
+              </span>
+              . Uitschakelen verbergt het rooster voor leden en medewerkers; bestaande
+              lessen en aanmeldingen blijven behouden.
+            </p>
+          </div>
+
+          <form action={setClassesEnabled}>
+            <input type="hidden" name="enabled" value={tenant.classesEnabled ? "false" : "true"} />
+            <button
+              type="submit"
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${
+                tenant.classesEnabled
+                  ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
+                  : "bg-accent text-accent-foreground hover:opacity-90"
+              }`}
+            >
+              {tenant.classesEnabled ? "Uitschakelen" : "Inschakelen"}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">
@@ -192,6 +233,18 @@ export default async function SettingsPage() {
           </p>
         </div>
         <MemberSchemaModeForm current={tenant.memberSchemaMode} />
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Meetvelden</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Kies welke lichaamsmetingen jouw sportschool gebruikt. Niet-geselecteerde
+            velden verdwijnen uit de formulieren, grafieken en overzichten — voor
+            trainers én leden.
+          </p>
+        </div>
+        <MeasurementFieldsForm enabled={parseEnabledMetricKeys(tenant.enabledMeasurementFields)} />
       </section>
 
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">

@@ -80,6 +80,7 @@ export const CATEGORY_META: Record<
 export type MetricKey =
   | "totalWorkouts"
   | "longestStreakDays"
+  | "activeWeeks"
   | "memberSinceDays"
   | "totalVolume"
   | "prCount"
@@ -127,12 +128,16 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "training.count_250", category: "training", rarity: "platinum", title: "250 trainingen", description: "Tweehonderdvijftig trainingen. Indrukwekkend volhouden.", icon: Crown, metric: "totalWorkouts", threshold: 250, unit: "trainingen" },
   { key: "training.count_500", category: "training", rarity: "diamond", title: "500 trainingen", description: "Vijfhonderd trainingen. Een ware veteraan.", icon: Gem, metric: "totalWorkouts", threshold: 500, unit: "trainingen", passport: true },
 
-  // --- Consistentie (aaneengesloten dagen + lidmaatschap) ---
+  // --- Consistentie (korte dag-streaks + getrainde weken + lidmaatschap) ---
+  // NB: dag-streaks tellen aaneengesloten kalenderdagen. Omdat sporters rustdagen
+  // nemen, zijn hogere dag-streaks onrealistisch → de gold/diamond-tiers meten
+  // getrainde weken (`activeWeeks`), wat volhouden beloont zonder dagelijks te
+  // moeten trainen.
   { key: "consistency.streak_3", category: "consistency", rarity: "bronze", title: "3 dagen op rij", description: "Drie dagen achter elkaar getraind.", icon: Flame, metric: "longestStreakDays", threshold: 3, unit: "dagen" },
   { key: "consistency.streak_7", category: "consistency", rarity: "silver", title: "7 dagen op rij", description: "Een volle week elke dag getraind.", icon: Flame, metric: "longestStreakDays", threshold: 7, unit: "dagen", passport: true },
-  { key: "consistency.streak_30", category: "consistency", rarity: "gold", title: "30 dagen op rij", description: "Een maand lang dagelijkse discipline.", icon: Flame, metric: "longestStreakDays", threshold: 30, unit: "dagen" },
-  { key: "consistency.streak_100", category: "consistency", rarity: "diamond", title: "100 dagen op rij", description: "Honderd dagen onafgebroken. Legendarische discipline.", icon: Gem, metric: "longestStreakDays", threshold: 100, unit: "dagen" },
+  { key: "consistency.weeks_8", category: "consistency", rarity: "gold", title: "8 actieve weken", description: "Acht weken lang getraind. De gewoonte zit erin.", icon: Flame, metric: "activeWeeks", threshold: 8, unit: "weken" },
   { key: "consistency.member_365", category: "consistency", rarity: "platinum", title: "1 jaar actief", description: "Een heel jaar lid van je sportschool.", icon: Crown, metric: "memberSinceDays", threshold: 365, unit: "dagen", passport: true },
+  { key: "consistency.weeks_26", category: "consistency", rarity: "diamond", title: "26 actieve weken", description: "In een half jaar tijd 26 weken getraind. IJzeren discipline.", icon: Gem, metric: "activeWeeks", threshold: 26, unit: "weken" },
 
   // --- Kracht (volume + records) ---
   { key: "strength.first_pr", category: "strength", rarity: "bronze", title: "Eerste PR", description: "Je eerste persoonlijk record gezet.", icon: Trophy, metric: "prCount", threshold: 1, unit: "PR's", passport: true },
@@ -159,9 +164,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "goals.first_measurement", category: "goals", rarity: "bronze", title: "Eerste lichaamsmeting", description: "Je eerste lichaamsmeting voltooid.", icon: Ruler, metric: "measurementsCount", threshold: 1, unit: "metingen" },
 
   // --- Community (profiel + eerste stappen) ---
+  // NB: "eerste meting" hoort bij de categorie Doelen (goals.first_measurement) —
+  // hier bewust géén duplicaat van diezelfde metric/drempel.
   { key: "community.profile_complete", category: "community", rarity: "bronze", title: "Profiel compleet", description: "Je profiel volledig ingevuld.", icon: CheckCircle2, metric: "profileComplete", threshold: 1, passport: true },
   { key: "community.first_schema_done", category: "community", rarity: "bronze", title: "Eerste schema afgerond", description: "Je eerste trainingsschema volledig doorlopen.", icon: Star, metric: "schemasCompleted", threshold: 1, passport: true },
-  { key: "community.first_measurement", category: "community", rarity: "bronze", title: "Eerste meting toegevoegd", description: "Je eerste meting geregistreerd.", icon: Ruler, metric: "measurementsCount", threshold: 1, unit: "metingen" },
 ];
 
 /** Snelle lookup per key. */
@@ -196,21 +202,28 @@ export function achievementsByCategory(): Record<AchievementCategory, Achievemen
   return out;
 }
 
-/** Formatteer een metricwaarde voor weergave volgens de def-eenheid. */
-export function formatMetricValue(def: AchievementDef, value: number): string {
-  if (def.displayKm) return `${round(value / 1000, 1)} km`;
-  if (def.displayHours) return `${round(value / 3600, 1)} uur`;
-  const rounded = Math.round(value);
-  return def.unit ? `${rounded.toLocaleString("nl-NL")} ${def.unit}` : String(rounded);
+/**
+ * Map de NL-eenheidstring uit een def naar een stabiele message-sleutel in de
+ * `achievements.unit`-namespace (zie lib/achievements/i18n.ts). Onbekende eenheden
+ * vallen terug op zichzelf zodat er nooit een lege sleutel ontstaat.
+ */
+const UNIT_KEY: Record<string, string> = {
+  trainingen: "trainingen",
+  dagen: "dagen",
+  kg: "kg",
+  km: "km",
+  uur: "uur",
+  "PR's": "prs",
+  doelen: "doelen",
+  metingen: "metingen",
+};
+
+export function unitKeyFor(unit: string): string {
+  return UNIT_KEY[unit] ?? unit;
 }
 
 /** Voortgang 0..1 van een metricwaarde t.o.v. de drempel. */
 export function progressOf(def: AchievementDef, value: number): number {
   if (def.threshold <= 0) return 1;
   return Math.max(0, Math.min(1, value / def.threshold));
-}
-
-function round(n: number, decimals: number): number {
-  const f = 10 ** decimals;
-  return Math.round(n * f) / f;
 }

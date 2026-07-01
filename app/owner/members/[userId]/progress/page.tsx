@@ -10,8 +10,9 @@ import { MeasurementCharts } from "@/components/progress/measurement-charts";
 import { GoalsPanel } from "@/components/progress/goals-panel";
 import { MeasurementTimeline } from "@/components/progress/measurement-timeline";
 import { PhotoCompare } from "@/components/progress/photo-compare";
-import { listMeasurements, getDeltas, getSeries, getGoals } from "@/lib/measurements";
+import { listMeasurements, getDeltas, getSeries, getGoals, getEnabledMeasurementKeys } from "@/lib/measurements";
 import { GOAL_METRICS, GOAL_METRIC_LABEL } from "@/lib/measurement-meta";
+import { getAllowTrainerPhotos } from "@/lib/user-preferences";
 import { setGoal, deleteGoal } from "./actions";
 
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
@@ -19,7 +20,7 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "shor
 async function loadMember(tenantId: string, userId: string) {
   return prisma.user.findFirst({
     where: { id: userId, tenantId, role: "TENANT_MEMBER" },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, preferences: true },
   });
 }
 
@@ -45,12 +46,16 @@ export default async function MemberProgressPage({
   const member = await loadMember(owner.tenantId, userId);
   if (!member) notFound();
 
-  const [rows, deltas, series, goals] = await Promise.all([
+  const [rows, deltas, series, goals, enabled] = await Promise.all([
     listMeasurements(owner.tenantId, userId),
     getDeltas(owner.tenantId, userId),
     getSeries(owner.tenantId, userId, "all"),
     getGoals(owner.tenantId, userId),
+    getEnabledMeasurementKeys(owner.tenantId),
   ]);
+
+  // Privacy: de trainer ziet foto's alleen als het lid dat expliciet toestaat.
+  const canViewPhotos = getAllowTrainerPhotos(member.preferences);
 
   const label = member.name ?? member.email;
   const compare = rows.map((r) => ({
@@ -104,11 +109,11 @@ export default async function MemberProgressPage({
         </div>
       ) : (
         <>
-          <ProgressDeltas deltas={deltas} />
+          <ProgressDeltas deltas={deltas} enabled={enabled} />
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <MeasurementCharts points={series} />
+              <MeasurementCharts points={series} enabled={enabled} />
             </div>
             <div className="flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-neutral-900">Doelen</h2>
@@ -119,12 +124,19 @@ export default async function MemberProgressPage({
 
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-neutral-900">Foto-vergelijking</h2>
-            <PhotoCompare measurements={compare} />
+            {canViewPhotos ? (
+              <PhotoCompare measurements={compare} />
+            ) : (
+              <p className="rounded-2xl border border-dashed border-border bg-surface-0 px-4 py-8 text-center text-sm text-neutral-500">
+                Dit lid houdt de voortgangsfoto&apos;s privé. Ze worden pas zichtbaar
+                zodra het lid dit in de accountinstellingen toestaat.
+              </p>
+            )}
           </section>
 
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-neutral-900">Meetgeschiedenis</h2>
-            <MeasurementTimeline rows={rows} hrefBase={baseHref} />
+            <MeasurementTimeline rows={rows} hrefBase={baseHref} enabled={enabled} />
           </section>
         </>
       )}

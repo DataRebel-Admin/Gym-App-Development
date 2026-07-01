@@ -2,8 +2,8 @@ import "server-only";
 import type { EmailTemplate, Locale } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
-  EMAIL_TEMPLATE_DEFS,
   EMAIL_TEMPLATE_ORDER,
+  emailContentFor,
   type EmailTemplateKey,
 } from "@/lib/email/template-defaults";
 
@@ -18,16 +18,16 @@ export async function ensureTemplate(
   key: EmailTemplateKey,
   locale: Locale = "NL"
 ): Promise<EmailTemplate> {
-  const def = EMAIL_TEMPLATE_DEFS[key];
+  const content = emailContentFor(key, locale);
   return prisma.emailTemplate.upsert({
     where: { key_locale: { key, locale } },
     update: {}, // bestaat al → niets overschrijven
     create: {
       key,
       locale,
-      subject: def.defaultSubject,
-      preheader: def.defaultPreheader,
-      bodyHtml: def.defaultBodyHtml,
+      subject: content.subject,
+      preheader: content.preheader,
+      bodyHtml: content.bodyHtml,
       status: "DRAFT",
     },
   });

@@ -9,6 +9,67 @@ import {
   type RGB,
 } from "pdf-lib";
 import QRCode from "qrcode";
+import { formatDate } from "@/lib/i18n/format";
+import type { AppLocale } from "@/lib/i18n/config";
+
+/**
+ * Alle statische PDF-teksten, vooraf vertaald door de aanroeper (route-handler
+ * via `getTranslations("pdf")`). Zo blijft dit een pure pdf-lib-helper zonder
+ * next-intl-koppeling — net als lib/i18n/format.ts.
+ */
+export type SchemaPdfLabels = {
+  trainingSchedule: string;
+  for: string;
+  trainer: string;
+  created: string;
+  version: string;
+  colExercise: string;
+  colSets: string;
+  colReps: string;
+  colWeight: string;
+  colRest: string;
+  colTempo: string;
+  colNotes: string;
+  continued: string;
+  notesSection: string;
+  signatureTrainer: string;
+  signatureMember: string;
+  onlineVersion: string;
+  safety: string;
+  /** "Datum" — label bij de handtekeningregel. */
+  date: string;
+  /** Template met `{date}`-placeholder (footer). */
+  createdOn: string;
+  /** Template met `{page}`/`{total}`-placeholders. */
+  pageOf: string;
+};
+
+/** Bouwt het labels-object uit een next-intl `pdf`-translator (`t(key)`). */
+export function pdfLabels(t: (key: string) => string): SchemaPdfLabels {
+  return {
+    trainingSchedule: t("trainingSchedule"),
+    for: t("for"),
+    trainer: t("trainer"),
+    created: t("created"),
+    version: t("version"),
+    colExercise: t("colExercise"),
+    colSets: t("colSets"),
+    colReps: t("colReps"),
+    colWeight: t("colWeight"),
+    colRest: t("colRest"),
+    colTempo: t("colTempo"),
+    colNotes: t("colNotes"),
+    continued: t("continued"),
+    notesSection: t("notesSection"),
+    signatureTrainer: t("signatureTrainer"),
+    signatureMember: t("signatureMember"),
+    onlineVersion: t("onlineVersion"),
+    safety: t("safety"),
+    date: t("date"),
+    createdOn: t("createdOn"),
+    pageOf: t("pageOf"),
+  };
+}
 
 export type SchemaPdfItem = {
   exercise: string;
@@ -43,6 +104,10 @@ export type SchemaPdfData = {
   contactEmail?: string | null;
   contactPhone?: string | null;
   days: SchemaPdfDay[];
+  /** UI-locale — voor datumnotatie. */
+  locale: AppLocale;
+  /** Vooraf vertaalde statische teksten. */
+  labels: SchemaPdfLabels;
 };
 
 /**
@@ -198,11 +263,8 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     }
   }
 
-  const createdStr = new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(data.createdAt ?? new Date());
+  const L = data.labels;
+  const createdStr = formatDate(data.createdAt ?? new Date(), data.locale, "long");
 
   let page!: PDFPage;
   let y = 0;
@@ -248,7 +310,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     // Sportschoolnaam.
     text(data.tenantName, tx, logoTop - 20, 17, bold, accent);
     // Subtiele tagline-regel onder de naam.
-    text("Trainingsschema", tx, logoTop - 32, 8.5, font, SUBTLE);
+    text(L.trainingSchedule, tx, logoTop - 32, 8.5, font, SUBTLE);
 
     // Grote schema-titel.
     const titleY = PAGE_H - 84;
@@ -257,11 +319,11 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     // Meta-strip (lid · trainer · datum · versie).
     const metaY = PAGE_H - 104;
     const parts: { label: string; value: string }[] = [
-      { label: "Voor", value: data.memberName },
+      { label: L.for, value: data.memberName },
     ];
-    if (data.trainerName) parts.push({ label: "Trainer", value: data.trainerName });
-    parts.push({ label: "Aangemaakt", value: createdStr });
-    parts.push({ label: "Versie", value: data.version });
+    if (data.trainerName) parts.push({ label: L.trainer, value: data.trainerName });
+    parts.push({ label: L.created, value: createdStr });
+    parts.push({ label: L.version, value: data.version });
 
     let mx = MARGIN;
     parts.forEach((p, i) => {
@@ -317,11 +379,21 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   }
 
   // ---- Tabel-header tekenen ----
+  const COL_LABELS: Record<string, string> = {
+    ex: L.colExercise,
+    sets: L.colSets,
+    reps: L.colReps,
+    weight: L.colWeight,
+    rest: L.colRest,
+    tempo: L.colTempo,
+    notes: L.colNotes,
+  };
   function drawTableHeader(continued = false) {
     const h = 19;
     rect(MARGIN, y - h + 13, CONTENT_W, h, mix(accent, WHITE, 0.9));
     for (const c of COLS) {
-      const label = continued && c.key === "ex" ? `${c.label} (vervolg)` : c.label;
+      const base = COL_LABELS[c.key] ?? c.label;
+      const label = continued && c.key === "ex" ? `${base} ${L.continued}` : base;
       if (c.align === "center") {
         textCenter(label, colX[c.key] + c.w / 2, y, 8, bold, mix(INK, SUBTLE, 0.3));
       } else {
@@ -452,7 +524,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   const closeNeed = 150;
   if (y - closeNeed < FOOTER_LIMIT) newPage();
   y -= 6;
-  text("Notities", MARGIN, y, 11, bold, accent);
+  text(L.notesSection, MARGIN, y, 11, bold, accent);
   y -= 16;
   for (let i = 0; i < 3; i++) {
     hline(y, mix(HAIR, WHITE, 0.2), 0.6);
@@ -464,14 +536,14 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   const sigW = (CONTENT_W - 30) / 2;
   const sigY = y;
   const sigBlocks = [
-    { label: "Handtekening trainer", name: data.trainerName ?? null },
-    { label: "Handtekening sporter", name: data.memberName },
+    { label: L.signatureTrainer, name: data.trainerName ?? null },
+    { label: L.signatureMember, name: data.memberName },
   ];
   sigBlocks.forEach((b, i) => {
     const x = MARGIN + i * (sigW + 30);
     hline(sigY, INK, 0.8, x, x + sigW);
     text(b.label, x, sigY - 12, 8.5, font, SUBTLE);
-    if (b.name) textRight(`Datum: ____________`, x + sigW, sigY - 12, 8.5, font, SUBTLE);
+    if (b.name) textRight(`${L.date}: ____________`, x + sigW, sigY - 12, 8.5, font, SUBTLE);
   });
 
   // ---- QR-code naar de online versie (pagina 1, rechtsonder boven de footer) ----
@@ -493,7 +565,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
         borderWidth: 0.8,
       });
       first.drawImage(png, { x: qx, y: qy, width: size, height: size });
-      first.drawText("Online versie", {
+      first.drawText(L.onlineVersion, {
         x: qx,
         y: qy + size + 4,
         size: 7,
@@ -522,7 +594,9 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     // Regel 1: sportschool · website · contact  —  paginanummer.
     const left1 = [sanitize(data.tenantName), ...contactBits].join("   ·   ");
     p.drawText(left1, { x: MARGIN, y: FOOTER_LIMIT - 20, size: 7.5, font: bold, color: col(SUBTLE) });
-    const pageStr = `Pagina ${i + 1} van ${total}`;
+    const pageStr = L.pageOf
+      .replace("{page}", String(i + 1))
+      .replace("{total}", String(total));
     p.drawText(pageStr, {
       x: PAGE_W - MARGIN - bold.widthOfTextAtSize(pageStr, 7.5),
       y: FOOTER_LIMIT - 20,
@@ -531,9 +605,9 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
       color: col(SUBTLE),
     });
     // Regel 2: veiligheidsmelding  —  aanmaakdatum.
-    const safety = "Bij twijfel: raadpleeg altijd een professional / trainer.";
+    const safety = L.safety;
     p.drawText(safety, { x: MARGIN, y: FOOTER_LIMIT - 31, size: 7, font: italic, color: col(mix(SUBTLE, WHITE, 0.15)) });
-    const made = `Aangemaakt op ${createdStr}`;
+    const made = L.createdOn.replace("{date}", createdStr);
     p.drawText(made, {
       x: PAGE_W - MARGIN - font.widthOfTextAtSize(made, 7),
       y: FOOTER_LIMIT - 31,

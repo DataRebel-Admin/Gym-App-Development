@@ -1,4 +1,5 @@
 import "server-only";
+import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import {
   Calendar,
@@ -8,6 +9,8 @@ import {
 } from "@/components/ui/icons";
 import { ACHIEVEMENTS, type AchievementDef } from "@/lib/achievements/definitions";
 import { getAchievementsView } from "@/lib/achievements/evaluate";
+import { formatDate, formatNumber } from "@/lib/i18n/format";
+import type { AppLocale } from "@/lib/i18n/config";
 
 /**
  * Digitaal Gym Passport — een persoonlijk logboek van de belangrijkste mijlpalen.
@@ -36,21 +39,22 @@ export type Passport = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" });
 
-function durationLabel(days: number): string {
-  if (days < 31) return `${days} ${days === 1 ? "dag" : "dagen"}`;
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
+
+function durationLabel(days: number, t: Translator): string {
+  if (days < 31) return t("passport.days", { count: days });
   const months = Math.floor(days / 30.44);
-  if (months < 12) return `${months} ${months === 1 ? "maand" : "maanden"}`;
+  if (months < 12) return t("passport.months", { count: months });
   const years = Math.floor(months / 12);
   const restMonths = months % 12;
   return restMonths > 0
-    ? `${years} jaar ${restMonths} ${restMonths === 1 ? "maand" : "maanden"}`
-    : `${years} ${years === 1 ? "jaar" : "jaar"}`;
+    ? t("passport.yearsMonths", { years, months: restMonths })
+    : t("passport.years", { count: years });
 }
 
 export async function buildPassport(memberId: string, tenantId: string): Promise<Passport> {
-  const [view, user, firstSession] = await Promise.all([
+  const [view, user, firstSession, t, locale] = await Promise.all([
     getAchievementsView(memberId, tenantId),
     prisma.user.findFirst({ where: { id: memberId, tenantId }, select: { createdAt: true } }),
     prisma.workoutSession.findFirst({
@@ -58,12 +62,20 @@ export async function buildPassport(memberId: string, tenantId: string): Promise
       orderBy: { startedAt: "asc" },
       select: { startedAt: true },
     }),
+    getTranslations("achievements"),
+    getLocale() as Promise<AppLocale>,
   ]);
 
+  const stampTitle = (key: string) => t(`items.${key.replace(/\./g, "_")}.title`);
+  const stampDesc = (key: string) => t(`items.${key.replace(/\./g, "_")}.description`);
   const earnedByKey = new Map(view.items.map((i) => [i.def.key, i]));
   const stamps: PassportStamp[] = ACHIEVEMENTS.filter((d) => d.passport).map((def) => {
     const item = earnedByKey.get(def.key);
-    return { def, earned: item?.earned ?? false, earnedAt: item?.earnedAt ?? null };
+    return {
+      def: { ...def, title: stampTitle(def.key), description: stampDesc(def.key) },
+      earned: item?.earned ?? false,
+      earnedAt: item?.earnedAt ?? null,
+    };
   });
 
   const memberSince = user?.createdAt ?? null;
@@ -72,36 +84,36 @@ export async function buildPassport(memberId: string, tenantId: string): Promise
   const facts: PassportFact[] = [
     {
       key: "memberSince",
-      label: "Lid sinds",
-      value: memberSince ? DATE_FMT.format(memberSince) : "—",
+      label: t("passport.memberSince"),
+      value: memberSince ? formatDate(memberSince, locale, "long") : "—",
       icon: Calendar,
     },
     {
       key: "firstTraining",
-      label: "Eerste training",
-      value: firstSession ? DATE_FMT.format(firstSession.startedAt) : "Nog niet",
+      label: t("passport.firstTraining"),
+      value: firstSession ? formatDate(firstSession.startedAt, locale, "long") : t("passport.notYet"),
       icon: Dumbbell,
     },
     {
       key: "longestStreak",
-      label: "Langste streak",
+      label: t("passport.longestStreak"),
       value:
         view.metrics.longestStreakDays > 0
-          ? `${view.metrics.longestStreakDays} ${view.metrics.longestStreakDays === 1 ? "dag" : "dagen"}`
+          ? t("passport.days", { count: view.metrics.longestStreakDays })
           : "—",
       icon: Flame,
     },
     {
       key: "biggestVolume",
-      label: "Totaal verplaatst",
-      value: `${view.metrics.totalVolume.toLocaleString("nl-NL")} kg`,
+      label: t("passport.biggestVolume"),
+      value: `${formatNumber(view.metrics.totalVolume, locale)} kg`,
       icon: Dumbbell,
     },
   ];
 
   return {
     memberSince,
-    memberSinceLabel: memberSince ? durationLabel(memberDays) : "—",
+    memberSinceLabel: memberSince ? durationLabel(memberDays, t) : "—",
     stamps,
     facts,
   };

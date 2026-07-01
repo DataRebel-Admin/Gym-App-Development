@@ -1,6 +1,8 @@
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { useTranslations } from "next-intl";
 import { requireMember } from "@/lib/member";
+import { areClassesEnabled } from "@/lib/classes";
 import { prisma } from "@/lib/db";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
@@ -113,6 +115,7 @@ function ClassCard({ s }: { s: SessionCard }) {
 
 export default async function MemberRoosterPage() {
   const member = await requireMember();
+  if (!(await areClassesEnabled(member.tenantId))) notFound();
   const t = await getTranslations("member.rooster");
 
   const sessions = await prisma.classSession.findMany({

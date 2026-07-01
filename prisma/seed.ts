@@ -1179,8 +1179,11 @@ async function seedAchievements(slug: string) {
   const streakTiers: [string, number, string][] = [
     ["consistency.streak_3", 3, "bronze"],
     ["consistency.streak_7", 7, "silver"],
-    ["consistency.streak_30", 30, "gold"],
-    ["consistency.streak_100", 100, "diamond"],
+  ];
+  // Gold/diamond consistentie meet getrainde weken (realistischer dan dag-streaks).
+  const weekTiers: [string, number, string][] = [
+    ["consistency.weeks_8", 8, "gold"],
+    ["consistency.weeks_26", 26, "diamond"],
   ];
   const volumeTiers: [string, number, string][] = [
     ["strength.volume_100", 100, "bronze"],
@@ -1207,15 +1210,18 @@ async function seedAchievements(slug: string) {
     let totalVolume = 0;
     let hasPr = false;
     const dayStarts = new Set<number>();
+    const weekBuckets = new Set<number>();
     for (const s of sessions) {
       const d = new Date(s.startedAt);
       d.setHours(0, 0, 0, 0);
       dayStarts.add(d.getTime());
+      weekBuckets.add(Math.floor(d.getTime() / (7 * DAY_MS)));
       for (const e of s.performanceEntries) {
         totalVolume += e.reps * e.weightKg;
         if (e.weightKg > 0) hasPr = true;
       }
     }
+    const activeWeeks = weekBuckets.size;
     const sortedDays = [...dayStarts].sort((a, b) => a - b);
     let longestStreak = 1;
     let run = 1;
@@ -1230,6 +1236,9 @@ async function seedAchievements(slug: string) {
     }
     for (const [key, threshold, rarity] of streakTiers) {
       if (longestStreak >= threshold) rows.push({ key, category: "consistency", rarity, value: longestStreak });
+    }
+    for (const [key, threshold, rarity] of weekTiers) {
+      if (activeWeeks >= threshold) rows.push({ key, category: "consistency", rarity, value: activeWeeks });
     }
     for (const [key, threshold, rarity] of volumeTiers) {
       if (totalVolume >= threshold) rows.push({ key, category: "strength", rarity, value: Math.round(totalVolume) });

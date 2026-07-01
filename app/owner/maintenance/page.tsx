@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { requireFeature } from "@/lib/features/service";
 import { getMaintenanceOverview } from "@/lib/maintenance-eval";
 import { MaintenanceDashboard } from "@/components/maintenance/maintenance-dashboard";
 import { PolicyEditor, type PolicyRow } from "@/components/maintenance/policy-editor";
@@ -9,6 +10,7 @@ export const metadata = { title: "Onderhoud" };
 
 export default async function MaintenancePage() {
   const user = await requirePermission("maintenance:manage");
+  await requireFeature(user.tenantId, "maintenance");
   const isAdmin = user.role === "TENANT_ADMIN";
 
   const [overview, policies] = await Promise.all([

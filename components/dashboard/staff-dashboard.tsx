@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import type { Permission } from "@/lib/rbac";
 import { listCoachMembers } from "@/lib/coach-assignments";
 import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
+import { isFeatureEnabled } from "@/lib/features/service";
+import { areClassesEnabled } from "@/lib/classes";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { getAchievementDef } from "@/lib/achievements/definitions";
 import { rarityMeta } from "@/lib/achievements/rarity";
@@ -59,11 +61,16 @@ export async function StaffDashboard({
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const canSchemas = permissions.has("schemas:manage");
-  const canSchedule = permissions.has("schedule:manage");
   const canMeasure = permissions.has("measurements:manage");
 
   const canMembers = permissions.has("members:view");
-  const canMaintenance = permissions.has("maintenance:manage");
+  // Feature-flags (Superadmin) laag over de permissies: is de module beschikbaar?
+  const [maintenanceOn, classesOn] = await Promise.all([
+    isFeatureEnabled(tenantId, "maintenance"),
+    areClassesEnabled(tenantId),
+  ]);
+  const canSchedule = permissions.has("schedule:manage") && classesOn;
+  const canMaintenance = permissions.has("maintenance:manage") && maintenanceOn;
 
   const [activeToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements, maintenanceAttention] = await Promise.all([
     prisma.workoutSession.count({ where: { tenantId, startedAt: { gte: today } } }),

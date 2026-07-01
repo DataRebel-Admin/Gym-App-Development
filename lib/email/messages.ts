@@ -1,5 +1,8 @@
 import "server-only";
+import type { Locale } from "@prisma/client";
+import { getTranslations } from "next-intl/server";
 import type { EmailBranding } from "@/lib/email/branding";
+import { localeFromEnum } from "@/lib/i18n/config";
 import { renderEmailLayout } from "@/lib/email/layout";
 import {
   emailButton,
@@ -10,7 +13,15 @@ import {
   emailParagraph,
   escapeHtml,
 } from "@/lib/email/components";
-import { composeFromTemplate } from "@/lib/email/template-render";
+import { composeFromTemplate, EMAIL_FOOTER_AUTO } from "@/lib/email/template-render";
+
+/** Namespaced e-mail-translator (voor de code-composers, in de ontvangertaal). */
+type EmailT = Awaited<ReturnType<typeof getTranslations>>;
+
+/** `<strong>`-gewrapte, veilig-ge-escapete waarde voor in een body-placeholder. */
+function strong(value: string): string {
+  return `<strong>${escapeHtml(value)}</strong>`;
+}
 
 /** Eerste woord van een naam (voor de {{firstName}}-placeholder). "" indien leeg. */
 function firstNameOf(name: string | null | undefined): string {
@@ -28,14 +39,19 @@ export type EmailMessage = {
   text: string;
 };
 
-/** Vriendelijke aanhef ("Hoi Jan," / "Hoi,"). */
-function greeting(name: string | null | undefined): string {
+/** Vriendelijke aanhef in de ontvangertaal ("Hoi Jan," / "Hi Jan," / …). */
+function greetingText(t: EmailT, name: string | null | undefined): string {
   const first = name?.trim().split(/\s+/)[0];
-  return first ? `Hoi ${first},` : "Hoi,";
+  return first ? t("greeting", { name: first }) : t("greetingAnon");
 }
 
 /** Plain-text frame: aanhef-loze body + nette footer (reden + auto-bericht). */
-function textFrame(branding: EmailBranding, body: string, reason: string): string {
+function textFrame(
+  branding: EmailBranding,
+  body: string,
+  reason: string,
+  footerNote: string
+): string {
   const year = new Date().getFullYear();
   const contact = [
     branding.address,
@@ -52,7 +68,7 @@ function textFrame(branding: EmailBranding, body: string, reason: string): strin
     branding.name,
     contact || null,
     reason,
-    "Dit is een automatisch gegenereerd bericht — beantwoorden is niet nodig.",
+    footerNote,
     `© ${year} ${branding.name}`,
   ]
     .filter((line) => line !== null)
@@ -64,42 +80,15 @@ function textFrame(branding: EmailBranding, body: string, reason: string): strin
 export async function magicLinkMessage(opts: {
   branding: EmailBranding;
   url: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, url } = opts;
-  const fromDb = await composeFromTemplate({
+  return composeFromTemplate({
     key: "magicLink",
-    locale: branding.locale,
+    locale: opts.locale ?? branding.locale,
     branding,
     data: { loginLink: url },
   });
-  if (fromDb) return fromDb;
-
-  const reason = `Je ontvangt deze e-mail omdat er een inloglink is aangevraagd voor je account bij ${branding.name}.`;
-  const contentHtml = [
-    emailHeading(`Inloggen bij ${branding.name}`),
-    emailParagraph(
-      "Klik op de knop hieronder om veilig in te loggen. De link is eenmalig te gebruiken en verloopt na korte tijd."
-    ),
-    emailButton(url, "Inloggen", branding),
-    emailLinkFallback(url),
-    emailMuted(
-      "Heb je geen inloglink aangevraagd? Dan kun je deze e-mail negeren — er gebeurt niets."
-    ),
-  ].join("");
-  return {
-    subject: `Je inloglink voor ${branding.name}`,
-    html: renderEmailLayout({
-      branding,
-      preheader: "Je persoonlijke, eenmalige inloglink staat klaar.",
-      contentHtml,
-      reason,
-    }),
-    text: textFrame(
-      branding,
-      `Inloggen bij ${branding.name}\n\nGebruik deze eenmalige link om in te loggen (verloopt na korte tijd):\n${url}\n\nGeen inloglink aangevraagd? Negeer deze e-mail.`,
-      reason
-    ),
-  };
 }
 
 // ── Uitnodiging ─────────────────────────────────────────────────────────────
@@ -107,44 +96,15 @@ export async function magicLinkMessage(opts: {
 export async function inviteMessage(opts: {
   branding: EmailBranding;
   acceptUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, acceptUrl } = opts;
-  const fromDb = await composeFromTemplate({
+  return composeFromTemplate({
     key: "invite",
-    locale: branding.locale,
+    locale: opts.locale ?? branding.locale,
     branding,
     data: { activationLink: acceptUrl },
   });
-  if (fromDb) return fromDb;
-
-  const reason = `Je ontvangt deze e-mail omdat ${branding.name} je heeft uitgenodigd voor een account.`;
-  const contentHtml = [
-    emailHeading(`Uitnodiging voor ${branding.name}`),
-    emailParagraph(
-      `Je bent uitgenodigd om een account te activeren bij <strong>${escapeHtml(
-        branding.name
-      )}</strong>. Accepteer de uitnodiging om aan de slag te gaan met je trainingsschema's.`
-    ),
-    emailButton(acceptUrl, "Uitnodiging accepteren", branding),
-    emailLinkFallback(acceptUrl),
-    emailMuted(
-      "Deze uitnodiging is 7 dagen geldig. Verwachtte je deze e-mail niet? Dan kun je 'm negeren."
-    ),
-  ].join("");
-  return {
-    subject: `Uitnodiging voor ${branding.name}`,
-    html: renderEmailLayout({
-      branding,
-      preheader: `Activeer je account bij ${branding.name}.`,
-      contentHtml,
-      reason,
-    }),
-    text: textFrame(
-      branding,
-      `Uitnodiging voor ${branding.name}\n\nJe bent uitgenodigd om een account te activeren bij ${branding.name}.\nAccepteer je uitnodiging (7 dagen geldig):\n${acceptUrl}`,
-      reason
-    ),
-  };
 }
 
 // ── E-mailadres wijzigen ────────────────────────────────────────────────────
@@ -153,44 +113,15 @@ export async function emailChangeMessage(opts: {
   branding: EmailBranding;
   url: string;
   newEmail: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, url, newEmail } = opts;
-  const fromDb = await composeFromTemplate({
+  return composeFromTemplate({
     key: "emailChange",
-    locale: branding.locale,
+    locale: opts.locale ?? branding.locale,
     branding,
     data: { confirmLink: url, newEmail },
   });
-  if (fromDb) return fromDb;
-
-  const reason = `Je ontvangt deze e-mail omdat er is gevraagd om het e-mailadres van je ${branding.name}-account te wijzigen.`;
-  const contentHtml = [
-    emailHeading("Bevestig je nieuwe e-mailadres"),
-    emailParagraph(
-      `Klik om je e-mailadres voor <strong>${escapeHtml(
-        branding.name
-      )}</strong> te wijzigen naar <strong>${escapeHtml(newEmail)}</strong>.`
-    ),
-    emailButton(url, "E-mailadres bevestigen", branding),
-    emailLinkFallback(url),
-    emailMuted(
-      "Heb je dit niet aangevraagd? Negeer deze e-mail; je e-mailadres blijft dan ongewijzigd."
-    ),
-  ].join("");
-  return {
-    subject: "Bevestig je nieuwe e-mailadres",
-    html: renderEmailLayout({
-      branding,
-      preheader: `Bevestig de wijziging naar ${newEmail}.`,
-      contentHtml,
-      reason,
-    }),
-    text: textFrame(
-      branding,
-      `Bevestig je nieuwe e-mailadres\n\nBevestig de wijziging naar ${newEmail}:\n${url}\n\nNiet aangevraagd? Negeer deze e-mail.`,
-      reason
-    ),
-  };
 }
 
 // ── Welkom / account geactiveerd ────────────────────────────────────────────
@@ -199,42 +130,15 @@ export async function welcomeMessage(opts: {
   branding: EmailBranding;
   recipientName?: string | null;
   loginUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, loginUrl } = opts;
-  const fromDb = await composeFromTemplate({
+  return composeFromTemplate({
     key: "welcome",
-    locale: branding.locale,
+    locale: opts.locale ?? branding.locale,
     branding,
     data: { firstName: firstNameOf(recipientName), loginLink: loginUrl },
   });
-  if (fromDb) return fromDb;
-
-  const reason = `Je ontvangt deze e-mail omdat je account bij ${branding.name} zojuist is geactiveerd.`;
-  const contentHtml = [
-    emailHeading(`Welkom bij ${branding.name}!`),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      "Je account is geactiveerd. Log in om je trainingsschema's te bekijken, je voortgang bij te houden en aan de slag te gaan."
-    ),
-    emailButton(loginUrl, "Inloggen", branding),
-    emailLinkFallback(loginUrl),
-  ].join("");
-  return {
-    subject: `Welkom bij ${branding.name}`,
-    html: renderEmailLayout({
-      branding,
-      preheader: "Je account is geactiveerd — log in om te beginnen.",
-      contentHtml,
-      reason,
-    }),
-    text: textFrame(
-      branding,
-      `Welkom bij ${branding.name}!\n\n${greeting(
-        recipientName
-      )}\n\nJe account is geactiveerd. Log in om te beginnen:\n${loginUrl}`,
-      reason
-    ),
-  };
 }
 
 // ── Wachtwoord gewijzigd (beveiligingsmelding) ──────────────────────────────
@@ -243,47 +147,15 @@ export async function passwordChangedMessage(opts: {
   branding: EmailBranding;
   recipientName?: string | null;
   securityUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, securityUrl } = opts;
-  const fromDb = await composeFromTemplate({
+  return composeFromTemplate({
     key: "passwordChanged",
-    locale: branding.locale,
+    locale: opts.locale ?? branding.locale,
     branding,
     data: { firstName: firstNameOf(recipientName), securityLink: securityUrl },
   });
-  if (fromDb) return fromDb;
-
-  const reason = `Je ontvangt deze e-mail omdat het wachtwoord van je ${branding.name}-account is gewijzigd.`;
-  const contentHtml = [
-    emailHeading("Je wachtwoord is gewijzigd"),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      `Het wachtwoord van je account bij <strong>${escapeHtml(
-        branding.name
-      )}</strong> is zojuist aangepast. Was jij dit? Dan hoef je niets te doen.`
-    ),
-    emailParagraph(
-      "Heb jij dit <strong>niet</strong> gedaan? Beveilig dan direct je account."
-    ),
-    emailButton(securityUrl, "Beveiliging bekijken", branding),
-    emailLinkFallback(securityUrl),
-  ].join("");
-  return {
-    subject: `Je wachtwoord bij ${branding.name} is gewijzigd`,
-    html: renderEmailLayout({
-      branding,
-      preheader: "Een beveiligingsmelding over je account.",
-      contentHtml,
-      reason,
-    }),
-    text: textFrame(
-      branding,
-      `Je wachtwoord is gewijzigd\n\n${greeting(
-        recipientName
-      )}\n\nHet wachtwoord van je ${branding.name}-account is zojuist aangepast. Was jij dit niet? Beveilig direct je account:\n${securityUrl}`,
-      reason
-    ),
-  };
 }
 
 // ── Nieuw trainingsschema toegewezen ────────────────────────────────────────
@@ -293,11 +165,12 @@ export async function schemaAssignedMessage(opts: {
   recipientName?: string | null;
   schemaName: string;
   viewUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, schemaName, viewUrl } = opts;
-  const fromDb = await composeFromTemplate({
+  return composeFromTemplate({
     key: "schemaAssigned",
-    locale: branding.locale,
+    locale: opts.locale ?? branding.locale,
     branding,
     data: {
       firstName: firstNameOf(recipientName),
@@ -305,38 +178,6 @@ export async function schemaAssignedMessage(opts: {
       schemaLink: viewUrl,
     },
   });
-  if (fromDb) return fromDb;
-
-  const reason = `Je ontvangt deze e-mail omdat ${branding.name} een trainingsschema aan je heeft toegewezen.`;
-  const contentHtml = [
-    emailHeading("Je hebt een nieuw trainingsschema"),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      `<strong>${escapeHtml(
-        branding.name
-      )}</strong> heeft een nieuw trainingsschema voor je klaargezet: <strong>${escapeHtml(
-        schemaName
-      )}</strong>. Bekijk je oefeningen en begin je volgende training.`
-    ),
-    emailButton(viewUrl, "Bekijk je schema", branding),
-    emailLinkFallback(viewUrl),
-  ].join("");
-  return {
-    subject: `Nieuw trainingsschema: ${schemaName}`,
-    html: renderEmailLayout({
-      branding,
-      preheader: `${schemaName} staat voor je klaar.`,
-      contentHtml,
-      reason,
-    }),
-    text: textFrame(
-      branding,
-      `Je hebt een nieuw trainingsschema\n\n${greeting(
-        recipientName
-      )}\n\n${branding.name} heeft "${schemaName}" voor je klaargezet. Bekijk je schema:\n${viewUrl}`,
-      reason
-    ),
-  };
 }
 
 // ── Schema-aanvraag ontvangen (naar de coach/owner) ─────────────────────────
@@ -348,33 +189,40 @@ export async function schemaRequestReceivedMessage(opts: {
   goalLabel: string;
   description?: string | null;
   manageUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, memberName, goalLabel, description, manageUrl } = opts;
-  const reason = `Je ontvangt deze e-mail omdat een lid van ${branding.name} een trainingsschema heeft aangevraagd.`;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("schemaRequestReceived.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
+  const noteBlock = description?.trim() ? `\n\n"${description.trim()}"` : "";
   const contentHtml = [
-    emailHeading("Nieuwe schema-aanvraag"),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      `<strong>${escapeHtml(memberName)}</strong> heeft een nieuw trainingsschema aangevraagd. Doel: <strong>${escapeHtml(goalLabel)}</strong>.`
-    ),
+    emailHeading(t("schemaRequestReceived.heading")),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(t("schemaRequestReceived.body", { member: strong(memberName), goal: strong(goalLabel) })),
     description?.trim() ? emailParagraph(`"${escapeHtml(description.trim())}"`) : "",
-    emailButton(manageUrl, "Aanvraag bekijken", branding),
+    emailButton(manageUrl, t("schemaRequestReceived.btn"), branding),
     emailLinkFallback(manageUrl),
   ].join("");
   return {
-    subject: `Schema-aanvraag van ${memberName}`,
+    subject: t("schemaRequestReceived.subject", { member: memberName }),
     html: renderEmailLayout({
       branding,
-      preheader: `${memberName} vraagt een trainingsschema aan (${goalLabel}).`,
+      preheader: t("schemaRequestReceived.preheader", { member: memberName, goal: goalLabel }),
       contentHtml,
       reason,
+      footerNote,
     }),
     text: textFrame(
       branding,
-      `Nieuwe schema-aanvraag\n\n${greeting(recipientName)}\n\n${memberName} heeft een nieuw trainingsschema aangevraagd. Doel: ${goalLabel}.${
-        description?.trim() ? `\n\n"${description.trim()}"` : ""
-      }\n\nBekijk de aanvraag:\n${manageUrl}`,
-      reason
+      `${t("schemaRequestReceived.heading")}\n\n${g}\n\n${t("schemaRequestReceived.body", {
+        member: memberName,
+        goal: goalLabel,
+      })}${noteBlock}\n\n${manageUrl}`,
+      reason,
+      footerNote
     ),
   };
 }
@@ -387,32 +235,38 @@ export async function memberSchemaSubmittedMessage(opts: {
   memberName: string;
   schemaName: string;
   reviewUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, memberName, schemaName, reviewUrl } = opts;
-  const reason = `Je ontvangt deze e-mail omdat een lid van ${branding.name} zelf een trainingsschema heeft ingediend ter controle.`;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("memberSchemaSubmitted.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
   const contentHtml = [
-    emailHeading("Schema ter controle"),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      `<strong>${escapeHtml(memberName)}</strong> heeft zelf een trainingsschema samengesteld en ingediend ter controle: <strong>${escapeHtml(
-        schemaName
-      )}</strong>. Bekijk het, pas het eventueel aan en keur het goed of af.`
-    ),
-    emailButton(reviewUrl, "Schema bekijken", branding),
+    emailHeading(t("memberSchemaSubmitted.heading")),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(t("memberSchemaSubmitted.body", { member: strong(memberName), schema: strong(schemaName) })),
+    emailButton(reviewUrl, t("memberSchemaSubmitted.btn"), branding),
     emailLinkFallback(reviewUrl),
   ].join("");
   return {
-    subject: `Schema ter controle van ${memberName}`,
+    subject: t("memberSchemaSubmitted.subject", { member: memberName }),
     html: renderEmailLayout({
       branding,
-      preheader: `${memberName} diende '${schemaName}' in ter controle.`,
+      preheader: t("memberSchemaSubmitted.preheader", { member: memberName, schema: schemaName }),
       contentHtml,
       reason,
+      footerNote,
     }),
     text: textFrame(
       branding,
-      `Schema ter controle\n\n${greeting(recipientName)}\n\n${memberName} heeft zelf "${schemaName}" ingediend ter controle.\n\nBekijk het schema:\n${reviewUrl}`,
-      reason
+      `${t("memberSchemaSubmitted.heading")}\n\n${g}\n\n${t("memberSchemaSubmitted.body", {
+        member: memberName,
+        schema: schemaName,
+      })}\n\n${reviewUrl}`,
+      reason,
+      footerNote
     ),
   };
 }
@@ -426,46 +280,55 @@ export async function memberSchemaReviewedMessage(opts: {
   approved: boolean;
   reviewNote?: string | null;
   viewUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, schemaName, approved, reviewNote, viewUrl } = opts;
-  const reason = `Je ontvangt deze e-mail omdat je coach bij ${branding.name} je zelf-gebouwde schema heeft beoordeeld.`;
-  const heading = approved ? "Je schema is goedgekeurd" : "Je schema vraagt aanpassingen";
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("memberSchemaReviewed.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
+  const heading = approved
+    ? t("memberSchemaReviewed.headingApproved")
+    : t("memberSchemaReviewed.headingRejected");
+  const bodyHtml = approved
+    ? t("memberSchemaReviewed.bodyApproved", { schema: strong(schemaName) })
+    : t("memberSchemaReviewed.bodyRejected", { schema: strong(schemaName) });
+  const bodyPlain = approved
+    ? t("memberSchemaReviewed.bodyApproved", { schema: schemaName })
+    : t("memberSchemaReviewed.bodyRejected", { schema: schemaName });
   const contentHtml = [
     emailHeading(heading),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      approved
-        ? `Je zelf-gebouwde schema <strong>${escapeHtml(
-            schemaName
-          )}</strong> is goedgekeurd. Activeer het om ermee te gaan trainen.`
-        : `Je coach vraagt om aanpassingen aan je schema <strong>${escapeHtml(
-            schemaName
-          )}</strong>.`
-    ),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(bodyHtml),
     reviewNote?.trim() ? emailParagraph(`"${escapeHtml(reviewNote.trim())}"`) : "",
-    emailButton(viewUrl, approved ? "Schema activeren" : "Schema aanpassen", branding),
+    emailButton(
+      viewUrl,
+      approved ? t("memberSchemaReviewed.btnApproved") : t("memberSchemaReviewed.btnRejected"),
+      branding
+    ),
     emailLinkFallback(viewUrl),
   ].join("");
   return {
     subject: approved
-      ? `Goedgekeurd: ${schemaName}`
-      : `Aanpassingen gevraagd: ${schemaName}`,
+      ? t("memberSchemaReviewed.subjectApproved", { schema: schemaName })
+      : t("memberSchemaReviewed.subjectRejected", { schema: schemaName }),
     html: renderEmailLayout({
       branding,
       preheader: approved
-        ? `${schemaName} is goedgekeurd.`
-        : `${schemaName} vraagt om aanpassingen.`,
+        ? t("memberSchemaReviewed.preheaderApproved", { schema: schemaName })
+        : t("memberSchemaReviewed.preheaderRejected", { schema: schemaName }),
       contentHtml,
       reason,
+      footerNote,
     }),
     text: textFrame(
       branding,
-      `${heading}\n\n${greeting(recipientName)}\n\n${
-        approved
-          ? `Je schema "${schemaName}" is goedgekeurd. Activeer het om te trainen.`
-          : `Je coach vraagt om aanpassingen aan "${schemaName}".`
-      }${reviewNote?.trim() ? `\n\n"${reviewNote.trim()}"` : ""}\n\n${viewUrl}`,
-      reason
+      `${heading}\n\n${g}\n\n${bodyPlain}${
+        reviewNote?.trim() ? `\n\n"${reviewNote.trim()}"` : ""
+      }\n\n${viewUrl}`,
+      reason,
+      footerNote
     ),
   };
 }
@@ -477,30 +340,37 @@ export async function schemaRequestStatusMessage(opts: {
   recipientName?: string | null;
   statusLabel: string;
   viewUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, statusLabel, viewUrl } = opts;
-  const reason = `Je ontvangt deze e-mail omdat de status van je schema-aanvraag bij ${branding.name} is gewijzigd.`;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("schemaRequestStatus.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
   const contentHtml = [
-    emailHeading("Update over je schema-aanvraag"),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      `De status van je trainingsschema-aanvraag is nu: <strong>${escapeHtml(statusLabel)}</strong>.`
-    ),
-    emailButton(viewUrl, "Bekijk je aanvraag", branding),
+    emailHeading(t("schemaRequestStatus.heading")),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(t("schemaRequestStatus.body", { status: strong(statusLabel) })),
+    emailButton(viewUrl, t("schemaRequestStatus.btn"), branding),
     emailLinkFallback(viewUrl),
   ].join("");
   return {
-    subject: `Je schema-aanvraag: ${statusLabel}`,
+    subject: t("schemaRequestStatus.subject", { status: statusLabel }),
     html: renderEmailLayout({
       branding,
-      preheader: `Nieuwe status: ${statusLabel}.`,
+      preheader: t("schemaRequestStatus.preheader", { status: statusLabel }),
       contentHtml,
       reason,
+      footerNote,
     }),
     text: textFrame(
       branding,
-      `Update over je schema-aanvraag\n\n${greeting(recipientName)}\n\nDe status van je aanvraag is nu: ${statusLabel}.\n\nBekijk je aanvraag:\n${viewUrl}`,
-      reason
+      `${t("schemaRequestStatus.heading")}\n\n${g}\n\n${t("schemaRequestStatus.body", {
+        status: statusLabel,
+      })}\n\n${viewUrl}`,
+      reason,
+      footerNote
     ),
   };
 }
@@ -514,17 +384,18 @@ export async function achievementEarnedMessage(opts: {
   description: string;
   rarityLabel: string;
   viewUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, title, description, rarityLabel, viewUrl } = opts;
-  const reason = `Je ontvangt deze e-mail omdat je een nieuwe trofee hebt behaald bij ${branding.name}.`;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("achievementEarned.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
   const contentHtml = [
-    emailHeading("🏆 Nieuwe trofee behaald!"),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
-    emailParagraph(
-      `Gefeliciteerd! Je hebt de trofee <strong>${escapeHtml(
-        title
-      )}</strong> (${escapeHtml(rarityLabel)}) behaald.`
-    ),
+    emailHeading(t("achievementEarned.heading")),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(t("achievementEarned.body", { title: strong(title), rarity: escapeHtml(rarityLabel) })),
     emailInfoCard(
       `<p style="margin:0;font-size:15px;color:#1f2937"><strong>${escapeHtml(
         title
@@ -532,23 +403,26 @@ export async function achievementEarnedMessage(opts: {
         description
       )}</p>`
     ),
-    emailButton(viewUrl, "Bekijk je trofeeën", branding),
+    emailButton(viewUrl, t("achievementEarned.btn"), branding),
     emailLinkFallback(viewUrl),
   ].join("");
   return {
-    subject: `🏆 Trofee behaald: ${title}`,
+    subject: t("achievementEarned.subject", { title }),
     html: renderEmailLayout({
       branding,
-      preheader: `Je hebt "${title}" behaald — goed bezig!`,
+      preheader: t("achievementEarned.preheader", { title }),
       contentHtml,
       reason,
+      footerNote,
     }),
     text: textFrame(
       branding,
-      `Nieuwe trofee behaald!\n\n${greeting(
-        recipientName
-      )}\n\nGefeliciteerd! Je hebt de trofee "${title}" (${rarityLabel}) behaald.\n${description}\n\nBekijk je trofeeën:\n${viewUrl}`,
-      reason
+      `${t("achievementEarned.heading")}\n\n${g}\n\n${t("achievementEarned.body", {
+        title,
+        rarity: rarityLabel,
+      })}\n${description}\n\n${viewUrl}`,
+      reason,
+      footerNote
     ),
   };
 }
@@ -563,15 +437,20 @@ export async function maintenanceAlertMessage(opts: {
   intro: string;
   detail?: string | null;
   manageUrl: string;
+  locale?: Locale | null;
 }): Promise<EmailMessage> {
   const { branding, recipientName, machineName, headline, intro, detail, manageUrl } = opts;
-  const reason = `Je ontvangt deze e-mail omdat je bij ${branding.name} verantwoordelijk bent voor het onderhoud van apparatuur.`;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("maintenanceAlert.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
   const contentHtml = [
     emailHeading(headline),
-    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(escapeHtml(g)),
     emailParagraph(intro),
     detail?.trim() ? emailInfoCard(`<p style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
-    emailButton(manageUrl, "Onderhoud bekijken", branding),
+    emailButton(manageUrl, t("maintenanceAlert.btn"), branding),
     emailLinkFallback(manageUrl),
   ].join("");
   return {
@@ -581,13 +460,15 @@ export async function maintenanceAlertMessage(opts: {
       preheader: `${machineName} — ${headline.toLowerCase()}.`,
       contentHtml,
       reason,
+      footerNote,
     }),
     text: textFrame(
       branding,
-      `${headline}\n\n${greeting(recipientName)}\n\n${intro.replace(/<[^>]+>/g, "")}${
+      `${headline}\n\n${g}\n\n${intro.replace(/<[^>]+>/g, "")}${
         detail?.trim() ? `\n\n${detail.trim()}` : ""
-      }\n\nBekijk het onderhoud:\n${manageUrl}`,
-      reason
+      }\n\n${manageUrl}`,
+      reason,
+      footerNote
     ),
   };
 }
@@ -691,7 +572,8 @@ export async function supportRequestMessage(opts: {
         "",
         `Antwoord rechtstreeks aan ${senderEmail}.`,
       ].join("\n"),
-      reason
+      reason,
+      EMAIL_FOOTER_AUTO.NL
     ),
   };
 }

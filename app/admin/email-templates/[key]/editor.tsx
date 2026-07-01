@@ -61,6 +61,7 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 
 export function TemplateEditor({
   templateKey: templateKeyProp,
+  locale,
   name,
   description,
   hasTrigger,
@@ -71,6 +72,7 @@ export function TemplateEditor({
   adminEmail,
 }: {
   templateKey: EmailTemplateKey;
+  locale: "NL" | "EN" | "FY";
   name: string;
   description: string;
   hasTrigger: boolean;
@@ -128,7 +130,7 @@ export function TemplateEditor({
     }
     const handle = setTimeout(async () => {
       setSaveState("saving");
-      const res = await saveDraft({ key: templateKey, subject, preheader, bodyHtml });
+      const res = await saveDraft({ key: templateKey, locale, subject, preheader, bodyHtml });
       if (res.ok) {
         setSaveState("saved");
         setStatus("DRAFT");
@@ -150,6 +152,7 @@ export function TemplateEditor({
       try {
         const res = await renderPreview({
           key: templateKey,
+          locale,
           subject,
           preheader,
           bodyHtml,
@@ -193,6 +196,7 @@ export function TemplateEditor({
     setPublishing(true);
     const res = await publishTemplate({
       key: templateKey,
+      locale,
       subject,
       preheader,
       bodyHtml,
@@ -216,6 +220,7 @@ export function TemplateEditor({
     setSending(true);
     const res = await sendTestEmail({
       key: templateKey,
+      locale,
       subject,
       preheader,
       bodyHtml,
@@ -232,7 +237,7 @@ export function TemplateEditor({
   }
 
   async function handleRestore(versionId: string) {
-    const res = await restoreVersion({ key: templateKey, versionId });
+    const res = await restoreVersion({ key: templateKey, locale, versionId });
     if (res.ok && res.content) {
       applyContent(res.content);
       setVersionsOpen(false);
@@ -243,7 +248,7 @@ export function TemplateEditor({
   }
 
   async function handleReset() {
-    const res = await resetToDefault({ key: templateKey });
+    const res = await resetToDefault({ key: templateKey, locale });
     if (res.ok && res.content) {
       applyContent(res.content);
       toast.success("Standaardinhoud hersteld in het concept.");

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { audit } from "@/lib/audit";
+import { ALL_METRIC_KEYS } from "@/lib/measurement-meta";
 
 export type ContactFormState = { error?: string; ok?: boolean };
 
@@ -137,6 +138,66 @@ export async function setAchievementsEnabled(formData: FormData) {
     oldValue: { achievementsEnabled: before?.achievementsEnabled ?? null },
     newValue: { achievementsEnabled: enabled },
     metadata: { setting: "achievementsEnabled" },
+  });
+
+  revalidatePath("/owner/settings");
+  revalidatePath("/member");
+}
+
+/**
+ * Bepaal welke meetvelden de sportschool gebruikt. Niet-geselecteerde velden
+ * verdwijnen uit formulieren, tijdlijn, grafieken en detail (trainer én lid).
+ * Alle velden geselecteerd → `null` (= alles, ook toekomstige velden).
+ */
+export async function setMeasurementFields(formData: FormData) {
+  const owner = await requireOwner();
+  const valid = new Set<string>(ALL_METRIC_KEYS);
+  const selected = [
+    ...new Set(formData.getAll("field").map(String).filter((k) => valid.has(k))),
+  ];
+  const value =
+    selected.length >= ALL_METRIC_KEYS.length ? Prisma.JsonNull : (selected as string[]);
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { enabledMeasurementFields: value },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    metadata: { setting: "measurementFields", count: selected.length },
+  });
+
+  revalidatePath("/owner/settings");
+  revalidatePath("/member/progress");
+}
+
+/** Zet het lesrooster (aanmelden voor lessen) aan of uit voor de tenant. */
+export async function setClassesEnabled(formData: FormData) {
+  const owner = await requireOwner();
+  const enabled = formData.get("enabled") === "true";
+
+  const before = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: { classesEnabled: true },
+  });
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { classesEnabled: enabled },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    oldValue: { classesEnabled: before?.classesEnabled ?? null },
+    newValue: { classesEnabled: enabled },
+    metadata: { setting: "classesEnabled" },
   });
 
   revalidatePath("/owner/settings");

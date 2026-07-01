@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requirePermission } from "@/lib/staff";
+import { areClassesEnabled } from "@/lib/classes";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { AddSessionForm } from "../class-forms";
 import { deleteClass, deleteSession } from "../actions";
@@ -31,6 +32,7 @@ export default async function ClassDetailPage({
 }) {
   const { id } = await params;
   const owner = await requirePermission("schedule:manage");
+  if (!(await areClassesEnabled(owner.tenantId))) notFound();
 
   const groupClass = await prisma.groupClass.findFirst({
     where: { id, tenantId: owner.tenantId },

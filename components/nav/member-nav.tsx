@@ -36,7 +36,7 @@ const NAV: Item[] = [
 ];
 
 /** Mobiele onderbalk met iconen + geanimeerde active-pill. */
-export function MemberNav() {
+export function MemberNav({ classesEnabled = true }: { classesEnabled?: boolean }) {
   const pathname = usePathname();
   const t = useTranslations("nav.member");
 
@@ -45,9 +45,12 @@ export function MemberNav() {
     return pathname.startsWith(href);
   }
 
+  // Lesrooster uitgeschakeld → verberg de rooster-tab (feature-flag per tenant).
+  const items = classesEnabled ? NAV : NAV.filter((n) => n.href !== "/member/rooster");
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-md items-center justify-around border-t border-border bg-surface-1/90 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      {NAV.map((n) => {
+      {items.map((n) => {
         const active = isActive(n.href);
         return (
           <Link

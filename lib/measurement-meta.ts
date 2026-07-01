@@ -87,6 +87,36 @@ export const CIRCUMFERENCE_METRICS = METRICS.filter((m) => m.group === "circumfe
 export const CONDITION_METRICS = METRICS.filter((m) => m.group === "condition");
 export const PRIMARY_METRICS = METRICS.filter((m) => m.primary);
 
+/** Alle geldige metric-keys (voor validatie van een tenant-selectie). */
+export const ALL_METRIC_KEYS: MetricKey[] = METRICS.map((m) => m.key);
+
+/**
+ * De door de owner geselecteerde meetvelden (`Tenant.enabledMeasurementFields`,
+ * JSON). Retour een set gevalideerde keys, of **`null` = alle velden actief**
+ * (nooit geconfigureerd → backward-compat). Een lege selectie ([]) betekent
+ * bewust "geen enkel veld".
+ */
+export function parseEnabledMetricKeys(value: unknown): MetricKey[] | null {
+  if (!Array.isArray(value)) return null;
+  const valid = new Set<string>(ALL_METRIC_KEYS);
+  return value.filter((k): k is MetricKey => typeof k === "string" && valid.has(k));
+}
+
+/** Is een specifieke metric ingeschakeld? (`null` = alles). */
+export function isMetricEnabled(key: MetricKey, enabled: MetricKey[] | null): boolean {
+  return enabled == null || enabled.includes(key);
+}
+
+/** Filtert een metric-lijst op de ingeschakelde selectie (`null` = alles). */
+export function filterEnabledMetrics(
+  metrics: MetricDef[],
+  enabled: MetricKey[] | null
+): MetricDef[] {
+  if (enabled == null) return metrics;
+  const set = new Set(enabled);
+  return metrics.filter((m) => set.has(m.key));
+}
+
 /** Welke Measurement-kolom hoort bij een doel-metric. */
 export const GOAL_METRIC_KEY: Record<GoalMetric, MetricKey> = {
   WEIGHT: "weightKg",

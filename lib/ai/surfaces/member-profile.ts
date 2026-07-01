@@ -71,7 +71,7 @@ export const memberProfileSurface: Surface = {
       .join(", ");
 
     const system = [
-      baseSystemPreamble(tenantName),
+      baseSystemPreamble(tenantName, user.locale),
       "",
       `CONTEXT — voortgang van lid "${member.name ?? member.email}" (alle cijfers zijn afgeleid; geen medische data):`,
       `Trainingen: ${stats.totalWorkouts} totaal, ${stats.workoutsThisWeek} deze week (weekdoel ${stats.weeklyGoal}), ${stats.workoutsThisMonth} deze maand.`,

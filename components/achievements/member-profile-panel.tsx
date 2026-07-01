@@ -52,7 +52,7 @@ export function MemberProfileAchievements({ view }: { view: AchievementsView }) 
             <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">Mooiste trofee</p>
             <p className="truncate font-display font-bold text-neutral-900">{view.best.def.title}</p>
             <span className={cn("mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold", rarityMeta(view.best.def.rarity).chip)}>
-              {rarityMeta(view.best.def.rarity).label}
+              {view.best.rarityLabel}
             </span>
           </div>
         </div>

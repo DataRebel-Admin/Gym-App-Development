@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { getAssignedSchema } from "@/lib/member";
-import { buildSchemaPdf, type SchemaPdfDay } from "@/lib/schema-pdf";
+import { buildSchemaPdf, pdfLabels, type SchemaPdfDay } from "@/lib/schema-pdf";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
-
-const VERSION_FMT = new Intl.DateTimeFormat("nl-NL", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
+import { formatDate } from "@/lib/i18n/format";
+import type { AppLocale } from "@/lib/i18n/config";
 
 export async function GET(
   _req: Request,
@@ -59,6 +56,9 @@ export async function GET(
     })),
   }));
 
+  const locale = (await getLocale()) as AppLocale;
+  const t = await getTranslations("pdf");
+
   const pdf = await buildSchemaPdf({
     tenantName: tenant?.name ?? "GymRebel",
     accentColor: tenant?.accentColor ?? null,
@@ -68,12 +68,14 @@ export async function GET(
     trainerName: owner.name ?? null,
     schemaName: tpl.name,
     intro: tpl.description,
-    version: VERSION_FMT.format(tpl.updatedAt),
+    version: formatDate(tpl.updatedAt, locale, "short"),
     createdAt: tpl.createdAt,
     website: tenant?.website ?? null,
     contactEmail: tenant?.contactEmail ?? null,
     contactPhone: tenant?.contactPhone ?? null,
     days,
+    locale,
+    labels: pdfLabels((k) => t(k)),
   });
 
   const slug = (member.name ?? member.email ?? "lid")

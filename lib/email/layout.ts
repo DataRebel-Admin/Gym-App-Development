@@ -18,6 +18,8 @@ export type LayoutInput = {
   contentHtml: string;
   /** "Je ontvangt deze e-mail omdat…" — transparantie in de footer. */
   reason: string;
+  /** Gelokaliseerde "automatisch bericht"-regel. Default: NL. */
+  footerNote?: string;
   /**
    * Forceer de lichte weergave (laat de dark-mode media-query weg). Gebruikt door
    * de on-screen template-preview zodat die niet meekleurt met de dark-mode van de
@@ -41,7 +43,7 @@ function header(branding: EmailBranding): string {
 }
 
 /** Footer: tenant-naam, contactgegevens, socials, reden + automatisch-bericht. */
-function footer(branding: EmailBranding, reason: string): string {
+function footer(branding: EmailBranding, reason: string, footerNote: string): string {
   const year = new Date().getFullYear();
 
   const contactBits: string[] = [];
@@ -93,15 +95,17 @@ function footer(branding: EmailBranding, reason: string): string {
       <p style="margin:0 0 4px;font-size:12px;line-height:1.5;color:#9ca3af">${escapeHtml(
         reason
       )}</p>
-      <p style="margin:0;font-size:12px;line-height:1.5;color:#9ca3af">Dit is een automatisch gegenereerd bericht — beantwoorden is niet nodig.<br>&copy; ${year} ${escapeHtml(
-        branding.name
-      )}</p>
+      <p style="margin:0;font-size:12px;line-height:1.5;color:#9ca3af">${escapeHtml(
+        footerNote
+      )}<br>&copy; ${year} ${escapeHtml(branding.name)}</p>
     </td>
   </tr>`;
 }
 
 export function renderEmailLayout(input: LayoutInput): string {
   const { branding, preheader, contentHtml, reason, forceLightScheme } = input;
+  const footerNote =
+    input.footerNote ?? "Dit is een automatisch gegenereerd bericht — beantwoorden is niet nodig.";
   const colorScheme = forceLightScheme ? "light" : "light dark";
   const darkModeCss = forceLightScheme
     ? ""
@@ -150,7 +154,7 @@ ${darkModeCss}
             branding.fontStack
           }">${contentHtml}</td>
         </tr>
-        ${footer(branding, reason)}
+        ${footer(branding, reason, footerNote)}
       </table>
     </td>
   </tr>

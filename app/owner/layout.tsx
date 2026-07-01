@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireTenantUser } from "@/lib/staff";
 import { getCurrentTenant } from "@/lib/tenant";
+import { areClassesEnabled } from "@/lib/classes";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { Badge } from "@/components/ui/badge";
 import { OwnerNav, type OwnerNavEntry } from "@/components/nav/owner-nav";
 import { SideNavDrawer } from "@/components/nav/side-nav-drawer";
@@ -100,13 +102,16 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
 function filterNav(
   entries: OwnerNavEntry[],
   isAdmin: boolean,
-  permissions: Set<string>
+  permissions: Set<string>,
+  disabledHrefs: Set<string>
 ): OwnerNavEntry[] {
   const allowed = (g: { permission?: string; adminOnly?: boolean }) =>
     g.adminOnly ? isAdmin : g.permission ? isAdmin || permissions.has(g.permission) : true;
+  // Uitgeschakelde modules (feature-flags per tenant) → verberg hun ingangen.
+  const featureOk = (href?: string) => !href || !disabledHrefs.has(href);
   return entries.flatMap<OwnerNavEntry>((entry) => {
-    if (entry.type === "link") return allowed(entry) ? [entry] : [];
-    const items = entry.items.filter(allowed);
+    if (entry.type === "link") return allowed(entry) && featureOk(entry.href) ? [entry] : [];
+    const items = entry.items.filter((i) => allowed(i) && featureOk(i.href));
     return items.length ? [{ ...entry, items }] : [];
   });
 }
@@ -120,9 +125,26 @@ export default async function OwnerLayout({
   const isAdmin = user.role === "TENANT_ADMIN";
 
   const tNav = await getTranslations("nav.owner");
-  const NAV = filterNav(buildNav(tNav), isAdmin, user.permissions as Set<string>);
-
   const tenant = await getCurrentTenant();
+
+  // Verberg de ingangen van uitgeschakelde modules (Superadmin feature-flags).
+  const disabledHrefs = new Set<string>();
+  if (tenant) {
+    const [classesOk, maintenanceOk] = await Promise.all([
+      areClassesEnabled(tenant.id),
+      isFeatureEnabled(tenant.id, "maintenance"),
+    ]);
+    if (!classesOk) disabledHrefs.add("/owner/rooster");
+    if (!maintenanceOk) disabledHrefs.add("/owner/maintenance");
+  }
+
+  const NAV = filterNav(
+    buildNav(tNav),
+    isAdmin,
+    user.permissions as Set<string>,
+    disabledHrefs
+  );
+
   const badge = await getUserBadge(user.id);
   const notifications = await getNotificationOverview(user.id);
   const tenants = user.email ? await getUserTenants(user.email) : [];
@@ -140,20 +162,6 @@ export default async function OwnerLayout({
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3 lg:gap-4">
-            <SideNavDrawer
-              entries={NAV}
-              rootHref="/owner"
-              brand={{ name: tenant?.name ?? "GymRebel", logoUrl: tenant?.logoUrl ?? null }}
-              profile={{
-                name: badge?.name ?? user.name ?? null,
-                email: badge?.email ?? user.email ?? null,
-                image: badge?.image ?? null,
-              }}
-              tenants={tenants}
-              currentSlug={tenant?.slug ?? null}
-              support={support}
-              className="lg:hidden"
-            />
             <Link
               href="/owner"
               className="flex min-w-0 shrink-0 items-center gap-2 font-display text-lg font-bold text-neutral-900"
@@ -194,6 +202,21 @@ export default async function OwnerLayout({
                 support={support}
               />
             </div>
+            <SideNavDrawer
+              entries={NAV}
+              rootHref="/owner"
+              brand={{ name: tenant?.name ?? "GymRebel", logoUrl: tenant?.logoUrl ?? null }}
+              profile={{
+                name: badge?.name ?? user.name ?? null,
+                email: badge?.email ?? user.email ?? null,
+                image: badge?.image ?? null,
+              }}
+              tenants={tenants}
+              currentSlug={tenant?.slug ?? null}
+              support={support}
+              side="right"
+              className="lg:hidden"
+            />
           </div>
         </div>
       </header>

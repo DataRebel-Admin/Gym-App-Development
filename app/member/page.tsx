@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getMemberStats } from "@/lib/member-stats";
-import { getCurrentTenant } from "@/lib/tenant";
+import { isAiEnabled } from "@/lib/ai/enabled";
 import { getAchievementUiState, getAchievementsView } from "@/lib/achievements/evaluate";
 import { AchievementDashboardSummary } from "@/components/achievements/dashboard-summary";
 import { SchemaBadges } from "@/components/schema/schema-badges";
@@ -43,9 +43,8 @@ function greetingKey(d: Date) {
 
 export default async function MemberHome() {
   const member = await requireMember();
-  const [assignment, tenant, stats, openSession, t] = await Promise.all([
+  const [assignment, stats, openSession, t] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
-    getCurrentTenant(),
     getMemberStats(member.id, member.tenantId),
     prisma.workoutSession.findFirst({
       where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
@@ -53,6 +52,8 @@ export default async function MemberHome() {
     }),
     getTranslations("member.home"),
   ]);
+  // AI-widget: alleen als de AI-module beschikbaar is (Superadmin-flag én owner-toggle).
+  const aiEnabled = await isAiEnabled(member.tenantId);
   // Trofeeën-widget: alleen als aan voor de gym én niet persoonlijk verborgen.
   const achievementUi = await getAchievementUiState(member.id, member.tenantId);
   const achievementsView = achievementUi.visible
@@ -317,7 +318,7 @@ export default async function MemberHome() {
         </RevealItem>
       ) : null}
 
-      {tenant?.aiEnabled ? (
+      {aiEnabled ? (
         <RevealItem>
           <AssistantWidget suggestions={surfaceSuggestions("member-home")} />
         </RevealItem>

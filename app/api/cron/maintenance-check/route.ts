@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { evaluateDueMachines } from "@/lib/maintenance-eval";
 import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
+import { isFeatureEnabled } from "@/lib/features/service";
 
 /**
  * Dagelijkse onderhoudscontrole. Evalueert per tenant de gebruik- én
@@ -47,6 +48,8 @@ export async function GET(req: Request) {
   let notified = 0;
   for (const t of tenants) {
     try {
+      // Onderhoudsmodule uit (Superadmin-flag) → tenant overslaan.
+      if (!(await isFeatureEnabled(t.id, "maintenance"))) continue;
       const { due, soon } = await evaluateDueMachines(t.id);
       notified += await notifyMaintenanceThresholds({
         tenantId: t.id,

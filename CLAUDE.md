@@ -625,6 +625,47 @@ geïntegreerd in de bestaande tenant-ervaring (RBAC/meldingen/audit/cron/whitela
 - **Seed**: fitpower-machines krijgen regels + variatie (Loopband "onderhoud nodig", Crosstrainer
   "binnenkort", Beenpers "buiten gebruik") + demo-`MaintenanceRecord`s.
 
+### Feature flags (Superadmin, per tenant)
+
+Centraal, uitbreidbaar systeem waarmee de **Superadmin** per tenant bepaalt welke
+modules beschikbaar zijn (subscription-tiers/pilots/tenant-config). Uitgeschakeld =
+volledig weg (nav, pagina's, directe URL's, API, meldingen, widgets); bestaande data
+blijft bewaard. **Geen hardgecodeerde aan/uit-controles verspreid door de code** — één
+service die frontend én backend delen.
+
+- **Code-registry `lib/features/catalog.ts`** (géén `server-only`, ook client — idioom
+  `exercise-types.ts`/`audit-actions.ts`) = bron van waarheid. `FeatureKey =
+  maintenance | group_classes | ai`; per record `name/description/icon/defaultEnabled`.
+  **Nieuwe feature = één record hier** (+ de flag checken op de relevante plek). Defaults
+  behouden bestaand gedrag (allemaal `true`).
+- **Opslag**: model **`FeatureFlag`** (`@@unique([tenantId, key])`, tenant-scoped + RLS;
+  migratie `20260701130000_feature_flags`) — `enabled` + `updatedById/updatedByEmail`
+  (laatste-wijziging-metadata voor de UI). Ontbreekt een rij → code-default. Sleutels zijn
+  vrije strings (géén enum → uitbreidbaar zonder migratie).
+- **Service `lib/features/service.ts`** (`server-only`): `getTenantFeatures(tenantId)`
+  (per-request `cache()`, defaults + DB-overrides), `isFeatureEnabled`,
+  `getCurrentTenantFeatures`, **`requireFeature(tenantId, key)`** (→ `notFound()` bij uit —
+  blokkeert directe URL/API), `getFeatureFlagRows` (beheer-UI), `setFeatureFlag` (upsert +
+  audit; alléén achter `requireSuperadmin`). Wijzigingen zijn direct actief (cache leeft één
+  request; action `revalidatePath`).
+- **Masterschakelaar-patroon**: waar al een owner-toggle bestond, is de feature-flag de
+  laag daarboven (beide moeten aan). `ai` = flag ∧ `Tenant.aiEnabled` → **`lib/ai/enabled.ts`
+  `isAiEnabled`** (gebruikt door member-widget, owner exercise/member-profile-kaarten, en de
+  gate in `lib/ai/assist.ts`). `group_classes` = flag ∧ `Tenant.classesEnabled` → verwerkt in
+  **`lib/classes.ts` `areClassesEnabled`** (dé resolver; member/owner-nav + rooster-pagina's/
+  actions + member enroll gebruiken 'm al). `maintenance` heeft geen owner-toggle → puur de flag.
+- **Handhaving maintenance**: owner-nav (`disabledHrefs` in `app/owner/layout.tsx`),
+  `/owner/maintenance` + actions (`requireFeature`), dashboard-alert (owner + staff),
+  meldingen (`lib/maintenance/notify.ts` early-return), cron `maintenance-check` (skip),
+  usage-hook in `endSession`, en de machine-detail/lijst onderhouds-UI.
+- **Beheer-UI `/admin/features`** (`app/admin/features/`): tenant-kiezer
+  (`components/admin/feature-tenant-picker.tsx`) + kaarten met naam, omschrijving, status,
+  laatste-wijziging + toggle-switch **met bevestigingsdialoog**
+  (`components/admin/feature-flags-manager.tsx` → `toggleFeature`-action). Nav-item in
+  `app/admin/layout.tsx`.
+- **Audit**: categorie **`features`** + actie `feature.toggle` (tenant, feature, oude/nieuwe
+  status, actor) in `lib/audit-actions.ts`.
+
 ### Logging & Audit Trail
 
 - **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only

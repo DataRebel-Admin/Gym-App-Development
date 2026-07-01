@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
-import { getMeasurement } from "@/lib/measurements";
+import { getMeasurement, getEnabledMeasurementKeys } from "@/lib/measurements";
+import { getAllowTrainerPhotos } from "@/lib/user-preferences";
 import { MeasurementDetail } from "@/components/progress/measurement-detail";
 import { MeasurementForm } from "@/components/progress/measurement-form";
 import { buttonClasses } from "@/components/ui/button-classes";
@@ -20,6 +22,11 @@ export default async function MeasurementDetailPage({
   const row = await getMeasurement(owner.tenantId, measurementId, userId);
   if (!row) notFound();
 
+  const [enabled, member] = await Promise.all([
+    getEnabledMeasurementKeys(owner.tenantId),
+    prisma.user.findFirst({ where: { id: userId, tenantId: owner.tenantId }, select: { preferences: true } }),
+  ]);
+  const canViewPhotos = getAllowTrainerPhotos(member?.preferences);
   const action = updateMeasurement.bind(null, userId, measurementId);
 
   return (
@@ -42,7 +49,7 @@ export default async function MeasurementDetailPage({
       </div>
 
       <section className="rounded-2xl border border-border bg-surface-1 p-5">
-        <MeasurementDetail row={row} />
+        <MeasurementDetail row={row} enabled={enabled} canViewPhotos={canViewPhotos} />
       </section>
 
       <details className="rounded-2xl border border-border bg-surface-1 p-5">
@@ -50,7 +57,7 @@ export default async function MeasurementDetailPage({
           Meting bewerken
         </summary>
         <div className="mt-5">
-          <MeasurementForm action={action} initial={row} submitLabel="Wijzigingen opslaan" />
+          <MeasurementForm action={action} initial={row} submitLabel="Wijzigingen opslaan" enabled={enabled} />
         </div>
       </details>
     </div>

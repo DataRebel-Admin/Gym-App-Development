@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireTenantUser } from "@/lib/staff";
 import { getExerciseDetail } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
+import { isAiEnabled } from "@/lib/ai/enabled";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
 import { ExerciseAssistant } from "@/components/ai/exercise-assistant";
 import { surfaceSuggestions } from "@/lib/ai";
@@ -38,6 +39,9 @@ export default async function OwnerExerciseDetailPage({
   const detail = await getExerciseDetail(id, user.tenantId, tenant?.locale ?? "NL");
   if (!detail) notFound();
 
+  // AI-oefeningassistent: alleen als de AI-module beschikbaar is (flag + owner-toggle).
+  const aiEnabled = await isAiEnabled(user.tenantId);
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-1 py-2">
       <Link
@@ -50,7 +54,7 @@ export default async function OwnerExerciseDetailPage({
         detail={detail}
         alternatives={[]}
         assistantSlot={
-          tenant?.aiEnabled ? (
+          aiEnabled ? (
             <ExerciseAssistant
               ask={askExerciseAssistant.bind(null, detail.id)}
               suggestions={surfaceSuggestions("exercise")}

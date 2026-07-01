@@ -1,5 +1,7 @@
 import "server-only";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
+import { localeFromEnum } from "@/lib/i18n/config";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { notifyInApp } from "@/lib/notifications";
 import { loadTenantBranding } from "@/lib/email/branding";
@@ -29,8 +31,13 @@ export async function notifyMemberSchemaSubmitted(opts: {
       tenantId: opts.tenantId,
       permission: "schemas:manage",
       category: "schemas",
-      title: "Nieuw schema ter controle",
-      body: `${opts.memberName} heeft '${opts.schemaName}' ingediend ter controle.`,
+      render: (t) => ({
+        title: t("notifications.memberSchema.submitTitle"),
+        body: t("notifications.memberSchema.submitBody", {
+          member: opts.memberName,
+          schema: opts.schemaName,
+        }),
+      }),
       link: opts.reviewLink,
       excludeUserId: opts.excludeUserId,
     });
@@ -50,12 +57,22 @@ export async function notifyMemberSchemaReviewed(opts: {
   reviewNote?: string | null;
   viewUrl: string;
 }): Promise<void> {
-  const title = opts.approved ? "Je schema is goedgekeurd" : "Je schema vraagt aanpassingen";
+  const member = await prisma.user.findUnique({
+    where: { id: opts.memberId },
+    select: { locale: true },
+  });
+  const t = await getTranslations({ locale: localeFromEnum(member?.locale) });
+  const title = opts.approved
+    ? t("notifications.memberSchema.approvedTitle")
+    : t("notifications.memberSchema.rejectedTitle");
   const body = opts.approved
-    ? `'${opts.schemaName}' is goedgekeurd. Activeer het om ermee te trainen.`
-    : `Je coach vraagt om aanpassingen aan '${opts.schemaName}'.${
-        opts.reviewNote ? ` "${opts.reviewNote}"` : ""
-      }`;
+    ? t("notifications.memberSchema.approvedBody", { schema: opts.schemaName })
+    : opts.reviewNote
+      ? t("notifications.memberSchema.rejectedBodyNote", {
+          schema: opts.schemaName,
+          note: opts.reviewNote,
+        })
+      : t("notifications.memberSchema.rejectedBody", { schema: opts.schemaName });
 
   try {
     await notifyInApp({
@@ -82,6 +99,7 @@ export async function notifyMemberSchemaReviewed(opts: {
           approved: opts.approved,
           reviewNote: opts.reviewNote ?? null,
           viewUrl: opts.viewUrl,
+          locale: member?.locale,
         }),
         devLink: opts.viewUrl,
       });
@@ -109,7 +127,7 @@ export async function emailCoachesSchemaSubmitted(opts: {
         archivedAt: null,
         role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] },
       },
-      select: { id: true, email: true, name: true, permissions: true, role: true },
+      select: { id: true, email: true, name: true, permissions: true, role: true, locale: true },
     });
     const { getEffectivePermissions } = await import("@/lib/rbac");
     const branding = await loadTenantBranding(opts.tenantId);
@@ -128,6 +146,7 @@ export async function emailCoachesSchemaSubmitted(opts: {
           memberName: opts.memberName,
           schemaName: opts.schemaName,
           reviewUrl: opts.reviewUrl,
+          locale: c.locale,
         }),
         devLink: opts.reviewUrl,
       });

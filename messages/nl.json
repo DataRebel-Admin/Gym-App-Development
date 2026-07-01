@@ -602,6 +602,214 @@
     "filterDone": "Afgerond",
     "filterRejected": "Afgewezen"
   },
+  "achievements": {
+    "level": {
+      "0": "Nieuwkomer",
+      "1": "Beginner",
+      "2": "Doorzetter",
+      "3": "Gevorderd",
+      "4": "Toegewijd",
+      "5": "Expert",
+      "6": "Meester",
+      "7": "Legende"
+    },
+    "rarity": {
+      "bronze": "Brons",
+      "silver": "Zilver",
+      "gold": "Goud",
+      "platinum": "Platinum",
+      "diamond": "Diamant",
+      "legendary": "Legendarisch"
+    },
+    "unit": {
+      "trainingen": "trainingen",
+      "dagen": "dagen",
+      "kg": "kg",
+      "km": "km",
+      "uur": "uur",
+      "prs": "PR's",
+      "doelen": "doelen",
+      "metingen": "metingen"
+    },
+    "category": {
+      "training": { "label": "Training", "description": "Mijlpalen voor het aantal voltooide trainingen." },
+      "consistency": { "label": "Consistentie", "description": "Beloningen voor regelmatig en volhoudend trainen." },
+      "strength": { "label": "Kracht", "description": "Volume, records en krachtmijlpalen." },
+      "cardio": { "label": "Cardio", "description": "Afstand, tijd en duurmijlpalen." },
+      "goals": { "label": "Doelen", "description": "Persoonlijke doelen en lichaamssamenstelling." },
+      "community": { "label": "Community", "description": "Je profiel, eerste stappen en betrokkenheid." }
+    },
+    "passport": {
+      "memberSince": "Lid sinds",
+      "firstTraining": "Eerste training",
+      "longestStreak": "Langste streak",
+      "biggestVolume": "Totaal verplaatst",
+      "notYet": "Nog niet",
+      "days": "{count, plural, one {# dag} other {# dagen}}",
+      "months": "{count, plural, one {# maand} other {# maanden}}",
+      "years": "{count, plural, one {# jaar} other {# jaar}}",
+      "yearsMonths": "{years} jaar {months, plural, one {# maand} other {# maanden}}"
+    },
+    "notify": {
+      "inAppTitle": "🏆 Trofee behaald: {title}",
+      "pushTitle": "🏆 Nieuwe trofee behaald!",
+      "pushMulti": "Je hebt {count} nieuwe trofeeën behaald, waaronder '{title}'.",
+      "emailMulti": "{description} (en nog {count} andere {count, plural, one {trofee} other {trofeeën}})."
+    },
+    "items": {
+      "training_first": { "title": "Eerste training", "description": "Je allereerste training voltooid. Het begin van je reis." },
+      "training_count_10": { "title": "10 trainingen", "description": "Tien trainingen op de teller — de gewoonte groeit." },
+      "training_count_50": { "title": "50 trainingen", "description": "Vijftig trainingen voltooid. Serieuze toewijding." },
+      "training_count_100": { "title": "100 trainingen", "description": "Honderd trainingen — je bent een vaste waarde." },
+      "training_count_250": { "title": "250 trainingen", "description": "Tweehonderdvijftig trainingen. Indrukwekkend volhouden." },
+      "training_count_500": { "title": "500 trainingen", "description": "Vijfhonderd trainingen. Een ware veteraan." },
+      "consistency_streak_3": { "title": "3 dagen op rij", "description": "Drie dagen achter elkaar getraind." },
+      "consistency_streak_7": { "title": "7 dagen op rij", "description": "Een volle week elke dag getraind." },
+      "consistency_streak_30": { "title": "30 dagen op rij", "description": "Een maand lang dagelijkse discipline." },
+      "consistency_streak_100": { "title": "100 dagen op rij", "description": "Honderd dagen onafgebroken. Legendarische discipline." },
+      "consistency_member_365": { "title": "1 jaar actief", "description": "Een heel jaar lid van je sportschool." },
+      "strength_first_pr": { "title": "Eerste PR", "description": "Je eerste persoonlijk record gezet." },
+      "strength_volume_100": { "title": "100 kg verplaatst", "description": "In totaal 100 kg verplaatst." },
+      "strength_volume_1000": { "title": "1.000 kg verplaatst", "description": "Duizend kilo totaal volume getild." },
+      "strength_volume_10000": { "title": "10.000 kg verplaatst", "description": "Tienduizend kilo totaal — dat telt op." },
+      "strength_volume_100000": { "title": "100.000 kg verplaatst", "description": "Honderdduizend kilo totaal volume." },
+      "strength_volume_1000000": { "title": "1.000.000 kg verplaatst", "description": "Een miljoen kilo verplaatst. Ongeëvenaard." },
+      "strength_squat_100": { "title": "100 kg squat", "description": "Je eerste squat met 100 kg." },
+      "strength_deadlift_100": { "title": "100 kg deadlift", "description": "Je eerste deadlift met 100 kg." },
+      "cardio_first_5k": { "title": "Eerste 5 km", "description": "Vijf kilometer in één sessie." },
+      "cardio_run_10k": { "title": "10 km", "description": "Tien kilometer in één sessie." },
+      "cardio_distance_100k": { "title": "100 km totaal", "description": "Honderd kilometer aan cardio bij elkaar." },
+      "cardio_time_10h": { "title": "10 uur cardio", "description": "Tien uur cardio in totaal." },
+      "cardio_marathon_training": { "title": "Marathontraining", "description": "Een lange duurloop van 30 km voltooid." },
+      "goals_first": { "title": "Eerste doel behaald", "description": "Je eerste persoonlijke doel bereikt." },
+      "goals_count_3": { "title": "3 doelen behaald", "description": "Drie persoonlijke doelen bereikt." },
+      "goals_bodyfat_improved": { "title": "Vetpercentage verbeterd", "description": "Je vetpercentage is aantoonbaar gedaald." },
+      "goals_muscle_gained": { "title": "Spiermassa gegroeid", "description": "Je spiermassa is aantoonbaar toegenomen." },
+      "goals_first_measurement": { "title": "Eerste lichaamsmeting", "description": "Je eerste lichaamsmeting voltooid." },
+      "community_profile_complete": { "title": "Profiel compleet", "description": "Je profiel volledig ingevuld." },
+      "community_first_schema_done": { "title": "Eerste schema afgerond", "description": "Je eerste trainingsschema volledig doorlopen." },
+      "community_first_measurement": { "title": "Eerste meting toegevoegd", "description": "Je eerste meting geregistreerd." }
+    }
+  },
+  "pdf": {
+    "trainingSchedule": "Trainingsschema",
+    "for": "Voor",
+    "trainer": "Trainer",
+    "created": "Aangemaakt",
+    "version": "Versie",
+    "colExercise": "Oefening",
+    "colSets": "Sets",
+    "colReps": "Reps",
+    "colWeight": "Gewicht",
+    "colRest": "Rust",
+    "colTempo": "Tempo",
+    "colNotes": "Notities",
+    "continued": "(vervolg)",
+    "notesSection": "Notities",
+    "signatureTrainer": "Handtekening trainer",
+    "signatureMember": "Handtekening sporter",
+    "onlineVersion": "Online versie",
+    "safety": "Bij twijfel: raadpleeg altijd een professional / trainer.",
+    "date": "Datum",
+    "createdOn": "Aangemaakt op {date}",
+    "pageOf": "Pagina {page} van {total}"
+  },
+  "notifications": {
+    "schemaAssigned": {
+      "title": "Nieuw trainingsschema",
+      "pushBody": "Er staat een nieuw trainingsschema voor je klaar.",
+      "introMessage": "{message} — je traint nu met '{schema}'.",
+      "introDefault": "Je trainer heeft '{schema}' voor je klaargezet."
+    },
+    "schemaRequest": {
+      "newTitle": "Nieuwe schema-aanvraag",
+      "newBody": "{member} heeft een nieuw trainingsschema aangevraagd.",
+      "receivedTitle": "Aanvraag ontvangen",
+      "receivedBody": "Je trainer heeft je schema-aanvraag ontvangen. Je hoort het zodra er een update is.",
+      "statusTitle": "Update over je schema-aanvraag",
+      "statusBody": "Nieuwe status: {status}."
+    },
+    "memberSchema": {
+      "submitTitle": "Nieuw schema ter controle",
+      "submitBody": "{member} heeft '{schema}' ingediend ter controle.",
+      "approvedTitle": "Je schema is goedgekeurd",
+      "approvedBody": "'{schema}' is goedgekeurd. Activeer het om ermee te trainen.",
+      "rejectedTitle": "Je schema vraagt aanpassingen",
+      "rejectedBody": "Je coach vraagt om aanpassingen aan '{schema}'.",
+      "rejectedBodyNote": "Je coach vraagt om aanpassingen aan '{schema}'. \"{note}\""
+    },
+    "newClass": {
+      "title": "Planning gewijzigd",
+      "body": "Nieuwe les ingepland: {name}."
+    },
+    "maintenance": {
+      "dueTitle": "Onderhoud nu nodig",
+      "dueBody": "'{name}' heeft nu onderhoud nodig. Plan het onderhoud zo snel mogelijk in.",
+      "warnTitle": "Onderhoud bijna nodig",
+      "warnBody": "'{name}' nadert een onderhoudslimiet. Houd deze machine in de gaten.",
+      "performedTitle": "Onderhoud uitgevoerd",
+      "performedBody": "Het onderhoud aan '{name}' is uitgevoerd en de machine is weer actief.",
+      "outOfServiceTitle": "Machine buiten gebruik",
+      "outOfServiceBody": "'{name}' is buiten gebruik gesteld.",
+      "reactivatedTitle": "Machine weer actief",
+      "reactivatedBody": "'{name}' is weer in gebruik genomen.",
+      "inMaintenanceTitle": "Machine in onderhoud",
+      "inMaintenanceBody": "'{name}' staat nu in onderhoud."
+    }
+  },
+  "email": {
+    "greeting": "Hoi {name},",
+    "greetingAnon": "Hoi,",
+    "schemaRequestReceived": {
+      "reason": "Je ontvangt deze e-mail omdat een lid van {gym} een trainingsschema heeft aangevraagd.",
+      "heading": "Nieuwe schema-aanvraag",
+      "body": "{member} heeft een nieuw trainingsschema aangevraagd. Doel: {goal}.",
+      "btn": "Aanvraag bekijken",
+      "subject": "Schema-aanvraag van {member}",
+      "preheader": "{member} vraagt een trainingsschema aan ({goal})."
+    },
+    "memberSchemaSubmitted": {
+      "reason": "Je ontvangt deze e-mail omdat een lid van {gym} zelf een trainingsschema heeft ingediend ter controle.",
+      "heading": "Schema ter controle",
+      "body": "{member} heeft zelf een trainingsschema samengesteld en ingediend ter controle: {schema}. Bekijk het, pas het eventueel aan en keur het goed of af.",
+      "btn": "Schema bekijken",
+      "subject": "Schema ter controle van {member}",
+      "preheader": "{member} diende '{schema}' in ter controle."
+    },
+    "memberSchemaReviewed": {
+      "reason": "Je ontvangt deze e-mail omdat je coach bij {gym} je zelf-gebouwde schema heeft beoordeeld.",
+      "headingApproved": "Je schema is goedgekeurd",
+      "headingRejected": "Je schema vraagt aanpassingen",
+      "bodyApproved": "Je zelf-gebouwde schema {schema} is goedgekeurd. Activeer het om ermee te gaan trainen.",
+      "bodyRejected": "Je coach vraagt om aanpassingen aan je schema {schema}.",
+      "btnApproved": "Schema activeren",
+      "btnRejected": "Schema aanpassen",
+      "subjectApproved": "Goedgekeurd: {schema}",
+      "subjectRejected": "Aanpassingen gevraagd: {schema}",
+      "preheaderApproved": "{schema} is goedgekeurd.",
+      "preheaderRejected": "{schema} vraagt om aanpassingen."
+    },
+    "schemaRequestStatus": {
+      "reason": "Je ontvangt deze e-mail omdat de status van je schema-aanvraag bij {gym} is gewijzigd.",
+      "heading": "Update over je schema-aanvraag",
+      "body": "De status van je trainingsschema-aanvraag is nu: {status}.",
+      "btn": "Bekijk je aanvraag",
+      "subject": "Je schema-aanvraag: {status}",
+      "preheader": "Nieuwe status: {status}."
+    },
+    "achievementEarned": {
+      "reason": "Je ontvangt deze e-mail omdat je een nieuwe trofee hebt behaald bij {gym}.",
+      "heading": "🏆 Nieuwe trofee behaald!",
+      "body": "Gefeliciteerd! Je hebt de trofee {title} ({rarity}) behaald.",
+      "btn": "Bekijk je trofeeën",
+      "subject": "🏆 Trofee behaald: {title}",
+      "preheader": "Je hebt \"{title}\" behaald — goed bezig!"
+    },
+    "maintenanceAlert": {
+      "reason": "Je ontvangt deze e-mail omdat je bij {gym} verantwoordelijk bent voor het onderhoud van apparatuur.",
+      "btn": "Onderhoud bekijken"
+    }
+  },
   "common": {
     "appName": "GymRebel",
     "save": "Opslaan",

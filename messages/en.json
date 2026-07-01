@@ -602,6 +602,214 @@
     "filterDone": "Completed",
     "filterRejected": "Rejected"
   },
+  "achievements": {
+    "level": {
+      "0": "Newcomer",
+      "1": "Beginner",
+      "2": "Persister",
+      "3": "Advanced",
+      "4": "Dedicated",
+      "5": "Expert",
+      "6": "Master",
+      "7": "Legend"
+    },
+    "rarity": {
+      "bronze": "Bronze",
+      "silver": "Silver",
+      "gold": "Gold",
+      "platinum": "Platinum",
+      "diamond": "Diamond",
+      "legendary": "Legendary"
+    },
+    "unit": {
+      "trainingen": "workouts",
+      "dagen": "days",
+      "kg": "kg",
+      "km": "km",
+      "uur": "hrs",
+      "prs": "PRs",
+      "doelen": "goals",
+      "metingen": "measurements"
+    },
+    "category": {
+      "training": { "label": "Training", "description": "Milestones for the number of completed workouts." },
+      "consistency": { "label": "Consistency", "description": "Rewards for training regularly and persistently." },
+      "strength": { "label": "Strength", "description": "Volume, records and strength milestones." },
+      "cardio": { "label": "Cardio", "description": "Distance, time and endurance milestones." },
+      "goals": { "label": "Goals", "description": "Personal goals and body composition." },
+      "community": { "label": "Community", "description": "Your profile, first steps and engagement." }
+    },
+    "passport": {
+      "memberSince": "Member since",
+      "firstTraining": "First workout",
+      "longestStreak": "Longest streak",
+      "biggestVolume": "Total moved",
+      "notYet": "Not yet",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "months": "{count, plural, one {# month} other {# months}}",
+      "years": "{count, plural, one {# year} other {# years}}",
+      "yearsMonths": "{years}y {months, plural, one {# month} other {# months}}"
+    },
+    "notify": {
+      "inAppTitle": "🏆 Trophy earned: {title}",
+      "pushTitle": "🏆 New trophy earned!",
+      "pushMulti": "You earned {count} new trophies, including '{title}'.",
+      "emailMulti": "{description} (and {count} other {count, plural, one {trophy} other {trophies}})."
+    },
+    "items": {
+      "training_first": { "title": "First workout", "description": "You completed your very first workout. The start of your journey." },
+      "training_count_10": { "title": "10 workouts", "description": "Ten workouts on the board — the habit is growing." },
+      "training_count_50": { "title": "50 workouts", "description": "Fifty workouts done. Serious dedication." },
+      "training_count_100": { "title": "100 workouts", "description": "A hundred workouts — you're a regular now." },
+      "training_count_250": { "title": "250 workouts", "description": "Two hundred fifty workouts. Impressive perseverance." },
+      "training_count_500": { "title": "500 workouts", "description": "Five hundred workouts. A true veteran." },
+      "consistency_streak_3": { "title": "3 days in a row", "description": "Trained three days in a row." },
+      "consistency_streak_7": { "title": "7 days in a row", "description": "Trained every day for a full week." },
+      "consistency_streak_30": { "title": "30 days in a row", "description": "A whole month of daily discipline." },
+      "consistency_streak_100": { "title": "100 days in a row", "description": "A hundred days unbroken. Legendary discipline." },
+      "consistency_member_365": { "title": "1 year active", "description": "A whole year as a member of your gym." },
+      "strength_first_pr": { "title": "First PR", "description": "You set your first personal record." },
+      "strength_volume_100": { "title": "100 kg moved", "description": "Moved 100 kg in total." },
+      "strength_volume_1000": { "title": "1,000 kg moved", "description": "Lifted a thousand kilos of total volume." },
+      "strength_volume_10000": { "title": "10,000 kg moved", "description": "Ten thousand kilos total — it adds up." },
+      "strength_volume_100000": { "title": "100,000 kg moved", "description": "A hundred thousand kilos of total volume." },
+      "strength_volume_1000000": { "title": "1,000,000 kg moved", "description": "A million kilos moved. Unmatched." },
+      "strength_squat_100": { "title": "100 kg squat", "description": "Your first squat with 100 kg." },
+      "strength_deadlift_100": { "title": "100 kg deadlift", "description": "Your first deadlift with 100 kg." },
+      "cardio_first_5k": { "title": "First 5 km", "description": "Five kilometers in one session." },
+      "cardio_run_10k": { "title": "10 km", "description": "Ten kilometers in one session." },
+      "cardio_distance_100k": { "title": "100 km total", "description": "A hundred kilometers of cardio combined." },
+      "cardio_time_10h": { "title": "10 hours cardio", "description": "Ten hours of cardio in total." },
+      "cardio_marathon_training": { "title": "Marathon training", "description": "Completed a long 30 km endurance run." },
+      "goals_first": { "title": "First goal reached", "description": "You reached your first personal goal." },
+      "goals_count_3": { "title": "3 goals reached", "description": "Reached three personal goals." },
+      "goals_bodyfat_improved": { "title": "Body fat improved", "description": "Your body fat percentage has measurably dropped." },
+      "goals_muscle_gained": { "title": "Muscle gained", "description": "Your muscle mass has measurably increased." },
+      "goals_first_measurement": { "title": "First body measurement", "description": "You completed your first body measurement." },
+      "community_profile_complete": { "title": "Profile complete", "description": "You filled in your profile completely." },
+      "community_first_schema_done": { "title": "First schedule completed", "description": "You completed your first training schedule in full." },
+      "community_first_measurement": { "title": "First measurement added", "description": "You logged your first measurement." }
+    }
+  },
+  "pdf": {
+    "trainingSchedule": "Training schedule",
+    "for": "For",
+    "trainer": "Trainer",
+    "created": "Created",
+    "version": "Version",
+    "colExercise": "Exercise",
+    "colSets": "Sets",
+    "colReps": "Reps",
+    "colWeight": "Weight",
+    "colRest": "Rest",
+    "colTempo": "Tempo",
+    "colNotes": "Notes",
+    "continued": "(continued)",
+    "notesSection": "Notes",
+    "signatureTrainer": "Trainer's signature",
+    "signatureMember": "Athlete's signature",
+    "onlineVersion": "Online version",
+    "safety": "When in doubt, always consult a professional / trainer.",
+    "date": "Date",
+    "createdOn": "Created on {date}",
+    "pageOf": "Page {page} of {total}"
+  },
+  "notifications": {
+    "schemaAssigned": {
+      "title": "New training schedule",
+      "pushBody": "A new training schedule is ready for you.",
+      "introMessage": "{message} — you're now training with '{schema}'.",
+      "introDefault": "Your trainer has set up '{schema}' for you."
+    },
+    "schemaRequest": {
+      "newTitle": "New schedule request",
+      "newBody": "{member} has requested a new training schedule.",
+      "receivedTitle": "Request received",
+      "receivedBody": "Your trainer has received your schedule request. You'll hear from us as soon as there's an update.",
+      "statusTitle": "Update on your schedule request",
+      "statusBody": "New status: {status}."
+    },
+    "memberSchema": {
+      "submitTitle": "New schedule to review",
+      "submitBody": "{member} submitted '{schema}' for review.",
+      "approvedTitle": "Your schedule was approved",
+      "approvedBody": "'{schema}' has been approved. Activate it to start training.",
+      "rejectedTitle": "Your schedule needs changes",
+      "rejectedBody": "Your coach is asking for changes to '{schema}'.",
+      "rejectedBodyNote": "Your coach is asking for changes to '{schema}'. \"{note}\""
+    },
+    "newClass": {
+      "title": "Schedule updated",
+      "body": "New class scheduled: {name}."
+    },
+    "maintenance": {
+      "dueTitle": "Maintenance needed now",
+      "dueBody": "'{name}' needs maintenance now. Please schedule it as soon as possible.",
+      "warnTitle": "Maintenance due soon",
+      "warnBody": "'{name}' is nearing a maintenance limit. Keep an eye on this machine.",
+      "performedTitle": "Maintenance completed",
+      "performedBody": "Maintenance on '{name}' is done and the machine is active again.",
+      "outOfServiceTitle": "Machine out of service",
+      "outOfServiceBody": "'{name}' has been taken out of service.",
+      "reactivatedTitle": "Machine active again",
+      "reactivatedBody": "'{name}' is back in use.",
+      "inMaintenanceTitle": "Machine in maintenance",
+      "inMaintenanceBody": "'{name}' is now in maintenance."
+    }
+  },
+  "email": {
+    "greeting": "Hi {name},",
+    "greetingAnon": "Hi,",
+    "schemaRequestReceived": {
+      "reason": "You're receiving this email because a member of {gym} requested a training schedule.",
+      "heading": "New schedule request",
+      "body": "{member} requested a new training schedule. Goal: {goal}.",
+      "btn": "View request",
+      "subject": "Schedule request from {member}",
+      "preheader": "{member} is requesting a training schedule ({goal})."
+    },
+    "memberSchemaSubmitted": {
+      "reason": "You're receiving this email because a member of {gym} submitted their own training schedule for review.",
+      "heading": "Schedule to review",
+      "body": "{member} built their own training schedule and submitted it for review: {schema}. Review it, adjust if needed and approve or reject it.",
+      "btn": "View schedule",
+      "subject": "Schedule to review from {member}",
+      "preheader": "{member} submitted '{schema}' for review."
+    },
+    "memberSchemaReviewed": {
+      "reason": "You're receiving this email because your coach at {gym} reviewed your self-built schedule.",
+      "headingApproved": "Your schedule was approved",
+      "headingRejected": "Your schedule needs changes",
+      "bodyApproved": "Your self-built schedule {schema} has been approved. Activate it to start training.",
+      "bodyRejected": "Your coach is asking for changes to your schedule {schema}.",
+      "btnApproved": "Activate schedule",
+      "btnRejected": "Adjust schedule",
+      "subjectApproved": "Approved: {schema}",
+      "subjectRejected": "Changes requested: {schema}",
+      "preheaderApproved": "{schema} has been approved.",
+      "preheaderRejected": "{schema} needs changes."
+    },
+    "schemaRequestStatus": {
+      "reason": "You're receiving this email because the status of your schedule request at {gym} changed.",
+      "heading": "Update on your schedule request",
+      "body": "The status of your training schedule request is now: {status}.",
+      "btn": "View your request",
+      "subject": "Your schedule request: {status}",
+      "preheader": "New status: {status}."
+    },
+    "achievementEarned": {
+      "reason": "You're receiving this email because you earned a new trophy at {gym}.",
+      "heading": "🏆 New trophy earned!",
+      "body": "Congratulations! You earned the trophy {title} ({rarity}).",
+      "btn": "View your trophies",
+      "subject": "🏆 Trophy earned: {title}",
+      "preheader": "You earned \"{title}\" — nice work!"
+    },
+    "maintenanceAlert": {
+      "reason": "You're receiving this email because you're responsible for equipment maintenance at {gym}.",
+      "btn": "View maintenance"
+    }
+  },
   "common": {
     "appName": "GymRebel",
     "save": "Save",

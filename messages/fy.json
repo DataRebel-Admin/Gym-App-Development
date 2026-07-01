@@ -69,7 +69,7 @@
       "yourProgress": "Dyn fuortgong",
       "checkedOff": "{completed}/{total} oefeningen ôffinkt",
       "tip": "Tip: ",
-      "explain": "Utlis"
+      "explain": "Útlis"
     },
     "active": {
       "done": "klear",
@@ -79,8 +79,8 @@
       "target": "doel: {sets} × {reps}",
       "targetWeight": " · {weight} kg",
       "targetTempo": " · tempo {tempo}",
-      "explanation": "utlis",
-      "viewExplanationOf": "Besjoch utlis fan {name}",
+      "explanation": "útlis",
+      "viewExplanationOf": "Besjoch útlis fan {name}",
       "lastTime": "Foarige kear ({date})",
       "addSet": "Set tafoegje",
       "removeSet": "Set {number} fuortsmite",
@@ -90,7 +90,7 @@
       "unitUp": "{unit} omheech",
       "kg": "kg",
       "reps": "reps",
-      "notePlaceholder": "Opmerking (bgl. field swier, let op foarm)…",
+      "notePlaceholder": "Opmerking (bgl. fielde swier, let op foarm)…",
       "addNote": "＋ Opmerking tafoegje",
       "restDone": "Rêst klear 💪",
       "rest": "Rêst",
@@ -140,7 +140,7 @@
     "exercises": {
       "metaTitle": "Oefeningen",
       "title": "Oefeningen",
-      "subtitle": "Besjoch utlis, animaasjes en stappenplan fan elke oefening yn dyn sportskoalle.",
+      "subtitle": "Besjoch útlis, animaasjes en it stappeplan fan elke oefening yn dyn sportskoalle.",
       "searchPlaceholder": "Sykje op namme, spier of materiaal…",
       "favorites": "Favoriten",
       "favoriteToggle": "Markearje as favoryt",
@@ -153,7 +153,7 @@
     },
     "history": {
       "metaTitle": "Skiednis",
-      "title": "Histoarje",
+      "title": "Skiednis",
       "subtitle": "Dyn fuortgong yn sifers.",
       "emptyTitle": "Noch gjin trainingen",
       "emptyDesc": "Sadree'st du dyn earste training logst, ferskine hjir dyn records, streak en fuortgongsgrafiken.",
@@ -295,7 +295,7 @@
       "sessionsCount": "{count} sesjes",
       "noActivity": "Noch gjin aktiviteit",
       "recentActivityDesc": "Behearaksjes ferskine hjir sadree't se plakfine.",
-      "someone": "Ien",
+      "someone": "Immen",
       "allActivity": "Alle aktiviteit →",
       "quickMachineAdd": "Masine tafoegje",
       "quickExercises": "Oefeningen",
@@ -369,7 +369,7 @@
       "myMembers": "Myn leden",
       "addMember": "Nij lid tafoegje",
       "bulkImport": "📥 Bulk ymportearje",
-      "pendingInvites": "Utsteande útnûgings",
+      "pendingInvites": "Útsteande útnûgings",
       "openCount": "{count} iepensteand",
       "search": "Sykje",
       "searchPlaceholder": "namme of e-mail…",
@@ -396,7 +396,7 @@
       "roleStaff": "Meiwurker",
       "roleMember": "Lid",
       "ok": "OK",
-      "invite": "Utnûgje",
+      "invite": "Útnûgje",
       "resend": "Opnij",
       "restore": "Werstelle",
       "archive": "Argivearje",
@@ -404,7 +404,7 @@
       "activate": "Aktivearje",
       "remove": "Fuortsmite",
       "removeTitle": "Lid fuortsmite?",
-      "removeMessage": "Wist wis dat'st {name} definityf fuortsmite wolst? Dit kin net ûngedien makke wurde — oerweeg argivearjen.",
+      "removeMessage": "Wist wis dat'st {name} definityf fuortsmite wolst? Dit kin net ûngedien makke wurde — oerweagje argivearjen.",
       "you": "(do)",
       "statusGEACTIVEERD": "Aktivearre",
       "statusVERZONDEN": "Ferstjoerd",
@@ -440,7 +440,7 @@
       "colTotalReps": "Totaal reps",
       "colTrend": "Trend",
       "noMachines": "Gjin masines.",
-      "footnote": "Trend ferlyket de keazen perioade mei de foargeande perioade fan likense lingte. Sifers fernije elke 5 minuten."
+      "footnote": "Trend ferlyket de keazen perioade mei de foargeande perioade fan deselde lingte. Sifers fernije elke 5 minuten."
     },
     "rooster": {
       "metaTitle": "Roaster",
@@ -466,7 +466,7 @@
     },
     "exercises": {
       "metaTitle": "Oefeningen",
-      "title": "Oefeningebibleteek",
+      "title": "Oefeningebiblioteek",
       "desc": "Kies standertoefeningen út de sintrale katalogus of behear dyn eigen oefeningen — beide binne beskikber yn dyn trainingsskema's.",
       "tabStandard": "Standert oefeningen",
       "tabCustom": "Eigen oefeningen",
@@ -555,12 +555,12 @@
       "inviteStaff": "Meiwurker útnûgje",
       "emailLabel": "E-mailadres",
       "emailPlaceholder": "coach@sportskoalle.nl",
-      "sendInvite": "Utnûging stjoere",
+      "sendInvite": "Útnûging stjoere",
       "inviteHint": "De meiwurker kriget standert de deistige coach-rjochten. Pas se hjirûnder per persoan oan.",
-      "pendingInvites": "Utsteande útnûgings",
+      "pendingInvites": "Útsteande útnûgings",
       "noStaff": "Noch gjin meiwurkers. Nûgje dyn earste coach út mei it formulier hjirboppe.",
       "deactivated": "deaktivearre",
-      "invite": "Utnûgje",
+      "invite": "Útnûgje",
       "resend": "Opnij",
       "deactivate": "Deaktivearje",
       "activate": "Aktivearje",
@@ -602,6 +602,214 @@
     "filterDone": "Ôfrûne",
     "filterRejected": "Ôfwiisd"
   },
+  "achievements": {
+    "level": {
+      "0": "Nijkommer",
+      "1": "Begjinner",
+      "2": "Trochsetter",
+      "3": "Fordere",
+      "4": "Tawijd",
+      "5": "Expert",
+      "6": "Master",
+      "7": "Leginde"
+    },
+    "rarity": {
+      "bronze": "Brûns",
+      "silver": "Sulver",
+      "gold": "Goud",
+      "platinum": "Platina",
+      "diamond": "Diamant",
+      "legendary": "Legindarysk"
+    },
+    "unit": {
+      "trainingen": "trainingen",
+      "dagen": "dagen",
+      "kg": "kg",
+      "km": "km",
+      "uur": "oere",
+      "prs": "PR's",
+      "doelen": "doelen",
+      "metingen": "mjittingen"
+    },
+    "category": {
+      "training": { "label": "Training", "description": "Mylpeallen foar it oantal foltôge trainingen." },
+      "consistency": { "label": "Konsistinsje", "description": "Beleannings foar regelmjittich en folhâldend trainen." },
+      "strength": { "label": "Krêft", "description": "Folume, records en krêftmylpeallen." },
+      "cardio": { "label": "Cardio", "description": "Ôfstân, tiid en dûrmylpeallen." },
+      "goals": { "label": "Doelen", "description": "Persoanlike doelen en lichemsgearstalling." },
+      "community": { "label": "Community", "description": "Dyn profyl, earste stappen en belutsenens." }
+    },
+    "passport": {
+      "memberSince": "Lid sûnt",
+      "firstTraining": "Earste training",
+      "longestStreak": "Langste streak",
+      "biggestVolume": "Yn totaal ferpleatst",
+      "notYet": "Noch net",
+      "days": "{count, plural, one {# dei} other {# dagen}}",
+      "months": "{count, plural, one {# moanne} other {# moannen}}",
+      "years": "{count, plural, one {# jier} other {# jier}}",
+      "yearsMonths": "{years} jier {months, plural, one {# moanne} other {# moannen}}"
+    },
+    "notify": {
+      "inAppTitle": "🏆 Trofee helle: {title}",
+      "pushTitle": "🏆 Nije trofee helle!",
+      "pushMulti": "Do hast {count} nije trofeeën helle, wêrûnder '{title}'.",
+      "emailMulti": "{description} (en noch {count} oare {count, plural, one {trofee} other {trofeeën}})."
+    },
+    "items": {
+      "training_first": { "title": "Earste training", "description": "Dyn alderearste training dien. It begjin fan dyn reis." },
+      "training_count_10": { "title": "10 trainingen", "description": "Tsien trainingen op de teller — de gewoante groeit." },
+      "training_count_50": { "title": "50 trainingen", "description": "Fyftich trainingen dien. Serieuze tawijing." },
+      "training_count_100": { "title": "100 trainingen", "description": "Hûndert trainingen — do bist in fêste wearde." },
+      "training_count_250": { "title": "250 trainingen", "description": "Twahûndertfyftich trainingen. Yndrukwekkend trochsette." },
+      "training_count_500": { "title": "500 trainingen", "description": "Fiifhûndert trainingen. In wiere feteraan." },
+      "consistency_streak_3": { "title": "3 dagen op rige", "description": "Trije dagen efter elkoar traind." },
+      "consistency_streak_7": { "title": "7 dagen op rige", "description": "In folle wike elke dei traind." },
+      "consistency_streak_30": { "title": "30 dagen op rige", "description": "In moanne lang deistige dissipline." },
+      "consistency_streak_100": { "title": "100 dagen op rige", "description": "Hûndert dagen efter elkoar. Legindaryske dissipline." },
+      "consistency_member_365": { "title": "1 jier aktyf", "description": "In hiel jier lid fan dyn sportskoalle." },
+      "strength_first_pr": { "title": "Earste PR", "description": "Dyn earste persoanlike record set." },
+      "strength_volume_100": { "title": "100 kg ferpleatst", "description": "Yn totaal 100 kg ferpleatst." },
+      "strength_volume_1000": { "title": "1.000 kg ferpleatst", "description": "Tûzen kilo totaal folume tild." },
+      "strength_volume_10000": { "title": "10.000 kg ferpleatst", "description": "Tsientûzen kilo totaal — dat rint op." },
+      "strength_volume_100000": { "title": "100.000 kg ferpleatst", "description": "Hûnderttûzen kilo totaal folume." },
+      "strength_volume_1000000": { "title": "1.000.000 kg ferpleatst", "description": "In miljoen kilo ferpleatst. Ûngeëvenearre." },
+      "strength_squat_100": { "title": "100 kg squat", "description": "Dyn earste squat mei 100 kg." },
+      "strength_deadlift_100": { "title": "100 kg deadlift", "description": "Dyn earste deadlift mei 100 kg." },
+      "cardio_first_5k": { "title": "Earste 5 km", "description": "Fiif kilometer yn ien sesje." },
+      "cardio_run_10k": { "title": "10 km", "description": "Tsien kilometer yn ien sesje." },
+      "cardio_distance_100k": { "title": "100 km totaal", "description": "Hûndert kilometer oan cardio byelkoar." },
+      "cardio_time_10h": { "title": "10 oere cardio", "description": "Tsien oere cardio yn totaal." },
+      "cardio_marathon_training": { "title": "Maratontraining", "description": "In lange dûrrin fan 30 km dien." },
+      "goals_first": { "title": "Earste doel helle", "description": "Dyn earste persoanlike doel berikt." },
+      "goals_count_3": { "title": "3 doelen helle", "description": "Trije persoanlike doelen berikt." },
+      "goals_bodyfat_improved": { "title": "Fetpersintaazje ferbettere", "description": "Dyn fetpersintaazje is oantoanber sakke." },
+      "goals_muscle_gained": { "title": "Spiermassa groeid", "description": "Dyn spiermassa is oantoanber tanommen." },
+      "goals_first_measurement": { "title": "Earste lichemsmjitting", "description": "Dyn earste lichemsmjitting dien." },
+      "community_profile_complete": { "title": "Profyl kompleet", "description": "Dyn profyl folslein ynfolle." },
+      "community_first_schema_done": { "title": "Earste skema ôfrûne", "description": "Dyn earste trainingsskema folslein trochrûn." },
+      "community_first_measurement": { "title": "Earste mjitting tafoege", "description": "Dyn earste mjitting registrearre." }
+    }
+  },
+  "pdf": {
+    "trainingSchedule": "Trainingsskema",
+    "for": "Foar",
+    "trainer": "Trainer",
+    "created": "Oanmakke",
+    "version": "Ferzje",
+    "colExercise": "Oefening",
+    "colSets": "Sets",
+    "colReps": "Reps",
+    "colWeight": "Gewicht",
+    "colRest": "Rêst",
+    "colTempo": "Tempo",
+    "colNotes": "Notysjes",
+    "continued": "(ferfolch)",
+    "notesSection": "Notysjes",
+    "signatureTrainer": "Hantekening trainer",
+    "signatureMember": "Hantekening sporter",
+    "onlineVersion": "Online ferzje",
+    "safety": "By twivel: rieplachtsje altyd in profesjonal / trainer.",
+    "date": "Datum",
+    "createdOn": "Oanmakke op {date}",
+    "pageOf": "Side {page} fan {total}"
+  },
+  "notifications": {
+    "schemaAssigned": {
+      "title": "Nij trainingsskema",
+      "pushBody": "Der stiet in nij trainingsskema foar dy klear.",
+      "introMessage": "{message} — do trainest no mei '{schema}'.",
+      "introDefault": "Dyn trainer hat '{schema}' foar dy klearset."
+    },
+    "schemaRequest": {
+      "newTitle": "Nije skema-oanfraach",
+      "newBody": "{member} hat in nij trainingsskema oanfrege.",
+      "receivedTitle": "Oanfraach ûntfongen",
+      "receivedBody": "Dyn trainer hat dyn skema-oanfraach ûntfongen. Do hearst it sadree't der in update is.",
+      "statusTitle": "Update oer dyn skema-oanfraach",
+      "statusBody": "Nije status: {status}."
+    },
+    "memberSchema": {
+      "submitTitle": "Nij skema om te kontrolearjen",
+      "submitBody": "{member} hat '{schema}' yntsjinne om te kontrolearjen.",
+      "approvedTitle": "Dyn skema is goedkard",
+      "approvedBody": "'{schema}' is goedkard. Aktivearje it om dermei te trainen.",
+      "rejectedTitle": "Dyn skema freget oanpassings",
+      "rejectedBody": "Dyn coach freget om oanpassings oan '{schema}'.",
+      "rejectedBodyNote": "Dyn coach freget om oanpassings oan '{schema}'. \"{note}\""
+    },
+    "newClass": {
+      "title": "Planning feroare",
+      "body": "Nije les ynpland: {name}."
+    },
+    "maintenance": {
+      "dueTitle": "Underhâld no nedich",
+      "dueBody": "'{name}' hat no ûnderhâld nedich. Plan it ûnderhâld sa gau mooglik yn.",
+      "warnTitle": "Underhâld hast nedich",
+      "warnBody": "'{name}' komt by in ûnderhâldslimyt. Hâld dizze masine yn 'e gaten.",
+      "performedTitle": "Underhâld útfierd",
+      "performedBody": "It ûnderhâld oan '{name}' is dien en de masine is wer aktyf.",
+      "outOfServiceTitle": "Masine bûten gebrûk",
+      "outOfServiceBody": "'{name}' is bûten gebrûk steld.",
+      "reactivatedTitle": "Masine wer aktyf",
+      "reactivatedBody": "'{name}' is wer yn gebrûk nommen.",
+      "inMaintenanceTitle": "Masine yn ûnderhâld",
+      "inMaintenanceBody": "'{name}' stiet no yn ûnderhâld."
+    }
+  },
+  "email": {
+    "greeting": "Hoi {name},",
+    "greetingAnon": "Hoi,",
+    "schemaRequestReceived": {
+      "reason": "Do krigest dizze e-mail omdat in lid fan {gym} in trainingsskema oanfrege hat.",
+      "heading": "Nije skema-oanfraach",
+      "body": "{member} hat in nij trainingsskema oanfrege. Doel: {goal}.",
+      "btn": "Oanfraach besjen",
+      "subject": "Skema-oanfraach fan {member}",
+      "preheader": "{member} freget in trainingsskema oan ({goal})."
+    },
+    "memberSchemaSubmitted": {
+      "reason": "Do krigest dizze e-mail omdat in lid fan {gym} sels in trainingsskema yntsjinne hat om te kontrolearjen.",
+      "heading": "Skema om te kontrolearjen",
+      "body": "{member} hat sels in trainingsskema gearstald en yntsjinne om te kontrolearjen: {schema}. Besjoch it, pas it eventueel oan en kar it goed of ôf.",
+      "btn": "Skema besjen",
+      "subject": "Skema om te kontrolearjen fan {member}",
+      "preheader": "{member} tsjinne '{schema}' yn om te kontrolearjen."
+    },
+    "memberSchemaReviewed": {
+      "reason": "Do krigest dizze e-mail omdat dyn coach by {gym} dyn sels-boude skema beoardiele hat.",
+      "headingApproved": "Dyn skema is goedkard",
+      "headingRejected": "Dyn skema freget oanpassings",
+      "bodyApproved": "Dyn sels-boude skema {schema} is goedkard. Aktivearje it om dermei te trainen.",
+      "bodyRejected": "Dyn coach freget om oanpassings oan dyn skema {schema}.",
+      "btnApproved": "Skema aktivearje",
+      "btnRejected": "Skema oanpasse",
+      "subjectApproved": "Goedkard: {schema}",
+      "subjectRejected": "Oanpassings frege: {schema}",
+      "preheaderApproved": "{schema} is goedkard.",
+      "preheaderRejected": "{schema} freget om oanpassings."
+    },
+    "schemaRequestStatus": {
+      "reason": "Do krigest dizze e-mail omdat de status fan dyn skema-oanfraach by {gym} feroare is.",
+      "heading": "Update oer dyn skema-oanfraach",
+      "body": "De status fan dyn trainingsskema-oanfraach is no: {status}.",
+      "btn": "Besjoch dyn oanfraach",
+      "subject": "Dyn skema-oanfraach: {status}",
+      "preheader": "Nije status: {status}."
+    },
+    "achievementEarned": {
+      "reason": "Do krigest dizze e-mail omdat do in nije trofee helle hast by {gym}.",
+      "heading": "🏆 Nije trofee helle!",
+      "body": "Lokwinske! Do hast de trofee {title} ({rarity}) helle.",
+      "btn": "Besjoch dyn trofeeën",
+      "subject": "🏆 Trofee helle: {title}",
+      "preheader": "Do hast \"{title}\" helle — goed dwaande!"
+    },
+    "maintenanceAlert": {
+      "reason": "Do krigest dizze e-mail omdat do by {gym} ferantwurdlik bist foar it ûnderhâld fan apparatuer.",
+      "btn": "Underhâld besjen"
+    }
+  },
   "common": {
     "appName": "GymRebel",
     "save": "Bewarje",
@@ -635,7 +843,7 @@
       "exercise": "Oefening",
       "scan": "Scan",
       "rooster": "Roaster",
-      "history": "Histoarje"
+      "history": "Skiednis"
     },
     "owner": {
       "dashboard": "Dashboard",
@@ -772,7 +980,7 @@
       "backToLogin": "Werom nei ynlogge"
     },
     "twoFactor": {
-      "title": "Twastapsverifikaasje",
+      "title": "Twastapsferifikaasje",
       "subtitle": "Noch ien stap — befêstigje dat do it bist.",
       "codeLabel": "Autentikaasjekoade",
       "codeHint": "Fier de 6-siferige koade út dyn authenticator-app yn.",

@@ -37,6 +37,7 @@ export function SideNavDrawer({
   currentSlug = null,
   accountHref = "/account",
   support,
+  side = "left",
   className,
 }: {
   entries: OwnerNavEntry[];
@@ -48,6 +49,9 @@ export function SideNavDrawer({
   accountHref?: string;
   /** Aanwezig voor tenant-gebruikers → toont "Contact opnemen" (opent modal). */
   support?: SupportInitial | null;
+  /** Kant waar het paneel inschuift. Owner = "right" (gelijk aan de member-drawer);
+   *  superadmin/`/admin` blijft standaard "left". */
+  side?: "left" | "right";
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -105,11 +109,14 @@ export function SideNavDrawer({
                   onClick={() => setOpen(false)}
                 >
                   <m.aside
-                    initial={{ x: "-100%" }}
+                    initial={{ x: side === "right" ? "100%" : "-100%" }}
                     animate={{ x: 0 }}
-                    exit={{ x: "-100%" }}
+                    exit={{ x: side === "right" ? "100%" : "-100%" }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute inset-y-0 left-0 flex w-[84%] max-w-xs flex-col overflow-y-auto border-r border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-2xl"
+                    className={cn(
+                      "absolute inset-y-0 flex w-[84%] max-w-xs flex-col overflow-y-auto border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-2xl",
+                      side === "right" ? "right-0 border-l" : "left-0 border-r",
+                    )}
                     onClick={(e) => e.stopPropagation()}
                     role="dialog"
                     aria-modal="true"

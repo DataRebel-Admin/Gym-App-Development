@@ -6,12 +6,12 @@ import {
   ACHIEVEMENTS,
   CATEGORY_META,
   CATEGORY_ORDER,
-  formatMetricValue,
   progressOf,
   type AchievementCategory,
   type AchievementDef,
 } from "@/lib/achievements/definitions";
 import { rarityMeta, type Rarity, RARITY_META } from "@/lib/achievements/rarity";
+import { getAchievementTranslator } from "@/lib/achievements/i18n";
 import { computeMemberMetrics, type MemberMetrics } from "@/lib/achievements/metrics";
 import { notifyAchievementsEarned } from "@/lib/achievements/notify";
 import { getHideAchievements } from "@/lib/user-preferences";
@@ -81,7 +81,14 @@ export async function evaluateAndAward(
     // Audit + notificaties (best-effort).
     const user = await prisma.user.findFirst({
       where: { id: memberId, tenantId },
-      select: { id: true, email: true, name: true, notificationPrefs: true, active: true },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        notificationPrefs: true,
+        active: true,
+        locale: true,
+      },
     });
     const memberLabel = user?.name ?? user?.email ?? memberId;
     const actor = opts.actor ?? { email: "systeem" };
@@ -118,6 +125,8 @@ export type AchievementItem = {
   current: number;
   currentLabel: string;
   targetLabel: string;
+  /** Vertaalde rariteitslabel (bv. "Goud"/"Gold"/"Goud") — voor client-render. */
+  rarityLabel: string;
   remaining: number;
 };
 
@@ -144,22 +153,13 @@ export type AchievementsView = {
   best: AchievementItem | null;
 };
 
-const LEVELS = [
-  "Nieuwkomer",
-  "Beginner",
-  "Doorzetter",
-  "Gevorderd",
-  "Toegewijd",
-  "Expert",
-  "Meester",
-  "Legende",
-];
+/** Aantal levels — de namen komen uit de `achievements.level`-namespace (0..7). */
+const LEVEL_COUNT = 8;
 
-function levelFromEarned(earnedCount: number, total: number): AchievementLevel {
-  if (total === 0) return { index: 0, name: LEVELS[0] };
+function levelIndexFromEarned(earnedCount: number, total: number): number {
+  if (total === 0) return 0;
   const ratio = earnedCount / total;
-  const index = Math.min(LEVELS.length - 1, Math.floor(ratio * (LEVELS.length - 1)));
-  return { index, name: LEVELS[index] };
+  return Math.min(LEVEL_COUNT - 1, Math.floor(ratio * (LEVEL_COUNT - 1)));
 }
 
 /**
@@ -179,6 +179,7 @@ export async function getAchievementsView(
     }),
   ]);
   const earnedAt = new Map(earnedRows.map((r) => [r.key, r.earnedAt]));
+  const tr = await getAchievementTranslator();
 
   const items: AchievementItem[] = [];
   for (const def of ACHIEVEMENTS) {
@@ -187,13 +188,14 @@ export async function getAchievementsView(
     const current = metrics[def.metric] ?? 0;
     const progress = earned ? 1 : progressOf(def, current);
     items.push({
-      def,
+      def: { ...def, title: tr.title(def.key), description: tr.description(def.key) },
       earned,
       earnedAt: earnedAt.get(def.key) ?? null,
       progress,
       current,
-      currentLabel: formatMetricValue(def, Math.min(current, def.threshold)),
-      targetLabel: formatMetricValue(def, def.threshold),
+      currentLabel: tr.metric(def, Math.min(current, def.threshold)),
+      targetLabel: tr.metric(def, def.threshold),
+      rarityLabel: tr.rarity(def.rarity),
       remaining: Math.max(0, def.threshold - current),
     });
   }
@@ -202,7 +204,7 @@ export async function getAchievementsView(
     const catItems = items.filter((i) => i.def.category === category);
     return {
       category,
-      meta: CATEGORY_META[category],
+      meta: { ...CATEGORY_META[category], ...tr.category(category) },
       items: catItems,
       earnedCount: catItems.filter((i) => i.earned).length,
     };
@@ -237,7 +239,10 @@ export async function getAchievementsView(
     earnedCount: earnedItems.length,
     totalCount: ACHIEVEMENTS.filter((d) => !d.hidden).length,
     rarityCounts,
-    level: levelFromEarned(earnedItems.length, ACHIEVEMENTS.length),
+    level: (() => {
+      const index = levelIndexFromEarned(earnedItems.length, ACHIEVEMENTS.length);
+      return { index, name: tr.level(index) };
+    })(),
     nextUp,
     latest,
     best,
@@ -285,6 +290,7 @@ export async function getPendingCelebrations(
     orderBy: { earnedAt: "asc" },
     select: { id: true, key: true, rarity: true },
   });
+  const tr = await getAchievementTranslator();
   const out: PendingCelebration[] = [];
   for (const r of rows) {
     const def = ACHIEVEMENTS.find((d) => d.key === r.key);
@@ -292,10 +298,10 @@ export async function getPendingCelebrations(
     out.push({
       id: r.id,
       key: r.key,
-      title: def.title,
-      description: def.description,
+      title: tr.title(def.key),
+      description: tr.description(def.key),
       rarity: def.rarity,
-      rarityLabel: rarityMeta(def.rarity).label,
+      rarityLabel: tr.rarity(def.rarity),
     });
   }
   return out;

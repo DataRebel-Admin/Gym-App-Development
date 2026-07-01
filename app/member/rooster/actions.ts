@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireMember } from "@/lib/member";
+import { areClassesEnabled } from "@/lib/classes";
 
 /** Meld aan voor een groepsles-sessie (atomair: respecteert maxParticipants). */
 export async function enroll(formData: FormData) {
   const member = await requireMember();
+  if (!(await areClassesEnabled(member.tenantId))) redirect("/member");
   const sessionId = String(formData.get("sessionId") ?? "");
   if (!sessionId) redirect("/member/rooster");
 

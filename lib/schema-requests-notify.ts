@@ -1,10 +1,11 @@
 import "server-only";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
+import { localeFromEnum } from "@/lib/i18n/config";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { schemaRequestReceivedMessage, schemaRequestStatusMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
 import { prefAllows, createInAppNotification } from "@/lib/notifications";
-import { REQUEST_GOAL_LABELS, REQUEST_STATUS_META } from "@/lib/schema-requests";
 import { getEffectivePermissions, type PermissionOverrides } from "@/lib/rbac";
 
 /**
@@ -30,14 +31,13 @@ export async function notifyRequestSubmitted(opts: {
       select: {
         goal: true,
         description: true,
-        user: { select: { id: true, name: true, email: true, notificationPrefs: true } },
+        user: { select: { id: true, name: true, email: true, notificationPrefs: true, locale: true } },
       },
     });
     if (!req) return;
 
     const branding = await loadTenantBranding(opts.tenantId);
     const memberName = req.user.name ?? req.user.email;
-    const goalLabel = REQUEST_GOAL_LABELS[req.goal];
     const manageUrl = `${base(opts.origin)}/owner/requests`;
 
     // Eigenaar(s) én medewerkers die schema's beheren worden geïnformeerd.
@@ -47,7 +47,15 @@ export async function notifyRequestSubmitted(opts: {
         role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] },
         active: true,
       },
-      select: { id: true, name: true, email: true, notificationPrefs: true, role: true, permissions: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        notificationPrefs: true,
+        role: true,
+        permissions: true,
+        locale: true,
+      },
     });
     const owners = candidates.filter((u) =>
       getEffectivePermissions(
@@ -58,13 +66,16 @@ export async function notifyRequestSubmitted(opts: {
 
     for (const o of owners) {
       try {
+        // Alles in de taal van deze coach/eigenaar.
+        const t = await getTranslations({ locale: localeFromEnum(o.locale) });
+        const goalLabel = t(`requests.goal${req.goal}`);
         if (prefAllows(o.notificationPrefs, "schemas", "inApp")) {
           await createInAppNotification({
             userId: o.id,
             tenantId: opts.tenantId,
             category: "schemas",
-            title: "Nieuwe schema-aanvraag",
-            body: `${memberName} heeft een nieuw trainingsschema aangevraagd.`,
+            title: t("notifications.schemaRequest.newTitle"),
+            body: t("notifications.schemaRequest.newBody", { member: memberName }),
             link: "/owner/requests",
           });
         }
@@ -78,6 +89,7 @@ export async function notifyRequestSubmitted(opts: {
               goalLabel,
               description: req.description,
               manageUrl,
+              locale: o.locale,
             }),
             devLink: manageUrl,
           });
@@ -89,12 +101,13 @@ export async function notifyRequestSubmitted(opts: {
 
     // In-app bevestiging voor het lid (e-mail volgt bij statuswijzigingen).
     if (prefAllows(req.user.notificationPrefs, "schemas", "inApp")) {
+      const t = await getTranslations({ locale: localeFromEnum(req.user.locale) });
       await createInAppNotification({
         userId: req.user.id,
         tenantId: opts.tenantId,
         category: "schemas",
-        title: "Aanvraag ontvangen",
-        body: "Je trainer heeft je schema-aanvraag ontvangen. Je hoort het zodra er een update is.",
+        title: t("notifications.schemaRequest.receivedTitle"),
+        body: t("notifications.schemaRequest.receivedBody"),
         link: "/member/requests",
       });
     }
@@ -114,22 +127,24 @@ export async function notifyRequestStatusChanged(opts: {
       where: { id: opts.requestId, tenantId: opts.tenantId },
       select: {
         status: true,
-        user: { select: { id: true, name: true, email: true, notificationPrefs: true } },
+        user: { select: { id: true, name: true, email: true, notificationPrefs: true, locale: true } },
       },
     });
     if (!req) return;
 
-    const statusLabel = REQUEST_STATUS_META[req.status].label;
     const viewUrl = `${base(opts.origin)}/member/requests`;
     const prefs = req.user.notificationPrefs;
+    // Statuslabel in de taal van de ontvanger (in-app én e-mail).
+    const t = await getTranslations({ locale: localeFromEnum(req.user.locale) });
+    const statusLabel = t(`requests.status${req.status}`);
 
     if (prefAllows(prefs, "schemas", "inApp")) {
       await createInAppNotification({
         userId: req.user.id,
         tenantId: opts.tenantId,
         category: "schemas",
-        title: "Update over je schema-aanvraag",
-        body: `Nieuwe status: ${statusLabel}.`,
+        title: t("notifications.schemaRequest.statusTitle"),
+        body: t("notifications.schemaRequest.statusBody", { status: statusLabel }),
         link: "/member/requests",
       });
     }
@@ -142,6 +157,7 @@ export async function notifyRequestStatusChanged(opts: {
           recipientName: req.user.name,
           statusLabel,
           viewUrl,
+          locale: req.user.locale,
         }),
         devLink: viewUrl,
       });

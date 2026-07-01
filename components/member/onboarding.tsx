@@ -7,6 +7,21 @@ import { Dumbbell, QrCode, Trophy, Flame, Check } from "@/components/ui/icons";
 
 const STORAGE_KEY = "gymrebel-member-onboarding";
 
+/** Window-event waarmee de rondleiding handmatig heropend kan worden (bv. vanuit
+ *  de member-drawer). Losgekoppeld zodat elke UI-plek de tour kan triggeren
+ *  zonder de localStorage-vlag te hoeven kennen. */
+export const OPEN_ONBOARDING_EVENT = "gymrebel:open-onboarding";
+
+/** Herstart de onboarding-rondleiding: wist de vlag en opent de overlay direct. */
+export function reopenOnboarding() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* genegeerd */
+  }
+  window.dispatchEvent(new Event(OPEN_ONBOARDING_EVENT));
+}
+
 type Step = {
   icon: React.ReactNode;
   title: string;
@@ -29,6 +44,13 @@ export function MemberOnboarding() {
     } catch {
       /* localStorage niet beschikbaar — toon niets */
     }
+    // Handmatig heropenen (member-drawer → "Rondleiding opnieuw bekijken").
+    const onReopen = () => {
+      setStep(0);
+      setOpen(true);
+    };
+    window.addEventListener(OPEN_ONBOARDING_EVENT, onReopen);
+    return () => window.removeEventListener(OPEN_ONBOARDING_EVENT, onReopen);
   }, []);
 
   function finish() {

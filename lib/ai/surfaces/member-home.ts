@@ -42,7 +42,7 @@ export const memberHomeSurface: Surface = {
       : "De sporter heeft (nog) geen toegewezen schema.";
 
     const system = [
-      baseSystemPreamble(tenantName),
+      baseSystemPreamble(tenantName, user.locale),
       "",
       "CONTEXT — beschikbare apparatuur:",
       machineList,

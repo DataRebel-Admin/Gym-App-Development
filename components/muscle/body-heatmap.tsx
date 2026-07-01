@@ -39,7 +39,7 @@ export function BodyHeatmap({ regions }: { regions: RegionAnalysis[] }) {
     fill: MUSCLE_LEVEL_COLOR[levelOf(region)],
     onClick: () => setSelected((cur) => (cur === region ? null : region)),
     className: "cursor-pointer transition-[fill,stroke] duration-500",
-    stroke: selected === region ? "#171717" : "rgba(23,23,23,0.10)",
+    stroke: selected === region ? "var(--neutral-900)" : "var(--border)",
     strokeWidth: selected === region ? 2.5 : 1,
     role: "button" as const,
     "aria-label": t(`regions.${region}`),

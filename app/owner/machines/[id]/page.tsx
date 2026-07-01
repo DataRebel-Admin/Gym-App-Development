@@ -11,6 +11,7 @@ import { deleteMachine } from "../actions";
 import { DownloadQrButton } from "@/components/ui/download-qr-button";
 import { computeMaintenanceState, effectiveStatus } from "@/lib/maintenance";
 import { MachineMaintenancePanel } from "@/components/maintenance/machine-maintenance-panel";
+import { isFeatureEnabled } from "@/lib/features/service";
 import type { MaintenanceRecordRow } from "@/lib/maintenance-eval";
 
 export async function generateMetadata({
@@ -48,7 +49,11 @@ export default async function MachineDetailPage({
   });
   const publicUrl = machinePublicUrl(tenant?.slug ?? "", machine.qrToken);
 
-  const maintenanceRecords = await prisma.maintenanceRecord.findMany({
+  // Onderhoudsmodule uit (Superadmin-flag) → geen onderhoudspaneel/historie.
+  const maintenanceEnabled = await isFeatureEnabled(owner.tenantId, "maintenance");
+
+  const maintenanceRecords = maintenanceEnabled
+    ? await prisma.maintenanceRecord.findMany({
     where: { machineId: machine.id, tenantId: owner.tenantId },
     orderBy: { performedAt: "desc" },
     take: 20,
@@ -65,7 +70,8 @@ export default async function MachineDetailPage({
       nextMaintenanceAt: true,
       performedBy: { select: { name: true, email: true } },
     },
-  });
+      })
+    : [];
   const recordRows: MaintenanceRecordRow[] = maintenanceRecords.map((r) => ({
     id: r.id,
     machineId: r.machineId,
@@ -115,28 +121,30 @@ export default async function MachineDetailPage({
         }}
       />
 
-      <MachineMaintenancePanel
-        machine={{
-          id: machine.id,
-          name: machine.name,
-          status: machine.status,
-          effectiveStatus: eff,
-          level: state.level,
-          usageCount: machine.usageCount,
-          usageThreshold: machine.usageThreshold,
-          maintenanceIntervalDays: machine.maintenanceIntervalDays,
-          lastMaintenanceAt: machine.lastMaintenanceAt
-            ? machine.lastMaintenanceAt.toISOString()
-            : null,
-          nextMaintenanceAt: machine.nextMaintenanceAt
-            ? machine.nextMaintenanceAt.toISOString()
-            : null,
-          daysUntilDue: state.daysUntilDue,
-          usageRatio: state.usageRatio,
-          reasons: state.reasons,
-        }}
-        records={recordRows}
-      />
+      {maintenanceEnabled ? (
+        <MachineMaintenancePanel
+          machine={{
+            id: machine.id,
+            name: machine.name,
+            status: machine.status,
+            effectiveStatus: eff,
+            level: state.level,
+            usageCount: machine.usageCount,
+            usageThreshold: machine.usageThreshold,
+            maintenanceIntervalDays: machine.maintenanceIntervalDays,
+            lastMaintenanceAt: machine.lastMaintenanceAt
+              ? machine.lastMaintenanceAt.toISOString()
+              : null,
+            nextMaintenanceAt: machine.nextMaintenanceAt
+              ? machine.nextMaintenanceAt.toISOString()
+              : null,
+            daysUntilDue: state.daysUntilDue,
+            usageRatio: state.usageRatio,
+            reasons: state.reasons,
+          }}
+          records={recordRows}
+        />
+      ) : null}
 
       <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-neutral-200 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">QR-code</h2>

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { MeasurementForm } from "@/components/progress/measurement-form";
+import { getEnabledMeasurementKeys } from "@/lib/measurements";
 import { createMeasurement } from "../actions";
 
 export const metadata = { title: "Nieuwe meting" };
@@ -20,6 +21,7 @@ export default async function NewMeasurementPage({
   });
   if (!member) notFound();
 
+  const enabled = await getEnabledMeasurementKeys(owner.tenantId);
   const action = createMeasurement.bind(null, userId);
 
   return (
@@ -36,7 +38,7 @@ export default async function NewMeasurementPage({
         </h1>
         <p className="mt-1 text-sm text-neutral-500">{member.name ?? member.email}</p>
       </div>
-      <MeasurementForm action={action} submitLabel="Meting opslaan" />
+      <MeasurementForm action={action} submitLabel="Meting opslaan" enabled={enabled} />
     </div>
   );
 }

@@ -4,10 +4,12 @@ import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
+import { enumFromLocale, type AppLocale } from "@/lib/i18n/config";
 import { requireAccount } from "@/lib/account";
 import { requireOwner } from "@/lib/owner";
-import { withHideQuotes, withHideAchievements } from "@/lib/user-preferences";
+import { withHideQuotes, withHideAchievements, withAllowTrainerPhotos } from "@/lib/user-preferences";
 import { uploadAvatar } from "@/lib/blob";
 import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
@@ -152,7 +154,12 @@ export async function requestEmailChange(
   // De bevestiging gaat naar het nieuwe adres (dat de gebruiker moet bevestigen).
   await sendEmail({
     to: newEmail,
-    message: await emailChangeMessage({ branding, url, newEmail }),
+    message: await emailChangeMessage({
+      branding,
+      url,
+      newEmail,
+      locale: enumFromLocale((await getLocale()) as AppLocale),
+    }),
     devLink: url,
   });
 
@@ -223,6 +230,31 @@ export async function setQuoteVisibility(formData: FormData) {
   await prisma.user.update({
     where: { id: session.id },
     data: { preferences: withHideQuotes(me?.preferences, hidden) },
+  });
+  revalidatePath("/account/meldingen");
+}
+
+/**
+ * Privacy: mag de trainer de voortgangsfoto's van dit lid bekijken? Default uit
+ * (privacy-first). Aanzetten geeft de trainer toegang tot foto's + vergelijkingen.
+ */
+export async function setProgressPhotoPrivacy(formData: FormData) {
+  const session = await requireAccount();
+  const allow = formData.get("allow") === "true";
+  const me = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { preferences: true },
+  });
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { preferences: withAllowTrainerPhotos(me?.preferences, allow) },
+  });
+  await audit("privacy.consent.update", {
+    actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),
+    tenantId: session.tenantId ?? null,
+    targetType: "User",
+    targetId: session.id,
+    metadata: { setting: "allowTrainerPhotos", value: allow },
   });
   revalidatePath("/account/meldingen");
 }

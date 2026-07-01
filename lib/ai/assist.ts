@@ -4,6 +4,7 @@ import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { applySafetyGuardrail, SAFETY_FALLBACK } from "@/lib/ai-guardrail";
 import { aiConfigured, callModel } from "./provider";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { getSurface } from "./surfaces/registry";
 import type { AiRole } from "./surfaces/base";
 import type { AssistantAnswer, AssistantProposal, AssistantResult } from "./types";
@@ -121,6 +122,11 @@ export async function runSurfaceAssistant(
   });
   if (!tenant?.aiEnabled) {
     return { error: "De AI-assistent staat uit voor deze sportschool." };
+  }
+
+  // Masterschakelaar: de Superadmin kan de AI-module voor deze tenant uitzetten.
+  if (!(await isFeatureEnabled(input.user.tenantId, "ai"))) {
+    return { error: "De AI-functionaliteit is niet beschikbaar voor deze sportschool." };
   }
 
   // Rate-limit: max 20 vragen per dag per gebruiker (over álle oppervlakken samen).

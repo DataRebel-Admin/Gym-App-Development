@@ -6,9 +6,25 @@ import {
   PRIMARY_METRICS,
   GOAL_METRIC_KEY,
   RANGES,
+  parseEnabledMetricKeys,
   type MetricKey,
   type RangeKey,
 } from "@/lib/measurement-meta";
+
+/**
+ * De door de owner geselecteerde meetvelden voor deze tenant (`null` = alle
+ * velden actief). Eén plek zodat pagina's + server-actions dezelfde selectie
+ * gebruiken (weergave én autoritatieve validatie).
+ */
+export async function getEnabledMeasurementKeys(
+  tenantId: string
+): Promise<MetricKey[] | null> {
+  const t = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { enabledMeasurementFields: true },
+  });
+  return parseEnabledMetricKeys(t?.enabledMeasurementFields);
+}
 
 export type MeasurementValues = Record<MetricKey, number | null>;
 
@@ -116,14 +132,19 @@ export async function getDeltas(tenantId: string, userId: string): Promise<Delta
     prisma.measurement.findMany({
       where: { tenantId, userId },
       orderBy: { measuredAt: "desc" },
-      take: 2,
+      take: 10,
     }),
     prisma.memberGoal.findMany({
       where: { tenantId, userId, achievedAt: null },
       orderBy: { createdAt: "desc" },
     }),
   ]);
-  const [latest, previous] = measurements;
+  // Alleen metingen met minstens één numerieke waarde tellen mee (een louter
+  // foto-upload door het lid mag de headline-delta's niet resetten).
+  const withValues = measurements.filter((m) =>
+    METRICS.some((d) => (m[d.key] as number | null) != null)
+  );
+  const [latest, previous] = withValues;
   if (!latest) return [];
 
   // Doel-target per metric-kolom (meest recente per metric).

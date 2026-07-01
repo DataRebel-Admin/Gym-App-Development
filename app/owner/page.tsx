@@ -6,6 +6,7 @@ import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { StaffDashboard } from "@/components/dashboard/staff-dashboard";
 import { getDashboardStats } from "@/lib/insights";
 import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
 import { normalizeLayout, type WidgetId } from "@/lib/dashboard";
@@ -47,6 +48,8 @@ export default async function OwnerDashboard() {
     );
   }
 
+  // Onderhoudsmodule uit (Superadmin-flag) → geen alert en géén lazy evaluatie.
+  const maintenanceEnabled = await isFeatureEnabled(owner.tenantId, "maintenance");
   const [stats, dbUser, recentLogs, maintenanceAttention] = await Promise.all([
     getDashboardStats(owner.tenantId),
     prisma.user.findUnique({
@@ -54,7 +57,9 @@ export default async function OwnerDashboard() {
       select: { dashboardLayout: true },
     }),
     getRecentActivity(owner.tenantId, 6),
-    getMaintenanceAttentionCount(owner.tenantId),
+    maintenanceEnabled
+      ? getMaintenanceAttentionCount(owner.tenantId)
+      : Promise.resolve(0),
   ]);
 
   const layout = normalizeLayout(dbUser?.dashboardLayout);
@@ -102,7 +107,7 @@ export default async function OwnerDashboard() {
         </div>
       </section>
 
-      <MaintenanceAlert count={maintenanceAttention} />
+      {maintenanceEnabled ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
       <WidgetGrid nodes={nodes} initialLayout={layout} />
     </Fullscreenable>

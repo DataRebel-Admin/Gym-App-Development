@@ -1,6 +1,8 @@
 import "server-only";
 import type { Role } from "@prisma/client";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
+import { localeFromEnum } from "@/lib/i18n/config";
 import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { schemaAssignedMessage } from "@/lib/email/messages";
@@ -51,7 +53,14 @@ export async function notifyAssignmentsPublished(opts: {
           trainerMessage: true,
           template: { select: { name: true } },
           user: {
-            select: { id: true, email: true, name: true, notificationPrefs: true, active: true },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              notificationPrefs: true,
+              active: true,
+              locale: true,
+            },
           },
         },
       }),
@@ -68,9 +77,13 @@ export async function notifyAssignmentsPublished(opts: {
     if (!a.user.active) continue;
     const prefs = a.user.notificationPrefs;
     const schemaName = a.template?.name ?? "Nieuw schema";
+    const t = await getTranslations({ locale: localeFromEnum(a.user.locale) });
     const intro = a.trainerMessage?.trim()
-      ? `${a.trainerMessage.trim()} — je traint nu met '${schemaName}'.`
-      : `Je trainer heeft '${schemaName}' voor je klaargezet.`;
+      ? t("notifications.schemaAssigned.introMessage", {
+          message: a.trainerMessage.trim(),
+          schema: schemaName,
+        })
+      : t("notifications.schemaAssigned.introDefault", { schema: schemaName });
 
     const channels: string[] = [];
 
@@ -80,7 +93,7 @@ export async function notifyAssignmentsPublished(opts: {
           userId: a.user.id,
           tenantId,
           category: "schemas",
-          title: "Nieuw trainingsschema",
+          title: t("notifications.schemaAssigned.title"),
           body: intro,
           link: "/member/schema",
         });
@@ -89,8 +102,8 @@ export async function notifyAssignmentsPublished(opts: {
 
       if (prefAllows(prefs, "schemas", "push")) {
         const delivered = await sendPushToUser(a.user.id, {
-          title: "Nieuw trainingsschema",
-          body: "Er staat een nieuw trainingsschema voor je klaar.",
+          title: t("notifications.schemaAssigned.title"),
+          body: t("notifications.schemaAssigned.pushBody"),
           url: "/member/schema",
           tag: "schema-assigned",
         });
@@ -106,6 +119,7 @@ export async function notifyAssignmentsPublished(opts: {
             recipientName: a.user.name,
             schemaName,
             viewUrl,
+            locale: a.user.locale,
           }),
           devLink: viewUrl,
         });

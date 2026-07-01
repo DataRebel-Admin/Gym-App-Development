@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import type { Locale } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";
@@ -9,20 +10,24 @@ import { sendEmail } from "@/lib/email/send";
 import { loadTenantBranding } from "@/lib/email/branding";
 import {
   renderTemplateMessage,
+  EMAIL_FOOTER_AUTO,
   type TemplateData,
 } from "@/lib/email/template-render";
 import { validateTemplate } from "@/lib/email/template-validate";
 import {
   EMAIL_TEMPLATE_DEFS,
+  emailContentFor,
   isEmailTemplateKey,
   type EmailTemplateDef,
 } from "@/lib/email/template-defaults";
 import { ensureTemplate } from "@/lib/email/template-store";
 
 const keySchema = z.string().refine(isEmailTemplateKey, "Onbekende template");
+const localeEnum = z.enum(["NL", "EN", "FY"]).default("NL");
 
 const contentSchema = z.object({
   key: keySchema,
+  locale: localeEnum,
   subject: z.string().max(300),
   preheader: z.string().max(300),
   bodyHtml: z.string().max(100_000),
@@ -40,6 +45,7 @@ export type SaveResult = { ok?: true; error?: string };
 /** Sla het werk-concept op (autosave). Publiceert NIET. */
 export async function saveDraft(input: {
   key: string;
+  locale?: string;
   subject: string;
   preheader: string;
   bodyHtml: string;
@@ -49,11 +55,11 @@ export async function saveDraft(input: {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
   }
-  const { key, subject, preheader, bodyHtml } = parsed.data;
-  await ensureTemplate(key);
+  const { key, locale, subject, preheader, bodyHtml } = parsed.data;
+  await ensureTemplate(key, locale);
 
   await prisma.emailTemplate.update({
-    where: { key_locale: { key, locale: "NL" } },
+    where: { key_locale: { key, locale } },
     data: {
       subject,
       preheader,
@@ -80,6 +86,7 @@ export type PreviewResult = { html: string; subject: string };
 /** Render de live preview voor de gekozen tenant + (optioneel) testgegevens. */
 export async function renderPreview(input: {
   key: string;
+  locale?: string;
   subject: string;
   preheader: string;
   bodyHtml: string;
@@ -90,6 +97,7 @@ export async function renderPreview(input: {
   if (!isEmailTemplateKey(input.key)) {
     return { html: "<p>Onbekende template</p>", subject: "" };
   }
+  const locale = localeEnum.parse(input.locale);
   const def = EMAIL_TEMPLATE_DEFS[input.key];
   const branding = await loadTenantBranding(input.tenantId);
   const message = renderTemplateMessage({
@@ -97,6 +105,8 @@ export async function renderPreview(input: {
     subject: input.subject,
     preheader: input.preheader,
     bodyHtml: input.bodyHtml,
+    reason: emailContentFor(input.key, locale).reason,
+    footerNote: EMAIL_FOOTER_AUTO[locale],
     branding,
     data: sampleData(def, input.useSampleData),
     // On-screen preview altijd in de canonieke lichte weergave (niet meekleuren
@@ -115,6 +125,7 @@ export type PublishResult = { ok?: true; error?: string; warnings?: string[] };
 /** Valideer en publiceer: concept → gepubliceerde snapshot + versiegeschiedenis. */
 export async function publishTemplate(input: {
   key: string;
+  locale?: string;
   subject: string;
   preheader: string;
   bodyHtml: string;
@@ -125,18 +136,18 @@ export async function publishTemplate(input: {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
   }
-  const { key, subject, preheader, bodyHtml, note } = parsed.data;
+  const { key, locale, subject, preheader, bodyHtml, note } = parsed.data;
 
   const { errors, warnings } = validateTemplate({ key, subject, bodyHtml });
   if (errors.length > 0) {
     return { error: errors.join(" ") };
   }
 
-  await ensureTemplate(key);
+  await ensureTemplate(key, locale);
 
   await prisma.$transaction(async (tx) => {
     const updated = await tx.emailTemplate.update({
-      where: { key_locale: { key, locale: "NL" } },
+      where: { key_locale: { key, locale } },
       data: {
         subject,
         preheader,
@@ -184,6 +195,7 @@ export type RestoreResult = {
 /** Laad een eerdere versie terug in het werk-concept (publiceert niet). */
 export async function restoreVersion(input: {
   key: string;
+  locale?: string;
   versionId: string;
 }): Promise<RestoreResult> {
   const admin = await requireSuperadmin();
@@ -191,14 +203,14 @@ export async function restoreVersion(input: {
 
   const version = await prisma.emailTemplateVersion.findUnique({
     where: { id: input.versionId },
-    include: { template: { select: { key: true } } },
+    include: { template: { select: { key: true, locale: true } } },
   });
   if (!version || version.template.key !== input.key) {
     return { error: "Versie niet gevonden" };
   }
 
   await prisma.emailTemplate.update({
-    where: { key_locale: { key: input.key, locale: "NL" } },
+    where: { key_locale: { key: input.key, locale: version.template.locale } },
     data: {
       subject: version.subject,
       preheader: version.preheader ?? "",
@@ -230,18 +242,21 @@ export async function restoreVersion(input: {
 /** Zet het werk-concept terug naar de standaardinhoud uit de registry. */
 export async function resetToDefault(input: {
   key: string;
+  locale?: string;
 }): Promise<RestoreResult> {
   const admin = await requireSuperadmin();
   if (!isEmailTemplateKey(input.key)) return { error: "Onbekende template" };
+  const locale = localeEnum.parse(input.locale);
   const def = EMAIL_TEMPLATE_DEFS[input.key];
-  await ensureTemplate(input.key);
+  const content = emailContentFor(input.key, locale);
+  await ensureTemplate(input.key, locale);
 
   await prisma.emailTemplate.update({
-    where: { key_locale: { key: input.key, locale: "NL" } },
+    where: { key_locale: { key: input.key, locale } },
     data: {
-      subject: def.defaultSubject,
-      preheader: def.defaultPreheader,
-      bodyHtml: def.defaultBodyHtml,
+      subject: content.subject,
+      preheader: content.preheader,
+      bodyHtml: content.bodyHtml,
       status: "DRAFT",
       updatedById: admin.id,
       updatedByEmail: admin.email,
@@ -259,9 +274,9 @@ export async function resetToDefault(input: {
   return {
     ok: true,
     content: {
-      subject: def.defaultSubject,
-      preheader: def.defaultPreheader,
-      bodyHtml: def.defaultBodyHtml,
+      subject: content.subject,
+      preheader: content.preheader,
+      bodyHtml: content.bodyHtml,
     },
   };
 }
@@ -276,6 +291,7 @@ export type TestResult = { ok?: true; error?: string };
 /** Verstuur een testmail (concept-inhoud + testgegevens) naar een eigen adres. */
 export async function sendTestEmail(input: {
   key: string;
+  locale?: string;
   subject: string;
   preheader: string;
   bodyHtml: string;
@@ -287,7 +303,7 @@ export async function sendTestEmail(input: {
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
   }
-  const { key, subject, preheader, bodyHtml, to, tenantId } = parsed.data;
+  const { key, locale, subject, preheader, bodyHtml, to, tenantId } = parsed.data;
   const def = EMAIL_TEMPLATE_DEFS[key];
   const branding = await loadTenantBranding(tenantId);
 
@@ -296,6 +312,8 @@ export async function sendTestEmail(input: {
     subject: `[TEST] ${subject}`,
     preheader,
     bodyHtml,
+    reason: emailContentFor(key, locale).reason,
+    footerNote: EMAIL_FOOTER_AUTO[locale],
     branding,
     data: sampleData(def, true),
   });

@@ -44,7 +44,8 @@ DECLARE
     'MemberFrameworkAssignment',
     'EarnedAchievement',
     'MaintenanceRecord',
-    'MaintenancePolicy'
+    'MaintenancePolicy',
+    'FeatureFlag'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

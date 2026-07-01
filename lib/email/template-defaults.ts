@@ -13,6 +13,8 @@
  * lib/email/layout.ts (zie lib/email/template-render.ts).
  */
 
+import type { Locale } from "@prisma/client";
+
 export type EmailTemplateKey =
   | "magicLink"
   | "invite"
@@ -22,6 +24,15 @@ export type EmailTemplateKey =
   | "emailChange"
   | "notification"
   | "system";
+
+/** Vertaalbare inhoud van één template (per taal). */
+export type LocalizedContent = {
+  subject: string;
+  preheader: string;
+  bodyHtml: string;
+  /** Footer-transparantie ("Je ontvangt deze e-mail omdat…"). */
+  reason: string;
+};
 
 export type PlaceholderDef = {
   token: string; // zonder accolades, bv. "firstName"
@@ -40,9 +51,15 @@ export type EmailTemplateDef = {
   hasTrigger: boolean;
   /** Template-specifieke placeholders (de globale komen daar bovenop). */
   placeholders: PlaceholderDef[];
+  /** NL-standaardinhoud (bron/fallback). */
   defaultSubject: string;
   defaultPreheader: string;
   defaultBodyHtml: string;
+  /**
+   * Vertaalde standaardinhoud per taal (EN/FY). NL komt uit de `default*`-velden
+   * hierboven. Ontbreekt een taal → val terug op NL. Zie `emailContentFor`.
+   */
+  localizedContent?: Partial<Record<Locale, LocalizedContent>>;
 };
 
 /**
@@ -115,6 +132,36 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
         "Heb je geen inloglink aangevraagd? Dan kun je deze e-mail negeren — er gebeurt niets."
       ),
     ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "Your login link for {{gymName}}",
+        preheader: "Your personal, one-time login link is ready.",
+        reason:
+          "You're receiving this email because a login link was requested for your account at {{gymName}}.",
+        bodyHtml: [
+          heading("Log in to {{gymName}}"),
+          paragraph(
+            "Click the button below to log in securely. The link works once and expires after a short time."
+          ),
+          button("loginLink", "Log in"),
+          muted("Didn't request a login link? You can ignore this email — nothing will happen."),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Dyn ynloglink foar {{gymName}}",
+        preheader: "Dyn persoanlike, ienmalige ynloglink stiet klear.",
+        reason:
+          "Do krigest dizze e-mail omdat der in ynloglink oanfrege is foar dyn account by {{gymName}}.",
+        bodyHtml: [
+          heading("Ynlogge by {{gymName}}"),
+          paragraph(
+            "Klik op de knop hjirûnder om feilich yn te loggen. De link is ienris te brûken en ferrint nei koarte tiid."
+          ),
+          button("loginLink", "Ynlogge"),
+          muted("Hast gjin ynloglink oanfrege? Dan meist dizze e-mail negearje — der bart neat."),
+        ].join("\n"),
+      },
+    },
   },
 
   // ── Accountuitnodiging ────────────────────────────────────────────────────
@@ -139,6 +186,34 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
         "Deze uitnodiging is 7 dagen geldig. Verwachtte je deze e-mail niet? Dan kun je 'm negeren."
       ),
     ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "Invitation to {{gymName}}",
+        preheader: "Activate your account at {{gymName}}.",
+        reason: "You're receiving this email because {{gymName}} invited you to create an account.",
+        bodyHtml: [
+          heading("Invitation to {{gymName}}"),
+          paragraph(
+            "You've been invited to activate an account at <strong>{{gymName}}</strong>. Accept the invitation to get started with your training schedules."
+          ),
+          button("activationLink", "Accept invitation"),
+          muted("This invitation is valid for 7 days. Didn't expect this email? You can ignore it."),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Útnûging foar {{gymName}}",
+        preheader: "Aktivearje dyn account by {{gymName}}.",
+        reason: "Do krigest dizze e-mail omdat {{gymName}} dy útnûge hat foar in account.",
+        bodyHtml: [
+          heading("Útnûging foar {{gymName}}"),
+          paragraph(
+            "Do bist útnûge om in account te aktivearjen by <strong>{{gymName}}</strong>. Akseptearje de útnûging om te begjinnen mei dyn trainingsskema's."
+          ),
+          button("activationLink", "Útnûging akseptearje"),
+          muted("Dizze útnûging is 7 dagen jildich. Ferwachtest dizze e-mail net? Dan meist 'm negearje."),
+        ].join("\n"),
+      },
+    },
   },
 
   // ── Welkom / account geactiveerd ──────────────────────────────────────────
@@ -162,6 +237,34 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       ),
       button("loginLink", "Inloggen"),
     ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "Welcome to {{gymName}}",
+        preheader: "Your account is active — log in to get started.",
+        reason: "You're receiving this email because your account at {{gymName}} was just activated.",
+        bodyHtml: [
+          heading("Welcome to {{gymName}}!"),
+          paragraph("Hi {{firstName}},"),
+          paragraph(
+            "Your account is active. Log in to view your training schedules, track your progress and get started."
+          ),
+          button("loginLink", "Log in"),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Wolkom by {{gymName}}",
+        preheader: "Dyn account is aktyf — log yn om te begjinnen.",
+        reason: "Do krigest dizze e-mail omdat dyn account by {{gymName}} krekt aktivearre is.",
+        bodyHtml: [
+          heading("Wolkom by {{gymName}}!"),
+          paragraph("Hoi {{firstName}},"),
+          paragraph(
+            "Dyn account is aktyf. Log yn om dyn trainingsskema's te besjen, dyn fuortgong by te hâlden en te begjinnen."
+          ),
+          button("loginLink", "Ynlogge"),
+        ].join("\n"),
+      },
+    },
   },
 
   // ── Wachtwoord gewijzigd ──────────────────────────────────────────────────
@@ -186,6 +289,36 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       paragraph("Heb jij dit <strong>niet</strong> gedaan? Beveilig dan direct je account."),
       button("securityLink", "Beveiliging bekijken"),
     ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "Your password at {{gymName}} was changed",
+        preheader: "A security notification about your account.",
+        reason: "You're receiving this email because the password for your {{gymName}} account was changed.",
+        bodyHtml: [
+          heading("Your password was changed"),
+          paragraph("Hi {{firstName}},"),
+          paragraph(
+            "The password for your account at <strong>{{gymName}}</strong> was just changed. Was this you? Then you don't need to do anything."
+          ),
+          paragraph("Didn't do this <strong>yourself</strong>? Secure your account right away."),
+          button("securityLink", "View security"),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Dyn wachtwurd by {{gymName}} is feroare",
+        preheader: "In feiligheidsmelding oer dyn account.",
+        reason: "Do krigest dizze e-mail omdat it wachtwurd fan dyn {{gymName}}-account feroare is.",
+        bodyHtml: [
+          heading("Dyn wachtwurd is feroare"),
+          paragraph("Hoi {{firstName}},"),
+          paragraph(
+            "It wachtwurd fan dyn account by <strong>{{gymName}}</strong> is krekt oanpast. Wiesto dit? Dan hoechst neat te dwaan."
+          ),
+          paragraph("Hasto dit <strong>net</strong> dien? Befeilich dan fuortendaliks dyn account."),
+          button("securityLink", "Befeiliging besjen"),
+        ].join("\n"),
+      },
+    },
   },
 
   // ── Nieuw trainingsschema toegewezen ──────────────────────────────────────
@@ -210,6 +343,34 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       ),
       button("schemaLink", "Bekijk je schema"),
     ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "New training schedule: {{workoutName}}",
+        preheader: "{{workoutName}} is ready for you.",
+        reason: "You're receiving this email because {{gymName}} assigned a training schedule to you.",
+        bodyHtml: [
+          heading("You have a new training schedule"),
+          paragraph("Hi {{firstName}},"),
+          paragraph(
+            "<strong>{{gymName}}</strong> has set up a new training schedule for you: <strong>{{workoutName}}</strong>. Check your exercises and start your next workout."
+          ),
+          button("schemaLink", "View your schedule"),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Nij trainingsskema: {{workoutName}}",
+        preheader: "{{workoutName}} stiet foar dy klear.",
+        reason: "Do krigest dizze e-mail omdat {{gymName}} in trainingsskema oan dy tawiisd hat.",
+        bodyHtml: [
+          heading("Do hast in nij trainingsskema"),
+          paragraph("Hoi {{firstName}},"),
+          paragraph(
+            "<strong>{{gymName}}</strong> hat in nij trainingsskema foar dy klearset: <strong>{{workoutName}}</strong>. Besjoch dyn oefeningen en begjin dyn folgjende training."
+          ),
+          button("schemaLink", "Besjoch dyn skema"),
+        ].join("\n"),
+      },
+    },
   },
 
   // ── E-mailadres wijzigen ──────────────────────────────────────────────────
@@ -236,6 +397,36 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
         "Heb je dit niet aangevraagd? Negeer deze e-mail; je e-mailadres blijft dan ongewijzigd."
       ),
     ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "Confirm your new email address",
+        preheader: "Confirm the change to {{newEmail}}.",
+        reason:
+          "You're receiving this email because a request was made to change the email address of your {{gymName}} account.",
+        bodyHtml: [
+          heading("Confirm your new email address"),
+          paragraph(
+            "Click to change your email address for <strong>{{gymName}}</strong> to <strong>{{newEmail}}</strong>."
+          ),
+          button("confirmLink", "Confirm email address"),
+          muted("Didn't request this? Ignore this email; your email address will stay the same."),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Befêstigje dyn nije e-mailadres",
+        preheader: "Befêstigje de wiziging nei {{newEmail}}.",
+        reason:
+          "Do krigest dizze e-mail omdat der frege is om it e-mailadres fan dyn {{gymName}}-account te wizigjen.",
+        bodyHtml: [
+          heading("Befêstigje dyn nije e-mailadres"),
+          paragraph(
+            "Klik om dyn e-mailadres foar <strong>{{gymName}}</strong> te wizigjen nei <strong>{{newEmail}}</strong>."
+          ),
+          button("confirmLink", "E-mailadres befêstigje"),
+          muted("Hast dit net oanfrege? Negearje dizze e-mail; dyn e-mailadres bliuwt dan ûnferoare."),
+        ].join("\n"),
+      },
+    },
   },
 
   // ── Algemene notificatie (nog geen automatische trigger) ──────────────────
@@ -304,4 +495,25 @@ export function placeholdersFor(key: EmailTemplateKey): PlaceholderDef[] {
 /** Set met toegestane tokens (voor validatie). */
 export function allowedTokens(key: EmailTemplateKey): Set<string> {
   return new Set(placeholdersFor(key).map((p) => p.token));
+}
+
+/**
+ * Gelokaliseerde standaardinhoud voor een template. NL komt uit de `default*`-
+ * velden; EN/FY uit `localizedContent`. Ontbreekt de gevraagde taal → NL. Dit is
+ * de bron voor zowel het seeden per taal als de code-fallback in
+ * `composeFromTemplate` (lib/email/template-render.ts).
+ */
+export function emailContentFor(
+  key: EmailTemplateKey,
+  locale: Locale
+): LocalizedContent {
+  const def = EMAIL_TEMPLATE_DEFS[key];
+  const nl: LocalizedContent = {
+    subject: def.defaultSubject,
+    preheader: def.defaultPreheader,
+    bodyHtml: def.defaultBodyHtml,
+    reason: def.reason,
+  };
+  if (locale === "NL") return nl;
+  return def.localizedContent?.[locale] ?? nl;
 }

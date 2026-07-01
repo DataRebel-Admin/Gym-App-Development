@@ -22,8 +22,12 @@ export const DEFAULT_LOCALE: AppLocale = "nl";
 type LocaleMeta = {
   /** Volledige taalnaam in de eigen taal (voor de switcher). */
   label: string;
-  /** Vlag-emoji (optioneel decoratief). */
+  /** Vlag-emoji (optioneel decoratief; op sommige OS'en rendert dit als
+   *  láttercode — de UI gebruikt daarom `<LocaleFlag>` met echte SVG's). */
   flag: string;
+  /** Korte afkorting op taalkaarten (bv. "NL", "EN", "FRL"). Bewust géén
+   *  1-op-1 uppercase van de routing-code: Frysk = "FRL" (niet "FY"). */
+  code: string;
   /** BCP-47 tag voor `<html lang>` en `Intl`-formattering. */
   bcp47: string;
   /** Bijbehorende Prisma `Locale`-enumwaarde (DB). */
@@ -32,9 +36,9 @@ type LocaleMeta = {
 
 /** Metadata per taal — gebruikt door switcher, root-layout en formattering. */
 export const LOCALE_META: Record<AppLocale, LocaleMeta> = {
-  nl: { label: "Nederlands", flag: "🇳🇱", bcp47: "nl-NL", enum: "NL" },
-  en: { label: "English", flag: "🇬🇧", bcp47: "en-GB", enum: "EN" },
-  fy: { label: "Frysk", flag: "🇳🇱", bcp47: "fy-NL", enum: "FY" },
+  nl: { label: "Nederlands", flag: "🇳🇱", code: "NL", bcp47: "nl-NL", enum: "NL" },
+  en: { label: "English", flag: "🇬🇧", code: "EN", bcp47: "en-GB", enum: "EN" },
+  fy: { label: "Frysk", flag: "🇳🇱", code: "FRL", bcp47: "fy-NL", enum: "FY" },
 };
 
 /** Type-guard: is `value` een ondersteunde locale-code? */

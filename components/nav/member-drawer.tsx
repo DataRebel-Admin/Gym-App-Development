@@ -8,7 +8,8 @@ import { AnimatePresence, m } from "motion/react";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList, PersonStanding, Trophy, Sparkles } from "@/components/ui/icons";
+import { reopenOnboarding } from "@/components/member/onboarding";
 import type { UserTenant } from "@/lib/tenants";
 
 /**
@@ -144,6 +145,18 @@ export function MemberDrawer({
                 <DrawerLink href="/account" icon={<Settings className="size-5" />} onClick={() => setOpen(false)}>
                   Accountinstellingen
                 </DrawerLink>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    reopenOnboarding();
+                  }}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
+                >
+                  <span className="text-accent"><Sparkles className="size-5" /></span>
+                  <span className="flex-1 text-left">Rondleiding opnieuw bekijken</span>
+                  <ChevronRight className="size-4 text-neutral-300" />
+                </button>
               </nav>
 
               {/* Sportschool wisselen */}

@@ -1,5 +1,7 @@
 import "server-only";
-import type { Role } from "@prisma/client";
+import type { Locale, Role } from "@prisma/client";
+import { getTranslations } from "next-intl/server";
+import { localeFromEnum } from "@/lib/i18n/config";
 import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { achievementEarnedMessage } from "@/lib/email/messages";
@@ -19,6 +21,7 @@ type NotifyUser = {
   name: string | null;
   notificationPrefs: unknown;
   active: boolean;
+  locale: Locale | null;
 };
 
 /**
@@ -45,6 +48,14 @@ export async function notifyAchievementsEarned(opts: {
   const headline = [...earned].sort(
     (a, b) => rarityMeta(b.rarity).order - rarityMeta(a.rarity).order
   )[0];
+
+  // Alle teksten in de taal van de ontvanger (niet die van de request-context).
+  const t = await getTranslations({
+    locale: localeFromEnum(user.locale),
+    namespace: "achievements",
+  });
+  const titleOf = (def: AchievementDef) => t(`items.${def.key.replace(/\./g, "_")}.title`);
+  const descOf = (def: AchievementDef) => t(`items.${def.key.replace(/\./g, "_")}.description`);
   const channels: string[] = [];
 
   try {
@@ -54,8 +65,8 @@ export async function notifyAchievementsEarned(opts: {
           userId: user.id,
           tenantId,
           category: "achievements",
-          title: `🏆 Trofee behaald: ${def.title}`,
-          body: def.description,
+          title: t("notify.inAppTitle", { title: titleOf(def) }),
+          body: descOf(def),
           link: "/member/trophies",
         });
       }
@@ -65,10 +76,10 @@ export async function notifyAchievementsEarned(opts: {
     if (prefAllows(prefs, "achievements", "push")) {
       const body =
         earned.length === 1
-          ? headline.title
-          : `Je hebt ${earned.length} nieuwe trofeeën behaald, waaronder '${headline.title}'.`;
+          ? titleOf(headline)
+          : t("notify.pushMulti", { count: earned.length, title: titleOf(headline) });
       const delivered = await sendPushToUser(user.id, {
-        title: "🏆 Nieuwe trofee behaald!",
+        title: t("notify.pushTitle"),
         body,
         url: "/member/trophies",
         tag: "achievement",
@@ -80,19 +91,21 @@ export async function notifyAchievementsEarned(opts: {
       const branding = await loadTenantBranding(tenantId);
       const description =
         earned.length === 1
-          ? headline.description
-          : `${headline.description} (en nog ${earned.length - 1} andere trofee${
-              earned.length - 1 === 1 ? "" : "ën"
-            }).`;
+          ? descOf(headline)
+          : t("notify.emailMulti", {
+              description: descOf(headline),
+              count: earned.length - 1,
+            });
       await sendEmail({
         to: user.email,
         message: await achievementEarnedMessage({
           branding,
           recipientName: user.name,
-          title: headline.title,
+          title: titleOf(headline),
           description,
-          rarityLabel: rarityMeta(headline.rarity).label,
+          rarityLabel: t(`rarity.${headline.rarity}`),
           viewUrl,
+          locale: user.locale,
         }),
         devLink: viewUrl,
       });

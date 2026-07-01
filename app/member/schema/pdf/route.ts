@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getCurrentTenant } from "@/lib/tenant";
-import { buildSchemaPdf, type SchemaPdfDay } from "@/lib/schema-pdf";
+import { buildSchemaPdf, pdfLabels, type SchemaPdfDay } from "@/lib/schema-pdf";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { formatDate } from "@/lib/i18n/format";
+import type { AppLocale } from "@/lib/i18n/config";
 import { audit } from "@/lib/audit";
-
-const VERSION_FMT = new Intl.DateTimeFormat("nl-NL", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
 
 export async function GET() {
   const member = await requireMember();
@@ -43,6 +40,9 @@ export async function GET() {
   const proto = h.get("x-forwarded-proto") ?? (host?.includes("localhost") ? "http" : "https");
   const onlineUrl = host ? `${proto}://${host}/member/schema` : null;
 
+  const locale = (await getLocale()) as AppLocale;
+  const t = await getTranslations("pdf");
+
   const pdf = await buildSchemaPdf({
     tenantName: tenant?.name ?? "GymRebel",
     accentColor: tenant?.accentColor ?? null,
@@ -51,13 +51,15 @@ export async function GET() {
     memberName: member.name ?? member.email ?? "Lid",
     schemaName: tpl.name,
     intro: tpl.description,
-    version: VERSION_FMT.format(tpl.updatedAt),
+    version: formatDate(tpl.updatedAt, locale, "short"),
     createdAt: tpl.createdAt,
     onlineUrl,
     website: tenant?.website ?? null,
     contactEmail: tenant?.contactEmail ?? null,
     contactPhone: tenant?.contactPhone ?? null,
     days,
+    locale,
+    labels: pdfLabels((k) => t(k)),
   });
 
   const slug = tpl.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");

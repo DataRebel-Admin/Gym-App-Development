@@ -1,16 +1,22 @@
 import "server-only";
+import type { Locale } from "@prisma/client";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
+import { isFeatureEnabled } from "@/lib/features/service";
 import {
   getEffectivePermissions,
   type PermissionOverrides,
 } from "@/lib/rbac";
+import { localeFromEnum, type AppLocale } from "@/lib/i18n/config";
 import { prefAllows, createInAppNotification } from "@/lib/notifications";
 import { sendPushToUser } from "@/lib/push";
 import { sendEmail } from "@/lib/email/send";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { maintenanceAlertMessage } from "@/lib/email/messages";
 import type { EmailBranding } from "@/lib/email/branding";
+
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
 // Meldingen over machine-onderhoud naar de tenant-gebruikers die het onderhoud
 // beheren (permissie `maintenance:manage`). Spiegel van lib/schema-notify.ts:
@@ -23,6 +29,7 @@ type Recipient = {
   email: string;
   name: string | null;
   notificationPrefs: unknown;
+  locale: Locale | null;
 };
 
 function defaultOrigin(): string {
@@ -39,7 +46,15 @@ async function getRecipients(tenantId: string): Promise<Recipient[]> {
       archivedAt: null,
       role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] },
     },
-    select: { id: true, email: true, name: true, role: true, permissions: true, notificationPrefs: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      permissions: true,
+      notificationPrefs: true,
+      locale: true,
+    },
   });
   return users
     .filter((u) =>
@@ -53,27 +68,41 @@ async function getRecipients(tenantId: string): Promise<Recipient[]> {
       email: u.email,
       name: u.name,
       notificationPrefs: u.notificationPrefs,
+      locale: u.locale,
     }));
 }
 
 type Delivery = { title: string; body: string; detail?: string | null };
 
-/** Bezorg één melding aan alle beheerders, per toegestaan kanaal. */
+/**
+ * Bezorg één melding aan alle beheerders, per toegestaan kanaal. `build` levert
+ * titel/body in de taal van elke ontvanger (per-locale root-translator).
+ */
 async function deliverToAll(opts: {
   tenantId: string;
   recipients: Recipient[];
   branding: EmailBranding;
   origin: string;
   machineName: string;
-  delivery: Delivery;
+  build: (t: Translator) => Delivery;
 }): Promise<number> {
-  const { tenantId, recipients, branding, origin, machineName, delivery } = opts;
+  const { tenantId, recipients, branding, origin, machineName, build } = opts;
   const manageUrl = `${origin}/owner/maintenance`;
   let reached = 0;
+
+  const trCache = new Map<AppLocale, Translator>();
+  const trFor = async (loc: AppLocale): Promise<Translator> => {
+    const cached = trCache.get(loc);
+    if (cached) return cached;
+    const t = await getTranslations({ locale: loc });
+    trCache.set(loc, t);
+    return t;
+  };
 
   for (const r of recipients) {
     try {
       const prefs = r.notificationPrefs;
+      const delivery = build(await trFor(localeFromEnum(r.locale)));
       let any = false;
 
       if (prefAllows(prefs, "maintenance", "inApp")) {
@@ -107,6 +136,7 @@ async function deliverToAll(opts: {
             intro: delivery.body,
             detail: delivery.detail ?? null,
             manageUrl,
+            locale: r.locale,
           }),
           devLink: manageUrl,
         });
@@ -135,6 +165,8 @@ export async function notifyMaintenanceThresholds(opts: {
   const dueIds = opts.dueIds ?? [];
   const soonIds = opts.soonIds ?? [];
   if (dueIds.length === 0 && soonIds.length === 0) return 0;
+  // Onderhoudsmodule uit (Superadmin-flag) → geen meldingen.
+  if (!(await isFeatureEnabled(tenantId, "maintenance"))) return 0;
 
   const origin = opts.origin ?? defaultOrigin();
   let recipients: Recipient[];
@@ -153,20 +185,20 @@ export async function notifyMaintenanceThresholds(opts: {
   const now = new Date();
   let notified = 0;
 
-  const groups: { ids: string[]; marker: "due" | "warn"; action: "machine.maintenance.due" | "machine.maintenance.warn"; title: string; body: (n: string) => string }[] = [
+  const groups: { ids: string[]; marker: "due" | "warn"; action: "machine.maintenance.due" | "machine.maintenance.warn"; titleKey: string; bodyKey: string }[] = [
     {
       ids: dueIds,
       marker: "due",
       action: "machine.maintenance.due",
-      title: "Onderhoud nu nodig",
-      body: (n) => `'${n}' heeft nu onderhoud nodig. Plan het onderhoud zo snel mogelijk in.`,
+      titleKey: "notifications.maintenance.dueTitle",
+      bodyKey: "notifications.maintenance.dueBody",
     },
     {
       ids: soonIds,
       marker: "warn",
       action: "machine.maintenance.warn",
-      title: "Onderhoud bijna nodig",
-      body: (n) => `'${n}' nadert een onderhoudslimiet. Houd deze machine in de gaten.`,
+      titleKey: "notifications.maintenance.warnTitle",
+      bodyKey: "notifications.maintenance.warnBody",
     },
   ];
 
@@ -190,7 +222,7 @@ export async function notifyMaintenanceThresholds(opts: {
         branding,
         origin,
         machineName: m.name,
-        delivery: { title: g.title, body: g.body(m.name) },
+        build: (t) => ({ title: t(g.titleKey), body: t(g.bodyKey, { name: m.name }) }),
       });
       await prisma.machine
         .update({
@@ -226,11 +258,23 @@ export async function notifyMaintenanceThresholds(opts: {
 
 export type MaintenanceEvent = "performed" | "out_of_service" | "reactivated" | "in_maintenance";
 
-const EVENT_COPY: Record<MaintenanceEvent, { title: string; body: (n: string) => string }> = {
-  performed: { title: "Onderhoud uitgevoerd", body: (n) => `Het onderhoud aan '${n}' is uitgevoerd en de machine is weer actief.` },
-  out_of_service: { title: "Machine buiten gebruik", body: (n) => `'${n}' is buiten gebruik gesteld.` },
-  reactivated: { title: "Machine weer actief", body: (n) => `'${n}' is weer in gebruik genomen.` },
-  in_maintenance: { title: "Machine in onderhoud", body: (n) => `'${n}' staat nu in onderhoud.` },
+const EVENT_COPY: Record<MaintenanceEvent, { titleKey: string; bodyKey: string }> = {
+  performed: {
+    titleKey: "notifications.maintenance.performedTitle",
+    bodyKey: "notifications.maintenance.performedBody",
+  },
+  out_of_service: {
+    titleKey: "notifications.maintenance.outOfServiceTitle",
+    bodyKey: "notifications.maintenance.outOfServiceBody",
+  },
+  reactivated: {
+    titleKey: "notifications.maintenance.reactivatedTitle",
+    bodyKey: "notifications.maintenance.reactivatedBody",
+  },
+  in_maintenance: {
+    titleKey: "notifications.maintenance.inMaintenanceTitle",
+    bodyKey: "notifications.maintenance.inMaintenanceBody",
+  },
 };
 
 /**
@@ -248,6 +292,8 @@ export async function notifyMaintenanceEvent(opts: {
 }): Promise<void> {
   const origin = opts.origin ?? defaultOrigin();
   try {
+    // Onderhoudsmodule uit (Superadmin-flag) → geen meldingen.
+    if (!(await isFeatureEnabled(opts.tenantId, "maintenance"))) return;
     const [all, branding] = await Promise.all([
       getRecipients(opts.tenantId),
       loadTenantBranding(opts.tenantId),
@@ -261,7 +307,11 @@ export async function notifyMaintenanceEvent(opts: {
       branding,
       origin,
       machineName: opts.machineName,
-      delivery: { title: copy.title, body: copy.body(opts.machineName), detail: opts.detail },
+      build: (t) => ({
+        title: t(copy.titleKey),
+        body: t(copy.bodyKey, { name: opts.machineName }),
+        detail: opts.detail ?? null,
+      }),
     });
   } catch (err) {
     console.error("✗ Onderhoud-event-melding mislukt:", (err as Error).message);

@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { Check, ChevronDown } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/toast";
 import { setLocale } from "@/lib/i18n/actions";
+import { LocaleFlag } from "@/components/i18n/locale-flag";
 import { LOCALES, LOCALE_META, isLocale, type AppLocale } from "@/lib/i18n/config";
 
 /**
@@ -63,13 +64,11 @@ export function LanguageSwitcher({
                   : "border-border bg-surface-1 hover:bg-surface-2",
               )}
             >
-              <span className="text-2xl leading-none" aria-hidden>
-                {meta.flag}
-              </span>
+              <LocaleFlag code={code} className="h-5 w-7" />
               <span className="min-w-0 flex-1">
                 <span className="block font-medium text-neutral-900">{meta.label}</span>
                 <span className="block text-xs uppercase tracking-wide text-neutral-400">
-                  {code}
+                  {meta.code}
                 </span>
               </span>
               {selected ? (
@@ -105,9 +104,7 @@ export function LanguageSwitcher({
                 : "text-neutral-700 hover:bg-neutral-100",
             )}
           >
-            <span className="text-base leading-none" aria-hidden>
-              {meta.flag}
-            </span>
+            <LocaleFlag code={code} />
             <span className="flex-1">{meta.label}</span>
             {selected ? <Check className="size-4" /> : null}
           </button>
@@ -168,9 +165,7 @@ function LanguageDropdown({
           open && "bg-neutral-100",
         )}
       >
-        <span className="text-base leading-none" aria-hidden>
-          {activeMeta.flag}
-        </span>
+        <LocaleFlag code={isLocale(active) ? active : "nl"} />
         <span className="flex-1 font-medium">{activeMeta.label}</span>
         <ChevronDown
           className={cn("size-4 text-neutral-400 transition-transform", open && "rotate-180")}
@@ -206,9 +201,7 @@ function LanguageDropdown({
                         : "text-neutral-700 hover:bg-neutral-100",
                     )}
                   >
-                    <span className="text-base leading-none" aria-hidden>
-                      {meta.flag}
-                    </span>
+                    <LocaleFlag code={code} />
                     <span className="flex-1">{meta.label}</span>
                     {selected ? <Check className="size-4" /> : null}
                   </button>

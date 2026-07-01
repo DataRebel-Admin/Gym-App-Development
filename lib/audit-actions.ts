@@ -19,6 +19,7 @@ export type AuditCategory =
   | "email"
   | "support"
   | "platform"
+  | "features"
   | "auth";
 
 export type AuditActionDef = {
@@ -51,6 +52,7 @@ export const CATEGORY_META: Record<
   email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
   support: { label: "Support", icon: "🛟", tone: "accent" },
   platform: { label: "Platform", icon: "🛠️", tone: "neutral" },
+  features: { label: "Features", icon: "🧩", tone: "accent" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
 };
 
@@ -84,6 +86,8 @@ export function categoryFromAction(action: string): AuditCategory {
       return "support";
     case "platform":
       return "platform";
+    case "feature":
+      return "features";
     case "tenant":
     case "branding":
     default:
@@ -587,6 +591,16 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "support", label: "Supportbericht verzonden", icon: "📨", tone: "success",
     sentence: ({ actor, meta }) =>
       `${actor} heeft een supportbericht verzonden${s(meta, "subject") ? `: '${s(meta, "subject")}'` : ""}`,
+  },
+
+  // --- Feature flags (Superadmin) ---
+  "feature.toggle": {
+    category: "features", label: "Feature gewijzigd", icon: "🧩", tone: "accent",
+    sentence: ({ actor, meta }) => {
+      const name = s(meta, "name") ?? s(meta, "feature") ?? "een feature";
+      const on = s(meta, "enabled") === "true";
+      return `${actor} heeft feature '${name}' ${on ? "ingeschakeld" : "uitgeschakeld"}`;
+    },
   },
 
   // --- Platform-instellingen (Superadmin) ---

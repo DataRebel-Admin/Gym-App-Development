@@ -52,18 +52,18 @@ export function MuscleRadar({ regions }: { regions: RegionAnalysis[] }) {
       <div className="h-72 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="72%">
-            <PolarGrid stroke="rgba(23,23,23,0.12)" />
+            <PolarGrid stroke="var(--neutral-300)" />
             <PolarAngleAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: "rgb(115,115,115)" }}
+              tick={{ fontSize: 10, fill: "var(--neutral-500)" }}
             />
             <Radar
               name={t("seriesPlan")}
               dataKey="plan"
-              stroke="rgba(115,115,115,0.7)"
+              stroke="var(--neutral-500)"
               strokeDasharray="4 3"
-              fill="rgba(115,115,115,0.10)"
-              fillOpacity={1}
+              fill="var(--neutral-500)"
+              fillOpacity={0.12}
             />
             <Radar
               name={t("seriesActual")}
@@ -79,9 +79,13 @@ export function MuscleRadar({ regions }: { regions: RegionAnalysis[] }) {
               ]}
               contentStyle={{
                 borderRadius: 12,
-                border: "1px solid rgba(23,23,23,0.1)",
+                border: "1px solid var(--border)",
+                background: "var(--surface-1)",
+                color: "var(--neutral-900)",
                 fontSize: 12,
               }}
+              labelStyle={{ color: "var(--neutral-900)" }}
+              itemStyle={{ color: "var(--neutral-700)" }}
             />
           </RadarChart>
         </ResponsiveContainer>
@@ -92,7 +96,7 @@ export function MuscleRadar({ regions }: { regions: RegionAnalysis[] }) {
         <span className="inline-flex items-center gap-1.5">
           <span
             className="inline-block h-0.5 w-5 rounded-full"
-            style={{ backgroundColor: "rgba(115,115,115,0.8)" }}
+            style={{ backgroundColor: "var(--neutral-500)" }}
           />
           {t("seriesPlan")}
         </span>

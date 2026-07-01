@@ -13,6 +13,7 @@ import {
   evaluateDueMachines,
 } from "@/lib/maintenance-eval";
 import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
+import { isFeatureEnabled } from "@/lib/features/service";
 
 /**
  * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
@@ -288,10 +289,13 @@ export async function endSession(formData: FormData) {
     // evalueren en de beheerders melden zodra een drempel bereikt is. Best-effort
     // — mag het afronden van de training nooit breken.
     try {
-      const usedMachineIds = await recordMachineUsageForSession(sessionId, member.tenantId);
-      if (usedMachineIds.length > 0) {
-        const { due, soon } = await evaluateDueMachines(member.tenantId);
-        await notifyMaintenanceThresholds({ tenantId: member.tenantId, dueIds: due, soonIds: soon });
+      // Onderhoudsmodule uit (Superadmin-flag) → geen telling/evaluatie/melding.
+      if (await isFeatureEnabled(member.tenantId, "maintenance")) {
+        const usedMachineIds = await recordMachineUsageForSession(sessionId, member.tenantId);
+        if (usedMachineIds.length > 0) {
+          const { due, soon } = await evaluateDueMachines(member.tenantId);
+          await notifyMaintenanceThresholds({ tenantId: member.tenantId, dueIds: due, soonIds: soon });
+        }
       }
     } catch (err) {
       console.error("[maintenance] usage-hook mislukt:", (err as Error).message);

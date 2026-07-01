@@ -1,15 +1,23 @@
 import Link from "next/link";
-import { PRIMARY_METRICS, MEASUREMENT_SOURCE_LABEL, formatMetric } from "@/lib/measurement-meta";
+import {
+  PRIMARY_METRICS,
+  MEASUREMENT_SOURCE_LABEL,
+  formatMetric,
+  isMetricEnabled,
+  type MetricKey,
+} from "@/lib/measurement-meta";
 import type { MeasurementRow } from "@/lib/measurements";
 
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "long", year: "numeric" });
 
-function Row({ row, href }: { row: MeasurementRow; href?: string }) {
-  const key = PRIMARY_METRICS.filter((m) => row.values[m.key] != null).slice(0, 4);
+function Row({ row, href, enabled }: { row: MeasurementRow; href?: string; enabled: MetricKey[] | null }) {
+  const key = PRIMARY_METRICS.filter(
+    (m) => row.values[m.key] != null && isMetricEnabled(m.key, enabled)
+  ).slice(0, 4);
   const inner = (
     <div className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-1 p-4 shadow-sm transition-colors hover:bg-neutral-50">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-semibold capitalize text-neutral-900">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <span className="min-w-0 break-words font-semibold capitalize text-neutral-900">
           {DATE_FMT.format(new Date(row.measuredAt))}
         </span>
         <span className="text-xs text-neutral-400">
@@ -45,9 +53,12 @@ function Row({ row, href }: { row: MeasurementRow; href?: string }) {
 export function MeasurementTimeline({
   rows,
   hrefBase,
+  enabled = null,
 }: {
   rows: MeasurementRow[];
   hrefBase?: string;
+  /** Door de owner geselecteerde meetvelden (`null` = alle). */
+  enabled?: MetricKey[] | null;
 }) {
   if (rows.length === 0) {
     return (
@@ -59,7 +70,12 @@ export function MeasurementTimeline({
   return (
     <div className="flex flex-col gap-3">
       {rows.map((row) => (
-        <Row key={row.id} row={row} href={hrefBase ? `${hrefBase}/${row.id}` : undefined} />
+        <Row
+          key={row.id}
+          row={row}
+          href={hrefBase ? `${hrefBase}/${row.id}` : undefined}
+          enabled={enabled}
+        />
       ))}
     </div>
   );

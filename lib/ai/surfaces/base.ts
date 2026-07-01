@@ -38,8 +38,15 @@ export type Surface = {
   build: (args: SurfaceBuildArgs) => Promise<{ system: string } | null>;
 };
 
+/** Mensvriendelijke taalnaam per locale — voor de taal-instructie in de prompt. */
+const LOCALE_NAME: Record<Locale, string> = {
+  NL: "Nederlands",
+  EN: "Engels (English)",
+  FY: "Fries (Frysk)",
+};
+
 /** Gedeelde veiligheids-/gedragsregels die bovenaan élke system-prompt staan. */
-export function baseSystemPreamble(tenantName: string): string {
+export function baseSystemPreamble(tenantName: string, locale: Locale): string {
   return [
     `Je bent de AI Coach & Assistent van sportschool "${tenantName}".`,
     "Kernregels — altijd, zonder uitzondering:",
@@ -49,7 +56,10 @@ export function baseSystemPreamble(tenantName: string): string {
     "  context hieronder staan. Verzin niets en beloof geen resultaten.",
     "- Je WIJZIGT NOOIT zelf gegevens. Wil je een wijziging voorstellen, doe dat uitsluitend als",
     "  een 'proposal' (zie het antwoordformaat). De gebruiker bevestigt zelf met 'Toepassen'.",
-    "- Antwoord in dezelfde taal als de vraag. Houd het kort, concreet en motiverend.",
+    `- Antwoord standaard in de taal van de gebruiker: ${LOCALE_NAME[locale]}. Schrijft de`,
+    "  gebruiker duidelijk in een andere taal, volg dan de taal van de vraag. Voor Fries: gebruik",
+    "  natuurlijk, hedendaags spreektaal-Frysk — geen letterlijke vertaling uit het Nederlands.",
+    "  Houd het kort, concreet en motiverend.",
   ].join("\n");
 }
 

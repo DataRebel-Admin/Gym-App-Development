@@ -14,6 +14,9 @@ export type UserPreferences = {
   hideQuotes: boolean;
   /** true = trofeeën/mijlpalen verbergen in dashboard en navigatie. */
   hideAchievements: boolean;
+  /** true = de trainer mag de voortgangsfoto's van dit lid bekijken. Default
+   *  false (privacy-first): zonder expliciete toestemming ziet alleen het lid ze. */
+  allowTrainerPhotos: boolean;
   /** Overige (nog niet getypeerde) voorkeuren blijven behouden bij schrijven. */
   [key: string]: unknown;
 };
@@ -42,6 +45,11 @@ export function getHideAchievements(value: unknown): boolean {
   return parsePreferences(value).hideAchievements === true;
 }
 
+/** Mag de trainer de voortgangsfoto's van dit lid bekijken? Default false. */
+export function getAllowTrainerPhotos(value: unknown): boolean {
+  return parsePreferences(value).allowTrainerPhotos === true;
+}
+
 // De writers leveren een Prisma-JSON-object voor de `preferences`-kolom. De
 // bestaande waarden komen uit een DB-JSON-kolom (dus JSON-veilig); de cast op de
 // DB-grens is hier gerechtvaardigd.
@@ -60,4 +68,9 @@ export function withHideQuotes(value: unknown, hide: boolean): Prisma.InputJsonO
 /** Nieuw voorkeuren-object met de trofeeën-voorkeur (behoudt overige velden). */
 export function withHideAchievements(value: unknown, hide: boolean): Prisma.InputJsonObject {
   return { ...parsePreferences(value), hideAchievements: hide } as Prisma.InputJsonObject;
+}
+
+/** Nieuw voorkeuren-object met de foto-privacy-voorkeur (behoudt overige velden). */
+export function withAllowTrainerPhotos(value: unknown, allow: boolean): Prisma.InputJsonObject {
+  return { ...parsePreferences(value), allowTrainerPhotos: allow } as Prisma.InputJsonObject;
 }

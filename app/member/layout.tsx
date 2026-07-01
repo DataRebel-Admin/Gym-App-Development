@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
+import { areClassesEnabled } from "@/lib/classes";
 import { getUserTenants } from "@/lib/tenants";
 import { getUserBadge } from "@/lib/account";
 import { getNotificationOverview } from "@/lib/notifications";
@@ -24,6 +25,8 @@ export default async function MemberLayout({
   if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
 
   const tenant = await getCurrentTenant();
+  // Effectief = Superadmin-feature-flag én owner-toggle (zie lib/classes.ts).
+  const classesEnabled = tenant ? await areClassesEnabled(tenant.id) : true;
   const badge = await getUserBadge(session.user.id);
   const notifications = await getNotificationOverview(session.user.id);
   const tenants = session.user.email
@@ -79,7 +82,7 @@ export default async function MemberLayout({
         <PageTransition>{children}</PageTransition>
       </main>
 
-      <MemberNav />
+      <MemberNav classesEnabled={classesEnabled} />
       <MemberOnboarding />
       <CelebrationOverlay celebrations={celebrations} />
     </div>

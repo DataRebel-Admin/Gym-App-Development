@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { uploadProgressPhoto } from "@/lib/blob";
-import { METRICS, GOAL_METRIC_KEY, GOAL_METRIC_LABEL } from "@/lib/measurement-meta";
+import { METRICS, GOAL_METRIC_KEY, GOAL_METRIC_LABEL, isMetricEnabled, type MetricKey } from "@/lib/measurement-meta";
+import { getEnabledMeasurementKeys } from "@/lib/measurements";
 import { evaluateAndAward } from "@/lib/achievements/evaluate";
 
 export type MeasurementFormState = { error?: string };
@@ -34,10 +35,22 @@ function num(formData: FormData, key: string, integer: boolean): number | null {
   return integer ? Math.round(n) : n;
 }
 
-/** Bouw alle meetwaarde-kolommen uit de FormData (één bron: METRICS). */
-function buildMetricData(formData: FormData): Record<string, number | null> {
+/**
+ * Bouw de meetwaarde-kolommen uit de FormData (één bron: METRICS). Alleen de door
+ * de owner ingeschakelde velden worden meegenomen (`enabled = null` = alle) —
+ * autoritatief: uitgeschakelde velden worden nooit geschreven, zodat bestaande
+ * waarden bij een update behouden blijven en de client niet vertrouwd hoeft te
+ * worden.
+ */
+function buildMetricData(
+  formData: FormData,
+  enabled: MetricKey[] | null
+): Record<string, number | null> {
   const data: Record<string, number | null> = {};
-  for (const def of METRICS) data[def.key] = num(formData, def.key, def.integer ?? false);
+  for (const def of METRICS) {
+    if (!isMetricEnabled(def.key, enabled)) continue;
+    data[def.key] = num(formData, def.key, def.integer ?? false);
+  }
   return data;
 }
 
@@ -94,6 +107,7 @@ export async function createMeasurement(
     select: { slug: true },
   });
   const photos = tenant ? await uploadPhotos(formData, tenant.slug) : [];
+  const enabled = await getEnabledMeasurementKeys(owner.tenantId);
 
   const created = await prisma.measurement.create({
     data: {
@@ -103,7 +117,7 @@ export async function createMeasurement(
       measuredAt: basics.measuredAt,
       source: basics.source,
       notes: basics.notes,
-      ...buildMetricData(formData),
+      ...buildMetricData(formData, enabled),
       photos: {
         create: photos.map((p) => ({ tenantId: owner.tenantId, pose: p.pose, url: p.url })),
       },
@@ -157,6 +171,7 @@ export async function updateMeasurement(
     },
   });
   const photos = tenant ? await uploadPhotos(formData, tenant.slug) : [];
+  const enabled = await getEnabledMeasurementKeys(owner.tenantId);
 
   await prisma.measurement.update({
     where: { id: measurementId },
@@ -164,7 +179,7 @@ export async function updateMeasurement(
       measuredAt: basics.measuredAt,
       source: basics.source,
       notes: basics.notes,
-      ...buildMetricData(formData),
+      ...buildMetricData(formData, enabled),
       photos: {
         create: photos.map((p) => ({ tenantId: owner.tenantId, pose: p.pose, url: p.url })),
       },

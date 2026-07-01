@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireMember, getExerciseProgress } from "@/lib/member";
 import { getExerciseDetail, getAlternativeExercises } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
+import { isAiEnabled } from "@/lib/ai/enabled";
 import { ProgressLineChart } from "@/components/charts/progress-line-chart";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
 import { ExerciseAssistant } from "@/components/ai/exercise-assistant";
@@ -44,6 +45,9 @@ export default async function ExerciseProgressPage({
     getAlternativeExercises(member.tenantId, id),
   ]);
   if (!progress) notFound();
+
+  // AI-oefeningassistent: alleen als de AI-module beschikbaar is (flag + owner-toggle).
+  const aiEnabled = await isAiEnabled(member.tenantId);
 
   // Val terug op de progressie-naam wanneer de catalogus geen detail levert.
   const resolved =
@@ -115,7 +119,7 @@ export default async function ExerciseProgressPage({
         alternatives={alternatives}
         progressSlot={progressSlot}
         assistantSlot={
-          tenant?.aiEnabled ? (
+          aiEnabled ? (
             <ExerciseAssistant
               ask={askExerciseAssistant.bind(null, resolved.id)}
               suggestions={surfaceSuggestions("exercise")}

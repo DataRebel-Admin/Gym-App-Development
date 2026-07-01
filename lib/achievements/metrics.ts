@@ -92,11 +92,16 @@ export async function computeMemberMetrics(
   let maxSquatKg = 0;
   let maxDeadliftKg = 0;
   const dayStarts = new Set<number>();
+  const weekBuckets = new Set<number>(); // distinct 7-daagse weken met ≥1 training
   const prExercises = new Set<string>(); // oefeningen met ≥1 gewogen set = een record
 
   for (const s of sessions) {
     totalWorkouts += 1;
-    dayStarts.add(startOfDay(s.startedAt));
+    const day = startOfDay(s.startedAt);
+    dayStarts.add(day);
+    // Distinct kalenderweken (7-daagse buckets vanaf epoch) met ≥1 training.
+    // Alignment is irrelevant — het gaat om het áántal getrainde weken.
+    weekBuckets.add(Math.floor(day / (7 * DAY_MS)));
     for (const e of s.performanceEntries) {
       totalVolume += e.reps * e.weightKg;
       if (e.weightKg > 0) {
@@ -140,6 +145,7 @@ export async function computeMemberMetrics(
   return {
     totalWorkouts,
     longestStreakDays: longestDayStreak(dayStarts),
+    activeWeeks: weekBuckets.size,
     memberSinceDays,
     totalVolume: Math.round(totalVolume),
     prCount: prExercises.size,

@@ -164,6 +164,12 @@ model Tenant {
   memberSchemaMode MemberSchemaMode @default(DISABLED)
   // Motiverende Workout Quotes na een afgeronde training (aan/uit per sportschool).
   quotesEnabled Boolean    @default(true)
+  // Lesrooster/aanmelden voor lessen aan of uit voor deze sportschool. Default aan;
+  // uitzetten verbergt alle les-UI (nav/pagina's) en blokkeert in-/uitschrijven.
+  classesEnabled Boolean   @default(true)
+  // Door de owner geselecteerde meetvelden (array van metric-keys uit
+  // lib/measurement-meta.ts). NULL = alle velden actief (backward-compat).
+  enabledMeasurementFields Json?
   // Door de owner toegevoegde eigen quotes (array van strings). NULL = alleen de
   // standaard-quotes uit lib/workout-quotes.ts.
   customQuotes Json?
@@ -210,6 +216,30 @@ model Tenant {
   earnedAchievements EarnedAchievement[]
   maintenanceRecords MaintenanceRecord[]
   maintenancePolicies MaintenancePolicy[]
+  featureFlags        FeatureFlag[]
+}
+
+/**
+ * Tenant-specifieke feature flag (module aan/uit per sportschool). Alléén de
+ * Superadmin muteert deze. Eén rij per (tenant, key); ontbreekt een rij, dan
+ * geldt de code-default uit `lib/features/catalog.ts`. De sleutels zijn géén
+ * enum (uitbreidbaar zonder migratie) — de code-registry is de bron van waarheid.
+ * Tenant-scoped + RLS (zoals de andere tenant-modellen).
+ */
+model FeatureFlag {
+  id             String   @id @default(cuid())
+  tenantId       String
+  key            String // FeatureKey uit lib/features/catalog.ts
+  enabled        Boolean
+  updatedById    String? // Superadmin die 't wijzigde (geen FK — overleeft delete)
+  updatedByEmail String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
 }
 
 // In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een

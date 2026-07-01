@@ -4,7 +4,9 @@ import { z } from "zod";
 import QRCode from "qrcode";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/db";
+import { enumFromLocale, type AppLocale } from "@/lib/i18n/config";
 import { auth, signOut } from "@/auth";
 import { requireAccount } from "@/lib/account";
 import { audit } from "@/lib/audit";
@@ -87,6 +89,7 @@ export async function setPassword(
           branding,
           recipientName: me.name,
           securityUrl: `${await origin()}/account/beveiliging`,
+          locale: enumFromLocale((await getLocale()) as AppLocale),
         }),
       });
     } catch (err) {

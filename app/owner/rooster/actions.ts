@@ -2,10 +2,16 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { areClassesEnabled } from "@/lib/classes";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
+
+/** 404 als de groepslessen-module uit staat (Superadmin-flag óf owner-toggle). */
+async function assertClassesEnabled(tenantId: string) {
+  if (!(await areClassesEnabled(tenantId))) notFound();
+}
 
 const classSchema = z.object({
   name: z.string().trim().min(1, "Naam is verplicht"),
@@ -20,6 +26,7 @@ export async function createClass(
   formData: FormData
 ): Promise<ClassFormState> {
   const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
   const parsed = classSchema.safeParse({
     name: formData.get("name"),
     instructorName: formData.get("instructorName") || undefined,
@@ -44,6 +51,7 @@ export async function createClass(
 
 export async function deleteClass(formData: FormData) {
   const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
   const id = String(formData.get("id") ?? "");
   await prisma.groupClass.deleteMany({ where: { id, tenantId: owner.tenantId } });
   revalidatePath("/owner/rooster");
@@ -68,6 +76,7 @@ export async function addSession(
   formData: FormData
 ): Promise<SessionFormState> {
   const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
   const parsed = sessionSchema.safeParse({
     classId: formData.get("classId"),
     startsAt: formData.get("startsAt"),
@@ -99,8 +108,10 @@ export async function addSession(
     tenantId: owner.tenantId,
     permission: "schedule:manage",
     category: "changes",
-    title: "Planning gewijzigd",
-    body: `Nieuwe les ingepland: ${groupClass.name}.`,
+    render: (t) => ({
+      title: t("notifications.newClass.title"),
+      body: t("notifications.newClass.body", { name: groupClass.name }),
+    }),
     link: `/owner/rooster/${groupClass.id}`,
     excludeUserId: owner.id,
   });
@@ -111,6 +122,7 @@ export async function addSession(
 
 export async function deleteSession(formData: FormData) {
   const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
   const id = String(formData.get("id") ?? "");
   const classId = String(formData.get("classId") ?? "");
   await prisma.classSession.deleteMany({ where: { id, tenantId: owner.tenantId } });

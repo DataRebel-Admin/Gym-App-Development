@@ -6,6 +6,8 @@ import {
   MEASUREMENT_SOURCE_LABEL,
   POSE_LABEL,
   formatMetric,
+  filterEnabledMetrics,
+  type MetricKey,
 } from "@/lib/measurement-meta";
 import type { MeasurementRow } from "@/lib/measurements";
 
@@ -16,13 +18,23 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   year: "numeric",
 });
 
-function ValueGrid({ row, group }: { row: MeasurementRow; group: "composition" | "circumference" | "condition" }) {
-  const metrics =
+function ValueGrid({
+  row,
+  group,
+  enabled,
+}: {
+  row: MeasurementRow;
+  group: "composition" | "circumference" | "condition";
+  enabled: MetricKey[] | null;
+}) {
+  const metrics = filterEnabledMetrics(
     group === "composition"
       ? COMPOSITION_METRICS
       : group === "condition"
         ? CONDITION_METRICS
-        : CIRCUMFERENCE_METRICS;
+        : CIRCUMFERENCE_METRICS,
+    enabled
+  );
   const filled = metrics.filter((m) => row.values[m.key] != null);
   if (filled.length === 0) {
     return <p className="text-sm text-neutral-400">Geen waarden ingevuld.</p>;
@@ -42,7 +54,20 @@ function ValueGrid({ row, group }: { row: MeasurementRow; group: "composition" |
 }
 
 /** Volledige weergave van één meting (gedeeld door owner- en lid-detailpagina). */
-export function MeasurementDetail({ row }: { row: MeasurementRow }) {
+export function MeasurementDetail({
+  row,
+  enabled = null,
+  canViewPhotos = true,
+}: {
+  row: MeasurementRow;
+  /** Door de owner geselecteerde meetvelden (`null` = alle). */
+  enabled?: MetricKey[] | null;
+  /** Mag de foto's tonen (lid altijd; trainer alleen als het lid dat toestaat). */
+  canViewPhotos?: boolean;
+}) {
+  const composition = filterEnabledMetrics(COMPOSITION_METRICS, enabled);
+  const condition = filterEnabledMetrics(CONDITION_METRICS, enabled);
+  const circumference = filterEnabledMetrics(CIRCUMFERENCE_METRICS, enabled);
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -55,22 +80,28 @@ export function MeasurementDetail({ row }: { row: MeasurementRow }) {
         ) : null}
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Lichaamssamenstelling</h3>
-        <ValueGrid row={row} group="composition" />
-      </section>
+      {composition.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-neutral-900">Lichaamssamenstelling</h3>
+          <ValueGrid row={row} group="composition" enabled={enabled} />
+        </section>
+      ) : null}
 
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Conditie</h3>
-        <ValueGrid row={row} group="condition" />
-      </section>
+      {condition.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-neutral-900">Conditie</h3>
+          <ValueGrid row={row} group="condition" enabled={enabled} />
+        </section>
+      ) : null}
 
-      <section className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Omtrekmetingen</h3>
-        <ValueGrid row={row} group="circumference" />
-      </section>
+      {circumference.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-neutral-900">Omtrekmetingen</h3>
+          <ValueGrid row={row} group="circumference" enabled={enabled} />
+        </section>
+      ) : null}
 
-      {row.photos.length > 0 ? (
+      {row.photos.length > 0 && canViewPhotos ? (
         <section className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-neutral-900">Voortgangsfoto&apos;s</h3>
           <div className="grid grid-cols-3 gap-3">

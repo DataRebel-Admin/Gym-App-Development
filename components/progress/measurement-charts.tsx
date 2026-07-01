@@ -16,14 +16,26 @@ import {
   METRIC_BY_KEY,
   PRIMARY_METRICS,
   RANGES,
+  filterEnabledMetrics,
   type MetricKey,
   type RangeKey,
 } from "@/lib/measurement-meta";
 import type { SeriesPoint } from "@/lib/measurements";
 
 /** Interactieve voortgangsgrafiek: kies metric + periode (30d…alles). */
-export function MeasurementCharts({ points }: { points: SeriesPoint[] }) {
-  const [metric, setMetric] = useState<MetricKey>("weightKg");
+export function MeasurementCharts({
+  points,
+  enabled = null,
+}: {
+  points: SeriesPoint[];
+  /** Door de owner geselecteerde meetvelden (`null` = alle). */
+  enabled?: MetricKey[] | null;
+}) {
+  const availableMetrics = filterEnabledMetrics(METRICS, enabled);
+  const primaryMetrics = filterEnabledMetrics(PRIMARY_METRICS, enabled);
+  const [metric, setMetric] = useState<MetricKey>(
+    () => availableMetrics.find((m) => m.key === "weightKg")?.key ?? availableMetrics[0]?.key ?? "weightKg"
+  );
   const [range, setRange] = useState<RangeKey>("90d");
   // Eénmalig "nu" (lazy init is rein) — voor de periode-cutoff.
   const [now] = useState(() => Date.now());
@@ -44,20 +56,20 @@ export function MeasurementCharts({ points }: { points: SeriesPoint[] }) {
         <select
           value={metric}
           onChange={(e) => setMetric(e.target.value as MetricKey)}
-          className="rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-medium text-neutral-900"
+          className="min-w-0 max-w-full flex-1 truncate rounded-lg border border-border bg-surface-0 px-3 py-1.5 text-sm font-medium text-neutral-900 sm:flex-none"
         >
           <optgroup label="Lichaamssamenstelling">
-            {METRICS.filter((m) => m.group === "composition").map((m) => (
+            {availableMetrics.filter((m) => m.group === "composition").map((m) => (
               <option key={m.key} value={m.key}>{m.label}</option>
             ))}
           </optgroup>
           <optgroup label="Conditie">
-            {METRICS.filter((m) => m.group === "condition").map((m) => (
+            {availableMetrics.filter((m) => m.group === "condition").map((m) => (
               <option key={m.key} value={m.key}>{m.label}</option>
             ))}
           </optgroup>
           <optgroup label="Omtrek">
-            {METRICS.filter((m) => m.group === "circumference").map((m) => (
+            {availableMetrics.filter((m) => m.group === "circumference").map((m) => (
               <option key={m.key} value={m.key}>{m.label}</option>
             ))}
           </optgroup>
@@ -88,8 +100,14 @@ export function MeasurementCharts({ points }: { points: SeriesPoint[] }) {
       ) : (
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" vertical={false} />
-            <XAxis dataKey="date" tickLine={false} axisLine={false} fontSize={12} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-200)" vertical={false} />
+            <XAxis
+              dataKey="date"
+              tickLine={false}
+              axisLine={false}
+              fontSize={12}
+              tick={{ fill: "var(--neutral-500)" }}
+            />
             <YAxis
               tickLine={false}
               axisLine={false}
@@ -97,8 +115,20 @@ export function MeasurementCharts({ points }: { points: SeriesPoint[] }) {
               width={48}
               domain={["auto", "auto"]}
               unit={def.unit ? ` ${def.unit}` : ""}
+              tick={{ fill: "var(--neutral-500)" }}
             />
-            <Tooltip formatter={(value) => [`${value}${def.unit ? ` ${def.unit}` : ""}`, def.label]} />
+            <Tooltip
+              formatter={(value) => [`${value}${def.unit ? ` ${def.unit}` : ""}`, def.label]}
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid var(--border)",
+                background: "var(--surface-1)",
+                color: "var(--neutral-900)",
+                fontSize: 12,
+              }}
+              labelStyle={{ color: "var(--neutral-900)" }}
+              itemStyle={{ color: "var(--neutral-700)" }}
+            />
             <Line
               type="monotone"
               dataKey="value"
@@ -113,7 +143,7 @@ export function MeasurementCharts({ points }: { points: SeriesPoint[] }) {
       )}
 
       <div className="flex flex-wrap gap-1.5">
-        {PRIMARY_METRICS.map((m) => (
+        {primaryMetrics.map((m) => (
           <button
             key={m.key}
             type="button"
