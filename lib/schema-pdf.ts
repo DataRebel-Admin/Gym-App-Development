@@ -344,14 +344,21 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   }
 
   // ---- Eén rij tekenen ----
+  // Conventie: de rij beslaat exact `[top - h, top]`. CELL_PAD aan boven- én
+  // onderkant; tekst-baselines worden vanaf de bovenrand uitgelijnd zodat de
+  // kolommen op dezelfde hoogte staan en rijen elkaar nooit overlappen.
   function drawRow(it: SchemaPdfItem, index: number) {
     const h = rowHeight(it);
     const top = y;
-    const bottom = top - h + 12;
+    const bottom = top - h;
     if (index % 2 === 1) rect(MARGIN, bottom, CONTENT_W, h, ZEBRA);
 
+    // Baseline van de eerste regel: CELL_PAD onder de bovenrand minus de
+    // letterhoogte (~0.78·size) zodat de tekst-toppen netjes uitlijnen.
+    const firstBaseline = (size: number) => top - CELL_PAD - size * 0.78;
+
     // Oefening + machine-subtitel.
-    let ny = top - CELL_PAD + 2;
+    let ny = firstBaseline(NAME_SIZE);
     const nameLines = wrap(it.exercise, bold, NAME_SIZE, COLS[0].w - CELL_PAD * 2);
     for (const ln of nameLines) {
       text(ln, colX.ex + CELL_PAD, ny, NAME_SIZE, bold, INK);
@@ -369,7 +376,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     }
 
     // Numerieke kolommen, verticaal uitgelijnd op de eerste regel.
-    const cy = top - CELL_PAD - 1;
+    const cy = firstBaseline(CELL_SIZE);
     const isStrengthRow = !it.exerciseType || it.exerciseType === "strength";
     if (isStrengthRow) {
       const center = (key: string, s: string, c: Tuple = INK, f: PDFFont = font) =>
@@ -391,7 +398,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
 
     // Notities.
     if (it.notes?.trim()) {
-      let qy = top - CELL_PAD + 1;
+      let qy = firstBaseline(NOTE_SIZE);
       for (const ln of wrap(it.notes, font, NOTE_SIZE, COLS[6].w - CELL_PAD * 2)) {
         text(ln, colX.notes + CELL_PAD, qy, NOTE_SIZE, font, mix(INK, SUBTLE, 0.4));
         qy -= NOTE_SIZE + 2.5;
@@ -399,7 +406,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     }
 
     y = bottom;
-    hline(y + 11, HAIR, 0.5);
+    hline(bottom, HAIR, 0.5);
   }
 
   // ---- Dag-sectiekop ----

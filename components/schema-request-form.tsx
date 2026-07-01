@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import { submitRequest, type RequestFormState } from "@/app/member/requests/actions";
 import { GOAL_OPTIONS } from "@/lib/schema-requests";
 import { Check } from "@/components/ui/icons";
@@ -14,6 +15,8 @@ const fieldClass =
  * duidelijke melding van de server-action.
  */
 export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
+  const t = useTranslations("member.requests");
+  const tr = useTranslations("requests");
   const [state, formAction, pending] = useActionState<RequestFormState, FormData>(
     submitRequest,
     {}
@@ -27,11 +30,8 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
           <Check className="size-4" />
         </span>
         <div>
-          <p className="font-display font-bold text-neutral-900">Aanvraag verstuurd! 🎉</p>
-          <p className="mt-0.5 text-sm text-neutral-600">
-            Je trainer heeft je aanvraag ontvangen. Je ziet hieronder de status en krijgt
-            een melding zodra er nieuws is.
-          </p>
+          <p className="font-display font-bold text-neutral-900">{t("successTitle")}</p>
+          <p className="mt-0.5 text-sm text-neutral-600">{t("successBody")}</p>
         </div>
       </div>
     );
@@ -40,8 +40,7 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
   if (!canSubmit) {
     return (
       <div className="rounded-2xl border border-border bg-surface-1 px-4 py-4 text-sm text-neutral-600">
-        Je hebt al een lopende aanvraag. Zodra je trainer die heeft afgerond, kun je een
-        nieuwe aanvraag indienen.
+        {t("alreadyPending")}
       </div>
     );
   }
@@ -49,37 +48,37 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
   return (
     <form action={formAction} className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-4">
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        Wat is je doel?
+        {t("goalLabel")}
         <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className={fieldClass}>
           {GOAL_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>{tr(`goal${o.value}`)}</option>
           ))}
         </select>
       </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        Toelichting
+        {t("descLabel")}
         <textarea
           name="description"
           rows={3}
           maxLength={2000}
-          placeholder="Bijv. Ik wil graag een schema met meer focus op mijn schouders."
+          placeholder={t("descPlaceholder")}
           className={fieldClass}
         />
       </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        Gewenste startdatum <span className="font-normal text-neutral-400">(optioneel)</span>
+        {t("startLabel")} <span className="font-normal text-neutral-400">{t("optional")}</span>
         <input type="date" name="preferredStart" className={fieldClass} />
       </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        Extra opmerkingen <span className="font-normal text-neutral-400">(optioneel)</span>
+        {t("notesLabel")} <span className="font-normal text-neutral-400">{t("optional")}</span>
         <textarea
           name="notes"
           rows={2}
           maxLength={2000}
-          placeholder="Aanvullende informatie voor je trainer…"
+          placeholder={t("notesPlaceholder")}
           className={fieldClass}
         />
       </label>
@@ -91,7 +90,7 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
         disabled={pending}
         className="rounded-xl bg-accent px-5 py-3 text-sm font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? "Versturen…" : "Aanvraag versturen"}
+        {pending ? t("submitting") : t("submit")}
       </button>
     </form>
   );

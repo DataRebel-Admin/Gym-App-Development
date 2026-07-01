@@ -194,9 +194,20 @@ multi-dag, eigen + standaardoefeningen) en wijst ze toe met een volledige
   dashboard-alert op `/member` zolang `seenAt == null`. `markActiveSchemaSeen`
   (app/member/schema/actions.ts) wordt op openen aangeroepen (`MarkSchemaSeen`).
 - **Owner-overzicht per schema**: `components/schema-assignment-overview.tsx` op de
-  template-pagina toont leden, status, publicatiedatum, periode, laatst gewijzigd, gezien +
-  aantal actief (`lib/schema-assignments.ts`). Statuslabels/kleuren centraal in
-  **`lib/schema-status.ts`** (`ASSIGNMENT_STATUS_META`, `isActiveNow`, datumhelpers).
+  template-pagina toont leden, status, publicatiedatum, **"Sinds"** (hoe lang het lid het al
+  heeft), **geldigheid/verloop**, periode, laatst gewijzigd, gezien + aantal actief
+  (`lib/schema-assignments.ts` → `toOverviewRows` serialiseert datums server-side → client
+  filtert op status + aangepast + verloop). Statuslabels/kleuren + datum-/duurhelpers centraal
+  in **`lib/schema-status.ts`** (`ASSIGNMENT_STATUS_META`, `isActiveNow`, `fmtDate/DateTime`,
+  **`fmtSince`**, **`computeValidity`**).
+- **Schema-geldigheid (verloop-flag)**: `WorkoutTemplate.validityWeeks Int?` (NULL =
+  onbeperkt; migratie `20260701050000_schema_validity_weeks`) — ingevuld in de schema-editor,
+  meegekloond naar elk lid-schema (`cloneToAssignment`/`duplicateTemplate`). `computeValidity`
+  (lib/schema-status.ts) rekent vanaf de publicatiedatum: state `expired` → "Verlopen",
+  `expiring` (≤14 dagen) → "Nieuw schema nodig". Getoond als badge in de Leden-lijst
+  (`components/schema/member-schema-table.tsx`, met zoek + status/type/geldigheid-filters),
+  het per-schema-overzicht en het per-lid-detail. Alleen kracht/alle-types agnostisch — puur
+  op datum.
 - **Audit** (lib/audit-actions.ts): `schema.reassign`, `schema.publish`, `schema.schedule`,
   `schema.archive`, `schema.notify.sent`, `schema.email.sent` — alle onder categorie `schemas`.
 - **Bewust niet gebouwd**: lidmaatschapsgroepen (toewijs-flow is er wel op voorbereid via

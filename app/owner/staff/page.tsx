@@ -1,8 +1,8 @@
+import { getTranslations } from "next-intl/server";
 import { requireOwner } from "@/lib/owner";
 import { prisma } from "@/lib/db";
 import {
   deriveInviteStatus,
-  INVITE_STATUS_LABEL,
   type InviteStatus,
 } from "@/lib/members";
 import { listPendingInvitations } from "@/lib/invitation";
@@ -29,7 +29,10 @@ import {
 } from "@/app/owner/members/actions";
 import { setStaffPermissions } from "./actions";
 
-export const metadata = { title: "Medewerkers" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.staff");
+  return { title: t("metaTitle") };
+}
 
 const STATUS_TONE: Record<InviteStatus, BadgeTone> = {
   GEACTIVEERD: "success",
@@ -43,6 +46,7 @@ const rowBtn =
 
 export default async function OwnerStaffPage() {
   const owner = await requireOwner();
+  const t = await getTranslations("owner.staff");
 
   const [staff, pendingInvites] = await Promise.all([
     prisma.user.findMany({
@@ -72,31 +76,31 @@ export default async function OwnerStaffPage() {
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
-        title="Medewerkers"
-        description="Nodig medewerkers (coaches) uit en bepaal per persoon wat ze mogen."
+        title={t("title")}
+        description={t("desc")}
       />
 
       {/* Medewerker uitnodigen */}
       <Card className="flex flex-col gap-3 p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">Medewerker uitnodigen</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">{t("inviteStaff")}</h2>
         <form action={inviteMember} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="role" value="TENANT_STAFF" />
-          <Field label="E-mailadres" className="w-full sm:w-80">
-            <Input name="email" type="email" required placeholder="coach@sportschool.nl" />
+          <Field label={t("emailLabel")} className="w-full sm:w-80">
+            <Input name="email" type="email" required placeholder={t("emailPlaceholder")} />
           </Field>
           <button type="submit" className={buttonClasses({ size: "md" })}>
-            Uitnodiging sturen
+            {t("sendInvite")}
           </button>
         </form>
         <p className="text-xs text-neutral-500">
-          De medewerker krijgt standaard de dagelijkse coach-rechten. Pas ze hieronder per persoon aan.
+          {t("inviteHint")}
         </p>
       </Card>
 
       {/* Uitstaande uitnodigingen voor medewerkers */}
       {staffInvites.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold text-neutral-900">Uitstaande uitnodigingen</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">{t("pendingInvites")}</h2>
           <PendingInvitationsTable
             rows={staffInvites}
             resendAction={resendMemberInviteById}
@@ -108,7 +112,7 @@ export default async function OwnerStaffPage() {
       {/* Medewerkers */}
       {staff.length === 0 ? (
         <Card className="p-8 text-center text-sm text-neutral-500">
-          Nog geen medewerkers. Nodig je eerste coach uit met het formulier hierboven.
+          {t("noStaff")}
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
@@ -130,15 +134,15 @@ export default async function OwnerStaffPage() {
                       <p className="truncate font-medium text-neutral-900">{s.name ?? s.email}</p>
                       <p className="truncate text-xs text-neutral-500">{s.email}</p>
                     </div>
-                    <Badge tone={STATUS_TONE[status]}>{INVITE_STATUS_LABEL[status]}</Badge>
-                    {!s.active ? <Badge tone="warning">gedeactiveerd</Badge> : null}
+                    <Badge tone={STATUS_TONE[status]}>{t(`status${status}`)}</Badge>
+                    {!s.active ? <Badge tone="warning">{t("deactivated")}</Badge> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {canInvite ? (
                       <form action={resendInvite}>
                         <input type="hidden" name="userId" value={s.id} />
                         <button type="submit" className={rowBtn}>
-                          {status === "NIET_UITGENODIGD" ? "Uitnodigen" : "Opnieuw"}
+                          {status === "NIET_UITGENODIGD" ? t("invite") : t("resend")}
                         </button>
                       </form>
                     ) : null}
@@ -146,23 +150,23 @@ export default async function OwnerStaffPage() {
                       <input type="hidden" name="userId" value={s.id} />
                       <input type="hidden" name="active" value={s.active ? "false" : "true"} />
                       <button type="submit" className={rowBtn}>
-                        {s.active ? "Deactiveer" : "Activeer"}
+                        {s.active ? t("deactivate") : t("activate")}
                       </button>
                     </form>
                     <ConfirmButton
                       action={deleteMember}
                       fields={{ userId: s.id }}
-                      label="Verwijder"
+                      label={t("remove")}
                       triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                      title="Medewerker verwijderen?"
-                      message={`Weet je zeker dat je ${s.name ?? s.email} definitief wilt verwijderen?`}
+                      title={t("removeTitle")}
+                      message={t("removeMessage", { name: s.name ?? s.email })}
                     />
                   </div>
                 </div>
 
                 <div>
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    Rechten
+                    {t("rights")}
                   </h3>
                   <PermissionMatrix userId={s.id} enabled={enabled} action={setStaffPermissions} />
                 </div>

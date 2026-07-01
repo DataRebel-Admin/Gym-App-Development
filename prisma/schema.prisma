@@ -734,6 +734,10 @@ model WorkoutTemplate {
   isLibrary   Boolean  @default(false) // true = zichtbaar als herbruikbare template
   kind        WorkoutTemplateKind @default(SCHEMA) // SCHEMA = volledig schema; DAY = herbruikbare dag
   coachNote   String?  @db.Text // coach-notitie op schema-niveau (zichtbaar voor het lid)
+  // Geldigheid in weken: hoe lang een schema bruikbaar blijft na publicatie.
+  // NULL = onbeperkt. Wordt meegekloond naar het lid-schema → per-lid verloop
+  // (flag "Verlopen"/"Nieuw schema nodig", zie lib/schema-status.ts).
+  validityWeeks Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

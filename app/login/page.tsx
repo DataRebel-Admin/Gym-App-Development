@@ -142,7 +142,7 @@ export default async function LoginPage() {
           {/* Subtiele taalwisselaar — ook vóór het inloggen beschikbaar. */}
           <div className="mt-6 flex justify-center border-t border-border pt-5">
             <div className="w-44">
-              <LanguageSwitcher variant="menu" />
+              <LanguageSwitcher variant="dropdown" />
             </div>
           </div>
         </div>

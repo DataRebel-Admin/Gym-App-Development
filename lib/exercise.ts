@@ -176,6 +176,55 @@ export async function getExerciseDetail(
   };
 }
 
+/** Lichte weergave-data van één catalogus-oefening (nog niet als tenant-Exercise
+ * toegevoegd) — voor de owner-detail-preview in de catalogus-grid. Reuse van de
+ * taal-resolutie van {@link getExerciseDetail}, zonder tenant-overrides. */
+export type CatalogPreview = {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  gifUrl: string | null;
+  bodyPart: string | null;
+  equipment: string | null;
+  target: string | null;
+  category: string | null;
+  primaryMuscle: string | null;
+  secondaryMuscles: string[];
+  steps: string[];
+  instructionsText: string | null;
+  instructionLang: string | null;
+  difficulty: Difficulty;
+};
+
+export async function getCatalogPreview(
+  catalogId: string,
+  locale: Locale
+): Promise<CatalogPreview | null> {
+  const cat = await prisma.exerciseCatalog.findUnique({ where: { id: catalogId } });
+  if (!cat) return null;
+
+  const pref = LANG_PREF[locale] ?? ["en"];
+  const steps = pickLang(cat.instructionSteps, pref, isStepArray);
+  const text = pickLang(cat.instructions, pref, isNonEmptyString);
+
+  return {
+    id: cat.id,
+    name: cat.name,
+    imageUrl: cat.imageUrl ?? null,
+    gifUrl: cat.gifUrl ?? null,
+    bodyPart: cat.bodyPart ?? null,
+    equipment: cat.equipment ?? null,
+    target: cat.target ?? null,
+    category: cat.category ?? null,
+    primaryMuscle: cat.target ?? cat.muscleGroup ?? null,
+    secondaryMuscles: cat.secondaryMuscles ?? [],
+    steps: steps?.value ?? [],
+    instructionsText: text?.value ?? null,
+    instructionLang: steps?.lang ?? text?.lang ?? null,
+    difficulty: deriveDifficulty(cat.equipment ?? null, cat.category ?? null),
+  };
+}
+
 export type ExerciseAlternative = {
   id: string;
   name: string;

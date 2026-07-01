@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { DashboardStats } from "@/lib/insights";
 import { formatRelative, formatSessionStart } from "@/lib/datetime";
 import { getActionDef } from "@/lib/audit-actions";
@@ -12,43 +13,45 @@ import type { AuditRowData } from "@/components/audit/types";
 const iconCls = "size-4";
 
 export function KpiRow({ stats }: { stats: DashboardStats }) {
+  const t = useTranslations("owner.widgets");
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       <StatCard
-        label="Actief vandaag"
+        label={t("kpiActiveToday")}
         value={stats.activeToday}
         icon={<Flame className={iconCls} />}
-        hint="leden getraind"
+        hint={t("kpiActiveTodayHint")}
       />
       <StatCard
-        label="Nieuwe leden (30d)"
+        label={t("kpiNewMembers")}
         value={stats.newSignups}
         icon={<UserPlus className={iconCls} />}
         trend={stats.signupsTrend}
       />
       <StatCard
-        label="Sessies (7d)"
+        label={t("kpiSessions")}
         value={stats.sessionsThisWeek}
         icon={<Dumbbell className={iconCls} />}
         trend={stats.sessionsTrend}
       />
       <StatCard
-        label="Leden totaal"
+        label={t("kpiMembersTotal")}
         value={stats.memberCount}
         icon={<Users className={iconCls} />}
-        hint={`${stats.machineCount} machines`}
+        hint={t("kpiMachinesHint", { count: stats.machineCount })}
       />
     </div>
   );
 }
 
 export function PopularExercises({ stats }: { stats: DashboardStats }) {
+  const t = useTranslations("owner.widgets");
   if (stats.popularExercises.length === 0) {
     return (
       <EmptyState
         icon={<Dumbbell className="size-6" />}
-        title="Nog geen data"
-        description="Populaire oefeningen verschijnen zodra leden trainen."
+        title={t("noData")}
+        description={t("popularExercisesDesc")}
       />
     );
   }
@@ -79,12 +82,13 @@ export function PopularExercises({ stats }: { stats: DashboardStats }) {
 }
 
 export function ClassOccupancy({ stats }: { stats: DashboardStats }) {
+  const t = useTranslations("owner.widgets");
   if (stats.classOccupancy.length === 0) {
     return (
       <EmptyState
         icon="📅"
-        title="Geen geplande lessen"
-        description="Plan lessen in het rooster om bezetting te zien."
+        title={t("noClasses")}
+        description={t("classOccupancyDesc")}
       />
     );
   }
@@ -124,8 +128,9 @@ export function UsageList({
 }: {
   items: { name: string; sessions: number }[];
 }) {
+  const t = useTranslations("owner.widgets");
   if (items.length === 0) {
-    return <p className="text-sm text-neutral-500">Nog geen gebruik.</p>;
+    return <p className="text-sm text-neutral-500">{t("noUsage")}</p>;
   }
   const max = Math.max(...items.map((i) => i.sessions), 1);
   return (
@@ -134,7 +139,7 @@ export function UsageList({
         <li key={m.name} className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-neutral-900">{m.name}</span>
-            <span className="text-neutral-500">{m.sessions} sessies</span>
+            <span className="text-neutral-500">{t("sessionsCount", { count: m.sessions })}</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
             <div
@@ -158,12 +163,13 @@ export function WeekChart({ stats }: { stats: DashboardStats }) {
 
 /** Leesbare activiteitenfeed op basis van de auditlog. */
 export function RecentActivity({ rows }: { rows: AuditRowData[] }) {
+  const t = useTranslations("owner.widgets");
   if (rows.length === 0) {
     return (
       <EmptyState
         icon="🕓"
-        title="Nog geen activiteit"
-        description="Beheeracties verschijnen hier zodra ze plaatsvinden."
+        title={t("noActivity")}
+        description={t("recentActivityDesc")}
       />
     );
   }
@@ -173,7 +179,7 @@ export function RecentActivity({ rows }: { rows: AuditRowData[] }) {
         {rows.map((r, i) => {
           const def = getActionDef(r.action);
           const actor =
-            r.actorEmail?.split("@")[0] ?? "Iemand";
+            r.actorEmail?.split("@")[0] ?? t("someone");
           const meta = (r.metadata ?? {}) as Record<string, unknown>;
           return (
             <li
@@ -201,22 +207,23 @@ export function RecentActivity({ rows }: { rows: AuditRowData[] }) {
         href="/owner/audit"
         className="mt-2 text-sm font-medium text-accent hover:underline"
       >
-        Alle activiteit →
+        {t("allActivity")}
       </Link>
     </div>
   );
 }
 
 const QUICK_LINKS = [
-  { href: "/owner/machines/new", label: "Machine toevoegen", icon: "➕" },
-  { href: "/owner/exercises", label: "Oefeningen", icon: "🏋️" },
-  { href: "/owner/schemas", label: "Schema's", icon: "📋" },
-  { href: "/owner/members", label: "Leden", icon: "👥" },
-  { href: "/owner/rooster", label: "Rooster", icon: "📅" },
-  { href: "/owner/insights", label: "Inzichten", icon: "📊" },
-];
+  { href: "/owner/machines/new", labelKey: "quickMachineAdd", icon: "➕" },
+  { href: "/owner/exercises", labelKey: "quickExercises", icon: "🏋️" },
+  { href: "/owner/schemas", labelKey: "quickSchemas", icon: "📋" },
+  { href: "/owner/members", labelKey: "quickMembers", icon: "👥" },
+  { href: "/owner/rooster", labelKey: "quickRooster", icon: "📅" },
+  { href: "/owner/insights", labelKey: "quickInsights", icon: "📊" },
+] as const;
 
 export function QuickActions() {
+  const t = useTranslations("owner.widgets");
   return (
     <div className="grid grid-cols-2 gap-2">
       {QUICK_LINKS.map((l) => (
@@ -226,7 +233,7 @@ export function QuickActions() {
           className="flex items-center gap-2 rounded-xl border border-border bg-surface-1 px-3 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-accent hover:bg-accent-soft hover:text-neutral-900"
         >
           <span aria-hidden>{l.icon}</span>
-          {l.label}
+          {t(l.labelKey)}
         </Link>
       ))}
     </div>

@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { requirePermission } from "@/lib/staff";
 import {
   listMembers,
-  INVITE_STATUS_LABEL,
   type InviteStatus,
   type MemberListOptions,
 } from "@/lib/members";
@@ -36,10 +37,10 @@ import {
   revokeMemberInvite,
 } from "./actions";
 
-const ROLE_LABEL: Record<string, string> = {
-  TENANT_ADMIN: "Beheerder",
-  TENANT_STAFF: "Medewerker",
-  TENANT_MEMBER: "Lid",
+const ROLE_KEY: Record<string, "roleAdmin" | "roleStaff" | "roleMember"> = {
+  TENANT_ADMIN: "roleAdmin",
+  TENANT_STAFF: "roleStaff",
+  TENANT_MEMBER: "roleMember",
 };
 
 const STATUS_TONE: Record<InviteStatus, BadgeTone> = {
@@ -65,7 +66,10 @@ function buildQuery(base: Record<string, string | undefined>, overrides: Record<
   return s ? `?${s}` : "";
 }
 
-export const metadata = { title: "Leden" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.members");
+  return { title: t("metaTitle") };
+}
 
 export default async function OwnerMembersPage({
   searchParams,
@@ -73,6 +77,7 @@ export default async function OwnerMembersPage({
   searchParams: Promise<{ q?: string; status?: string; sort?: string; archived?: string; page?: string; mine?: string }>;
 }) {
   const me = await requirePermission("members:view");
+  const t = await getTranslations("owner.members");
   const isAdmin = me.role === "TENANT_ADMIN";
   const sp = await searchParams;
 
@@ -94,12 +99,8 @@ export default async function OwnerMembersPage({
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
-        title={isAdmin ? "Leden & beheerders" : "Leden"}
-        description={
-          isAdmin
-            ? "Beheer wie toegang heeft tot jouw sportschool."
-            : "Bekijk leden, open hun profiel en volg de voortgang."
-        }
+        title={isAdmin ? t("titleAdmin") : t("titleStaff")}
+        description={isAdmin ? t("descAdmin") : t("descStaff")}
       />
 
       {/* Mijn leden ↔ Alle leden (coach-koppeling) */}
@@ -108,13 +109,13 @@ export default async function OwnerMembersPage({
           href="/owner/members"
           className={`rounded-lg px-3 py-1.5 font-medium ${!mineOnly ? "bg-accent text-accent-foreground shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
         >
-          Alle leden
+          {t("allMembers")}
         </Link>
         <Link
           href="/owner/members?mine=1"
           className={`rounded-lg px-3 py-1.5 font-medium ${mineOnly ? "bg-accent text-accent-foreground shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
         >
-          Mijn leden
+          {t("myMembers")}
         </Link>
       </div>
 
@@ -123,12 +124,12 @@ export default async function OwnerMembersPage({
         <>
           <Card className="flex flex-col gap-3 p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-neutral-900">Nieuw lid toevoegen</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">{t("addMember")}</h2>
               <Link
                 href="/owner/members/import"
                 className={buttonClasses({ variant: "outline", size: "sm" })}
               >
-                📥 Bulk importeren
+                {t("bulkImport")}
               </Link>
             </div>
             <MemberAddForm />
@@ -136,9 +137,9 @@ export default async function OwnerMembersPage({
 
           <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-sm font-semibold text-neutral-900">Uitstaande uitnodigingen</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">{t("pendingInvites")}</h2>
               {pendingInvites.length > 0 ? (
-                <span className="text-xs text-neutral-500">{pendingInvites.length} openstaand</span>
+                <span className="text-xs text-neutral-500">{t("openCount", { count: pendingInvites.length })}</span>
               ) : null}
             </div>
             <PendingInvitationsTable
@@ -152,42 +153,42 @@ export default async function OwnerMembersPage({
 
       {/* Zoeken / filteren / sorteren */}
       <form method="get" className="flex flex-wrap items-end gap-3">
-        <Field label="Zoeken" className="w-full sm:w-64">
-          <Input name="q" defaultValue={sp.q ?? ""} placeholder="naam of e-mail…" />
+        <Field label={t("search")} className="w-full sm:w-64">
+          <Input name="q" defaultValue={sp.q ?? ""} placeholder={t("searchPlaceholder")} />
         </Field>
-        <Field label="Status" className="w-full sm:w-52">
+        <Field label={t("status")} className="w-full sm:w-52">
           <Select name="status" defaultValue={sp.status ?? ""}>
-            <option value="">Alle statussen</option>
+            <option value="">{t("allStatuses")}</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {INVITE_STATUS_LABEL[s]}
+                {t(`status${s}`)}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Sorteren" className="w-full sm:w-44">
+        <Field label={t("sort")} className="w-full sm:w-44">
           <Select name="sort" defaultValue={opts.sort}>
-            <option value="name">Naam</option>
-            <option value="created">Nieuwste eerst</option>
-            <option value="status">Status</option>
+            <option value="name">{t("sortName")}</option>
+            <option value="created">{t("sortNewest")}</option>
+            <option value="status">{t("sortStatus")}</option>
           </Select>
         </Field>
         <label className="flex items-center gap-2 pb-2.5 text-sm text-neutral-600">
           <input type="checkbox" name="archived" value="1" defaultChecked={opts.includeArchived} />
-          Toon gearchiveerd
+          {t("showArchived")}
         </label>
         <button type="submit" className={buttonClasses({ variant: "secondary", size: "md" })}>
-          Toepassen
+          {t("apply")}
         </button>
         <Link href="/owner/members" className="pb-2.5 text-sm text-neutral-500 hover:text-neutral-900">
-          Wissen
+          {t("clear")}
         </Link>
       </form>
 
       {/* Mobiel: kaarten */}
       <div className="flex flex-col gap-3 md:hidden">
         {members.length === 0 ? (
-          <p className="py-8 text-center text-sm text-neutral-500">Geen leden gevonden.</p>
+          <p className="py-8 text-center text-sm text-neutral-500">{t("noMembers")}</p>
         ) : (
           members.map((m) => {
             const self = m.id === me.id;
@@ -208,13 +209,13 @@ export default async function OwnerMembersPage({
                     </div>
                   </div>
                   <Badge tone={STATUS_TONE[m.inviteStatus]}>
-                    {INVITE_STATUS_LABEL[m.inviteStatus]}
+                    {t(`status${m.inviteStatus}`)}
                   </Badge>
                 </div>
                 {m.archivedAt ? (
-                  <Badge tone="neutral" className="mt-2">gearchiveerd</Badge>
+                  <Badge tone="neutral" className="mt-2">{t("archived")}</Badge>
                 ) : !m.active ? (
-                  <Badge tone="warning" className="mt-2">gedeactiveerd</Badge>
+                  <Badge tone="warning" className="mt-2">{t("deactivated")}</Badge>
                 ) : null}
                 {isAdmin ? (
                   <>
@@ -226,7 +227,7 @@ export default async function OwnerMembersPage({
                     </div>
                   </>
                 ) : (
-                  <Badge tone="neutral" className="mt-3">{ROLE_LABEL[m.role] ?? m.role}</Badge>
+                  <Badge tone="neutral" className="mt-3">{ROLE_KEY[m.role] ? t(ROLE_KEY[m.role]) : m.role}</Badge>
                 )}
               </div>
             );
@@ -239,17 +240,17 @@ export default async function OwnerMembersPage({
         <Table>
           <Thead>
             <tr>
-              <Th>Lid</Th>
-              <Th>Status</Th>
-              <Th>Rol</Th>
-              {isAdmin ? <Th className="text-right">Acties</Th> : null}
+              <Th>{t("colMember")}</Th>
+              <Th>{t("colStatus")}</Th>
+              <Th>{t("colRole")}</Th>
+              {isAdmin ? <Th className="text-right">{t("colActions")}</Th> : null}
             </tr>
           </Thead>
           <Tbody>
             {members.length === 0 ? (
               <Tr>
                 <Td colSpan={isAdmin ? 4 : 3} className="py-8 text-center text-neutral-500">
-                  Geen leden gevonden.
+                  {t("noMembers")}
                 </Td>
               </Tr>
             ) : (
@@ -270,23 +271,23 @@ export default async function OwnerMembersPage({
                           </Link>
                           <p className="text-xs text-neutral-500">{m.email}</p>
                           {m.archivedAt ? (
-                            <Badge tone="neutral" className="mt-1">gearchiveerd</Badge>
+                            <Badge tone="neutral" className="mt-1">{t("archived")}</Badge>
                           ) : !m.active ? (
-                            <Badge tone="warning" className="mt-1">gedeactiveerd</Badge>
+                            <Badge tone="warning" className="mt-1">{t("deactivated")}</Badge>
                           ) : null}
                         </div>
                       </div>
                     </Td>
                     <Td>
                       <Badge tone={STATUS_TONE[m.inviteStatus]}>
-                        {INVITE_STATUS_LABEL[m.inviteStatus]}
+                        {t(`status${m.inviteStatus}`)}
                       </Badge>
                     </Td>
                     <Td>
                       {isAdmin ? (
                         <MemberRoleForm id={m.id} role={m.role} />
                       ) : (
-                        <Badge tone="neutral">{ROLE_LABEL[m.role] ?? m.role}</Badge>
+                        <Badge tone="neutral">{ROLE_KEY[m.role] ? t(ROLE_KEY[m.role]) : m.role}</Badge>
                       )}
                     </Td>
                     {isAdmin ? (
@@ -308,18 +309,18 @@ export default async function OwnerMembersPage({
         <div className="flex items-center justify-center gap-4 text-sm">
           {page > 1 ? (
             <Link href={`/owner/members${buildQuery(sp, { page: String(page - 1) })}`} className="rounded-lg border border-border-strong px-3 py-1.5 hover:bg-neutral-50">
-              ← Vorige
+              {t("prev")}
             </Link>
           ) : (
-            <span className="rounded-lg border border-border px-3 py-1.5 text-neutral-300">← Vorige</span>
+            <span className="rounded-lg border border-border px-3 py-1.5 text-neutral-300">{t("prev")}</span>
           )}
-          <span className="text-neutral-500">Pagina {page} / {totalPages}</span>
+          <span className="text-neutral-500">{t("pageOf", { page, total: totalPages })}</span>
           {page < totalPages ? (
             <Link href={`/owner/members${buildQuery(sp, { page: String(page + 1) })}`} className="rounded-lg border border-border-strong px-3 py-1.5 hover:bg-neutral-50">
-              Volgende →
+              {t("next")}
             </Link>
           ) : (
-            <span className="rounded-lg border border-border px-3 py-1.5 text-neutral-300">Volgende →</span>
+            <span className="rounded-lg border border-border px-3 py-1.5 text-neutral-300">{t("next")}</span>
           )}
         </div>
       ) : null}
@@ -339,14 +340,15 @@ type MemberActionRow = {
 };
 
 function MemberRoleForm({ id, role }: { id: string; role: string }) {
+  const t = useTranslations("owner.members");
   return (
     <form action={setMemberRole} className="flex items-center gap-1">
       <input type="hidden" name="userId" value={id} />
       <Select name="role" defaultValue={role} className="h-8 w-32 py-1 text-xs">
-        <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
-        <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
+        <option value="TENANT_ADMIN">{t("roleAdmin")}</option>
+        <option value="TENANT_MEMBER">{t("roleMember")}</option>
       </Select>
-      <button type="submit" className={rowBtn}>OK</button>
+      <button type="submit" className={rowBtn}>{t("ok")}</button>
     </form>
   );
 }
@@ -360,13 +362,14 @@ function MemberActions({
   self: boolean;
   canInvite: boolean;
 }) {
+  const t = useTranslations("owner.members");
   return (
     <>
       {canInvite ? (
         <form action={resendInvite}>
           <input type="hidden" name="userId" value={m.id} />
           <button type="submit" className={rowBtn}>
-            {m.inviteStatus === "NIET_UITGENODIGD" ? "Uitnodigen" : "Opnieuw"}
+            {m.inviteStatus === "NIET_UITGENODIGD" ? t("invite") : t("resend")}
           </button>
         </form>
       ) : null}
@@ -375,27 +378,27 @@ function MemberActions({
           <form action={m.archivedAt ? unarchiveMember : archiveMember}>
             <input type="hidden" name="userId" value={m.id} />
             <button type="submit" className={rowBtn}>
-              {m.archivedAt ? "Herstel" : "Archiveer"}
+              {m.archivedAt ? t("restore") : t("archive")}
             </button>
           </form>
           <form action={setMemberActive}>
             <input type="hidden" name="userId" value={m.id} />
             <input type="hidden" name="active" value={m.active ? "false" : "true"} />
             <button type="submit" className={rowBtn}>
-              {m.active ? "Deactiveer" : "Activeer"}
+              {m.active ? t("deactivate") : t("activate")}
             </button>
           </form>
           <ConfirmButton
             action={deleteMember}
             fields={{ userId: m.id }}
-            label="Verwijder"
+            label={t("remove")}
             triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-            title="Lid verwijderen?"
-            message={`Weet je zeker dat je ${m.name ?? m.email} definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt — overweeg archiveren.`}
+            title={t("removeTitle")}
+            message={t("removeMessage", { name: m.name ?? m.email })}
           />
         </>
       ) : (
-        <span className="text-xs text-neutral-400">(jij)</span>
+        <span className="text-xs text-neutral-400">{t("you")}</span>
       )}
     </>
   );

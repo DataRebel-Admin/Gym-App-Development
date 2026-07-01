@@ -1,10 +1,19 @@
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
-import { Badge } from "@/components/ui/badge";
-import { ASSIGNMENT_STATUS_META, isActiveNow } from "@/lib/schema-status";
+import {
+  ASSIGNMENT_STATUS_META,
+  computeValidity,
+  fmtDate,
+  fmtSince,
+  isActiveNow,
+} from "@/lib/schema-status";
 import { snapshotSelect } from "@/lib/schema-assignments";
 import { snapshotOf, asSnapshot, diffSnapshots, hasAnyDiff } from "@/lib/schema-diff";
+import {
+  MemberSchemaTable,
+  type MemberSchemaRow,
+  type MemberStatusKey,
+} from "@/components/schema/member-schema-table";
 
 export const metadata = { title: "Schema's per lid" };
 
@@ -18,83 +27,70 @@ export default async function MembersPage() {
       assignedWorkouts: {
         where: { status: { not: "ARCHIVED" } },
         orderBy: { createdAt: "desc" },
-        include: { template: { select: { name: true, ...snapshotSelect } } },
+        include: { template: { select: { name: true, validityWeeks: true, ...snapshotSelect } } },
       },
     },
+  });
+
+  const now = new Date();
+  const rows: MemberSchemaRow[] = members.map((m) => {
+    const active = m.assignedWorkouts.find((a) => isActiveNow(a));
+    const upcoming = m.assignedWorkouts.find(
+      (a) => a.status === "SCHEDULED" || a.status === "DRAFT"
+    );
+    const show = active ?? upcoming;
+
+    const baseline = show ? asSnapshot(show.baselineSnapshot) : null;
+    const personalized =
+      show?.template && baseline
+        ? hasAnyDiff(diffSnapshots(baseline, snapshotOf(show.template)))
+        : false;
+
+    let statusKey: MemberStatusKey = "none";
+    if (active) statusKey = "active";
+    else if (upcoming?.status === "SCHEDULED") statusKey = "scheduled";
+    else if (upcoming?.status === "DRAFT") statusKey = "draft";
+
+    const meta = show ? ASSIGNMENT_STATUS_META[show.status] : null;
+
+    // "Sinds": wanneer kreeg het lid dit (actieve/aankomende) schema.
+    // Actief → publicatiedatum (of startdatum); gepland → ingangsdatum.
+    const sinceAnchor =
+      statusKey === "active"
+        ? active!.publishedAt ?? active!.startDate
+        : statusKey === "scheduled"
+          ? upcoming!.availableFrom ?? upcoming!.startDate
+          : null;
+
+    // Verloop-status: alleen zinvol voor een actief (gepubliceerd) schema, geteld
+    // vanaf de publicatiedatum + de geldigheidsduur van het schema.
+    const validity = active
+      ? computeValidity(active.publishedAt, active.template?.validityWeeks ?? null, now)
+      : computeValidity(null, null, now);
+
+    return {
+      id: m.id,
+      name: m.name ?? m.email,
+      email: m.email,
+      schemaName: show?.template?.name ?? null,
+      statusKey,
+      statusLabel: meta?.label ?? "Geen",
+      statusTone: meta?.tone ?? "neutral",
+      personalized,
+      sinceLabel: sinceAnchor ? fmtSince(sinceAnchor, now) : "",
+      sinceDate: sinceAnchor ? `sinds ${fmtDate(sinceAnchor)}` : "",
+      validityState: validity.state,
+      validityLabel: validity.label,
+      validityTone: validity.tone,
+    };
   });
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-neutral-500">
-        Wijs leden een schema toe ({members.length} leden).
+        Wijs leden een schema toe en zie in één oogopslag wie wat heeft — en hoe lang al.
       </p>
-
-      <div className="overflow-hidden rounded-xl border border-neutral-200">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-neutral-50 text-neutral-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">Lid</th>
-              <th className="px-4 py-2 font-medium">Huidig schema</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => {
-              const active = m.assignedWorkouts.find((a) => isActiveNow(a));
-              const upcoming = m.assignedWorkouts.find(
-                (a) => a.status === "SCHEDULED" || a.status === "DRAFT"
-              );
-              const show = active ?? upcoming;
-              const baseline = show ? asSnapshot(show.baselineSnapshot) : null;
-              const personalized =
-                show?.template && baseline
-                  ? hasAnyDiff(diffSnapshots(baseline, snapshotOf(show.template)))
-                  : false;
-              return (
-                <tr key={m.id} className="border-t border-neutral-100">
-                  <td className="px-4 py-2 font-medium text-neutral-900">
-                    {m.name ?? m.email}
-                  </td>
-                  <td className="px-4 py-2 text-neutral-700">
-                    {show ? (
-                      <span className="flex items-center gap-2">
-                        <span>{show.template?.name ?? "Schema"}</span>
-                        {personalized ? (
-                          <Badge tone="warning">Aangepast</Badge>
-                        ) : (
-                          <Badge tone="neutral">Standaard</Badge>
-                        )}
-                        {!active && upcoming ? (
-                          <Badge tone={ASSIGNMENT_STATUS_META[upcoming.status].tone}>
-                            {ASSIGNMENT_STATUS_META[upcoming.status].label}
-                          </Badge>
-                        ) : null}
-                      </span>
-                    ) : (
-                      <span className="text-neutral-400">— geen —</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <Link
-                      href={`/owner/schemas/members/${m.id}`}
-                      className="text-accent hover:underline"
-                    >
-                      Beheren
-                    </Link>
-                  </td>
-                </tr>
-              );
-            })}
-            {members.length === 0 ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-neutral-500">
-                  Nog geen leden.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
+      <MemberSchemaTable rows={rows} />
     </div>
   );
 }

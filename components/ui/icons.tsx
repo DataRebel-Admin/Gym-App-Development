@@ -61,6 +61,7 @@ export {
   Building2,
   Navigation,
   Sparkles,
+  Info,
   GripVertical,
   Eye,
   EyeOff,

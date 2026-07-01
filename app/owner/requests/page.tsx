@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { requirePermission } from "@/lib/staff";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
@@ -7,16 +8,23 @@ import { ClipboardList } from "@/components/ui/icons";
 import { setRequestStatus } from "./actions";
 import { fmtDate } from "@/lib/schema-status";
 import {
-  REQUEST_GOAL_LABELS,
   REQUEST_STATUS_META,
   REQUEST_FILTERS,
-  REQUEST_FILTER_LABELS,
   type RequestFilter,
 } from "@/lib/schema-requests";
 
-export const metadata = { title: "Schema-aanvragen" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.requests");
+  return { title: t("metaTitle") };
+}
 
 const FILTER_ORDER: RequestFilter[] = ["new", "progress", "done", "rejected"];
+const FILTER_KEY: Record<RequestFilter, string> = {
+  new: "filterNew",
+  progress: "filterProgress",
+  done: "filterDone",
+  rejected: "filterRejected",
+};
 
 function StatusButton({
   id,
@@ -53,6 +61,8 @@ export default async function OwnerRequestsPage({
   searchParams: Promise<{ filter?: string }>;
 }) {
   const owner = await requirePermission("schemas:manage");
+  const t = await getTranslations("owner.requests");
+  const tr = await getTranslations("requests");
   const { filter: rawFilter } = await searchParams;
   const filter: RequestFilter =
     rawFilter && rawFilter in REQUEST_FILTERS ? (rawFilter as RequestFilter) : "new";
@@ -87,10 +97,10 @@ export default async function OwnerRequestsPage({
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-          Schema-aanvragen
+          {t("title")}
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Aanvragen van leden voor een nieuw of aangepast trainingsschema.
+          {t("desc")}
         </p>
       </div>
 
@@ -109,7 +119,7 @@ export default async function OwnerRequestsPage({
                   : "border border-border text-neutral-600 hover:bg-neutral-50"
               }`}
             >
-              {REQUEST_FILTER_LABELS[f]}
+              {tr(FILTER_KEY[f])}
               <span className={active ? "opacity-80" : "text-neutral-400"}>{count}</span>
             </Link>
           );
@@ -119,8 +129,8 @@ export default async function OwnerRequestsPage({
       {requests.length === 0 ? (
         <EmptyState
           icon={<ClipboardList className="size-7 text-accent" />}
-          title="Geen aanvragen"
-          description="Er zijn geen schema-aanvragen in deze categorie."
+          title={t("empty")}
+          description={t("emptyDesc")}
         />
       ) : (
         <ul className="flex max-w-3xl flex-col gap-3">
@@ -132,10 +142,10 @@ export default async function OwnerRequestsPage({
                   <span className="font-semibold text-neutral-900">
                     {r.user.name ?? r.user.email}
                   </span>
-                  <Badge tone={meta.tone}>{meta.label}</Badge>
+                  <Badge tone={meta.tone}>{tr(`status${r.status}`)}</Badge>
                   <span className="text-xs text-neutral-500">
-                    {REQUEST_GOAL_LABELS[r.goal]} · {fmtDate(r.createdAt)}
-                    {r.preferredStart ? ` · start ${fmtDate(r.preferredStart)}` : ""}
+                    {t("goalDate", { goal: tr(`goal${r.goal}`), date: fmtDate(r.createdAt) })}
+                    {r.preferredStart ? t("startDate", { date: fmtDate(r.preferredStart) }) : ""}
                   </span>
                 </div>
 
@@ -144,7 +154,7 @@ export default async function OwnerRequestsPage({
                 ) : null}
                 {r.notes ? (
                   <p className="text-sm text-neutral-500">
-                    <span className="font-medium">Opmerkingen: </span>
+                    <span className="font-medium">{t("notes")}</span>
                     {r.notes}
                   </p>
                 ) : null}
@@ -154,19 +164,19 @@ export default async function OwnerRequestsPage({
                     href={`/owner/schemas/members/${r.userId}`}
                     className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground hover:opacity-90"
                   >
-                    Schema maken
+                    {t("createSchema")}
                   </Link>
                   {r.status === "NEW" ? (
-                    <StatusButton id={r.id} status="IN_PROGRESS" label="In behandeling nemen" />
+                    <StatusButton id={r.id} status="IN_PROGRESS" label={t("takeInProgress")} />
                   ) : null}
                   {(r.status === "NEW" || r.status === "IN_PROGRESS") ? (
-                    <StatusButton id={r.id} status="SCHEMA_CREATED" label="Schema aangemaakt" />
+                    <StatusButton id={r.id} status="SCHEMA_CREATED" label={t("schemaCreated")} />
                   ) : null}
                   {(r.status === "IN_PROGRESS" || r.status === "SCHEMA_CREATED") ? (
-                    <StatusButton id={r.id} status="COMPLETED" label="Afronden" primary />
+                    <StatusButton id={r.id} status="COMPLETED" label={t("complete")} primary />
                   ) : null}
                   {(r.status === "NEW" || r.status === "IN_PROGRESS") ? (
-                    <StatusButton id={r.id} status="REJECTED" label="Afwijzen" />
+                    <StatusButton id={r.id} status="REJECTED" label={t("reject")} />
                   ) : null}
                 </div>
               </li>

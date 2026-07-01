@@ -1,13 +1,18 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
 
-export const metadata = { title: "Rooster" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.rooster");
+  return { title: t("metaTitle") };
+}
 
 export default async function RoosterPage() {
   const owner = await requirePermission("schedule:manage");
+  const t = await getTranslations("owner.rooster");
 
   const [classes, upcoming] = await Promise.all([
     prisma.groupClass.findMany({
@@ -30,22 +35,22 @@ export default async function RoosterPage() {
     <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-          Rooster
+          {t("title")}
         </h1>
-        <p className="text-sm text-neutral-500">Beheer groepslessen en sessies.</p>
+        <p className="text-sm text-neutral-500">{t("desc")}</p>
       </div>
 
       <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">Nieuwe les</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">{t("newClass")}</h2>
         <NewClassForm />
       </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-900">
-          Groepslessen ({classes.length})
+          {t("groupClasses", { count: classes.length })}
         </h2>
         {classes.length === 0 ? (
-          <p className="text-sm text-neutral-500">Nog geen lessen.</p>
+          <p className="text-sm text-neutral-500">{t("noClasses")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {classes.map((c) => (
@@ -56,7 +61,7 @@ export default async function RoosterPage() {
                 >
                   <span className="font-medium text-neutral-900">{c.name}</span>
                   <span className="text-sm text-neutral-500">
-                    {c._count.sessions} sessies · max {c.maxParticipants}
+                    {t("sessionsMax", { count: c._count.sessions, max: c.maxParticipants })}
                   </span>
                 </Link>
               </li>
@@ -67,10 +72,10 @@ export default async function RoosterPage() {
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-semibold text-neutral-900">
-          Komende sessies
+          {t("upcomingSessions")}
         </h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-neutral-500">Nog niets ingepland.</p>
+          <p className="text-sm text-neutral-500">{t("nothingPlanned")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {upcoming.map((s) => (

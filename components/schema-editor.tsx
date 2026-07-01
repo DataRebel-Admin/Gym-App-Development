@@ -17,9 +17,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { saveSchema, type SchemaSaveState } from "@/app/owner/schemas/actions";
+import Link from "next/link";
+import { Info } from "@/components/ui/icons";
 import {
   EXERCISE_TYPES,
   getExerciseType,
+  exerciseTypeLabel,
   type ParamField,
 } from "@/lib/exercise-types";
 import {
@@ -53,6 +56,10 @@ export type AvailableExercise = {
   exerciseType: string;
   /** Herkomst: "standaard" (catalogus) of "eigen" (tenant-oefening). */
   source: "standaard" | "eigen";
+  /** Thumbnail (catalogus of eigen media) — voor een preview die het lid nabootst. */
+  thumbUrl: string | null;
+  /** Machine-naam (indien gekoppeld) — het lid ziet die ook. */
+  machineName: string | null;
 };
 
 /** Herbruikbare dag (kind=DAY) om als blok in te voegen. */
@@ -363,6 +370,8 @@ export function SchemaEditor({
   initialName,
   initialDescription,
   initialCoachNote = "",
+  initialValidityWeeks = null,
+  showValidity = true,
   initialDays,
   availableExercises,
   dayTemplates = [],
@@ -371,6 +380,10 @@ export function SchemaEditor({
   initialName: string;
   initialDescription: string;
   initialCoachNote?: string;
+  /** Geldigheidsduur in weken (alleen zinvol voor volledige schema's). */
+  initialValidityWeeks?: number | null;
+  /** Toon het geldigheid-veld (uit voor dag-templates). */
+  showValidity?: boolean;
   initialDays: EditorDay[];
   availableExercises: AvailableExercise[];
   dayTemplates?: DayTemplateOption[];
@@ -379,11 +392,20 @@ export function SchemaEditor({
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [coachNote, setCoachNote] = useState(initialCoachNote);
+  const [validityWeeks, setValidityWeeks] = useState(
+    initialValidityWeeks != null ? String(initialValidityWeeks) : ""
+  );
   const [days, setDays] = useState<EditorDay[]>(
     initialDays.length > 0 ? initialDays : [{ key: `d-${dayCounter++}`, name: "Dag 1", notes: "", items: [] }]
   );
   const formRef = useRef<HTMLFormElement>(null);
   const mounted = useRef(false);
+
+  // Opzoektabel voor de preview (thumbnail/machine) zodat die 1-op-1 toont wat het lid ziet.
+  const exerciseById = useMemo(
+    () => new Map(availableExercises.map((e) => [e.id, e])),
+    [availableExercises]
+  );
 
   const serialized = useMemo(
     () =>
@@ -411,7 +433,7 @@ export function SchemaEditor({
       if (name.trim()) formRef.current?.requestSubmit();
     }, 1200);
     return () => clearTimeout(t);
-  }, [serialized, name, description, coachNote]);
+  }, [serialized, name, description, coachNote, validityWeeks]);
 
   const dayKeys = days.map((d) => ({ key: d.key, name: d.name.trim() || "Dag" }));
 
@@ -502,6 +524,27 @@ export function SchemaEditor({
           Coach-notitie (zichtbaar voor het lid)
           <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
         </label>
+        {showValidity ? (
+          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+            Geldigheid (weken)
+            <input
+              name="validityWeeks"
+              type="number"
+              min={0}
+              max={104}
+              inputMode="numeric"
+              value={validityWeeks}
+              onChange={(e) => setValidityWeeks(e.target.value)}
+              placeholder="Onbeperkt"
+              className="w-32 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+            <span className="text-xs text-neutral-400">
+              Leeg = onbeperkt. Bepaalt wanneer een lid &quot;Nieuw schema nodig&quot; / &quot;Verlopen&quot; ziet.
+            </span>
+          </label>
+        ) : (
+          <input type="hidden" name="validityWeeks" value={validityWeeks} />
+        )}
 
         <div className="flex flex-col gap-3">
           {days.map((d, i) => (
@@ -560,26 +603,71 @@ export function SchemaEditor({
 
       <aside className="h-fit rounded-2xl border border-border bg-surface-1 p-5 lg:sticky lg:top-6">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">Live voorbeeld</p>
-        <h3 className="mt-1 text-lg font-semibold text-neutral-900">{name || "Naamloos schema"}</h3>
+        <p className="text-[11px] text-neutral-400">Zo ziet het lid dit schema.</p>
+        <h3 className="mt-2 text-lg font-semibold text-neutral-900">{name || "Naamloos schema"}</h3>
         {description ? <p className="mt-1 text-sm text-neutral-500">{description}</p> : null}
-        <div className="mt-4 flex flex-col gap-4">
+        <div className="mt-4 flex flex-col gap-5">
           {days.map((d) => (
-            <div key={d.key}>
+            <div key={d.key} className="flex flex-col gap-2">
               <p className="text-sm font-semibold text-neutral-900">{d.name || "Dag"}</p>
-              <ol className="mt-1 flex flex-col gap-1">
-                {d.items.map((it, idx) => (
-                  <li key={it.key} className="flex gap-2 text-sm">
-                    <span className="text-neutral-400">{idx + 1}.</span>
-                    <span className="flex-1">
-                      <span className="font-medium text-neutral-900">{it.exerciseName}</span>
-                      <span className="block text-xs text-neutral-500">
-                        {summaryFromInputValues(it.exerciseType, it.values)}
-                      </span>
-                    </span>
-                  </li>
-                ))}
-                {d.items.length === 0 ? <li className="text-xs text-neutral-400">Leeg.</li> : null}
-              </ol>
+              {d.notes ? (
+                <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-neutral-600">
+                  <span className="font-semibold text-accent">Tip: </span>
+                  {d.notes}
+                </p>
+              ) : null}
+              <ul className="flex flex-col gap-2">
+                {d.items.map((it) => {
+                  const meta = exerciseById.get(it.exerciseId);
+                  const summary = summaryFromInputValues(it.exerciseType, it.values);
+                  return (
+                    <li
+                      key={it.key}
+                      className="flex items-center rounded-xl border border-border bg-surface-1"
+                    >
+                      <div className="flex flex-1 items-center gap-3 px-3 py-2.5">
+                        {meta?.thumbUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={meta.thumbUrl}
+                            alt=""
+                            aria-hidden
+                            className="h-10 w-10 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : null}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium text-neutral-900">
+                            {it.exerciseName}
+                          </span>
+                          <span className="block text-sm text-neutral-500">
+                            <span className="font-medium text-neutral-600">
+                              {exerciseTypeLabel(it.exerciseType)}
+                            </span>
+                            {summary && summary !== "—" ? ` · ${summary}` : ""}
+                            {meta?.machineName ? ` · ${meta.machineName}` : ""}
+                          </span>
+                          {it.notes ? (
+                            <span className="mt-0.5 block text-xs text-accent">{it.notes}</span>
+                          ) : null}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/owner/exercises/${it.exerciseId}`}
+                        target="_blank"
+                        aria-label={`Uitleg: ${it.exerciseName}`}
+                        title="Uitleg"
+                        className="flex shrink-0 flex-col items-center justify-center gap-0.5 self-stretch border-l border-border px-3 text-neutral-400 transition-colors hover:text-accent"
+                      >
+                        <Info className="size-5" />
+                        <span className="text-[10px] font-medium">Uitleg</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+                {d.items.length === 0 ? (
+                  <li className="text-xs text-neutral-400">Leeg.</li>
+                ) : null}
+              </ul>
             </div>
           ))}
         </div>

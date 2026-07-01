@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { requireOwner } from "@/lib/owner";
 import {
   queryAuditLogs,
@@ -11,7 +12,10 @@ import { buttonClasses } from "@/components/ui/button-classes";
 import { AuditFilters } from "@/components/audit/audit-filters";
 import { AuditList } from "@/components/audit/audit-list";
 
-export const metadata = { title: "Audit logs" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.audit");
+  return { title: t("metaTitle") };
+}
 
 export default async function OwnerAuditPage({
   searchParams,
@@ -19,6 +23,7 @@ export default async function OwnerAuditPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const owner = await requireOwner();
+  const t = await getTranslations("owner.audit");
   const sp = await searchParams;
   const { filters, page } = parseAuditSearchParams(sp);
 
@@ -45,15 +50,15 @@ export default async function OwnerAuditPage({
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
-        title="Audit log"
-        description="Wie heeft wat gedaan, en wanneer — binnen jouw sportschool."
+        title={t("title")}
+        description={t("desc")}
         action={
           <>
             <a className={buttonClasses({ variant: "outline", size: "sm" })} href={exportQs("csv")}>
-              Export CSV
+              {t("exportCsv")}
             </a>
             <a className={buttonClasses({ variant: "outline", size: "sm" })} href={exportQs("pdf")}>
-              Export PDF
+              {t("exportPdf")}
             </a>
           </>
         }
@@ -67,17 +72,17 @@ export default async function OwnerAuditPage({
 
       <div className="flex items-center justify-between text-sm text-neutral-500">
         <span>
-          {result.total} regels · pagina {result.page} / {result.totalPages}
+          {t("summary", { total: result.total, page: result.page, totalPages: result.totalPages })}
         </span>
         <div className="flex items-center gap-2">
           {result.page > 1 ? (
             <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={pageHref(result.page - 1)}>
-              ← Vorige
+              {t("prev")}
             </Link>
           ) : null}
           {result.page < result.totalPages ? (
             <Link className={buttonClasses({ variant: "ghost", size: "sm" })} href={pageHref(result.page + 1)}>
-              Volgende →
+              {t("next")}
             </Link>
           ) : null}
         </div>

@@ -1,8 +1,9 @@
 import "server-only";
 import type { AssignmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { isActiveNow } from "@/lib/schema-status";
+import { isActiveNow, fmtDate, fmtDateTime, fmtSince, computeValidity } from "@/lib/schema-status";
 import { snapshotOf, asSnapshot, diffSnapshots, hasAnyDiff } from "@/lib/schema-diff";
+import type { OverviewRow } from "@/components/schema-assignment-overview";
 
 export type AssignmentRow = {
   id: string;
@@ -17,6 +18,8 @@ export type AssignmentRow = {
   seenAt: Date | null;
   updatedAt: Date;
   active: boolean;
+  /** Geldigheidsduur van dit schema in weken (null = onbeperkt). */
+  validityWeeks: number | null;
   /** Persoonlijke kopie wijkt af van de master-baseline. */
   personalized: boolean;
   /** Master is gewijzigd sinds de laatste sync → synchronisatie beschikbaar. */
@@ -81,7 +84,7 @@ export async function getAssignmentsForTemplate(
       seenAt: true,
       baselineSnapshot: true,
       masterSyncedAt: true,
-      template: { select: { updatedAt: true, ...snapshotSelect } },
+      template: { select: { updatedAt: true, validityWeeks: true, ...snapshotSelect } },
       user: { select: { name: true, email: true } },
     },
   });
@@ -112,8 +115,42 @@ export async function getAssignmentsForTemplate(
       seenAt: r.seenAt,
       updatedAt: r.template?.updatedAt ?? r.publishedAt ?? new Date(),
       active: isActiveNow(r),
+      validityWeeks: r.template?.validityWeeks ?? null,
       personalized,
       syncAvailable,
+    };
+  });
+}
+
+/**
+ * Serialiseert de toewijs-rijen voor het (client-)overzichtscomponent: alle
+ * datums worden hier server-side geformatteerd (geen Date-objecten of relatieve
+ * tijd op de client → geen hydration-mismatch).
+ */
+export function toOverviewRows(rows: AssignmentRow[], now: Date = new Date()): OverviewRow[] {
+  return rows.map((r) => {
+    const validity = computeValidity(r.publishedAt, r.validityWeeks, now);
+    return {
+      id: r.id,
+      memberName: r.memberName,
+      status: r.status,
+      personalized: r.personalized,
+      syncAvailable: r.syncAvailable,
+      active: r.active,
+      availableOrPublished:
+        r.status === "SCHEDULED" ? fmtDateTime(r.availableFrom) : fmtDate(r.publishedAt),
+      period: r.startDate
+        ? `${fmtDate(r.startDate)}${r.endDate ? ` – ${fmtDate(r.endDate)}` : ""}`
+        : r.endDate
+          ? `t/m ${fmtDate(r.endDate)}`
+          : "—",
+      changed: fmtDate(r.updatedAt),
+      sinceLabel: r.publishedAt ? fmtSince(r.publishedAt, now) : "",
+      seen: r.status !== "PUBLISHED" ? "na" : r.seenAt ? "seen" : "new",
+      validityState: validity.state,
+      validityLabel: validity.label,
+      validityTone: validity.tone,
+      validityExpires: validity.expiresAt ? fmtDate(validity.expiresAt) : "",
     };
   });
 }
@@ -132,7 +169,15 @@ export async function getAssignmentsForMember(tenantId: string, userId: string) 
       publishedAt: true,
       seenAt: true,
       trainerMessage: true,
-      template: { select: { id: true, name: true, updatedAt: true, _count: { select: { items: true } } } },
+      template: {
+        select: {
+          id: true,
+          name: true,
+          updatedAt: true,
+          validityWeeks: true,
+          _count: { select: { items: true } },
+        },
+      },
     },
   });
 }

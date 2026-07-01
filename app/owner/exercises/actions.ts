@@ -9,6 +9,8 @@ import { uploadExerciseImage } from "@/lib/blob";
 import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
 import { suggestMachineType } from "@/lib/machine";
 import { buildCatalogWhere, myEquipmentValues } from "@/lib/catalog";
+import { getCatalogPreview, type CatalogPreview } from "@/lib/exercise";
+import { getCurrentTenant } from "@/lib/tenant";
 import {
   EXERCISE_TYPE_KEYS,
   DEFAULT_EXERCISE_TYPE,
@@ -80,6 +82,20 @@ export async function addCatalogExerciseToGym(formData: FormData) {
   });
 
   revalidatePath("/owner/exercises");
+}
+
+/**
+ * Haal de detail-preview van één catalogus-oefening op (gif, spiergroepen,
+ * instructies in de tenant-taal) voor de detail-modal in de catalogus-grid.
+ * Gescoped achter `exercises:manage`; de catalogus is globaal (geen tenantId).
+ */
+export async function catalogPreview(
+  catalogId: string
+): Promise<CatalogPreview | null> {
+  await requirePermission("exercises:manage");
+  if (!catalogId) return null;
+  const tenant = await getCurrentTenant();
+  return getCatalogPreview(catalogId, tenant?.locale ?? "NL");
 }
 
 const bulkAddSchema = z.object({

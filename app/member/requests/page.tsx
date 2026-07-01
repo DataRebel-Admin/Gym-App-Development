@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { SchemaRequestForm } from "@/components/schema-request-form";
 import { cancelRequest } from "./actions";
 import {
-  REQUEST_GOAL_LABELS,
   REQUEST_STATUS_META,
   isOpenRequest,
 } from "@/lib/schema-requests";
@@ -19,6 +18,7 @@ export async function generateMetadata() {
 export default async function MemberRequestsPage() {
   const member = await requireMember();
   const t = await getTranslations("member.requests");
+  const tr = await getTranslations("requests");
 
   const requests = await prisma.schemaRequest.findMany({
     where: { tenantId: member.tenantId, userId: member.id },
@@ -61,9 +61,9 @@ export default async function MemberRequestsPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium text-neutral-900">
-                      {REQUEST_GOAL_LABELS[r.goal]}
+                      {tr(`goal${r.goal}`)}
                     </span>
-                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                    <Badge tone={meta.tone}>{tr(`status${r.status}`)}</Badge>
                   </div>
                   {r.description ? (
                     <p className="text-sm text-neutral-600">{r.description}</p>

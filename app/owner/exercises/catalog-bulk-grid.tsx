@@ -2,12 +2,15 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
 import { buttonClasses } from "@/components/ui/button-classes";
 import type { CatalogFilter } from "@/lib/catalog";
-import { bulkAddCatalogToGym, removeCatalogExerciseFromGym } from "./actions";
+import type { CatalogPreview } from "@/lib/exercise";
+import { bulkAddCatalogToGym, catalogPreview, removeCatalogExerciseFromGym } from "./actions";
 import { ExerciseTypeSelect } from "./exercise-type-select";
 
 export type CatalogGridItem = {
@@ -39,11 +42,34 @@ export function CatalogBulkGrid({
   filter: CatalogFilter;
 }) {
   const router = useRouter();
+  const t = useTranslations("owner.exercises");
   const [pending, start] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allMatching, setAllMatching] = useState(false);
   const [autoMachine, setAutoMachine] = useState(true);
   const [result, setResult] = useState<{ added: number; skipped: number } | null>(null);
+
+  // Detail-preview: klik op een kaart opent een modal met gif/spiergroepen/
+  // instructies (lui geladen via de server-action). Selecteren gebeurt apart
+  // via het vinkje linksboven.
+  const [detailItem, setDetailItem] = useState<CatalogGridItem | null>(null);
+  const [detail, setDetail] = useState<CatalogPreview | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  function openDetail(item: CatalogGridItem) {
+    setDetailItem(item);
+    setDetail(null);
+    setDetailLoading(true);
+    catalogPreview(item.id)
+      .then((p) => setDetail(p))
+      .finally(() => setDetailLoading(false));
+  }
+
+  function closeDetail() {
+    setDetailItem(null);
+    setDetail(null);
+    setDetailLoading(false);
+  }
 
   const addableIds = useMemo(() => items.filter((i) => !i.added).map((i) => i.id), [items]);
   const allPageSelected = addableIds.length > 0 && addableIds.every((id) => selected.has(id));
@@ -97,8 +123,11 @@ export function CatalogBulkGrid({
           >
             <span className="text-base">🎉</span>
             <span>
-              <strong>{result.added}</strong> oefening{result.added === 1 ? "" : "en"} toegevoegd
-              {result.skipped > 0 ? ` · ${result.skipped} overgeslagen (al in je sportschool)` : ""}.
+              {t.rich("resultAdded", {
+                added: result.added,
+                b: (c) => <strong>{c}</strong>,
+              })}
+              {result.skipped > 0 ? t("resultSkipped", { skipped: result.skipped }) : ""}.
             </span>
           </m.div>
         ) : null}
@@ -112,7 +141,7 @@ export function CatalogBulkGrid({
             onClick={allPageSelected ? clear : selectPage}
             className="rounded-lg border border-border-strong px-3 py-1.5 font-medium text-neutral-700 hover:bg-neutral-50"
           >
-            {allPageSelected ? "Pagina deselecteren" : "Selecteer deze pagina"}
+            {allPageSelected ? t("deselectPage") : t("selectPage")}
           </button>
           {total > items.length ? (
             <button
@@ -124,7 +153,7 @@ export function CatalogBulkGrid({
               }}
               className="rounded-lg border border-border-strong px-3 py-1.5 font-medium text-neutral-700 hover:bg-neutral-50"
             >
-              Selecteer alle {total} resultaten
+              {t("selectAll", { total })}
             </button>
           ) : null}
           {hasSelection ? (
@@ -133,7 +162,7 @@ export function CatalogBulkGrid({
               onClick={clear}
               className="px-2 py-1.5 text-neutral-500 hover:text-neutral-900"
             >
-              Wissen
+              {t("clear")}
             </button>
           ) : null}
         </div>
@@ -151,34 +180,49 @@ export function CatalogBulkGrid({
                 checked ? "border-accent ring-2 ring-accent/25" : "border-neutral-200"
               )}
             >
-              <button
-                type="button"
-                onClick={() => !item.added && toggle(item.id)}
-                disabled={item.added}
-                aria-pressed={checked}
-                className="relative block aspect-square w-full bg-neutral-50 disabled:cursor-default"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.imageUrl} alt={item.name} loading="lazy" className="h-full w-full object-contain" />
+              <div className="relative aspect-square w-full bg-neutral-50">
+                {/* Klik op de afbeelding = detail bekijken (niet selecteren). */}
+                <button
+                  type="button"
+                  onClick={() => openDetail(item)}
+                  aria-label={t("viewDetail", { name: item.name })}
+                  className="block size-full cursor-pointer"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.imageUrl} alt={item.name} loading="lazy" className="h-full w-full object-contain" />
+                </button>
+                {/* Selecteren = het vinkje linksboven (los van de detail-klik). */}
                 {!item.added ? (
-                  <span
+                  <button
+                    type="button"
+                    onClick={() => toggle(item.id)}
+                    aria-pressed={checked}
+                    aria-label={checked ? t("deselect") : t("select")}
                     className={cn(
-                      "absolute left-2 top-2 flex size-6 items-center justify-center rounded-md border-2 bg-surface-1 text-xs font-bold transition-colors",
-                      checked ? "border-accent bg-accent text-accent-foreground" : "border-neutral-300 text-transparent"
+                      "absolute left-2 top-2 flex size-6 cursor-pointer items-center justify-center rounded-md border-2 text-xs font-bold shadow-sm transition-colors",
+                      checked
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-neutral-300 bg-surface-1 text-transparent hover:border-accent"
                     )}
                   >
                     ✓
-                  </span>
+                  </button>
                 ) : (
                   <span className="absolute left-2 top-2 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground">
-                    ✓ Toegevoegd
+                    {t("addedBadge")}
                   </span>
                 )}
-              </button>
+              </div>
               <div className="flex flex-1 flex-col gap-2 p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="truncate font-medium capitalize text-neutral-900">{item.name}</h2>
-                  <Badge tone="neutral">Standaard</Badge>
+                  <button
+                    type="button"
+                    onClick={() => openDetail(item)}
+                    className="cursor-pointer truncate text-left font-medium capitalize text-neutral-900 hover:text-accent hover:underline"
+                  >
+                    {item.name}
+                  </button>
+                  <Badge tone="neutral">{t("badgeStandard")}</Badge>
                 </div>
                 <p className="text-xs capitalize text-neutral-500">
                   {item.bodyPart} · {item.equipment} · {item.target}
@@ -187,7 +231,7 @@ export function CatalogBulkGrid({
                   <div className="mt-auto flex flex-col gap-2 pt-1">
                     {item.exerciseId && item.exerciseType ? (
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-neutral-400">Type</span>
+                        <span className="text-xs text-neutral-400">{t("typeLabel")}</span>
                         <ExerciseTypeSelect
                           exerciseId={item.exerciseId}
                           value={item.exerciseType}
@@ -197,7 +241,7 @@ export function CatalogBulkGrid({
                     <form action={removeCatalogExerciseFromGym}>
                       <input type="hidden" name="catalogId" value={item.id} />
                       <button type="submit" className="text-xs text-neutral-400 hover:text-red-600">
-                        Verwijderen uit sportschool
+                        {t("removeFromGym")}
                       </button>
                     </form>
                   </div>
@@ -219,7 +263,7 @@ export function CatalogBulkGrid({
             className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface-1/95 px-4 py-3 shadow-lg backdrop-blur-xl"
           >
             <span className="text-sm font-semibold text-neutral-900">
-              {allMatching ? `Alle ${total} resultaten` : `${activeCount} geselecteerd`}
+              {allMatching ? t("allResults", { total }) : t("selectedCount", { count: activeCount })}
             </span>
             <label className="flex items-center gap-1.5 text-sm text-neutral-600">
               <input
@@ -227,7 +271,7 @@ export function CatalogBulkGrid({
                 checked={autoMachine}
                 onChange={(e) => setAutoMachine(e.target.checked)}
               />
-              Auto-machine koppelen
+              {t("autoMachine")}
             </label>
             <button
               type="button"
@@ -235,7 +279,7 @@ export function CatalogBulkGrid({
               disabled={pending}
               className={buttonClasses({ size: "sm", className: "min-w-44" })}
             >
-              {pending ? "Toevoegen…" : `Toevoegen aan sportschool`}
+              {pending ? t("adding") : t("addToGym")}
             </button>
             <button
               type="button"
@@ -243,11 +287,94 @@ export function CatalogBulkGrid({
               disabled={pending}
               className="text-sm text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
             >
-              Annuleren
+              {t("cancel")}
             </button>
           </m.div>
         ) : null}
       </AnimatePresence>
+
+      {/* Detail-modal (lui geladen preview van de catalogus-oefening) */}
+      <Modal
+        open={detailItem !== null}
+        onClose={closeDetail}
+        title={detailItem?.name}
+        className="max-w-lg"
+      >
+        {detailLoading || !detail ? (
+          <div className="flex h-48 items-center justify-center text-sm text-neutral-500">
+            {t("loading")}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <div className="overflow-hidden rounded-xl bg-neutral-50">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={detail.gifUrl || detail.imageUrl || detailItem?.imageUrl}
+                alt={detail.name}
+                loading="lazy"
+                className="mx-auto max-h-64 w-full object-contain"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              {detail.bodyPart ? <Badge tone="neutral">{detail.bodyPart}</Badge> : null}
+              {detail.equipment ? <Badge tone="neutral">{detail.equipment}</Badge> : null}
+              {detail.target ? <Badge tone="accent">{detail.target}</Badge> : null}
+              <Badge tone="neutral">{detail.difficulty}</Badge>
+            </div>
+
+            {detail.secondaryMuscles.length > 0 ? (
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  {t("secondaryMuscles")}
+                </h3>
+                <p className="mt-1 text-sm capitalize text-neutral-700">
+                  {detail.secondaryMuscles.join(", ")}
+                </p>
+              </div>
+            ) : null}
+
+            {detail.steps.length > 0 ? (
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  {t("instructions")}
+                </h3>
+                <ol className="mt-1 flex list-decimal flex-col gap-1.5 pl-5 text-sm text-neutral-700">
+                  {detail.steps.map((step, i) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : detail.instructionsText ? (
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  {t("instructions")}
+                </h3>
+                <p className="mt-1 whitespace-pre-line text-sm text-neutral-700">
+                  {detail.instructionsText}
+                </p>
+              </div>
+            ) : null}
+
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {t("consultProfessional")}
+            </p>
+
+            {detailItem && !detailItem.added ? (
+              <button
+                type="button"
+                onClick={() => {
+                  toggle(detailItem.id);
+                  closeDetail();
+                }}
+                className={buttonClasses({ size: "sm", className: "w-full" })}
+              >
+                {selected.has(detailItem.id) ? t("deselect") : t("select")}
+              </button>
+            ) : null}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

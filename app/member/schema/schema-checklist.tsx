@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ProgressRing } from "@/components/ui/progress-ring";
+import { Info } from "@/components/ui/icons";
 
 export type ChecklistItem = {
   id: string;
+  /** Oefening-id → link naar de uitleg (/member/history/exercise/[id]). */
+  exerciseId: string;
   exerciseName: string;
   machineName: string | null;
   /** Type-bewuste samenvatting ("4 × 10 @ 70 kg" of "30 min · 5 km · Zone 3"). */
@@ -73,15 +77,16 @@ export function SchemaChecklist({
         {group.items.map((it) => {
           const isDone = Boolean(done[it.id]);
           return (
-            <li key={it.id}>
+            <li
+              key={it.id}
+              className={`flex items-center rounded-xl border transition-colors ${
+                isDone ? "border-border bg-neutral-100" : "border-border bg-surface-1"
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => toggle(it.id)}
-                className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
-                  isDone
-                    ? "border-border bg-neutral-100"
-                    : "border-border bg-surface-1"
-                }`}
+                className="flex flex-1 items-center gap-3 rounded-l-xl px-4 py-3 text-left"
               >
                 <span
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
@@ -130,6 +135,15 @@ export function SchemaChecklist({
                   ) : null}
                 </span>
               </button>
+              <Link
+                href={`/member/history/exercise/${it.exerciseId}`}
+                aria-label={`${t("explain")}: ${it.exerciseName}`}
+                title={t("explain")}
+                className="flex shrink-0 flex-col items-center gap-0.5 self-stretch justify-center border-l border-border px-3 text-neutral-400 transition-colors active:bg-surface-2 hover:text-accent"
+              >
+                <Info className="size-5" />
+                <span className="text-[10px] font-medium">{t("explain")}</span>
+              </Link>
             </li>
           );
         })}

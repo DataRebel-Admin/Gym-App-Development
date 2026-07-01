@@ -66,6 +66,10 @@ export async function saveSchema(
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const coachNote = String(formData.get("coachNote") ?? "").trim();
+  const validityRaw = String(formData.get("validityWeeks") ?? "").trim();
+  const validityNum = validityRaw ? Math.round(Number(validityRaw)) : NaN;
+  const validityWeeks =
+    Number.isFinite(validityNum) && validityNum > 0 ? Math.min(104, validityNum) : null;
 
   if (!name) return { error: "Naam is verplicht" };
 
@@ -93,7 +97,7 @@ export async function saveSchema(
   await prisma.$transaction([
     prisma.workoutTemplate.update({
       where: { id: template.id },
-      data: { name, description: description || null, coachNote: coachNote || null },
+      data: { name, description: description || null, coachNote: coachNote || null, validityWeeks },
     }),
     // Items en dagen volledig vervangen (items cascaden via day-FK, maar we
     // ruimen expliciet op voor items zonder dag).
@@ -200,6 +204,7 @@ type SourceTemplate = {
   name: string;
   description: string | null;
   coachNote: string | null;
+  validityWeeks: number | null;
   updatedAt: Date;
   days: {
     order: number;
@@ -260,6 +265,7 @@ async function cloneToAssignment(
       name: source.name,
       description: source.description,
       coachNote: source.coachNote,
+      validityWeeks: source.validityWeeks,
       isLibrary: false,
     },
   });
@@ -555,6 +561,7 @@ export async function duplicateTemplate(formData: FormData) {
         name: `${source.name} (kopie)`,
         description: source.description,
         coachNote: source.coachNote,
+        validityWeeks: source.validityWeeks,
         isLibrary: true,
       },
     });
@@ -634,6 +641,60 @@ export async function startEmptySchema(formData: FormData) {
     targetType: "User",
     targetId: userId,
     metadata: { name: "Nieuw schema", memberCount: 1, member: member.name ?? member.email },
+  });
+
+  revalidatePath(`/owner/schemas/members/${userId}`);
+  redirect(`/owner/schemas/members/${userId}`);
+}
+
+/**
+ * Start een nieuw lid-specifiek schema vanuit een herbruikbare dag-template
+ * (`WorkoutTemplate kind=DAY`). De ene dag van de template wordt gekloond als
+ * startpunt; de coach bewerkt het schema daarna verder in de editor. Bewust
+ * GEEN master-koppeling (`sourceTemplateId = null`): een dag-template is een
+ * vertrekpunt, geen master om tegen te synchroniseren. En bewust GEEN melding —
+ * zoals `startEmptySchema` is dit een onaf startpunt. Archiveert een vorig
+ * actief schema.
+ */
+export async function startSchemaFromDayTemplate(formData: FormData) {
+  const owner = await requirePermission("schemas:manage");
+  const userId = String(formData.get("userId") ?? "");
+  const dayTemplateId = String(formData.get("dayTemplateId") ?? "");
+
+  const member = await prisma.user.findFirst({
+    where: { id: userId, tenantId: owner.tenantId, role: "TENANT_MEMBER" },
+  });
+  if (!member) redirect("/owner/schemas/members");
+
+  const source = await prisma.workoutTemplate.findFirst({
+    where: { id: dayTemplateId, tenantId: owner.tenantId, isLibrary: true, kind: "DAY" },
+    include: sourceInclude,
+  });
+  if (!source) redirect(`/owner/schemas/members/${userId}`);
+
+  await prisma.$transaction(async (tx) => {
+    await archivePriorActive(tx, owner.tenantId, userId);
+    await cloneToAssignment(tx, {
+      tenantId: owner.tenantId,
+      userId,
+      assignedById: owner.id,
+      source,
+      sourceTemplateId: null,
+      status: "PUBLISHED",
+      availableFrom: null,
+      startDate: new Date(),
+      endDate: null,
+      trainerMessage: null,
+      publishedAt: new Date(),
+    });
+  });
+
+  await audit("schema.assign", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "User",
+    targetId: userId,
+    metadata: { name: source.name, memberCount: 1, member: member.name ?? member.email },
   });
 
   revalidatePath(`/owner/schemas/members/${userId}`);

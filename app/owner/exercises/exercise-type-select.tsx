@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { exerciseTypeOptions } from "@/lib/exercise-types";
 import { setExerciseType } from "./actions";
 
@@ -18,11 +19,12 @@ export function ExerciseTypeSelect({
   value: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("owner.exercises");
   const [pending, start] = useTransition();
 
   return (
     <select
-      aria-label="Oefeningstype"
+      aria-label={t("typeAria")}
       defaultValue={value}
       disabled={pending}
       onChange={(e) => {

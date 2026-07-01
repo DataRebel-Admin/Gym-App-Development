@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { machineTypeLabel } from "@/lib/machine";
 import { Input, Select } from "@/components/ui/field";
 import {
@@ -26,6 +27,13 @@ export type MachineRow = {
 type SortKey = "name" | "type";
 
 export function MachinesTable({ machines }: { machines: MachineRow[] }) {
+  const t = useTranslations("owner.machines");
+  const typeLabel = (type: string) => {
+    const key = `type${type}`;
+    const label = t(key);
+    // Onbekend type → val terug op de registry-helper.
+    return label === `owner.machines.${key}` ? machineTypeLabel(type) : label;
+  };
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
 
@@ -47,7 +55,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Zoek op naam…"
+          placeholder={t("searchPlaceholder")}
           className="max-w-xs"
         />
         <Select
@@ -55,8 +63,8 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
           onChange={(e) => setSort(e.target.value as SortKey)}
           className="w-auto"
         >
-          <option value="name">Sorteer op naam</option>
-          <option value="type">Sorteer op type</option>
+          <option value="name">{t("sortName")}</option>
+          <option value="type">{t("sortType")}</option>
         </Select>
       </div>
 
@@ -64,9 +72,9 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
         <Table>
           <Thead>
             <tr>
-              <Th>Machine</Th>
-              <Th>Type</Th>
-              <Th>QR</Th>
+              <Th>{t("colMachine")}</Th>
+              <Th>{t("colType")}</Th>
+              <Th>{t("colQr")}</Th>
               <Th className="text-right" />
             </tr>
           </Thead>
@@ -90,7 +98,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
                     <span className="font-medium text-neutral-900">{m.name}</span>
                   </div>
                 </Td>
-                <Td className="text-neutral-500">{machineTypeLabel(m.type)}</Td>
+                <Td className="text-neutral-500">{typeLabel(m.type)}</Td>
                 <Td>
                   {m.hasQr ? (
                     <span className="text-green-600">✓</span>
@@ -103,7 +111,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
                     href={`/owner/machines/${m.id}`}
                     className="font-medium text-accent hover:underline"
                   >
-                    Bewerken
+                    {t("edit")}
                   </Link>
                 </Td>
               </Tr>
@@ -111,7 +119,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
             {rows.length === 0 ? (
               <Tr>
                 <Td colSpan={4} className="py-8 text-center text-neutral-500">
-                  Geen machines gevonden.
+                  {t("noMachines")}
                 </Td>
               </Tr>
             ) : null}

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import { requireOwner } from "@/lib/owner";
 import { getMachineInsights } from "@/lib/insights";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -22,8 +24,9 @@ function parsePeriod(value: string | undefined): Period {
 }
 
 function Trend({ pct }: { pct: number | null }) {
+  const t = useTranslations("owner.insights");
   if (pct === null) {
-    return <span className="text-neutral-400">nieuw</span>;
+    return <span className="text-neutral-400">{t("new")}</span>;
   }
   if (pct === 0) return <span className="text-neutral-500">±0%</span>;
   const up = pct > 0;
@@ -34,7 +37,10 @@ function Trend({ pct }: { pct: number | null }) {
   );
 }
 
-export const metadata = { title: "Inzichten" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.insights");
+  return { title: t("metaTitle") };
+}
 
 export default async function InsightsPage({
   searchParams,
@@ -42,6 +48,7 @@ export default async function InsightsPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const owner = await requireOwner();
+  const t = await getTranslations("owner.insights");
   const { period: periodParam } = await searchParams;
   const period = parsePeriod(periodParam);
 
@@ -50,8 +57,8 @@ export default async function InsightsPage({
   return (
     <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
-        title="Inzichten"
-        description="Machinegebruik en trends over de gekozen periode."
+        title={t("title")}
+        description={t("desc")}
         action={
           <div className="flex items-center gap-2">
             <div className="flex gap-1 rounded-xl border border-border bg-surface-0 p-1 text-sm">
@@ -65,7 +72,7 @@ export default async function InsightsPage({
                       : "text-neutral-500 hover:text-neutral-900"
                   }`}
                 >
-                  {p} dagen
+                  {t("days", { count: p })}
                 </Link>
               ))}
             </div>
@@ -78,10 +85,10 @@ export default async function InsightsPage({
         <Table>
           <Thead>
             <tr>
-              <Th>Machine</Th>
-              <Th>Sessies</Th>
-              <Th>Totaal reps</Th>
-              <Th>Trend</Th>
+              <Th>{t("colMachine")}</Th>
+              <Th>{t("colSessions")}</Th>
+              <Th>{t("colTotalReps")}</Th>
+              <Th>{t("colTrend")}</Th>
             </tr>
           </Thead>
           <Tbody>
@@ -98,7 +105,7 @@ export default async function InsightsPage({
             {rows.length === 0 ? (
               <Tr>
                 <Td colSpan={4} className="py-8 text-center text-neutral-500">
-                  Geen machines.
+                  {t("noMachines")}
                 </Td>
               </Tr>
             ) : null}
@@ -106,8 +113,7 @@ export default async function InsightsPage({
         </Table>
       </TableWrap>
       <p className="text-xs text-neutral-500">
-        Trend vergelijkt de gekozen periode met de voorgaande periode van gelijke
-        lengte. Cijfers verversen elke 5 minuten.
+        {t("footnote")}
       </p>
     </Fullscreenable>
   );

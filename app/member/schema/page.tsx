@@ -13,9 +13,11 @@ import { startSession } from "./actions";
 import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
 import { exerciseTypeLabel } from "@/lib/exercise-types";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { computeValidity } from "@/lib/schema-status";
 
 type ItemWithRel = {
   id: string;
+  exerciseId: string;
   sets: number;
   reps: number;
   restSeconds: number;
@@ -35,6 +37,7 @@ function toChecklistItem(it: ItemWithRel): ChecklistItem {
   const type = it.exercise.exerciseType;
   return {
     id: it.id,
+    exerciseId: it.exerciseId,
     exerciseName: it.exercise.name,
     machineName: it.exercise.machine?.name ?? null,
     summary: targetSummaryFromItem(it, type),
@@ -58,6 +61,9 @@ export default async function MemberSchemaPage() {
   const schema = assignment?.template;
   const isNew = assignment ? assignment.seenAt === null : false;
   const trainerMessage = assignment?.trainerMessage?.trim() || null;
+  const validity = assignment
+    ? computeValidity(assignment.publishedAt, assignment.template?.validityWeeks ?? null)
+    : computeValidity(null, null);
 
   if (!schema) {
     return (
@@ -127,6 +133,39 @@ export default async function MemberSchemaPage() {
         </div>
         <FullscreenButton />
       </div>
+
+      {validity.state === "expiring" || validity.state === "expired" ? (
+        <div
+          className={
+            validity.state === "expired"
+              ? "rounded-2xl border border-red-300 bg-red-50 px-4 py-3"
+              : "rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3"
+          }
+        >
+          <p
+            className={
+              validity.state === "expired"
+                ? "text-sm font-semibold text-red-700"
+                : "text-sm font-semibold text-amber-700"
+            }
+          >
+            {validity.state === "expired"
+              ? t("validityExpiredTitle")
+              : t("validityExpiringTitle")}
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">
+            {validity.state === "expired"
+              ? t("validityExpiredDesc")
+              : t("validityExpiringDesc", { days: Math.max(0, validity.daysLeft ?? 0) })}
+          </p>
+          <Link
+            href="/member/requests"
+            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground active:opacity-90"
+          >
+            <ClipboardList className="size-4" /> {t("requestNewSchema")}
+          </Link>
+        </div>
+      ) : null}
 
       {trainerMessage ? (
         <div className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">

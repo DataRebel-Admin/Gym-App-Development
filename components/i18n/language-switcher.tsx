@@ -1,11 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { m } from "motion/react";
+import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/cn";
-import { Check } from "@/components/ui/icons";
+import { Check, ChevronDown } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/toast";
 import { setLocale } from "@/lib/i18n/actions";
 import { LOCALES, LOCALE_META, isLocale, type AppLocale } from "@/lib/i18n/config";
@@ -16,12 +16,13 @@ import { LOCALES, LOCALE_META, isLocale, type AppLocale } from "@/lib/i18n/confi
  * RSC-re-render: geen full reload, zelfde pagina, formulierdata behouden.
  *
  * - `variant="menu"`     → compacte rij voor in een dropdown/gebruikersmenu.
+ * - `variant="dropdown"` → uitklapbare knop (toont de actieve taal, klapt de rest uit).
  * - `variant="settings"` → radio-kaarten met vlag + volledige naam (accountpagina).
  */
 export function LanguageSwitcher({
   variant = "menu",
 }: {
-  variant?: "menu" | "settings";
+  variant?: "menu" | "dropdown" | "settings";
 }) {
   const router = useRouter();
   const active = useLocale();
@@ -36,6 +37,10 @@ export function LanguageSwitcher({
       router.refresh();
       success(t("changed"));
     });
+  }
+
+  if (variant === "dropdown") {
+    return <LanguageDropdown active={active} isPending={isPending} onChange={change} t={t} />;
   }
 
   if (variant === "settings") {
@@ -108,6 +113,111 @@ export function LanguageSwitcher({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Uitklapbare taalkeuze: een knop toont de actieve taal; klikken vouwt de lijst
+ * uit. Sluit bij klik-buiten en Escape.
+ */
+function LanguageDropdown({
+  active,
+  isPending,
+  onChange,
+  t,
+}: {
+  active: string;
+  isPending: boolean;
+  onChange: (next: AppLocale) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const activeMeta = isLocale(active) ? LOCALE_META[active] : LOCALE_META.nl;
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        disabled={isPending}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={t("switchLabel")}
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-lg border border-border bg-surface-1 px-3 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100 disabled:opacity-60",
+          open && "bg-neutral-100",
+        )}
+      >
+        <span className="text-base leading-none" aria-hidden>
+          {activeMeta.flag}
+        </span>
+        <span className="flex-1 font-medium">{activeMeta.label}</span>
+        <ChevronDown
+          className={cn("size-4 text-neutral-400 transition-transform", open && "rotate-180")}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open ? (
+          <m.ul
+            role="listbox"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full left-0 z-10 mb-1.5 w-full overflow-hidden rounded-lg border border-border bg-surface-1 p-0.5 shadow-lg"
+          >
+            {LOCALES.map((code) => {
+              const meta = LOCALE_META[code];
+              const selected = isLocale(active) && active === code;
+              return (
+                <li key={code} role="option" aria-selected={selected}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(code);
+                      setOpen(false);
+                    }}
+                    disabled={isPending}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors disabled:opacity-60",
+                      selected
+                        ? "font-medium text-accent"
+                        : "text-neutral-700 hover:bg-neutral-100",
+                    )}
+                  >
+                    <span className="text-base leading-none" aria-hidden>
+                      {meta.flag}
+                    </span>
+                    <span className="flex-1">{meta.label}</span>
+                    {selected ? <Check className="size-4" /> : null}
+                  </button>
+                </li>
+              );
+            })}
+          </m.ul>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

@@ -9,7 +9,7 @@ export type ButtonVariant =
 export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-ring disabled:pointer-events-none disabled:opacity-50 select-none";
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl font-semibold transition-colors focus-ring disabled:pointer-events-none disabled:opacity-50 select-none";
 
 const variants: Record<ButtonVariant, string> = {
   primary:

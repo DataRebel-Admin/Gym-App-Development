@@ -1,12 +1,17 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { MachinesTable, type MachineRow } from "./machines-table";
 
-export const metadata = { title: "Apparatuur" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.machines");
+  return { title: t("metaTitle") };
+}
 
 export default async function MachinesPage() {
   const owner = await requireOwner();
+  const t = await getTranslations("owner.machines");
 
   const machines = await prisma.machine.findMany({
     where: { tenantId: owner.tenantId },
@@ -27,18 +32,17 @@ export default async function MachinesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-            Machines
+            {t("title")}
           </h1>
           <p className="text-sm text-neutral-500">
-            {machines.length} machine{machines.length === 1 ? "" : "s"} in jouw
-            sportschool.
+            {t("count", { count: machines.length })}
           </p>
         </div>
         <Link
           href="/owner/machines/new"
           className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground hover:opacity-90"
         >
-          Nieuwe machine
+          {t("newMachine")}
         </Link>
       </div>
 

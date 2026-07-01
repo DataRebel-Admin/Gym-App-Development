@@ -19,9 +19,10 @@ import {
 import { getAssignmentsForMember } from "@/lib/schema-assignments";
 import { getDayTemplateOptions } from "@/lib/day-templates";
 import { itemToInputValues } from "@/lib/exercise-params";
-import { ASSIGNMENT_STATUS_META, fmtDate, fmtDateTime, isActiveNow } from "@/lib/schema-status";
+import { ASSIGNMENT_STATUS_META, computeValidity, fmtDate, fmtDateTime, isActiveNow } from "@/lib/schema-status";
 import {
   assignFromTemplate,
+  startSchemaFromDayTemplate,
   startEmptySchema,
   publishAssignment,
   archiveAssignment,
@@ -81,7 +82,16 @@ export default async function MemberSchemaPage({
   const exerciseRows = await prisma.exercise.findMany({
     where: { tenantId: owner.tenantId, archivedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, targetMuscle: true, catalogId: true, exerciseType: true },
+    select: {
+      id: true,
+      name: true,
+      targetMuscle: true,
+      catalogId: true,
+      exerciseType: true,
+      imageUrls: true,
+      machine: { select: { name: true } },
+      catalog: { select: { imageUrl: true, gifUrl: true } },
+    },
   });
   const exercises = exerciseRows.map((e) => ({
     id: e.id,
@@ -89,6 +99,8 @@ export default async function MemberSchemaPage({
     targetMuscle: e.targetMuscle,
     exerciseType: e.exerciseType,
     source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
+    thumbUrl: e.catalog?.imageUrl ?? e.catalog?.gifUrl ?? e.imageUrls[0] ?? null,
+    machineName: e.machine?.name ?? null,
   }));
 
   // Naam-map (incl. gearchiveerde) voor de diff-weergaven.
@@ -165,6 +177,9 @@ export default async function MemberSchemaPage({
             {liveOrDraft.map((a) => {
               const meta = ASSIGNMENT_STATUS_META[a.status];
               const active = isActiveNow(a);
+              const validity = active
+                ? computeValidity(a.publishedAt, a.template?.validityWeeks ?? null)
+                : computeValidity(null, null);
               return (
                 <li
                   key={a.id}
@@ -183,6 +198,9 @@ export default async function MemberSchemaPage({
                   ) : null}
                   {a.status === "PUBLISHED" && !a.seenAt ? (
                     <Badge tone="warning">Nog niet geopend</Badge>
+                  ) : null}
+                  {validity.state !== "none" && validity.state !== "ok" ? (
+                    <Badge tone={validity.tone}>{validity.label}</Badge>
                   ) : null}
                   <span className="text-xs text-neutral-500">
                     {a.status === "SCHEDULED"
@@ -267,6 +285,7 @@ export default async function MemberSchemaPage({
               initialName={primaryTemplate.name}
               initialDescription={primaryTemplate.description ?? ""}
               initialCoachNote={primaryTemplate.coachNote ?? ""}
+              initialValidityWeeks={primaryTemplate.validityWeeks}
               initialDays={primaryTemplate.days.map<EditorDay>((d) => ({
                 key: d.id,
                 name: d.name,
@@ -319,6 +338,34 @@ export default async function MemberSchemaPage({
                   className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
                 >
                   Kopieer &amp; publiceer
+                </button>
+              </form>
+            ))
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
+          <span className="text-sm font-medium text-neutral-700">Begin vanuit een dag-template</span>
+          {dayTemplates.length === 0 ? (
+            <p className="text-sm text-neutral-400">Nog geen dag-templates beschikbaar.</p>
+          ) : (
+            dayTemplates.map((t) => (
+              <form
+                key={t.id}
+                action={startSchemaFromDayTemplate}
+                className="flex items-center justify-between"
+              >
+                <input type="hidden" name="userId" value={member.id} />
+                <input type="hidden" name="dayTemplateId" value={t.id} />
+                <span className="text-sm text-neutral-900">
+                  {t.name}{" "}
+                  <span className="text-neutral-400">({t.items.length} oef.)</span>
+                </span>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-neutral-50"
+                >
+                  Gebruik als start
                 </button>
               </form>
             ))

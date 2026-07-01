@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { setAiEnabled } from "./actions";
@@ -10,10 +11,14 @@ function startOfMonth(): Date {
   return d;
 }
 
-export const metadata = { title: "Instellingen" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.settings");
+  return { title: t("metaTitle") };
+}
 
 export default async function SettingsPage() {
   const owner = await requireOwner();
+  const t = await getTranslations("owner.settings");
 
   const tenant = await prisma.tenant.findUniqueOrThrow({
     where: { id: owner.tenantId },
@@ -60,21 +65,22 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-        Instellingen
+        {t("title")}
       </h1>
 
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">
-            AI-trainingsassistent
+            {t("aiTitle")}
           </h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Een chat-assistent voor leden, beperkt tot jouw apparatuur en met een
-            verplichte veiligheidsmelding. Status:{" "}
-            <span className="font-medium text-neutral-900">
-              {tenant.aiEnabled ? "aan" : "uit"}
-            </span>
-            .
+            {t.rich("aiDesc", {
+              status: () => (
+                <span className="font-medium text-neutral-900">
+                  {tenant.aiEnabled ? t("statusOn") : t("statusOff")}
+                </span>
+              ),
+            })}
           </p>
         </div>
 
@@ -92,26 +98,26 @@ export default async function SettingsPage() {
                 : "bg-accent text-accent-foreground hover:opacity-90"
             }`}
           >
-            {tenant.aiEnabled ? "Zet uit" : "Zet aan"}
+            {tenant.aiEnabled ? t("turnOff") : t("turnOn")}
           </button>
         </form>
 
         <div className="rounded-lg bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
-          Vragen deze maand:{" "}
+          {t("questionsThisMonth")}{" "}
           <span className="font-semibold text-neutral-900">
             {questionsThisMonth}
           </span>{" "}
-          <span className="text-neutral-500">(voor kostenmonitoring)</span>
+          <span className="text-neutral-500">{t("forCostMonitoring")}</span>
         </div>
       </section>
 
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
         <div>
-          <h2 className="text-sm font-semibold text-neutral-900">Contactgegevens</h2>
+          <h2 className="text-sm font-semibold text-neutral-900">{t("contactTitle")}</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Deze gegevens zijn voor je leden zichtbaar op hun{" "}
-            <span className="font-medium text-neutral-900">Sportschool</span>-pagina.
-            Lege velden worden niet getoond.
+            {t.rich("contactDesc", {
+              b: (c) => <span className="font-medium text-neutral-900">{c}</span>,
+            })}
           </p>
         </div>
         <TenantContactForm initial={contactInitial} />

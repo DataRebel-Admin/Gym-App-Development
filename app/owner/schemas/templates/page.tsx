@@ -1,8 +1,8 @@
-import Link from "next/link";
 import type { WorkoutTemplate } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
-import { createTemplate, duplicateTemplate } from "../actions";
+import { createTemplate } from "../actions";
+import { TemplateRow } from "./template-row";
 
 export const metadata = { title: "Schemasjablonen" };
 
@@ -27,26 +27,7 @@ function TemplateTable({
         </thead>
         <tbody>
           {rows.map((t) => (
-            <tr key={t.id} className="border-t border-neutral-100">
-              <td className="px-4 py-2 font-medium text-neutral-900">{t.name}</td>
-              <td className="px-4 py-2 text-neutral-700">{t._count.items}</td>
-              <td className="px-4 py-2">
-                <div className="flex items-center justify-end gap-3">
-                  <form action={duplicateTemplate}>
-                    <input type="hidden" name="id" value={t.id} />
-                    <button type="submit" className="text-neutral-500 hover:text-neutral-900">
-                      Dupliceren
-                    </button>
-                  </form>
-                  <Link
-                    href={`/owner/schemas/templates/${t.id}`}
-                    className="text-accent hover:underline"
-                  >
-                    Bewerken
-                  </Link>
-                </div>
-              </td>
-            </tr>
+            <TemplateRow key={t.id} template={t} />
           ))}
           {rows.length === 0 ? (
             <tr>

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requireTenantUser } from "@/lib/staff";
 import { prisma } from "@/lib/db";
+import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { StaffDashboard } from "@/components/dashboard/staff-dashboard";
 import { getDashboardStats } from "@/lib/insights";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
@@ -18,10 +20,17 @@ import {
   QuickActions,
 } from "@/components/dashboard/widget-bodies";
 
-export const metadata = { title: "Dashboard" };
+export async function generateMetadata() {
+  const t = await getTranslations("owner.dashboard");
+  return { title: t("metaTitle") };
+}
 
 export default async function OwnerDashboard() {
   const owner = await requireTenantUser();
+  const [t, locale] = await Promise.all([
+    getTranslations("owner.dashboard"),
+    getLocale(),
+  ]);
 
   // Medewerkers krijgen een op hun rol/permissies afgestemd dashboard
   // (geen audit-/financiële data, geen configureerbare KPI-grid).
@@ -72,19 +81,18 @@ export default async function OwnerDashboard() {
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium text-accent">
-              {new Date().toLocaleDateString("nl-NL", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
+              {new Date().toLocaleDateString(
+                (isLocale(locale) ? LOCALE_META[locale] : LOCALE_META.nl).bcp47,
+                { weekday: "long", day: "numeric", month: "long" },
+              )}
             </p>
             <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-neutral-900">
-              Welkom terug{firstName ? `, ${firstName}` : ""}
+              {firstName ? t("welcomeBackName", { name: firstName }) : t("welcomeBack")}
             </h1>
             <p className="mt-1 text-sm text-neutral-500">
               {stats.activeToday > 0
-                ? `${stats.activeToday} ${stats.activeToday === 1 ? "lid heeft" : "leden hebben"} vandaag al getraind.`
-                : "Nog geen trainingen vandaag — tijd om je leden te activeren."}
+                ? t("activeToday", { count: stats.activeToday })
+                : t("noTrainingToday")}
             </p>
           </div>
           <FullscreenButton />

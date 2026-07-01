@@ -8,7 +8,7 @@ import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { deleteTemplate, duplicateTemplate } from "../../actions";
 import { SchemaAssignPanel } from "@/components/schema-assign-panel";
 import { SchemaAssignmentOverview } from "@/components/schema-assignment-overview";
-import { getAssignmentsForTemplate } from "@/lib/schema-assignments";
+import { getAssignmentsForTemplate, toOverviewRows } from "@/lib/schema-assignments";
 import { getDayTemplateOptions } from "@/lib/day-templates";
 import { itemToInputValues } from "@/lib/exercise-params";
 import { getMasterSuggestions } from "@/lib/coach-insights";
@@ -56,7 +56,16 @@ export default async function TemplateEditPage({
   const exerciseRows = await prisma.exercise.findMany({
     where: { tenantId: owner.tenantId, archivedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, targetMuscle: true, catalogId: true, exerciseType: true },
+    select: {
+      id: true,
+      name: true,
+      targetMuscle: true,
+      catalogId: true,
+      exerciseType: true,
+      imageUrls: true,
+      machine: { select: { name: true } },
+      catalog: { select: { imageUrl: true, gifUrl: true } },
+    },
   });
   const exercises = exerciseRows.map((e) => ({
     id: e.id,
@@ -64,6 +73,8 @@ export default async function TemplateEditPage({
     targetMuscle: e.targetMuscle,
     exerciseType: e.exerciseType,
     source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
+    thumbUrl: e.catalog?.imageUrl ?? e.catalog?.gifUrl ?? e.imageUrls[0] ?? null,
+    machineName: e.machine?.name ?? null,
   }));
 
   const members = await prisma.user.findMany({
@@ -112,6 +123,8 @@ export default async function TemplateEditPage({
         initialName={template.name}
         initialDescription={template.description ?? ""}
         initialCoachNote={template.coachNote ?? ""}
+        initialValidityWeeks={template.validityWeeks}
+        showValidity={isSchema}
         initialDays={initialDays}
         availableExercises={exercises}
         dayTemplates={dayTemplates}
@@ -140,7 +153,7 @@ export default async function TemplateEditPage({
                 Wie heeft dit schema, met welke status en sinds wanneer.
               </p>
             </div>
-            <SchemaAssignmentOverview rows={assignments} />
+            <SchemaAssignmentOverview rows={toOverviewRows(assignments)} />
           </section>
         </>
       ) : null}
