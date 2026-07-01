@@ -8,6 +8,11 @@ import { requireMember, getAssignedSchema } from "@/lib/member";
 import { logParamsFromInputValues, logColumnsFromParams } from "@/lib/exercise-params";
 import { evaluateAndAward } from "@/lib/achievements/evaluate";
 import { isMood } from "@/lib/workout-moods";
+import {
+  recordMachineUsageForSession,
+  evaluateDueMachines,
+} from "@/lib/maintenance-eval";
+import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
 
 /**
  * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
@@ -278,6 +283,19 @@ export async function endSession(formData: FormData) {
     await evaluateAndAward(member.id, member.tenantId, { actor: { id: member.id, email: member.email } });
     revalidatePath("/member");
     revalidatePath("/member/trophies");
+
+    // Machine-onderhoud: +1 gebruiksmoment per gebruikte machine, daarna direct
+    // evalueren en de beheerders melden zodra een drempel bereikt is. Best-effort
+    // — mag het afronden van de training nooit breken.
+    try {
+      const usedMachineIds = await recordMachineUsageForSession(sessionId, member.tenantId);
+      if (usedMachineIds.length > 0) {
+        const { due, soon } = await evaluateDueMachines(member.tenantId);
+        await notifyMaintenanceThresholds({ tenantId: member.tenantId, dueIds: due, soonIds: soon });
+      }
+    } catch (err) {
+      console.error("[maintenance] usage-hook mislukt:", (err as Error).message);
+    }
   }
 
   revalidatePath("/member/history");

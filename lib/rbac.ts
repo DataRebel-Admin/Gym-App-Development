@@ -20,6 +20,7 @@ export type Permission =
   | "members:assign-self" // zichzelf als coach aan leden koppelen (standaard uit)
   | "schedule:manage" // rooster/groepslessen beheren
   | "exercises:manage" // eigen oefeningen beheren
+  | "maintenance:manage" // machine-onderhoud beheren (regels, uitvoeren, status)
   | "members:import" // leden importeren (standaard uit)
   | "reports:export" // rapportages exporteren (standaard uit)
   | "mailings:send"; // mailings versturen (standaard uit)
@@ -37,6 +38,7 @@ export const STAFF_CONFIGURABLE_PERMISSIONS = [
   "members:assign-self",
   "schedule:manage",
   "exercises:manage",
+  "maintenance:manage",
   "members:import",
   "reports:export",
   "mailings:send",
@@ -50,6 +52,7 @@ const STAFF_DEFAULT_ON: readonly Permission[] = [
   "coachnotes:manage",
   "schedule:manage",
   "exercises:manage",
+  "maintenance:manage",
 ];
 
 const TENANT_ADMIN_PERMISSIONS: Permission[] = [
@@ -181,6 +184,18 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         permission: "exercises:manage",
         label: "Eigen oefeningen beheren",
         description: "Eigen oefeningen toevoegen, wijzigen en gebruiken in schema's.",
+      },
+    ],
+  },
+  {
+    key: "maintenance",
+    label: "Onderhoud",
+    permissions: [
+      {
+        permission: "maintenance:manage",
+        label: "Machine-onderhoud beheren",
+        description:
+          "Onderhoudsregels instellen, onderhoud vastleggen en de machinestatus beheren.",
       },
     ],
   },

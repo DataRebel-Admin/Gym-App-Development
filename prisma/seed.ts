@@ -179,10 +179,19 @@ async function seedTenant(spec: TenantSpec) {
     )
   );
 
-  // Machines.
+  // Machines. Elke machine krijgt onderhoudsregels + wat variatie in de teller/
+  // volgende datum zodat het onderhoudsdashboard direct gevuld is.
+  const DAY = 86_400_000;
   const machines = await Promise.all(
-    spec.machines.map((m) =>
-      prisma.machine.create({
+    spec.machines.map((m, i) => {
+      const usageThreshold = [500, 300, 1000, 250][i % 4];
+      const intervalDays = [90, 180, 365, 30][i % 4];
+      // Eén machine bewust "onderhoud nodig" (teller over de drempel), één bijna.
+      const usageCount =
+        i === 0 ? usageThreshold + 12 : i === 1 ? Math.round(usageThreshold * 0.85) : Math.round(usageThreshold * 0.3);
+      const lastMaintenanceAt = new Date(Date.now() - (i === 0 ? intervalDays + 10 : 20) * DAY);
+      const nextMaintenanceAt = new Date(lastMaintenanceAt.getTime() + intervalDays * DAY);
+      return prisma.machine.create({
         data: {
           tenantId: tenant.id,
           name: m.name,
@@ -190,11 +199,49 @@ async function seedTenant(spec: TenantSpec) {
           description: m.description,
           instructionsMd: `## ${m.name}\n\n1. Stel de machine af op jouw lengte.\n2. Voer de beweging rustig en gecontroleerd uit.\n3. Adem uit bij inspanning.`,
           qrToken: qrToken(),
+          location: `Zone ${String.fromCharCode(65 + (i % 3))}`,
+          serialNumber: `INV-${String(1000 + i)}`,
+          purchaseDate: new Date(Date.now() - (200 + i * 30) * DAY),
+          usageThreshold,
+          maintenanceIntervalDays: intervalDays,
+          usageCount,
+          lastMaintenanceAt,
+          nextMaintenanceAt,
+          // Derde machine (indien aanwezig) buiten gebruik voor de demo.
+          status: i === 2 ? "OUT_OF_SERVICE" : "ACTIVE",
         },
-      })
-    )
+      });
+    })
   );
   const machineByName = new Map(machines.map((m) => [m.name, m]));
+
+  // Demo-onderhoudshistorie (alleen de rijke tenant) zodat de historie/log gevuld is.
+  if (spec.slug === "fitpower" && machines.length > 0) {
+    await prisma.maintenanceRecord.createMany({
+      data: [
+        {
+          tenantId: tenant.id,
+          machineId: machines[0].id,
+          kind: "SERVICE",
+          performedAt: new Date(Date.now() - 100 * DAY),
+          action: "Kabels gecontroleerd en gesmeerd",
+          note: "Lichte slijtage aan de linkerkabel — bij volgende beurt vervangen.",
+          performedByName: "Externe monteur",
+          cost: 85.5,
+          usageAtService: 480,
+          nextMaintenanceAt: machines[0].nextMaintenanceAt,
+        },
+        {
+          tenantId: tenant.id,
+          machineId: machines[Math.min(1, machines.length - 1)].id,
+          kind: "INSPECTION",
+          performedAt: new Date(Date.now() - 45 * DAY),
+          action: "Jaarlijkse veiligheidsinspectie",
+          usageAtService: 120,
+        },
+      ],
+    });
+  }
 
   // Koppel-namen → catalogId (één query). Verrijkt de seed-oefeningen met
   // catalogus-media/instructies zonder de NL-namen te verliezen.

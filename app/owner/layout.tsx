@@ -33,6 +33,8 @@ const ICON_STAFF =
   "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6";
 const ICON_ENGAGEMENT =
   "M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z";
+const ICON_MAINTENANCE =
+  "M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.7 2.7-2-2 2.7-2.7Z";
 
 type NavTranslator = Awaited<ReturnType<typeof getTranslations<"nav.owner">>>;
 
@@ -53,6 +55,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
         { href: "/owner/machines", label: t("machines"), iconPath: ICON_MACHINES, description: t("machinesDesc"), adminOnly: true },
         { href: "/owner/exercises", label: t("exercises"), iconPath: ICON_EXERCISES, description: t("exercisesDesc"), permission: "exercises:manage" },
         { href: "/owner/schemas", label: t("schemas"), iconPath: ICON_SCHEMAS, description: t("schemasDesc"), permission: "schemas:manage" },
+        { href: "/owner/maintenance", label: "Onderhoud", iconPath: ICON_MAINTENANCE, description: "Onderhoud van machines: signalering op gebruik en tijd", permission: "maintenance:manage" },
       ],
     },
     {

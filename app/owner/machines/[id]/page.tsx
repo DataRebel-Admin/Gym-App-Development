@@ -9,6 +9,9 @@ import { machinePublicUrl } from "@/lib/machine";
 import { MachineForm } from "../machine-form";
 import { deleteMachine } from "../actions";
 import { DownloadQrButton } from "@/components/ui/download-qr-button";
+import { computeMaintenanceState, effectiveStatus } from "@/lib/maintenance";
+import { MachineMaintenancePanel } from "@/components/maintenance/machine-maintenance-panel";
+import type { MaintenanceRecordRow } from "@/lib/maintenance-eval";
 
 export async function generateMetadata({
   params,
@@ -45,6 +48,41 @@ export default async function MachineDetailPage({
   });
   const publicUrl = machinePublicUrl(tenant?.slug ?? "", machine.qrToken);
 
+  const maintenanceRecords = await prisma.maintenanceRecord.findMany({
+    where: { machineId: machine.id, tenantId: owner.tenantId },
+    orderBy: { performedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      machineId: true,
+      kind: true,
+      performedAt: true,
+      action: true,
+      note: true,
+      performedByName: true,
+      cost: true,
+      usageAtService: true,
+      nextMaintenanceAt: true,
+      performedBy: { select: { name: true, email: true } },
+    },
+  });
+  const recordRows: MaintenanceRecordRow[] = maintenanceRecords.map((r) => ({
+    id: r.id,
+    machineId: r.machineId,
+    machineName: machine.name,
+    kind: r.kind,
+    performedAt: r.performedAt.toISOString(),
+    action: r.action,
+    note: r.note,
+    performedBy: r.performedByName ?? r.performedBy?.name ?? r.performedBy?.email ?? null,
+    cost: r.cost != null ? Number(r.cost) : null,
+    usageAtService: r.usageAtService,
+    nextMaintenanceAt: r.nextMaintenanceAt ? r.nextMaintenanceAt.toISOString() : null,
+  }));
+
+  const state = computeMaintenanceState(machine);
+  const eff = effectiveStatus(machine.status, state);
+
   return (
     <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
       <div>
@@ -69,7 +107,35 @@ export default async function MachineDetailPage({
           instructionsMd: machine.instructionsMd,
           videoUrl: machine.videoUrl,
           imageUrl: machine.imageUrl,
+          location: machine.location,
+          serialNumber: machine.serialNumber,
+          purchaseDate: machine.purchaseDate
+            ? machine.purchaseDate.toISOString().slice(0, 10)
+            : null,
         }}
+      />
+
+      <MachineMaintenancePanel
+        machine={{
+          id: machine.id,
+          name: machine.name,
+          status: machine.status,
+          effectiveStatus: eff,
+          level: state.level,
+          usageCount: machine.usageCount,
+          usageThreshold: machine.usageThreshold,
+          maintenanceIntervalDays: machine.maintenanceIntervalDays,
+          lastMaintenanceAt: machine.lastMaintenanceAt
+            ? machine.lastMaintenanceAt.toISOString()
+            : null,
+          nextMaintenanceAt: machine.nextMaintenanceAt
+            ? machine.nextMaintenanceAt.toISOString()
+            : null,
+          daysUntilDue: state.daysUntilDue,
+          usageRatio: state.usageRatio,
+          reasons: state.reasons,
+        }}
+        records={recordRows}
       />
 
       <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-neutral-200 p-5">

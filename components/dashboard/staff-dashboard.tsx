@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { Permission } from "@/lib/rbac";
 import { listCoachMembers } from "@/lib/coach-assignments";
+import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
+import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { getAchievementDef } from "@/lib/achievements/definitions";
 import { rarityMeta } from "@/lib/achievements/rarity";
 import { Card } from "@/components/ui/card";
@@ -61,8 +63,9 @@ export async function StaffDashboard({
   const canMeasure = permissions.has("measurements:manage");
 
   const canMembers = permissions.has("members:view");
+  const canMaintenance = permissions.has("maintenance:manage");
 
-  const [activeToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements] = await Promise.all([
+  const [activeToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements, maintenanceAttention] = await Promise.all([
     prisma.workoutSession.count({ where: { tenantId, startedAt: { gte: today } } }),
     canSchemas
       ? prisma.schemaRequest.count({ where: { tenantId, status: "NEW" } })
@@ -91,6 +94,7 @@ export async function StaffDashboard({
       take: 5,
       select: { userId: true, key: true, earnedAt: true, user: { select: { name: true, email: true } } },
     }),
+    canMaintenance ? getMaintenanceAttentionCount(tenantId) : Promise.resolve(0),
   ]);
 
   const showAchievements = tenantFlags?.achievementsEnabled ?? false;
@@ -121,6 +125,8 @@ export async function StaffDashboard({
           </p>
         </div>
       </section>
+
+      {canMaintenance ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatCard label="Leden actief vandaag" value={activeToday} />

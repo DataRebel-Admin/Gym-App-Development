@@ -432,6 +432,48 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
       `${actor} heeft machine ${s(meta, "name") ?? ""} verwijderd`.trim(),
   },
 
+  // --- Machine-onderhoud ---
+  "machine.maintenance.rule": {
+    category: "machines", label: "Onderhoudsregels ingesteld", icon: "⚙️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de onderhoudsregels van ${s(meta, "name") ?? "een machine"} ingesteld`,
+  },
+  "machine.maintenance.policy": {
+    category: "machines", label: "Standaard onderhoudsregels", icon: "🧭", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft standaard onderhoudsregels voor type ${s(meta, "type") ?? "?"} ingesteld`,
+  },
+  "machine.maintenance.performed": {
+    category: "machines", label: "Onderhoud uitgevoerd", icon: "🔧", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft onderhoud uitgevoerd aan ${s(meta, "name") ?? "een machine"}`,
+  },
+  "machine.maintenance.due": {
+    category: "machines", label: "Onderhoud nu nodig", icon: "🚨", tone: "danger",
+    sentence: ({ meta }) =>
+      `${s(meta, "name") ?? "Een machine"} heeft nu onderhoud nodig`,
+  },
+  "machine.maintenance.warn": {
+    category: "machines", label: "Onderhoud bijna nodig", icon: "⚠️", tone: "warning",
+    sentence: ({ meta }) =>
+      `${s(meta, "name") ?? "Een machine"} heeft binnenkort onderhoud nodig`,
+  },
+  "machine.maintenance.notify.sent": {
+    category: "machines", label: "Onderhoudsmelding verzonden", icon: "🔔", tone: "neutral",
+    sentence: ({ meta }) =>
+      `Onderhoudsmelding over ${s(meta, "name") ?? "een machine"} verzonden`,
+  },
+  "machine.status.change": {
+    category: "machines", label: "Machinestatus gewijzigd", icon: "🔄", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "name") ?? "een machine"} op '${s(meta, "status") ?? "?"}' gezet`,
+  },
+  "machine.usage.adjust": {
+    category: "machines", label: "Gebruiksteller aangepast", icon: "🔢", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de gebruiksteller van ${s(meta, "name") ?? "een machine"} aangepast`,
+  },
+
   // --- Metingen (Body Composition) ---
   "measurement.add": {
     category: "measurements", label: "Meting toegevoegd", icon: "📏", tone: "success",

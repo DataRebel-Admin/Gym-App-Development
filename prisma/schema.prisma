@@ -44,6 +44,25 @@ enum MachineType {
   OVERIG
 }
 
+// Onderhoudsstatus van een machine. ACTIVE/MAINTENANCE_DUE worden automatisch
+// getransitioneerd (gebruik-/tijddrempel); IN_MAINTENANCE/OUT_OF_SERVICE zet een
+// beheerder handmatig (die worden nooit door de auto-evaluatie overschreven).
+enum MachineStatus {
+  ACTIVE
+  MAINTENANCE_DUE
+  IN_MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+// Soort onderhoudsactie — extensiepunt zodat later inspecties, keuringen en
+// veiligheidschecks er zonder herbouw bij kunnen (default SERVICE).
+enum MaintenanceKind {
+  SERVICE
+  INSPECTION
+  SAFETY_CHECK
+  REPAIR
+}
+
 // Moeilijkheidsgraad voor eigen (tenant-)oefeningen. Catalogus-oefeningen leiden
 // hun niveau heuristisch af (zie lib/exercise.ts deriveDifficulty).
 enum ExerciseDifficulty {
@@ -189,6 +208,8 @@ model Tenant {
   schemaFrameworks  SchemaFramework[]
   memberFrameworkAssignments MemberFrameworkAssignment[]
   earnedAchievements EarnedAchievement[]
+  maintenanceRecords MaintenanceRecord[]
+  maintenancePolicies MaintenancePolicy[]
 }
 
 // In-app melding voor één gebruiker. `tenantId` is nullable zodat ook een
@@ -483,6 +504,7 @@ model User {
   coachingMembers    CoachAssignment[] @relation("CoachAssignmentCoach") // leden die deze coach begeleidt
   assignedCoaches    CoachAssignment[] @relation("CoachAssignmentMember") // coaches van dit lid
   earnedAchievements EarnedAchievement[]
+  maintenanceRecords MaintenanceRecord[] @relation("MaintenancePerformer") // onderhoud uitgevoerd door deze gebruiker
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
@@ -667,9 +689,70 @@ model Machine {
   qrToken        String      @unique
   createdAt      DateTime    @default(now())
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  exercises Exercise[]
+  // --- Inventaris (onderhoudsbeheer) ---
+  location     String? // locatie binnen de sportschool (bv. "Zone A", "1e verdieping")
+  serialNumber String? // serie- of intern inventarisnummer
+  purchaseDate DateTime? // aankoopdatum
 
+  // --- Onderhoudsstatus & -regels ---
+  status                  MachineStatus @default(ACTIVE)
+  usageCount              Int           @default(0) // gebruiksmomenten sinds laatste onderhoud
+  usageThreshold          Int? // gebruikslimiet (NULL = geen gebruik-trigger)
+  maintenanceIntervalDays Int? // tijdslimiet in dagen (NULL = geen tijd-trigger)
+  lastMaintenanceAt       DateTime? // laatst uitgevoerd onderhoud
+  nextMaintenanceAt       DateTime? // afgeleid & opgeslagen (lastMaintenance + interval)
+  // Idempotente melding-markers: voorkomen dubbele "bijna nodig"/"nu nodig"-meldingen.
+  maintenanceDueNotifiedAt  DateTime?
+  maintenanceWarnNotifiedAt DateTime?
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exercises          Exercise[]
+  maintenanceRecords MaintenanceRecord[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+// Volledige onderhoudshistorie: één rij per uitgevoerd onderhoudsmoment.
+// Tenant-scoped + RLS. `kind` maakt het uitbreidbaar naar inspecties/keuringen.
+model MaintenanceRecord {
+  id              String          @id @default(cuid())
+  tenantId        String
+  machineId       String
+  kind            MaintenanceKind @default(SERVICE)
+  performedAt     DateTime        @default(now())
+  action          String // uitgevoerde actie (bv. "Kabels vervangen")
+  note            String?
+  performedById   String? // interne uitvoerder (User) — nullable
+  performedByName String? // vrije tekst voor een externe monteur/leverancier
+  cost            Decimal?        @db.Decimal(10, 2) // kosten (optioneel)
+  usageAtService  Int             @default(0) // teller op het moment van onderhoud (historie)
+  nextMaintenanceAt DateTime? // volgende geplande datum die toen is gezet
+  createdAt       DateTime        @default(now())
+
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  machine     Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  performedBy User?   @relation("MaintenancePerformer", fields: [performedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([machineId])
+  @@index([tenantId, performedAt])
+}
+
+// Standaard onderhoudsregels per machinetype (tenant-scoped + RLS). Voedt de
+// per-machine-regels bij create en "toepassen op alle van dit type".
+model MaintenancePolicy {
+  id             String      @id @default(cuid())
+  tenantId       String
+  machineType    MachineType
+  usageThreshold Int?
+  intervalDays   Int?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, machineType])
   @@index([tenantId])
 }
 

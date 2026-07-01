@@ -553,6 +553,45 @@ export async function achievementEarnedMessage(opts: {
   };
 }
 
+// ── Machine-onderhoud (naar beheerder/medewerker met maintenance:manage) ─────
+
+export async function maintenanceAlertMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  machineName: string;
+  headline: string;
+  intro: string;
+  detail?: string | null;
+  manageUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, machineName, headline, intro, detail, manageUrl } = opts;
+  const reason = `Je ontvangt deze e-mail omdat je bij ${branding.name} verantwoordelijk bent voor het onderhoud van apparatuur.`;
+  const contentHtml = [
+    emailHeading(headline),
+    emailParagraph(`${escapeHtml(greeting(recipientName))}`),
+    emailParagraph(intro),
+    detail?.trim() ? emailInfoCard(`<p style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
+    emailButton(manageUrl, "Onderhoud bekijken", branding),
+    emailLinkFallback(manageUrl),
+  ].join("");
+  return {
+    subject: `${headline}: ${machineName}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${machineName} — ${headline.toLowerCase()}.`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      `${headline}\n\n${greeting(recipientName)}\n\n${intro.replace(/<[^>]+>/g, "")}${
+        detail?.trim() ? `\n\n${detail.trim()}` : ""
+      }\n\nBekijk het onderhoud:\n${manageUrl}`,
+      reason
+    ),
+  };
+}
+
 // ── Contactbericht van een sportschooleigenaar (naar platform-support) ───────
 
 /**

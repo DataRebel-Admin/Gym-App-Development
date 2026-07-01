@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { StaffDashboard } from "@/components/dashboard/staff-dashboard";
 import { getDashboardStats } from "@/lib/insights";
+import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
+import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
 import { normalizeLayout, type WidgetId } from "@/lib/dashboard";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
@@ -45,13 +47,14 @@ export default async function OwnerDashboard() {
     );
   }
 
-  const [stats, dbUser, recentLogs] = await Promise.all([
+  const [stats, dbUser, recentLogs, maintenanceAttention] = await Promise.all([
     getDashboardStats(owner.tenantId),
     prisma.user.findUnique({
       where: { id: owner.id },
       select: { dashboardLayout: true },
     }),
     getRecentActivity(owner.tenantId, 6),
+    getMaintenanceAttentionCount(owner.tenantId),
   ]);
 
   const layout = normalizeLayout(dbUser?.dashboardLayout);
@@ -98,6 +101,8 @@ export default async function OwnerDashboard() {
           <FullscreenButton />
         </div>
       </section>
+
+      <MaintenanceAlert count={maintenanceAttention} />
 
       <WidgetGrid nodes={nodes} initialLayout={layout} />
     </Fullscreenable>

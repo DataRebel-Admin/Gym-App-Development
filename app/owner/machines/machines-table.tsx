@@ -15,6 +15,9 @@ import {
   Td,
 } from "@/components/ui/table";
 import { Dumbbell } from "@/components/ui/icons";
+import type { MachineStatus } from "@prisma/client";
+import type { MaintenanceLevel } from "@/lib/maintenance";
+import { MachineStatusBadge } from "@/components/maintenance/status-badge";
 
 export type MachineRow = {
   id: string;
@@ -22,6 +25,8 @@ export type MachineRow = {
   type: string;
   imageUrl: string | null;
   hasQr: boolean;
+  status: MachineStatus;
+  level: MaintenanceLevel;
 };
 
 type SortKey = "name" | "type";
@@ -74,6 +79,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
             <tr>
               <Th>{t("colMachine")}</Th>
               <Th>{t("colType")}</Th>
+              <Th>Status</Th>
               <Th>{t("colQr")}</Th>
               <Th className="text-right" />
             </tr>
@@ -100,6 +106,9 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
                 </Td>
                 <Td className="text-neutral-500">{typeLabel(m.type)}</Td>
                 <Td>
+                  <MachineStatusBadge status={m.status} level={m.level} />
+                </Td>
+                <Td>
                   {m.hasQr ? (
                     <span className="text-green-600">✓</span>
                   ) : (
@@ -118,7 +127,7 @@ export function MachinesTable({ machines }: { machines: MachineRow[] }) {
             ))}
             {rows.length === 0 ? (
               <Tr>
-                <Td colSpan={4} className="py-8 text-center text-neutral-500">
+                <Td colSpan={5} className="py-8 text-center text-neutral-500">
                   {t("noMachines")}
                 </Td>
               </Tr>

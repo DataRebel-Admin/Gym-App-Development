@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
+import { computeMaintenanceState, effectiveStatus } from "@/lib/maintenance";
 import { MachinesTable, type MachineRow } from "./machines-table";
 
 export async function generateMetadata() {
@@ -16,16 +17,32 @@ export default async function MachinesPage() {
   const machines = await prisma.machine.findMany({
     where: { tenantId: owner.tenantId },
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, type: true, imageUrl: true, qrToken: true },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      imageUrl: true,
+      qrToken: true,
+      status: true,
+      usageCount: true,
+      usageThreshold: true,
+      maintenanceIntervalDays: true,
+      nextMaintenanceAt: true,
+    },
   });
 
-  const rows: MachineRow[] = machines.map((m) => ({
-    id: m.id,
-    name: m.name,
-    type: m.type,
-    imageUrl: m.imageUrl,
-    hasQr: Boolean(m.qrToken),
-  }));
+  const rows: MachineRow[] = machines.map((m) => {
+    const state = computeMaintenanceState(m);
+    return {
+      id: m.id,
+      name: m.name,
+      type: m.type,
+      imageUrl: m.imageUrl,
+      hasQr: Boolean(m.qrToken),
+      status: effectiveStatus(m.status, state),
+      level: state.level,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">

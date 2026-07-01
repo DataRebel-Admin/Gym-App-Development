@@ -42,7 +42,9 @@ DECLARE
     'CoachAssignment',
     'SchemaFramework',
     'MemberFrameworkAssignment',
-    'EarnedAchievement'
+    'EarnedAchievement',
+    'MaintenanceRecord',
+    'MaintenancePolicy'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

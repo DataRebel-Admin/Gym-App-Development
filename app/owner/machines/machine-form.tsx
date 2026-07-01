@@ -13,6 +13,9 @@ export type MachineFormData = {
   instructionsMd: string | null;
   videoUrl: string | null;
   imageUrl: string | null;
+  location: string | null;
+  serialNumber: string | null;
+  purchaseDate: string | null; // yyyy-mm-dd
 };
 
 const inputClass =
@@ -59,6 +62,36 @@ export function MachineForm({
           ))}
         </select>
       </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          Locatie
+          <input
+            name="location"
+            defaultValue={machine?.location ?? ""}
+            className={inputClass}
+            placeholder="bv. Zone A / 1e verdieping"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          Serie-/inventarisnummer
+          <input
+            name="serialNumber"
+            defaultValue={machine?.serialNumber ?? ""}
+            className={inputClass}
+            placeholder="bv. INV-00123"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          Aankoopdatum
+          <input
+            name="purchaseDate"
+            type="date"
+            defaultValue={machine?.purchaseDate ?? ""}
+            className={inputClass}
+          />
+        </label>
+      </div>
 
       <label className="flex flex-col gap-1 text-sm text-neutral-700">
         Beschrijving

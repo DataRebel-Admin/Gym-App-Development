@@ -575,6 +575,56 @@ Vierde rol **`TENANT_STAFF`** (Sportschoolmedewerker/coach): tenant-gebonden coa
 - **"Eigen planning"** op het dashboard toont tenant-brede lessen (geen trainer-FK,
   `GroupClass.instructorName` is vrije tekst).
 
+### Slim onderhoudsbeheer voor machines
+
+Automatische signalering wanneer een machine onderhoud nodig heeft op basis van
+**gebruik** of **tijd**, met onderhoudsdashboard, historie en meldingen. Volledig
+geïntegreerd in de bestaande tenant-ervaring (RBAC/meldingen/audit/cron/whitelabel).
+
+- **Datamodel**: `Machine` uitgebreid met inventaris (`location`/`serialNumber`/`purchaseDate`)
+  en onderhoud (`status MachineStatus`, `usageCount`, `usageThreshold`,
+  `maintenanceIntervalDays`, `lastMaintenanceAt`, `nextMaintenanceAt`,
+  `maintenanceDueNotifiedAt`/`maintenanceWarnNotifiedAt` als idempotente melding-markers).
+  Nieuwe tenant-scoped + RLS modellen: **`MaintenanceRecord`** (volledige historie; `kind
+  MaintenanceKind SERVICE|INSPECTION|SAFETY_CHECK|REPAIR` = extensiepunt voor inspecties/
+  keuringen) en **`MaintenancePolicy`** (standaardregels per `MachineType`, uniek per tenant+type).
+  Enums `MachineStatus {ACTIVE|MAINTENANCE_DUE|IN_MAINTENANCE|OUT_OF_SERVICE}`. Migratie
+  `20260701110000_machine_maintenance` (+ RLS in `prisma/sql/rls.sql`).
+- **Pure logica** `lib/maintenance.ts` (geen `server-only`, ook client): `MACHINE_STATUS_META`/
+  `MAINTENANCE_KIND_META`, `INTERVAL_PRESETS`, `computeMaintenanceState(machine,now)` →
+  niveau `ok|soon|due` (zwaarste van gebruik/tijd; soon = ≥80% teller óf ≤14 dagen),
+  `effectiveStatus` (handmatige status IN_MAINTENANCE/OUT_OF_SERVICE leidend, anders afgeleid),
+  `computeNextMaintenance`, formatters. **Server** `lib/maintenance-eval.ts` (`server-only`):
+  `getMaintenanceOverview` (geserialiseerde rijen + tellers; draait lazy `evaluateDueMachines`),
+  `evaluateDueMachines` (ACTIVE↔MAINTENANCE_DUE transitie, levert due/soon-ids), `recordMachineUsageForSession`,
+  `getMaintenanceAttentionCount` (dashboard-alert).
+- **Gebruikstelling**: `endSession` (app/member/schema/actions.ts) telt +1 per gebruikte
+  machine (via `PerformanceEntry`→`Exercise.machineId`), evalueert en meldt drempels — best-effort.
+- **Tijd-trigger**: **Vercel Cron** `app/api/cron/maintenance-check` (`vercel.json`, dagelijks
+  `0 6 * * *`, Bearer `CRON_SECRET`) + lazy check bij dashboard-open.
+- **Meldingen** `lib/maintenance/notify.ts`: naar tenant-gebruikers met permissie
+  `maintenance:manage`, respecteert voorkeuren (**nieuwe categorie `maintenance`**) over
+  in-app/push/e-mail. `notifyMaintenanceThresholds` (idempotent via markers) +
+  `notifyMaintenanceEvent` (uitgevoerd/status). E-mail via composer `maintenanceAlertMessage`
+  (lib/email/messages.ts, non-DB-template zoals de schema-request-composers).
+- **RBAC**: nieuwe medewerker-configureerbare permissie **`maintenance:manage`** (standaard aan,
+  in `PERMISSION_GROUPS`). Machine-CRUD (`/owner/machines`) blijft **admin-only** (`requireOwner`);
+  het onderhoudsbeheer (`/owner/maintenance` + actions) draait op `requirePermission`.
+- **Server-actions** `app/owner/maintenance/actions.ts`: `saveMaintenanceRules`, `logMaintenance`
+  (record + reset teller + status ACTIVE + herbereken volgende datum), `setMachineStatus`,
+  `adjustUsage`, `saveMaintenancePolicy` (+ optioneel bestaande bijwerken). Inventarisvelden
+  toegevoegd aan `machineSchema`/`saveMachine`; create past de type-policy toe.
+- **UI**: `/owner/maintenance` (`MaintenanceDashboard`) — samenvattingskaarten (klikbaar filter),
+  filterbalk (status/type/locatie/zoek), machinekaarten met statusbadge + gebruiksvoortgang +
+  snelle acties, `MaintenanceCalendar`, historie-tabel. `MachineMaintenancePanel` op het
+  machine-detail (regels/status/teller/historie). Statusbadge-kolom op de machinelijst.
+  Dashboard-`MaintenanceAlert` op owner- én staff-dashboard (permissie-gegate). Componenten in
+  `components/maintenance/`. UI hardcoded NL (precedent muscles/engagement).
+- **Audit** (categorie `machines`, prefix `machine.`): `machine.maintenance.rule/performed/
+  due/warn/notify.sent/policy`, `machine.status.change`, `machine.usage.adjust`.
+- **Seed**: fitpower-machines krijgen regels + variatie (Loopband "onderhoud nodig", Crosstrainer
+  "binnenkort", Beenpers "buiten gebruik") + demo-`MaintenanceRecord`s.
+
 ### Logging & Audit Trail
 
 - **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only
