@@ -3,11 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/publish-schemas",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/maintenance-check",
-      "schedule": "0 6 * * *"
+      "schedule": "0 7 * * *"
     }
   ]
 }
