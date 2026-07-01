@@ -78,10 +78,13 @@ export function ExerciseDetailView({
   detail,
   alternatives,
   progressSlot,
+  assistantSlot,
 }: {
   detail: ExerciseDetail;
   alternatives: ExerciseAlternative[];
   progressSlot?: React.ReactNode;
+  /** Optionele contextbewuste AI-assistent (uitleg/alternatieven/techniek). */
+  assistantSlot?: React.ReactNode;
 }) {
   const muscles = [detail.primaryMuscle, ...detail.secondaryMuscles].filter(
     (m): m is string => Boolean(m)
@@ -282,6 +285,9 @@ export function ExerciseDetailView({
           Bij pijn of onzekerheid over de uitvoering: vraag altijd een trainer.
         </p>
       </div>
+
+      {/* AI-assistent (optioneel, contextbewust: uitleg/alternatieven/techniek) */}
+      {assistantSlot}
 
       {/* Voortgang (optioneel) */}
       {progressSlot}

@@ -5,8 +5,11 @@ import { getExerciseDetail, getAlternativeExercises } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
 import { ProgressLineChart } from "@/components/charts/progress-line-chart";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
+import { ExerciseAssistant } from "@/components/ai/exercise-assistant";
+import { surfaceSuggestions } from "@/lib/ai";
 import { BackButton } from "@/components/member/back-button";
 import { TrendingUp } from "@/components/ui/icons";
+import { askExerciseAssistant } from "./ai-actions";
 
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   weekday: "short",
@@ -111,6 +114,14 @@ export default async function ExerciseProgressPage({
         detail={resolved}
         alternatives={alternatives}
         progressSlot={progressSlot}
+        assistantSlot={
+          tenant?.aiEnabled ? (
+            <ExerciseAssistant
+              ask={askExerciseAssistant.bind(null, resolved.id)}
+              suggestions={surfaceSuggestions("exercise")}
+            />
+          ) : null
+        }
       />
     </div>
   );

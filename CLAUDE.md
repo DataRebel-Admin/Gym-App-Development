@@ -147,12 +147,54 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   EU-data via `inference_geo: "eu"`, model via `AI_MODEL` (default `claude-opus-4-8`).
   Verplichte safety-fallback in `lib/ai-guardrail.ts`. Per tenant aan/uit (`Tenant.aiEnabled`,
   owner `/settings`). Rate-limit 20/dag/lid via `AiUsage`-model. Widget alleen op `/member`
-  bij aiEnabled. Zonder API-key degradeert het netjes.
+  bij aiEnabled. Zonder API-key degradeert het netjes. **Uitgebreid tot AI Coach & Assistant —
+  zie hieronder.**
 - **Rooster (prompt 12)**: `GroupClass`/`ClassSession`/`ClassEnrollment`. Aanmelden is
   atomair (transactie respecteert `maxParticipants`); `@@unique([sessionId, userId])`.
 - **PDF (prompt 13)**: `/member/schema/pdf` route-handler rendert met **pdf-lib**
   (geen native deps, betrouwbaarder in Next dan @react-pdf/renderer) en streamt als download.
 - **Niet gebouwd (bewust)**: prompt 14 (i18n) — op verzoek overgeslagen.
+
+### AI Coach & Assistant (modulaire, contextbewuste uitbreiding)
+
+De single-purpose member-assistent is opgetild tot een **modulair, contextbewust
+AI Coach & Assistant-fundament** voor coaches én sporters. Harde eis: **de AI wijzigt
+nooit zelf data** — wijzigingen komen als gestructureerd *proposal* dat de gebruiker met
+"Toepassen" bevestigt (roept een bestaande, geaudite action aan). Hergebruikt bewust de
+provider-laag (Claude/OpenAI-switch + EU `inference_geo`), de guardrail, `AiUsage` en
+`Tenant.aiEnabled`. **Geen DB-migratie.**
+
+- **Modulaire kern `lib/ai/`**: `provider.ts` (`callModel({system,messages})` → tekst|null
+  refusal; `aiConfigured()`), `types.ts` (`AssistantProposal`/`AssistantAnswer`/
+  `AssistantResult`, puur — ook client), `surfaces/*` (per oppervlak één bestand:
+  `base.ts` gedeelde preamble + `outputContract`, `member-home.ts`, `exercise.ts`,
+  `member-profile.ts`, `registry.ts`), en `assist.ts` (orchestrator: `runSurfaceAssistant`
+  → gate `aiEnabled` → rate-limit 20/dag/gebruiker (álle oppervlakken) → `surface.build`
+  (tenant-gescopede context + system-prompt) → `callModel` → **defensieve JSON-parse**
+  `{answer,proposals}` → `applySafetyGuardrail` → `AiUsage`-log). Faalt nooit hard.
+  **Nieuw oppervlak = één bestand in `surfaces/` + één regel in `registry.ts`** (idioom
+  `exercise-types.ts`/`achievements/definitions.ts`). `lib/ai.ts` is nu een dunne barrel.
+- **Structured output**: `outputContract` instrueert het model UITSLUITEND JSON
+  (`{answer, proposals[]}`) terug te geven; `assist.ts` parset defensief (geen JSON → hele
+  tekst als answer, 0 proposals). Proposals dragen `kind`+`payload`; de AI voert `payload`
+  **nooit** uit. Guardrail slaat aan → proposals vervallen.
+- **Gedeelde UI `components/ai/`**: `assistant-panel.tsx` (herbruikbare chat-UI — chips,
+  proposal-kaarten met "Toepassen", geïnjecteerde `ask`/`onApply` server-actions),
+  `assistant-launcher.tsx` (zwevende member-bubble), plus `exercise-assistant.tsx` +
+  `member-profile-assistant.tsx` (inline owner-kaarten). `components/assistant-widget.tsx`
+  is een dunne wrapper hierop (gedrag op `/member` identiek).
+- **Oppervlakken (deze ronde)**: `member-home` (bestaande sporter-bubble, informatief),
+  `exercise` (member+owner oefening-detail via `assistantSlot` op `ExerciseDetailView`;
+  uitleg/alternatieven/techniek; acties `app/{member/history,owner}/exercises/[id]/ai-actions.ts`),
+  en **vlaggenschip** `member-profile` (coach-only, `/owner/members/[userId]`): vat voortgang
+  samen (`getMemberStats`/`getDeltas`/`getGoals`) + suggesties, met proposal
+  `save-summary-note` → `applyMemberProfileProposal` (hergebruikt `addCoachNote`, permissie
+  `coachnotes:manage`, audit `coachnote.add`). Actions in
+  `app/owner/members/[userId]/ai-actions.ts`.
+- **Rol**: `aiRoleFor(Role)` mapt `TENANT_MEMBER→member`, `TENANT_ADMIN|TENANT_STAFF→coach`.
+  Elke server-action dwingt zélf de permissie af (`requireMember`/`requirePermission`/
+  `requireTenantUser`) en geeft de gebruiker door aan de orchestrator. Alles gegate op
+  `aiEnabled`; zonder API-key nette degradatie. UI hardcoded NL (precedent muscle/achievements).
 
 ### Schema-toewijzing: levenscyclus, planning & meldingen
 

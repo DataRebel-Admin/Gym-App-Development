@@ -14,8 +14,11 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Select } from "@/components/ui/field";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { MemberProfileTabs } from "@/components/members/profile-tabs";
+import { MemberProfileAssistant } from "@/components/ai/member-profile-assistant";
+import { surfaceSuggestions } from "@/lib/ai";
 import { MemberEditForm } from "./member-edit-form";
 import { assignCoach, unassignCoach, selfAssignCoach, selfUnassignCoach } from "../actions";
+import { askMemberProfileAssistant, applyMemberProfileProposal } from "./ai-actions";
 
 const COACH_ROLE_LABEL: Record<string, string> = {
   TENANT_ADMIN: "Eigenaar",
@@ -78,7 +81,7 @@ export default async function MemberDetailPage({
     }),
     prisma.tenant.findUnique({
       where: { id: me.tenantId },
-      select: { achievementsEnabled: true },
+      select: { achievementsEnabled: true, aiEnabled: true },
     }),
   ]);
   if (!member) notFound();
@@ -157,6 +160,18 @@ export default async function MemberDetailPage({
           </dl>
         )}
       </section>
+
+      {isMember && tenantFlags?.aiEnabled ? (
+        <MemberProfileAssistant
+          ask={askMemberProfileAssistant.bind(null, member.id)}
+          onApply={
+            me.permissions.has("coachnotes:manage")
+              ? applyMemberProfileProposal.bind(null, member.id)
+              : undefined
+          }
+          suggestions={surfaceSuggestions("member-profile")}
+        />
+      ) : null}
 
       {isMember ? (
         <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">

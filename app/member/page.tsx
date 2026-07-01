@@ -9,6 +9,7 @@ import { AchievementDashboardSummary } from "@/components/achievements/dashboard
 import { parseTrainingGoals, getTrainingGoal } from "@/lib/training-goals";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { AssistantWidget } from "@/components/assistant-widget";
+import { surfaceSuggestions } from "@/lib/ai";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { StatCard } from "@/components/ui/stat-card";
@@ -319,7 +320,7 @@ export default async function MemberHome() {
 
       {tenant?.aiEnabled ? (
         <RevealItem>
-          <AssistantWidget />
+          <AssistantWidget suggestions={surfaceSuggestions("member-home")} />
         </RevealItem>
       ) : null}
     </Reveal>

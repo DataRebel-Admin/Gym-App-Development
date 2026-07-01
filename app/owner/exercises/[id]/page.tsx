@@ -5,7 +5,10 @@ import { requireTenantUser } from "@/lib/staff";
 import { getExerciseDetail } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
+import { ExerciseAssistant } from "@/components/ai/exercise-assistant";
+import { surfaceSuggestions } from "@/lib/ai";
 import { ChevronLeft } from "@/components/ui/icons";
+import { askExerciseAssistant } from "./ai-actions";
 
 export async function generateMetadata({
   params,
@@ -43,7 +46,18 @@ export default async function OwnerExerciseDetailPage({
       >
         <ChevronLeft className="size-4" /> Oefeningen
       </Link>
-      <ExerciseDetailView detail={detail} alternatives={[]} />
+      <ExerciseDetailView
+        detail={detail}
+        alternatives={[]}
+        assistantSlot={
+          tenant?.aiEnabled ? (
+            <ExerciseAssistant
+              ask={askExerciseAssistant.bind(null, detail.id)}
+              suggestions={surfaceSuggestions("exercise")}
+            />
+          ) : null
+        }
+      />
     </div>
   );
 }
