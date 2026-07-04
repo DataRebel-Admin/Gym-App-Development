@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db";
 import { enumFromLocale, type AppLocale } from "@/lib/i18n/config";
 import { requireAccount } from "@/lib/account";
 import { requireOwner } from "@/lib/owner";
-import { withHideQuotes, withHideAchievements, withAllowTrainerPhotos } from "@/lib/user-preferences";
+import { withHideQuotes, withHideAchievements, withAllowTrainerPhotos, withDisableSetTimers } from "@/lib/user-preferences";
 import { uploadAvatar } from "@/lib/blob";
 import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
@@ -255,6 +255,24 @@ export async function setProgressPhotoPrivacy(formData: FormData) {
     targetType: "User",
     targetId: session.id,
     metadata: { setting: "allowTrainerPhotos", value: allow },
+  });
+  revalidatePath("/account/meldingen");
+}
+
+/**
+ * Globale timer-voorkeur: zet rust-/set-timers standaard uit voor nieuwe
+ * trainingen. Een actieve sessie kan dit tijdelijk overschrijven (per-sessie).
+ */
+export async function setSetTimerPreference(formData: FormData) {
+  const session = await requireAccount();
+  const disable = formData.get("disable") === "true";
+  const me = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { preferences: true },
+  });
+  await prisma.user.update({
+    where: { id: session.id },
+    data: { preferences: withDisableSetTimers(me?.preferences, disable) },
   });
   revalidatePath("/account/meldingen");
 }

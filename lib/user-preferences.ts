@@ -17,6 +17,9 @@ export type UserPreferences = {
   /** true = de trainer mag de voortgangsfoto's van dit lid bekijken. Default
    *  false (privacy-first): zonder expliciete toestemming ziet alleen het lid ze. */
   allowTrainerPhotos: boolean;
+  /** true = rust-/set-timers standaard uitzetten in nieuwe trainingen. Een
+   *  actieve sessie kan dit tijdelijk overschrijven (per-sessie, in localStorage). */
+  disableSetTimers: boolean;
   /** Overige (nog niet getypeerde) voorkeuren blijven behouden bij schrijven. */
   [key: string]: unknown;
 };
@@ -50,6 +53,11 @@ export function getAllowTrainerPhotos(value: unknown): boolean {
   return parsePreferences(value).allowTrainerPhotos === true;
 }
 
+/** Of het lid rust-/set-timers standaard heeft uitgezet (default: aan). */
+export function getDisableSetTimers(value: unknown): boolean {
+  return parsePreferences(value).disableSetTimers === true;
+}
+
 // De writers leveren een Prisma-JSON-object voor de `preferences`-kolom. De
 // bestaande waarden komen uit een DB-JSON-kolom (dus JSON-veilig); de cast op de
 // DB-grens is hier gerechtvaardigd.
@@ -73,4 +81,9 @@ export function withHideAchievements(value: unknown, hide: boolean): Prisma.Inpu
 /** Nieuw voorkeuren-object met de foto-privacy-voorkeur (behoudt overige velden). */
 export function withAllowTrainerPhotos(value: unknown, allow: boolean): Prisma.InputJsonObject {
   return { ...parsePreferences(value), allowTrainerPhotos: allow } as Prisma.InputJsonObject;
+}
+
+/** Nieuw voorkeuren-object met de timer-voorkeur (behoudt overige velden). */
+export function withDisableSetTimers(value: unknown, disable: boolean): Prisma.InputJsonObject {
+  return { ...parsePreferences(value), disableSetTimers: disable } as Prisma.InputJsonObject;
 }

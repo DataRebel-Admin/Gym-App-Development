@@ -14,6 +14,13 @@ import {
 } from "@/lib/maintenance-eval";
 import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
 import { isFeatureEnabled } from "@/lib/features/service";
+import {
+  toOverridesJson,
+  withSkipped,
+  withoutSkipped,
+  withSub,
+} from "@/lib/session-overrides";
+import { findAlternatives, type AlternativeSuggestion } from "@/lib/exercise-alternatives";
 
 /**
  * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
@@ -304,4 +311,181 @@ export async function endSession(formData: FormData) {
 
   revalidatePath("/member/history");
   redirect("/member/history");
+}
+
+// --- Actieve-sessie flexibiliteit: overslaan, vervangen, annuleren, timeout ---
+
+/** Laad de open sessie van dit lid (incl. overrides). Null als niet gevonden. */
+async function loadOpenSession(sessionId: string, tenantId: string, userId: string) {
+  return prisma.workoutSession.findFirst({
+    where: { id: sessionId, tenantId, userId, endedAt: null },
+    select: { id: true, overrides: true },
+  });
+}
+
+const skipSchema = z.object({
+  sessionId: z.string().min(1),
+  exerciseId: z.string().min(1),
+});
+
+/**
+ * Markeer een oefening als overgeslagen in déze sessie (sessie-scoped; het
+ * template blijft ongewijzigd). Idempotent. De client stopt eventuele lopende
+ * timers en gaat door naar de volgende oefening.
+ */
+export async function skipExercise(
+  input: z.infer<typeof skipSchema>
+): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const parsed = skipSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, exerciseId } = parsed.data;
+
+  const session = await loadOpenSession(sessionId, member.tenantId, member.id);
+  if (!session) return { ok: false };
+
+  await prisma.workoutSession.update({
+    where: { id: session.id },
+    data: { overrides: toOverridesJson(withSkipped(session.overrides, exerciseId)) },
+  });
+  return { ok: true };
+}
+
+/** Maak een skip ongedaan (oefening weer actief in deze sessie). */
+export async function unskipExercise(
+  input: z.infer<typeof skipSchema>
+): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const parsed = skipSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, exerciseId } = parsed.data;
+
+  const session = await loadOpenSession(sessionId, member.tenantId, member.id);
+  if (!session) return { ok: false };
+
+  await prisma.workoutSession.update({
+    where: { id: session.id },
+    data: { overrides: toOverridesJson(withoutSkipped(session.overrides, exerciseId)) },
+  });
+  return { ok: true };
+}
+
+const alternativesSchema = z.object({
+  exerciseId: z.string().min(1),
+  excludeIds: z.array(z.string()).default([]),
+});
+
+export type AlternativesResult = { ok: boolean; alternatives: AlternativeSuggestion[] };
+
+/** Haal alternatieve oefeningen op (zelfde spiergroep/type/lichaamsdeel). */
+export async function getExerciseAlternatives(
+  input: z.infer<typeof alternativesSchema>
+): Promise<AlternativesResult> {
+  const member = await requireMember();
+  const parsed = alternativesSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, alternatives: [] };
+  const { exerciseId, excludeIds } = parsed.data;
+  const alternatives = await findAlternatives(member.tenantId, exerciseId, excludeIds);
+  return { ok: true, alternatives };
+}
+
+const substituteSchema = z.object({
+  sessionId: z.string().min(1),
+  fromExerciseId: z.string().min(1),
+  toExerciseId: z.string().min(1),
+});
+
+export type SubstituteResult = {
+  ok: boolean;
+  replacement?: { exerciseId: string; name: string; machineName: string | null; thumbUrl: string | null };
+};
+
+/**
+ * Vervang een oefening door een alternatief voor déze sessie (het template
+ * blijft ongewijzigd). Registreert de vervanging in `overrides.subs` (origineel +
+ * vervanger) zodat de historie klopt. Retourneert de identiteit van de vervanger
+ * zodat de client 'm direct kan tonen; het set/rep-schema van het origineel blijft.
+ */
+export async function substituteExercise(
+  input: z.infer<typeof substituteSchema>
+): Promise<SubstituteResult> {
+  const member = await requireMember();
+  const parsed = substituteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, fromExerciseId, toExerciseId } = parsed.data;
+  if (fromExerciseId === toExerciseId) return { ok: false };
+
+  const session = await loadOpenSession(sessionId, member.tenantId, member.id);
+  if (!session) return { ok: false };
+
+  // Beide oefeningen moeten bij de tenant horen; de vervanger mag niet gearchiveerd zijn.
+  const replacement = await prisma.exercise.findFirst({
+    where: { id: toExerciseId, tenantId: member.tenantId, archivedAt: null },
+    select: {
+      id: true,
+      name: true,
+      machine: { select: { name: true } },
+      catalog: { select: { imageUrl: true, gifUrl: true } },
+    },
+  });
+  if (!replacement) return { ok: false };
+
+  await prisma.workoutSession.update({
+    where: { id: session.id },
+    data: {
+      overrides: toOverridesJson(
+        withSub(session.overrides, { from: fromExerciseId, to: toExerciseId, name: replacement.name })
+      ),
+    },
+  });
+
+  return {
+    ok: true,
+    replacement: {
+      exerciseId: replacement.id,
+      name: replacement.name,
+      machineName: replacement.machine?.name ?? null,
+      thumbUrl: replacement.catalog?.imageUrl ?? replacement.catalog?.gifUrl ?? null,
+    },
+  };
+}
+
+/**
+ * Annuleer de actieve workout: verwijder de sessie volledig (de set-entries
+ * cascaden mee). Zo telt een geannuleerde training gegarandeerd niet mee in
+ * statistieken, PR's of voortgang. Het lid komt terug op het schema-overzicht.
+ */
+export async function cancelSession(formData: FormData) {
+  const member = await requireMember();
+  const sessionId = String(formData.get("sessionId") ?? "");
+
+  await prisma.workoutSession.deleteMany({
+    where: { id: sessionId, tenantId: member.tenantId, userId: member.id, endedAt: null },
+  });
+
+  revalidatePath("/member");
+  revalidatePath("/member/schema");
+  redirect("/member/schema");
+}
+
+/**
+ * Markeer de eenmalige "automatisch gestopt na 5 uur"-melding als gezien.
+ * Idempotent + best-effort (de melding is cosmetisch).
+ */
+export async function markAutoStopSeen(): Promise<void> {
+  try {
+    const member = await requireMember();
+    await prisma.workoutSession.updateMany({
+      where: {
+        tenantId: member.tenantId,
+        userId: member.id,
+        autoStoppedAt: { not: null },
+        autoStopNotified: false,
+      },
+      data: { autoStopNotified: true },
+    });
+    revalidatePath("/member/schema");
+  } catch {
+    // stil falen — de melding is cosmetisch
+  }
 }

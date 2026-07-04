@@ -4,8 +4,9 @@ import { useState, useTransition } from "react";
 import { m, useReducedMotion } from "motion/react";
 import { useFormStatus } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
-import { endSession, saveWorkoutMood } from "../actions";
+import { endSession, saveWorkoutMood, cancelSession } from "../actions";
 import type { RewardProps } from "./active-session";
+import { Modal } from "@/components/ui/modal";
 import { Trophy, Flame, Check, Dumbbell, Clock, Target, Sparkles, HeartPulse } from "@/components/ui/icons";
 import { type AppLocale, isLocale } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
@@ -115,6 +116,9 @@ export function CompletionScreen({
     setMood(next);
     if (next) startMood(() => void saveWorkoutMood({ sessionId, mood: next }));
   }
+
+  // Workout annuleren — bewust minder prominent + verplichte bevestiging.
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   return (
     <m.div
@@ -303,7 +307,38 @@ export function CompletionScreen({
         >
           {t("continueTraining")}
         </button>
+
+        {/* Annuleren — subtiel, minder prominent dan afronden, met bevestiging. */}
+        <button
+          type="button"
+          onClick={() => setConfirmCancel(true)}
+          className="mt-4 w-full text-center text-xs font-medium text-neutral-400 underline-offset-2 hover:text-red-600 hover:underline"
+        >
+          {t("cancelWorkout")}
+        </button>
       </m.div>
+
+      <Modal open={confirmCancel} onClose={() => setConfirmCancel(false)} title={t("cancelConfirmTitle")}>
+        <p className="text-sm text-neutral-600">{t("cancelConfirmBody")}</p>
+        <div className="mt-5 flex flex-col gap-2">
+          <form action={cancelSession}>
+            <input type="hidden" name="sessionId" value={sessionId} />
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white active:opacity-90"
+            >
+              {t("cancelConfirm")}
+            </button>
+          </form>
+          <button
+            type="button"
+            onClick={() => setConfirmCancel(false)}
+            className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+          >
+            {t("keepWorkout")}
+          </button>
+        </div>
+      </Modal>
     </m.div>
   );
 }

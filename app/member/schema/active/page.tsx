@@ -3,7 +3,9 @@ import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getWorkoutContext } from "@/lib/member-stats";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
-import { getHideQuotes } from "@/lib/user-preferences";
+import { getHideQuotes, getDisableSetTimers } from "@/lib/user-preferences";
+import { enforceSessionTimeout } from "@/lib/session-timeout";
+import { parseOverrides } from "@/lib/session-overrides";
 import { resolveQuotes, pickQuote } from "@/lib/workout-quotes";
 import { pickRecoveryTip } from "@/lib/recovery-tips";
 import { ActiveSession, type ActiveExercise } from "./active-session";
@@ -12,6 +14,11 @@ export const metadata = { title: "Actieve training" };
 
 export default async function ActiveSessionPage() {
   const member = await requireMember();
+
+  // Automatische 5-uur-timeout: sluit een te lang openstaande sessie eerst af.
+  // Daarna is er geen open sessie meer → terug naar het schema (met melding).
+  const timeout = await enforceSessionTimeout(member.tenantId, member.id);
+  if (timeout.autoStopped) redirect("/member/schema");
 
   const open = await prisma.workoutSession.findFirst({
     where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
@@ -35,6 +42,26 @@ export default async function ActiveSessionPage() {
   });
 
   const template = assignment.template;
+
+  // Sessie-scoped aanpassingen (overslaan + vervangen) — muteren het template
+  // niet. Laad de identiteit van de gekozen alternatieven zodat we ze in plaats
+  // van het origineel kunnen tonen (het set/rep-schema van het origineel blijft).
+  const overrides = parseOverrides(open.overrides);
+  const skippedIds = new Set(overrides.skipped);
+  const subByOriginal = new Map(overrides.subs.map((s) => [s.from, s]));
+  const subTargets =
+    overrides.subs.length > 0
+      ? await prisma.exercise.findMany({
+          where: { tenantId: member.tenantId, id: { in: overrides.subs.map((s) => s.to) } },
+          select: {
+            id: true,
+            name: true,
+            machine: { select: { name: true } },
+            catalog: { select: { imageUrl: true, gifUrl: true } },
+          },
+        })
+      : [];
+  const subTargetById = new Map(subTargets.map((e) => [e.id, e]));
 
   // "Vorige keer": de sets van de meest recente eerder afgeronde sessie waarin
   // het lid deze oefening deed (per oefening apart — kan uit verschillende
@@ -89,18 +116,31 @@ export default async function ActiveSessionPage() {
       : template.items.map((item) => ({ item, dayName: null }));
 
   const exercises: ActiveExercise[] = ordered.map(({ item, dayName }) => {
-    const own = entries.filter((e) => e.exerciseId === item.exerciseId);
+    // Origineel = het template-item; vervanger (indien gekozen) neemt de identiteit
+    // over, maar het set/rep-schema + type van het origineel blijven behouden.
+    const originalId = item.exerciseId;
+    const sub = subByOriginal.get(originalId);
+    const subTarget = sub ? subTargetById.get(sub.to) : undefined;
+    const renderedId = subTarget ? subTarget.id : originalId;
+
+    const own = entries.filter((e) => e.exerciseId === renderedId);
     // Bestaande opmerking: eerst een eerder opgeslagen set-notitie, anders de
     // streef-notitie die de trainer bij de oefening zette.
     const savedNote = own.find((e) => e.notes && e.notes.trim().length > 0)?.notes;
-    const prev = prevByExercise.get(item.exerciseId);
+    const prev = prevByExercise.get(renderedId);
     return {
-      exerciseId: item.exerciseId,
+      exerciseId: renderedId,
+      originalExerciseId: originalId,
       exerciseType: item.exercise.exerciseType,
-      name: item.exercise.name,
-      machineName: item.exercise.machine?.name ?? null,
-      thumbUrl:
-        item.exercise.catalog?.imageUrl ?? item.exercise.catalog?.gifUrl ?? null,
+      name: subTarget ? subTarget.name : item.exercise.name,
+      machineName: subTarget
+        ? subTarget.machine?.name ?? null
+        : item.exercise.machine?.name ?? null,
+      thumbUrl: subTarget
+        ? subTarget.catalog?.imageUrl ?? subTarget.catalog?.gifUrl ?? null
+        : item.exercise.catalog?.imageUrl ?? item.exercise.catalog?.gifUrl ?? null,
+      substitutedFrom: subTarget ? item.exercise.name : null,
+      skipped: skippedIds.has(originalId),
       dayName,
       sets: item.sets,
       targetReps: item.reps,
@@ -146,6 +186,10 @@ export default async function ActiveSessionPage() {
     quote: quotesOn ? pickQuote(resolveQuotes(tenant?.customQuotes), open.id) : null,
   };
 
+  // Timers standaard aan, tenzij het lid ze globaal heeft uitgezet. De actieve
+  // sessie kan dit per training overschrijven (client-side, per sessie).
+  const timersDefaultOn = !getDisableSetTimers(userRow?.preferences);
+
   return (
     <ActiveSession
       sessionId={open.id}
@@ -153,6 +197,7 @@ export default async function ActiveSessionPage() {
       exercises={exercises}
       context={context}
       reward={reward}
+      timersDefaultOn={timersDefaultOn}
     />
   );
 }

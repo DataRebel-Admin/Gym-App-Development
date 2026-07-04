@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getMemberStats } from "@/lib/member-stats";
+import { enforceSessionTimeout } from "@/lib/session-timeout";
 import { isAiEnabled } from "@/lib/ai/enabled";
 import { getAchievementUiState, getAchievementsView } from "@/lib/achievements/evaluate";
 import { AchievementDashboardSummary } from "@/components/achievements/dashboard-summary";
@@ -43,6 +44,9 @@ function greetingKey(d: Date) {
 
 export default async function MemberHome() {
   const member = await requireMember();
+  // Automatische 5-uur-timeout: sluit een te lang openstaande sessie af zodat het
+  // dashboard 'm niet als "hervat training" blijft tonen.
+  await enforceSessionTimeout(member.tenantId, member.id);
   const [assignment, stats, openSession, t] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getMemberStats(member.id, member.tenantId),

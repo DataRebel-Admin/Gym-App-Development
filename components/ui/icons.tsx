@@ -45,6 +45,7 @@ export {
   Play,
   Pause,
   RotateCcw,
+  Repeat,
   SkipForward,
   Volume2,
   VolumeX,

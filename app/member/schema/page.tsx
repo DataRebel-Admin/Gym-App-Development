@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getMemberSchemaMode } from "@/lib/member-schema";
+import { enforceSessionTimeout } from "@/lib/session-timeout";
+import { MarkAutoStopSeen } from "@/components/member/mark-auto-stop-seen";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding } from "@/components/ui/icons";
@@ -56,10 +59,25 @@ export async function generateMetadata() {
 
 export default async function MemberSchemaPage() {
   const member = await requireMember();
-  const [assignment, t, memberSchemaMode] = await Promise.all([
+
+  // Automatische 5-uur-timeout: sluit een te lang openstaande sessie af als het
+  // lid hier terugkomt na de app lang gesloten te hebben gehad.
+  await enforceSessionTimeout(member.tenantId, member.id);
+
+  const [assignment, t, memberSchemaMode, autoStopped] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getTranslations("member.schema"),
     getMemberSchemaMode(member.tenantId),
+    prisma.workoutSession.findFirst({
+      where: {
+        tenantId: member.tenantId,
+        userId: member.id,
+        autoStoppedAt: { not: null },
+        autoStopNotified: false,
+      },
+      orderBy: { autoStoppedAt: "desc" },
+      select: { id: true },
+    }),
   ]);
   const canBuild = memberSchemaMode !== "DISABLED";
   const schema = assignment?.template;
@@ -69,9 +87,20 @@ export default async function MemberSchemaPage() {
     ? computeValidity(assignment.publishedAt, assignment.template?.validityWeeks ?? null)
     : computeValidity(null, null);
 
+  const autoStopBanner = autoStopped ? (
+    <>
+      <MarkAutoStopSeen />
+      <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
+        <p className="text-sm font-semibold text-amber-700">{t("autoStopTitle")}</p>
+        <p className="mt-1 text-sm text-neutral-700">{t("autoStopBody")}</p>
+      </div>
+    </>
+  ) : null;
+
   if (!schema) {
     return (
-      <div className="flex flex-1 flex-col justify-center px-5 py-10">
+      <div className="flex flex-1 flex-col justify-center gap-5 px-5 py-10">
+        {autoStopBanner}
         <EmptyState
           icon={<Dumbbell className="size-8 text-accent" />}
           title={t("emptyTitle")}
@@ -121,6 +150,7 @@ export default async function MemberSchemaPage() {
   return (
     <Fullscreenable className="flex flex-1 flex-col gap-5 px-5 py-8">
       {isNew ? <MarkSchemaSeen /> : null}
+      {autoStopBanner}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
