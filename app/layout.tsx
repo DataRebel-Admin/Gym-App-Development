@@ -10,6 +10,7 @@ import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { FullscreenToggle } from "@/components/fullscreen-toggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -77,7 +78,10 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <MotionProvider>
             <ToastProvider>
-              <TenantProvider tenant={tenantInfo}>{children}</TenantProvider>
+              <TenantProvider tenant={tenantInfo}>
+                {children}
+                <FullscreenToggle />
+              </TenantProvider>
             </ToastProvider>
           </MotionProvider>
         </NextIntlClientProvider>
