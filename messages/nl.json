@@ -62,7 +62,9 @@
       "validityExpiringDesc": "Nog {days, plural, one {# dag} other {# dagen}} geldig. Vraag je trainer om een nieuw schema.",
       "validityExpiredTitle": "Je schema is verlopen",
       "validityExpiredDesc": "Tijd voor een nieuw schema — vraag je trainer.",
-      "requestNewSchema": "Nieuw schema aanvragen"
+      "requestNewSchema": "Nieuw schema aanvragen",
+      "autoStopTitle": "Workout automatisch gestopt",
+      "autoStopBody": "Deze workout is automatisch gestopt omdat de sessie langer dan 5 uur openstond."
     },
     "checklist": {
       "allDone": "Helemaal klaar! 💪",
@@ -129,7 +131,32 @@
       "targetSummary": "doel: {summary}",
       "setLabel": "Set {number}",
       "markDone": "Markeer als klaar",
-      "saveSet": "Set {number} opslaan"
+      "saveSet": "Set {number} opslaan",
+      "timersOn": "Rusttimers aan",
+      "timersOff": "Rusttimers uit",
+      "timersOffSession": "Timers uit voor deze training",
+      "timersOffDefault": "Timers staan standaard uit",
+      "skip": "Overslaan",
+      "skipped": "Overgeslagen",
+      "undo": "Ongedaan maken",
+      "skipConfirmTitle": "Oefening overslaan?",
+      "skipConfirmBody": "Weet je zeker dat je {name} wilt overslaan? Je kunt dit later ongedaan maken.",
+      "skipConfirm": "Overslaan",
+      "keep": "Behouden",
+      "chooseAlternative": "Alternatief",
+      "substitutedFrom": "Vervangt {name}",
+      "altTitle": "Kies een alternatief",
+      "altLoading": "Alternatieven zoeken…",
+      "altHint": "Zelfde spiergroep of type — bijvoorbeeld als het apparaat bezet is.",
+      "altEmptyTitle": "Geen alternatieven gevonden",
+      "altEmptyBody": "We konden geen vergelijkbare oefening vinden. Vraag eventueel je trainer om een alternatief.",
+      "altChoose": "Kies",
+      "altDisclaimer": "Twijfel je? Vraag een trainer. Dit is geen medisch advies.",
+      "cancelWorkout": "Workout annuleren",
+      "cancelConfirmTitle": "Workout annuleren?",
+      "cancelConfirmBody": "Weet je zeker dat je deze workout wilt annuleren? Niet-opgeslagen gegevens van deze sessie gaan verloren.",
+      "cancelConfirm": "Workout annuleren",
+      "keepWorkout": "Workout behouden"
     },
     "scan": {
       "metaTitle": "Scannen",
@@ -245,6 +272,15 @@
       "seriesPlan": "Schema",
       "seriesActual": "Getraind (4 wkn)",
       "setsPerWeek": "{count} sets/wk",
+      "adherenceOfTarget": "van doel",
+      "statusBehind": "Achter",
+      "statusExtra": "Extra",
+      "legendTarget": "Schema-doel",
+      "summary": {
+        "good": { "title": "Goed bezig!", "hint": "Je haalt vrijwel je volledige schema-volume." },
+        "mid": { "title": "Aardig op weg", "hint": "Een paar spiergroepen blijven nog achter op je schema." },
+        "low": { "title": "Ruimte voor meer", "hint": "Je blijft achter op je schema-doelen. Pak de rustende spiergroepen op." }
+      },
       "levels": {
         "1": "Weinig",
         "2": "Matig",

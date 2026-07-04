@@ -62,7 +62,9 @@
       "validityExpiringDesc": "Valid for {days, plural, one {# more day} other {# more days}}. Ask your trainer for a new schema.",
       "validityExpiredTitle": "Your schema has expired",
       "validityExpiredDesc": "Time for a new schema — ask your trainer.",
-      "requestNewSchema": "Request a new schema"
+      "requestNewSchema": "Request a new schema",
+      "autoStopTitle": "Workout stopped automatically",
+      "autoStopBody": "This workout was stopped automatically because the session was open for more than 5 hours."
     },
     "checklist": {
       "allDone": "All done! 💪",
@@ -129,7 +131,32 @@
       "targetSummary": "target: {summary}",
       "setLabel": "Set {number}",
       "markDone": "Mark as done",
-      "saveSet": "Save set {number}"
+      "saveSet": "Save set {number}",
+      "timersOn": "Rest timers on",
+      "timersOff": "Rest timers off",
+      "timersOffSession": "Timers off for this workout",
+      "timersOffDefault": "Timers off by default",
+      "skip": "Skip",
+      "skipped": "Skipped",
+      "undo": "Undo",
+      "skipConfirmTitle": "Skip exercise?",
+      "skipConfirmBody": "Are you sure you want to skip {name}? You can undo this later.",
+      "skipConfirm": "Skip",
+      "keep": "Keep",
+      "chooseAlternative": "Alternative",
+      "substitutedFrom": "Replaces {name}",
+      "altTitle": "Choose an alternative",
+      "altLoading": "Finding alternatives…",
+      "altHint": "Same muscle group or type — e.g. if the machine is busy.",
+      "altEmptyTitle": "No alternatives found",
+      "altEmptyBody": "We couldn't find a comparable exercise. Ask your trainer for an alternative.",
+      "altChoose": "Choose",
+      "altDisclaimer": "In doubt? Ask a trainer. This is not medical advice.",
+      "cancelWorkout": "Cancel workout",
+      "cancelConfirmTitle": "Cancel workout?",
+      "cancelConfirmBody": "Are you sure you want to cancel this workout? Unsaved data from this session will be lost.",
+      "cancelConfirm": "Cancel workout",
+      "keepWorkout": "Keep workout"
     },
     "scan": {
       "metaTitle": "Scan",
@@ -245,6 +272,15 @@
       "seriesPlan": "Schema",
       "seriesActual": "Trained (4 wks)",
       "setsPerWeek": "{count} sets/wk",
+      "adherenceOfTarget": "of target",
+      "statusBehind": "Behind",
+      "statusExtra": "Extra",
+      "legendTarget": "Schema target",
+      "summary": {
+        "good": { "title": "Great going!", "hint": "You are hitting almost your full schema volume." },
+        "mid": { "title": "Nicely on track", "hint": "A few muscle groups are still lagging behind your schema." },
+        "low": { "title": "Room for more", "hint": "You are behind on your schema targets. Pick up the resting muscle groups." }
+      },
       "levels": {
         "1": "Low",
         "2": "Moderate",

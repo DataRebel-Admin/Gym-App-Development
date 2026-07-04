@@ -58,39 +58,54 @@ function FlagEN() {
 }
 
 /**
- * Fryslân — 7 diagonale banen (4 blauw, 3 wit) met rode pompeblêden. De banen
- * zijn horizontale stroken in een geroteerde groep; de SVG-viewport clipt de
- * overhang. Vereenvoudigd (leaves als kleine ruiten) maar direct herkenbaar.
+ * Fryslân — 7 gelijke diagonale banen (4 blauw, 3 wit) van linksboven naar
+ * rechtsonder, met 7 rode pompeblêden. De banen zijn horizontale stroken in een
+ * `rotate(34)`-groep; de SVG-viewport clipt de overhang.
+ *
+ * De pompeblêden staan **rechtop** (niet meegekanteld met de banen) — elk blad
+ * counter-roteert `-34`. De vorm is nagetekend van de aangeleverde pompeblêd
+ * (rond lijf, grote lob linksboven, kleine lob rechts, inkeping ertussen), in een
+ * eigen 500×500-tekenbox die per blad geschaald + gepositioneerd wordt. De blaadjes
+ * zijn klein genoeg om **binnen de witte baan** te blijven en **raken elkaar niet**.
+ * Opstelling 2-3-2: drie gespreid over de middelste witte baan (hoek-tot-hoek), en op
+ * elke buitenste baan een paar (rechtsboven + linksonder), puntsymmetrisch om het midden.
  */
 function FlagFY() {
   const blue = "#164FA3";
+  const red = "#E12A24";
+  // Pompeblêd in een 500×500-box (visueel midden ≈ 255,250). Eén schoon pad
+  // zonder zelfkruising, nagetekend van de aangeleverde vorm.
+  const pompeblad =
+    "M30,225 C30,120 78,40 158,32 C220,26 262,34 282,58 " +
+    "C296,100 284,158 270,202 C266,222 288,214 300,190 " +
+    "C322,158 360,150 392,158 C452,172 480,205 478,248 " +
+    "C474,350 388,470 248,470 C112,470 30,362 30,225 Z";
+  // Middelpunten in groep-coördinaten (vóór de 34°-rotatie). Witte banen op
+  // y = 1.4 / 30 / 58.6; leaves zitten centraal op die banen, ruim uit elkaar.
   const leaves = [
-    { x: -18, y: 15 },
-    { x: 6, y: 15 },
-    { x: 30, y: 15 },
-    { x: -6, y: 30 },
-    { x: 18, y: 30 },
-    { x: 6, y: 45 },
-    { x: 30, y: 45 },
+    { x: 13, y: 30 }, // middelste baan — linksboven-uiteinde
+    { x: 45, y: 30 }, // middelste baan — midden
+    { x: 77, y: 30 }, // middelste baan — rechtsonder-uiteinde
+    { x: 49, y: 1.4 }, // bovenste baan — paar rechtsboven
+    { x: 65, y: 1.4 },
+    { x: 41, y: 58.6 }, // onderste baan — paar linksonder
+    { x: 25, y: 58.6 },
   ];
   return (
     <svg viewBox="0 0 90 60" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
       <rect width="90" height="60" fill={blue} />
-      <g transform="rotate(-34 45 30)">
-        {/* Witte stroken (2e, 4e, 6e baan) — blauw is de achtergrond ertussen */}
-        <rect x="-40" y="6" width="170" height="12" fill="#ffffff" />
-        <rect x="-40" y="30" width="170" height="12" fill="#ffffff" />
-        <rect x="-40" y="54" width="170" height="12" fill="#ffffff" />
-        {/* Pompeblêden (rode ruiten) op de witte stroken */}
+      <g transform="rotate(34 45 30)">
+        {/* Drie witte banen (gelijke breedte, blauw is de achtergrond ertussen) */}
+        <rect x="-60" y="-5.75" width="210" height="14.3" fill="#ffffff" />
+        <rect x="-60" y="22.85" width="210" height="14.3" fill="#ffffff" />
+        <rect x="-60" y="51.45" width="210" height="14.3" fill="#ffffff" />
+        {/* Pompeblêden — rechtop (counter-rotate −34), geschaald in het wit */}
         {leaves.map((l, i) => (
-          <rect
+          <path
             key={i}
-            x={l.x + 41}
-            y={l.y + 5}
-            width="6"
-            height="6"
-            fill="#DA2032"
-            transform={`rotate(45 ${l.x + 44} ${l.y + 8})`}
+            d={pompeblad}
+            fill={red}
+            transform={`translate(${l.x} ${l.y}) rotate(-34) scale(0.023) translate(-255 -250)`}
           />
         ))}
       </g>

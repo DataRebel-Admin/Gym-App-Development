@@ -411,6 +411,48 @@ ongewijzigd.
   **bulk-edit** werken op de kracht-kolommen (sets/reps/weight/rest/tempo) en synchroniseren
   `params` nog niet — niet-kracht-oefeningen doen daar (nog) niet aan mee.
 
+### Actieve-workout flexibiliteit (timers, skip, alternatief, annuleren, timeout)
+
+Tijdens een actieve sessie kan het lid snel bijsturen zonder het template te muteren.
+Alle timeracties lopen via de bestaande enkele rusttimer (`useRestTimer` → `timer.dismiss()`)
+zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
+
+- **Datamodel** (migratie `20260701140000_active_workout_flow`, geen RLS-wijziging —
+  `WorkoutSession` is al tenant-scoped): `WorkoutSession.autoStoppedAt`/`autoStopNotified`
+  (5-uur-timeout + eenmalige melding, patroon van `notifiedAt`/`seenAt`) en `overrides Json?`
+  (sessie-scoped `{ skipped: string[], subs: {from,to,name}[] }`). Pure helpers in
+  **`lib/session-overrides.ts`** (`parseOverrides`/`withSkipped`/`withoutSkipped`/`withSub`/
+  `toOverridesJson`) — **altijd gekeyed op de oorspronkelijke template-oefening (`from`)** zodat
+  overslaan en vervangen elkaar niet in de weg zitten. Globale timer-voorkeur in
+  `User.preferences.disableSetTimers` (`lib/user-preferences.ts`, geen migratie).
+- **Timers (per sessie + globaal)**: globale default via `getDisableSetTimers` → prop
+  `timersDefaultOn` naar `ActiveSession`; per-sessie override in **localStorage**
+  (`gymrebel-session-timers-<sessionId>`, overleeft reload, wint van de default). Header-toggle
+  (Timer-icoon) + scope-regel ("deze sessie" vs "standaard"). Uit ⇒ geen auto-`startRest`,
+  geen trilling/geluid; toggle naar uit stopt direct een lopende timer. Globale toggle op
+  `/account/meldingen` (`components/account/timer-toggle.tsx` → `setSetTimerPreference`).
+- **Overslaan**: `skipExercise`/`unskipExercise` (optimistisch, bevestiging via `Modal`);
+  overgeslagen oefeningen tellen niet mee in voortgang/afronden (laatste-oefening-skip →
+  completion) en renderen als collapsed kaart met undo. Timer `dismiss()` bij skip.
+- **Alternatief** (apparaat bezet): `lib/exercise-alternatives.ts` `findAlternatives` scoort
+  tenant-oefeningen op spiergroep (via `resolveRegion`), `exerciseType`, bodyPart en materiaal
+  — nette lege staat als niets past. `getExerciseAlternatives` (lazy) + `substituteExercise`
+  registreren de vervanging in `overrides.subs` en retourneren de vervanger-identiteit; de
+  client swapt in-place (schema/type van origineel behouden, log fris; inner block krijgt
+  `key={ex.exerciseId}` → schone remount). Betere aanbevelingen = rijkere catalogus/eigen-
+  content-velden op `Exercise`.
+- **Afronden/annuleren**: `endSession` stopt de klok direct (redirect weg → niet meer actief).
+  **Annuleren** (`cancelSession`, subtiel + bevestiging in het afrondscherm) **verwijdert de
+  sessie hard** (entries cascaden) → telt gegarandeerd niet mee in stats/PR's (die tellen
+  volume uit álle sessies, ook niet-afgeronde). Terug naar `/member/schema`.
+- **5-uur-timeout**: `lib/session-timeout.ts` `enforceSessionTimeout` (lazy, best-effort, géén
+  cron) capt `endedAt` op `startedAt+5u` + zet `autoStoppedAt`; aangeroepen op `/member`,
+  `/member/schema` en `/member/schema/active`. De auto-gestopte sessie **telt normaal mee**
+  (duur gecapt). Eenmalige banner op `/member/schema` via `autoStopNotified`
+  (`MarkAutoStopSeen`). Botst niet met handmatig afronden/annuleren (alleen `endedAt==null`).
+- **Tests**: `tests/session-overrides.test.ts` (`node:test` via tsx, `npm test` — geen nieuwe
+  dep). i18n-keys onder `member.active`/`member.schema` (nl+en; fy valt terug op nl).
+
 ### Spier-heatmap & -analyse (lid)
 
 Een lid ziet op **`/member/muscles`** welke spiergroepen zijn schema traint (body-
@@ -428,9 +470,16 @@ Volledig afgeleid — géén nieuw DB-model, géén migratie.
   laatste 28 dagen `PerformanceEntry` (**echt getraind**, ÷4). Primaire spier telt vol,
   secundaire half (0.5). Serialiseert `regions[]` (plan/actual/level) + `topRegions`/`neglected`.
   Base `prisma` + expliciete `tenantId` (zoals `member-stats.ts`).
-- **Visuals** (client): `components/muscle/body-heatmap.tsx` — gestileerd voor/achter-silhouet
-  (geen anatomie), klikbare regio's, front/back-toggle, legenda. `components/muscle/muscle-radar.tsx`
-  — recharts `RadarChart` met twee lijnen (schema grijs-gestippeld vs. getraind accent).
+- **Visuals** (client): `components/muscle/body-heatmap.tsx` — een **anatomisch mensfiguur**
+  (viewBox 400×900): grijs silhouet (torso/arm/been) met daaroverheen contour-paths per spier
+  (delts, pecs, 6-pack, obliques, quad-koppen, kuiten resp. traps/lats/erector/glutes/hamstrings
+  op de rugweergave). Elke vorm is de **linkerhelft**; de rechterhelft komt uit `mirrorPath()`
+  (spiegelt M/L/C/Z om x=200) → altijd symmetrisch. Eén regio kan meerdere vormen hebben
+  (quads = 3, abs = 4 blokken) die dezelfde `MuscleRegion` + kleur + klik delen. Klikbaar,
+  front/back-toggle, niveau-legenda. `components/muscle/muscle-comparison.tsx`
+  — per-spiergroep "bullet"-balken (accent-vulling = echt getraind, streepje = schema-doel) met
+  bovenaan een therapietrouw-ring (% van gepland volume gehaald); vervangt de eerdere radar —
+  duidelijker af te lezen welke spiergroepen achterblijven ("Achter") of extra getraind worden ("Extra").
 - **Ingangen**: drawer-link, tikbaar spiergroep-blok op `/member` en een link op `/member/schema`.
   Toont "geen medisch advies"-melding (ontwerpprincipe 2). Nog niet i18n-gemigreerd (hardcoded NL,
   zoals `/member/progress`).
@@ -624,6 +673,75 @@ geïntegreerd in de bestaande tenant-ervaring (RBAC/meldingen/audit/cron/whitela
   due/warn/notify.sent/policy`, `machine.status.change`, `machine.usage.adjust`.
 - **Seed**: fitpower-machines krijgen regels + variatie (Loopband "onderhoud nodig", Crosstrainer
   "binnenkort", Beenpers "buiten gebruik") + demo-`MaintenanceRecord`s.
+
+### QR-bulkexport voor apparaten (printbare labels)
+
+Eén handeling om álle (of een selectie van) QR-codes van apparaten te downloaden als
+**printbare A4-PDF** of **ZIP** met losse bestanden. Geïntegreerd in het bestaande
+apparaatbeheer. De QR-codes zijn **whitelabel-gestyled** (zie "Gestylde QR-codes +
+scan-tracking" hieronder) — afgeronde modules in de tenant-accentkleur + midden-logo,
+niet de standaard zwart-witte blokjes. PDF via `pdf-lib`, ZIP dependency-vrij,
+PNG-rasterisatie via `@resvg/resvg-js`.
+
+- **Modulaire kern `lib/qr-export/`** — puur/gedeeld waar mogelijk, `server-only` waar nodig
+  (idioom `lib/schema-pdf.ts`/`lib/email/`): `types.ts` (pure types + `LAYOUT_PRESETS` +
+  `expectedPageCount`, ook client), `filename.ts` (`safeFilename`/`numberedFilename`
+  → `Loopband-01.png` + `dedupeFilenames`), `zip.ts` (**dependency-vrije store-only ZIP-writer**,
+  CRC32 + central directory; PNG/SVG zijn al compact), `qr-matrix.ts` (pure matrix via
+  `qrcode`, foutcorrectie **H**), `qr-style.ts` (pure gestylde geometrie/SVG, zie sectie
+  hieronder), `qr.ts` (`server-only`: `qrStyledSvg`/`qrSvgBytes` + `qrPngBytes` via resvg +
+  `loadLogoDataUri`), `labels-pdf.ts` (`buildQrLabelsPdf(groups, options)` — A4-raster 2×4 of
+  3×5, gestylde vector-QR via `page.drawSvgPath` + midden-logo,
+  apparaatnaam/nummer/serienummer/categorie/locatie + tenantlogo & -naam, snijlijnen,
+  branded kop/voet; elke tenant-groep start op een verse pagina → superadmin "alle tenants"),
+  `archive.ts` (`buildQrZip` — submap per tenant bij multi), `data.ts` (`server-only`:
+  `getExportGroupForTenant`/`getExportGroupsForTenants`, tenant-scoped, **stabiele nummering**
+  over alle machines = createdAt asc), `respond.ts` (`buildQrExport` + `parseExportOptions`,
+  gedeeld door beide routes), `post-download.ts` (client: POST-via-verborgen-formulier zodat
+  grote id-selecties in de body passen — geen URL-lengtelimiet).
+- **Routes** (model `app/member/schema/pdf/route.ts`): owner/medewerker
+  `app/owner/machines/qr-export/route.ts` (GET+POST, `requirePermission("machines:qr-export")`);
+  superadmin `app/admin/qr-export/download/route.ts` (GET+POST, `requireSuperadmin`, `tenantId`
+  specifiek of `all`, per-tenant audit). Beide streamen PDF/ZIP met `Content-Disposition`.
+- **RBAC**: nieuwe medewerker-configureerbare permissie **`machines:qr-export`** (standaard uit;
+  in `PERMISSION_GROUPS` groep "Apparaten & onderhoud"). De machinelijst `/owner/machines` is
+  daardoor bereikbaar voor staff mét de permissie in een **read-only variant** (`canManage =
+  isAdmin`; CRUD-actions blijven `requireOwner`). Nav-item van `adminOnly` → `permission`.
+- **UI**: `components/qr-export/qr-export-dialog.tsx` (gedeelde modal: bron
+  selectie/filter/alles, formaat PDF/ZIP-PNG/ZIP-SVG, opmaak-opties, **live voorvertoning** —
+  aantal + pagina-schatting + HTML-mock-raster). Owner: `machines-table.tsx` uitgebreid met
+  multi-select + filters (type/status/locatie) + exportknop. Superadmin: `/admin/qr-export`
+  (`components/qr-export/admin-qr-export.tsx` — tenant-kiezer + selecteerbare lijst + "alle
+  tenants"-bundel) + nav-item + snelkoppeling op tenant-detail. UI hardcoded NL.
+- **Audit** (categorie `machines`): `machine.qr.export` (`count` + `format`).
+
+### Gestylde QR-codes + scan-tracking
+
+QR-codes zijn **whitelabel-gestyled** (niet de standaard blokjes) en er wordt bijgehouden
+**hoe vaak elke apparaat-QR gescand is**. Deelt de export-infra hierboven.
+
+- **Gedeelde, pure renderer** `lib/qr-export/qr-style.ts` (géén `server-only`, ook client —
+  idioom `exercise-types.ts`): `qrGeometry(matrix, opts)` → vector-pad (`accentPath` =
+  afgeronde modules + finder-buitenring + pupil; `holePath` = witte ring in de ogen;
+  `logoRect` = midden-badge) in een unit-grid met **bezier-hoeken** (identiek in SVG én
+  pdf-lib). `renderStyledQrSvg` → self-contained SVG (accent-modules, afgeronde ogen, witte
+  logo-badge + `<image>`). `resolveQrColor` bewaakt contrast (te licht accent → donkergrijs).
+  Matrix uit `qr-matrix.ts` (pure, `qrcode`, **foutcorrectie H** i.v.m. logo-overlay).
+- **Één renderer → alle formaten**: SVG-bestand + PDF (`drawSvgPath`, vector) + PNG
+  (rasterisatie via **`@resvg/resvg-js`** — native addon, staat in `serverExternalPackages`
+  in `next.config.ts`; leest geen remote URL's → logo als data-URI via `loadLogoDataUri`).
+- **Losse download**: `app/owner/machines/[id]/qr/route.ts` (GET `?format=png|svg`,
+  `requireOwner`) hergebruikt de renderer → pixel-identiek aan de bulk-export. Machine-detail
+  toont een gestylde preview (server → data-URI `<img>`) + PNG/SVG-links.
+- **Scan-tracking**: `Machine.scanCount`/`lastScannedAt` (gedenormaliseerd) + logmodel
+  **`MachineScan`** (tenant-scoped + RLS; migratie `20260704120000_machine_qr_scans`).
+  Tellen via **client-beacon** (`components/machine/track-scan.tsx` → POST
+  `app/m/[qrToken]/scan/route.ts`) met `sessionStorage`-dedupe; bots/link-previews draaien
+  geen JS → tellen niet. Route is best-effort (breekt de scan-ervaring nooit), koppelt
+  `userId` alleen bij een ingelogd lid van dezelfde tenant. Aggregaties in
+  `lib/machine-scans.ts` (`getScanOverview` → tabelkolom "Scans" + `↑ n deze week`;
+  `getMachineScanTrend` → 12-weken-grafiek `components/machine/scan-trend-chart.tsx`).
+- **Bewust niet**: scans worden niet geaudit (te veel ruis); geen feature-flag (QR is kern).
 
 ### Feature flags (Superadmin, per tenant)
 
