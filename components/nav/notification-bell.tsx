@@ -65,7 +65,12 @@ export function NotificationBell({
 
   return (
     <Dropdown
-      className="w-80"
+      className={cn(
+        // Mobiel: volledige-breedte paneel onder de header → nooit afgesneden.
+        "fixed! inset-x-2! top-[64px]! mt-0! w-auto",
+        // Desktop: normaal onder de bel, rechts uitgelijnd.
+        "sm:absolute! sm:inset-x-auto! sm:right-0! sm:top-auto! sm:mt-2! sm:w-80"
+      )}
       trigger={({ toggle }) => (
         <button
           type="button"
