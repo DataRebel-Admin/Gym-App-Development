@@ -132,6 +132,15 @@ export default async function TenantDetailPage({
         />
       </Card>
 
+      <Card title="QR-codes" description="Download printbare QR-codes van de apparaten van deze sportschool.">
+        <Link
+          href={`/admin/qr-export?tenantId=${tenant.id}`}
+          className="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-surface-1"
+        >
+          QR-codes exporteren →
+        </Link>
+      </Card>
+
       <Card title="Status & verwijderen" description="Een inactieve tenant kan niet meer inloggen.">
         <div className="flex flex-wrap items-center gap-3">
           <form action={setTenantStatus}>

@@ -45,7 +45,8 @@ DECLARE
     'EarnedAchievement',
     'MaintenanceRecord',
     'MaintenancePolicy',
-    'FeatureFlag'
+    'FeatureFlag',
+    'MachineScan'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

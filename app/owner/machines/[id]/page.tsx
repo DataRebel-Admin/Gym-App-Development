@@ -8,7 +8,9 @@ import { blobConfigured } from "@/lib/blob";
 import { machinePublicUrl } from "@/lib/machine";
 import { MachineForm } from "../machine-form";
 import { deleteMachine } from "../actions";
-import { DownloadQrButton } from "@/components/ui/download-qr-button";
+import { loadLogoDataUri, qrStyledSvg } from "@/lib/qr-export/qr";
+import { getMachineScanTrend } from "@/lib/machine-scans";
+import { ScanTrendChart } from "@/components/machine/scan-trend-chart";
 import { computeMaintenanceState, effectiveStatus } from "@/lib/maintenance";
 import { MachineMaintenancePanel } from "@/components/maintenance/machine-maintenance-panel";
 import { isFeatureEnabled } from "@/lib/features/service";
@@ -45,9 +47,27 @@ export default async function MachineDetailPage({
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: owner.tenantId },
-    select: { slug: true },
+    select: { slug: true, accentColor: true, logoUrl: true },
   });
   const publicUrl = machinePublicUrl(tenant?.slug ?? "", machine.qrToken);
+
+  // Gestylde QR-preview (dezelfde renderer als de bulk-export → identiek beeld).
+  const qrPreviewSvg = qrStyledSvg(publicUrl, {
+    accent: tenant?.accentColor ?? null,
+    logoDataUri: await loadLogoDataUri(tenant?.logoUrl ?? null),
+  });
+  const qrPreviewDataUri = `data:image/svg+xml;base64,${Buffer.from(qrPreviewSvg, "utf-8").toString("base64")}`;
+
+  // QR-scan-statistieken (teller op Machine + 12-weken-trend uit MachineScan).
+  const scanTrend = await getMachineScanTrend(owner.tenantId, machine.id);
+  const scansThisWeek = scanTrend.length > 0 ? scanTrend[scanTrend.length - 1].count : 0;
+  const lastScanned = machine.lastScannedAt
+    ? machine.lastScannedAt.toLocaleDateString("nl-NL", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
   // Onderhoudsmodule uit (Superadmin-flag) → geen onderhoudspaneel/historie.
   const maintenanceEnabled = await isFeatureEnabled(owner.tenantId, "maintenance");
@@ -146,15 +166,76 @@ export default async function MachineDetailPage({
         />
       ) : null}
 
-      <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-neutral-200 p-5">
-        <h2 className="text-sm font-semibold text-neutral-900">QR-code</h2>
-        <p className="break-all text-xs text-neutral-500">{publicUrl}</p>
-        <div>
-          <DownloadQrButton
-            url={publicUrl}
-            filename={`qr-${machine.name.toLowerCase().replace(/\s+/g, "-")}`}
-          />
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5 sm:flex-row sm:items-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={qrPreviewDataUri}
+          alt={`QR-code voor ${machine.name}`}
+          width={128}
+          height={128}
+          className="size-32 shrink-0 rounded-xl border border-neutral-200"
+        />
+        <div className="flex min-w-0 flex-col gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">QR-code</h2>
+            <p className="mt-1 break-all text-xs text-neutral-500">{publicUrl}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href={`/owner/machines/${machine.id}/qr?format=png`}
+              download
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Download PNG
+            </a>
+            <a
+              href={`/owner/machines/${machine.id}/qr?format=svg`}
+              download
+              className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-50"
+            >
+              Download SVG
+            </a>
+            <Link
+              href="/owner/machines"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              Bulk exporteren →
+            </Link>
+          </div>
         </div>
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold text-neutral-900">QR-scans</h2>
+          {lastScanned ? (
+            <span className="text-xs text-neutral-500">Laatst gescand: {lastScanned}</span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap gap-6">
+          <div>
+            <p className="text-2xl font-semibold tabular-nums text-neutral-900">
+              {machine.scanCount}
+            </p>
+            <p className="text-xs text-neutral-500">totaal</p>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold tabular-nums text-neutral-900">
+              {scansThisWeek}
+            </p>
+            <p className="text-xs text-neutral-500">deze week</p>
+          </div>
+        </div>
+        {machine.scanCount > 0 ? (
+          <ScanTrendChart
+            data={scanTrend.map((p) => ({ label: p.label, scans: p.count }))}
+          />
+        ) : (
+          <p className="text-sm text-neutral-500">
+            Nog geen scans geregistreerd. Zodra iemand deze QR-code scant, verschijnen
+            hier de aantallen en de trend van de afgelopen weken.
+          </p>
+        )}
       </section>
 
       <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-red-200 p-5">

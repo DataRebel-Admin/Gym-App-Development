@@ -7,6 +7,8 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Native addon (QR-rasterisatie) — niet bundelen, als extern server-package laden.
+  serverExternalPackages: ["@resvg/resvg-js"],
   experimental: {
     // Schakelt `forbidden()` / `unauthorized()` (next/navigation) in zodat de
     // guards naar de premium 403/401-pagina's kunnen onderbreken i.p.v. te

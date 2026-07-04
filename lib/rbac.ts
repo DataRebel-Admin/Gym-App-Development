@@ -21,6 +21,7 @@ export type Permission =
   | "schedule:manage" // rooster/groepslessen beheren
   | "exercises:manage" // eigen oefeningen beheren
   | "maintenance:manage" // machine-onderhoud beheren (regels, uitvoeren, status)
+  | "machines:qr-export" // QR-codes van apparaten bulk-exporteren (standaard uit)
   | "members:import" // leden importeren (standaard uit)
   | "reports:export" // rapportages exporteren (standaard uit)
   | "mailings:send"; // mailings versturen (standaard uit)
@@ -39,6 +40,7 @@ export const STAFF_CONFIGURABLE_PERMISSIONS = [
   "schedule:manage",
   "exercises:manage",
   "maintenance:manage",
+  "machines:qr-export",
   "members:import",
   "reports:export",
   "mailings:send",
@@ -189,13 +191,19 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     key: "maintenance",
-    label: "Onderhoud",
+    label: "Apparaten & onderhoud",
     permissions: [
       {
         permission: "maintenance:manage",
         label: "Machine-onderhoud beheren",
         description:
           "Onderhoudsregels instellen, onderhoud vastleggen en de machinestatus beheren.",
+      },
+      {
+        permission: "machines:qr-export",
+        label: "QR-codes exporteren",
+        description:
+          "QR-codes van apparaten in bulk downloaden als printbare PDF of losse bestanden (standaard uit).",
       },
     ],
   },

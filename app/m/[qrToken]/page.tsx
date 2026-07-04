@@ -8,6 +8,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { machineTypeLabel } from "@/lib/machine";
 import { Badge } from "@/components/ui/badge";
 import { Dumbbell, Plus, ChevronRight } from "@/components/ui/icons";
+import { TrackScan } from "@/components/machine/track-scan";
 import { addMachineToSchema } from "./actions";
 
 export async function generateMetadata({
@@ -74,6 +75,8 @@ export default async function MachinePublicPage({
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6">
+      {/* Registreert de scan (client-beacon, dedupe per sessie). */}
+      <TrackScan qrToken={qrToken} />
       {/* Hero */}
       {machine.imageUrl ? (
         <div className="overflow-hidden rounded-3xl border border-border bg-surface-2">

@@ -435,6 +435,13 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft machine ${s(meta, "name") ?? ""} verwijderd`.trim(),
   },
+  "machine.qr.export": {
+    category: "machines", label: "QR-codes geëxporteerd", icon: "🏷️", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "count") ?? "0"} QR-code(s) geëxporteerd${
+        s(meta, "format") ? ` (${s(meta, "format")})` : ""
+      }`,
+  },
 
   // --- Machine-onderhoud ---
   "machine.maintenance.rule": {
