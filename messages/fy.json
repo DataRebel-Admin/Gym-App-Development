@@ -245,6 +245,15 @@
       "seriesPlan": "Skema",
       "seriesActual": "Traind (4 wkn)",
       "setsPerWeek": "{count} sets/wk",
+      "adherenceOfTarget": "fan doel",
+      "statusBehind": "Efter",
+      "statusExtra": "Ekstra",
+      "legendTarget": "Skema-doel",
+      "summary": {
+        "good": { "title": "Goed dwaande!", "hint": "Do hellest sawat dyn folsleine skema-folume." },
+        "mid": { "title": "Aardich op wei", "hint": "In pear spiergroepen bliuwe noch efter op dyn skema." },
+        "low": { "title": "Romte foar mear", "hint": "Do bliuwst efter op dyn skema-doelen. Pak de rêstende spiergroepen op." }
+      },
       "levels": {
         "1": "Min",
         "2": "Matich",

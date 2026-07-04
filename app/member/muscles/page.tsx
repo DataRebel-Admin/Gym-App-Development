@@ -5,7 +5,7 @@ import { getMuscleAnalysis } from "@/lib/muscle-analysis";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BodyHeatmap } from "@/components/muscle/body-heatmap";
-import { MuscleRadar } from "@/components/muscle/muscle-radar";
+import { MuscleComparison } from "@/components/muscle/muscle-comparison";
 import { PersonStanding, Activity, ClipboardList } from "@/components/ui/icons";
 
 export async function generateMetadata() {
@@ -76,7 +76,7 @@ export default async function MemberMusclesPage() {
             </div>
             <p className="mb-3 text-sm text-neutral-500">{t("compareIntro")}</p>
             {analysis.hasActual ? (
-              <MuscleRadar regions={analysis.regions} />
+              <MuscleComparison regions={analysis.regions} />
             ) : (
               <p className="py-8 text-center text-sm text-neutral-500">
                 {t("noActual")}
