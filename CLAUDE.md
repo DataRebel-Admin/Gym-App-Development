@@ -470,13 +470,18 @@ Volledig afgeleid — géén nieuw DB-model, géén migratie.
   laatste 28 dagen `PerformanceEntry` (**echt getraind**, ÷4). Primaire spier telt vol,
   secundaire half (0.5). Serialiseert `regions[]` (plan/actual/level) + `topRegions`/`neglected`.
   Base `prisma` + expliciete `tenantId` (zoals `member-stats.ts`).
-- **Visuals** (client): `components/muscle/body-heatmap.tsx` — een **anatomisch mensfiguur**
-  (viewBox 400×900): grijs silhouet (torso/arm/been) met daaroverheen contour-paths per spier
-  (delts, pecs, 6-pack, obliques, quad-koppen, kuiten resp. traps/lats/erector/glutes/hamstrings
-  op de rugweergave). Elke vorm is de **linkerhelft**; de rechterhelft komt uit `mirrorPath()`
-  (spiegelt M/L/C/Z om x=200) → altijd symmetrisch. Eén regio kan meerdere vormen hebben
-  (quads = 3, abs = 4 blokken) die dezelfde `MuscleRegion` + kleur + klik delen. Klikbaar,
-  front/back-toggle, niveau-legenda. `components/muscle/muscle-comparison.tsx`
+- **Visuals** (client): `components/muscle/body-heatmap.tsx` — een **anatomisch spierfiguur**
+  (voor/achter) waarvan de spier-polygonen **gevendord** zijn uit `react-body-highlighter`
+  (**MIT**, © 2020 GV79): `components/muscle/body-model-data.ts` (`ANTERIOR`/`POSTERIOR`,
+  `BodyPart[] = {region, points[]}`, viewBox `0 0 100 200`) + `body-model-LICENSE.txt`. Het
+  figuur is dus géén handgetekende SVG meer maar een pro-spierkaart. De library-muscle-slugs zijn
+  bij het genereren gemapt naar onze `MuscleRegion` (bv. `front-deltoids`/`back-deltoids`→`shoulders`,
+  `quadriceps`→`quads`, `gluteal`→`glutes`, `left/right-soleus`+`calves`→`calves`); `head`/`neck`/
+  `knees` → `region=null` (grijze basis). Het component tekent per `BodyPart` de polygonen, kleurt
+  ze op volume-niveau (`MUSCLE_LEVEL_COLOR`), maakt ze klikbaar en highlight de geselecteerde regio.
+  **Kanttekening**: de dataset heeft géén aparte `lats`-polygoon (opgenomen in `upper-back`), dus
+  `lats`-volume kleurt niet apart op de figuur (wel in de analyse/vergelijking). Regenereren = de
+  MIT-bron opnieuw mappen; niet met de hand editen. `components/muscle/muscle-comparison.tsx`
   — per-spiergroep "bullet"-balken (accent-vulling = echt getraind, streepje = schema-doel) met
   bovenaan een therapietrouw-ring (% van gepland volume gehaald); vervangt de eerdere radar —
   duidelijker af te lezen welke spiergroepen achterblijven ("Achter") of extra getraind worden ("Extra").
