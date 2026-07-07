@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { Trophy } from "@/components/ui/icons";
 import { setAchievementVisibility } from "@/app/account/actions";
@@ -11,6 +12,7 @@ import { setAchievementVisibility } from "@/app/account/actions";
  * individuele voorkeur van het lid.
  */
 export function AchievementHideToggle({ initialHidden }: { initialHidden: boolean }) {
+  const t = useTranslations("achievements.ui");
   const [hidden, setHidden] = useState(initialHidden);
   const [, startTransition] = useTransition();
 
@@ -31,9 +33,9 @@ export function AchievementHideToggle({ initialHidden }: { initialHidden: boolea
           <Trophy className="size-5" />
         </span>
         <div>
-          <p className="text-sm font-semibold text-neutral-900">Trofeeën tonen</p>
+          <p className="text-sm font-semibold text-neutral-900">{t("hide.title")}</p>
           <p className="mt-0.5 text-sm text-neutral-500">
-            Toon je trofeeën, mijlpalen en Gym Passport in de app.
+            {t("hide.description")}
           </p>
         </div>
       </div>
@@ -41,7 +43,7 @@ export function AchievementHideToggle({ initialHidden }: { initialHidden: boolea
         type="button"
         role="switch"
         aria-checked={!hidden}
-        aria-label="Trofeeën tonen"
+        aria-label={t("hide.title")}
         onClick={toggle}
         className={cn(
           "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-ring",

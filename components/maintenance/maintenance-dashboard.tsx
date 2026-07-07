@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { StatCard } from "@/components/ui/stat-card";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -51,6 +52,7 @@ export function MaintenanceDashboard({
   counts: { due: number; soon: number; inMaintenance: number; outOfService: number; active: number };
   basePath?: string;
 }) {
+  const t = useTranslations("maintenance");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [type, setType] = useState<string>("all");
   const [location, setLocation] = useState<string>("all");
@@ -93,10 +95,10 @@ export function MaintenanceDashboard({
   );
 
   const statCards: { key: StatusFilter; label: string; value: number; icon: string }[] = [
-    { key: "due", label: "Direct aandacht", value: counts.due, icon: "🔧" },
-    { key: "soon", label: "Binnenkort", value: counts.soon, icon: "🕒" },
-    { key: "IN_MAINTENANCE", label: "In onderhoud", value: counts.inMaintenance, icon: "🛠️" },
-    { key: "OUT_OF_SERVICE", label: "Buiten gebruik", value: counts.outOfService, icon: "⛔" },
+    { key: "due", label: t("dashboard.cardDue"), value: counts.due, icon: "🔧" },
+    { key: "soon", label: t("dashboard.cardSoon"), value: counts.soon, icon: "🕒" },
+    { key: "IN_MAINTENANCE", label: t("dashboard.cardInMaintenance"), value: counts.inMaintenance, icon: "🛠️" },
+    { key: "OUT_OF_SERVICE", label: t("dashboard.cardOutOfService"), value: counts.outOfService, icon: "⛔" },
   ];
 
   return (
@@ -123,28 +125,28 @@ export function MaintenanceDashboard({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Zoek op naam, serienummer of locatie…"
+          placeholder={t("dashboard.searchPlaceholder")}
           className={cn(inputClass, "min-w-[16rem] flex-1")}
         />
         <select value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)} className={inputClass}>
-          <option value="all">Alle statussen</option>
-          <option value="due">Onderhoud nodig</option>
-          <option value="soon">Binnenkort</option>
-          <option value="active">Actief</option>
-          <option value="IN_MAINTENANCE">In onderhoud</option>
-          <option value="OUT_OF_SERVICE">Buiten gebruik</option>
+          <option value="all">{t("dashboard.filterAllStatuses")}</option>
+          <option value="due">{t("dashboard.filterDue")}</option>
+          <option value="soon">{t("dashboard.filterSoon")}</option>
+          <option value="active">{t("dashboard.filterActive")}</option>
+          <option value="IN_MAINTENANCE">{t("dashboard.filterInMaintenance")}</option>
+          <option value="OUT_OF_SERVICE">{t("dashboard.filterOutOfService")}</option>
         </select>
         <select value={type} onChange={(e) => setType(e.target.value)} className={inputClass}>
-          <option value="all">Alle types</option>
-          {MACHINE_TYPES.map((t) => (
-            <option key={t} value={t}>
-              {MACHINE_TYPE_LABELS[t]}
+          <option value="all">{t("dashboard.filterAllTypes")}</option>
+          {MACHINE_TYPES.map((mt) => (
+            <option key={mt} value={mt}>
+              {MACHINE_TYPE_LABELS[mt]}
             </option>
           ))}
         </select>
         {locations.length ? (
           <select value={location} onChange={(e) => setLocation(e.target.value)} className={inputClass}>
-            <option value="all">Alle locaties</option>
+            <option value="all">{t("dashboard.filterAllLocations")}</option>
             {locations.map((l) => (
               <option key={l} value={l}>
                 {l}
@@ -157,7 +159,7 @@ export function MaintenanceDashboard({
       {/* Machinekaarten */}
       {filtered.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-neutral-500">
-          Geen machines gevonden voor deze filters.
+          {t("dashboard.noMachines")}
         </p>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -222,6 +224,7 @@ function MachineCard({
   basePath: string;
   onLog: () => void;
 }) {
+  const t = useTranslations("maintenance");
   const ratio = m.usageThreshold ? Math.min(100, Math.round((m.usageRatio ?? 0) * 100)) : null;
   const level: MaintenanceLevel = m.level;
   const accentBorder =
@@ -250,7 +253,7 @@ function MachineCard({
       {ratio != null ? (
         <div className="flex flex-col gap-1">
           <div className="flex justify-between text-xs text-neutral-500">
-            <span>Gebruik sinds onderhoud</span>
+            <span>{t("dashboard.usageSince")}</span>
             <span className="tabular-nums">
               {m.usageCount} / {m.usageThreshold}
             </span>
@@ -258,17 +261,17 @@ function MachineCard({
           <ProgressBar value={ratio} className={m.effectiveStatus === "MAINTENANCE_DUE" ? "bg-red-500" : ""} />
         </div>
       ) : (
-        <p className="text-xs text-neutral-400">Gebruik: {m.usageCount} (geen limiet ingesteld)</p>
+        <p className="text-xs text-neutral-400">{t("dashboard.usageNoLimit", { count: m.usageCount })}</p>
       )}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
-        <span>Laatste: {fmtDate(m.lastMaintenanceAt)}</span>
+        <span>{t("dashboard.last", { date: fmtDate(m.lastMaintenanceAt) })}</span>
         <span>
-          Volgende: {fmtDate(m.nextMaintenanceAt)}
+          {t("dashboard.next", { date: fmtDate(m.nextMaintenanceAt) })}
           {m.daysUntilDue != null
             ? m.daysUntilDue <= 0
-              ? ` (${Math.abs(m.daysUntilDue)} d te laat)`
-              : ` (over ${m.daysUntilDue} d)`
+              ? ` ${t("due.overdue", { days: Math.abs(m.daysUntilDue) })}`
+              : ` ${t("due.in", { days: m.daysUntilDue })}`
             : ""}
         </span>
       </div>
@@ -293,14 +296,14 @@ function MachineCard({
 
       <div className="mt-auto flex flex-wrap gap-2 pt-1">
         <Button type="button" size="sm" onClick={onLog}>
-          Onderhoud vastleggen
+          {t("dashboard.logButton")}
         </Button>
         {m.status === "OUT_OF_SERVICE" || m.status === "IN_MAINTENANCE" ? (
-          <StatusForm machineId={m.id} status="ACTIVE" label="Weer activeren" />
+          <StatusForm machineId={m.id} status="ACTIVE" label={t("status.reactivate")} />
         ) : (
           <>
-            <StatusForm machineId={m.id} status="IN_MAINTENANCE" label="In onderhoud" />
-            <StatusForm machineId={m.id} status="OUT_OF_SERVICE" label="Buiten gebruik" variant="ghost" />
+            <StatusForm machineId={m.id} status="IN_MAINTENANCE" label={t("status.inMaintenance")} />
+            <StatusForm machineId={m.id} status="OUT_OF_SERVICE" label={t("status.outOfService")} variant="ghost" />
           </>
         )}
       </div>
@@ -309,6 +312,7 @@ function MachineCard({
 }
 
 function MaintenanceHistory({ records }: { records: MaintenanceRecordRow[] }) {
+  const t = useTranslations("maintenance");
   const [query, setQuery] = useState("");
   const [responsible, setResponsible] = useState("all");
   const [from, setFrom] = useState("");
@@ -332,17 +336,17 @@ function MaintenanceHistory({ records }: { records: MaintenanceRecordRow[] }) {
   return (
     <div className="rounded-2xl border border-border bg-surface-1 p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">Onderhoudshistorie</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">{t("dashboard.history.title")}</h3>
         <div className="flex flex-wrap items-center gap-2">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Zoek…"
+            placeholder={t("dashboard.history.searchPlaceholder")}
             className={cn(inputClass, "py-1.5")}
           />
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={cn(inputClass, "py-1.5")} />
           <select value={responsible} onChange={(e) => setResponsible(e.target.value)} className={cn(inputClass, "py-1.5")}>
-            <option value="all">Iedereen</option>
+            <option value="all">{t("dashboard.history.everyone")}</option>
             {responsibles.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -353,18 +357,18 @@ function MaintenanceHistory({ records }: { records: MaintenanceRecordRow[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="py-6 text-center text-sm text-neutral-500">Nog geen onderhoud vastgelegd.</p>
+        <p className="py-6 text-center text-sm text-neutral-500">{t("dashboard.history.empty")}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-                <th className="py-2 pr-4 font-medium">Datum</th>
-                <th className="py-2 pr-4 font-medium">Machine</th>
-                <th className="py-2 pr-4 font-medium">Soort</th>
-                <th className="py-2 pr-4 font-medium">Actie</th>
-                <th className="py-2 pr-4 font-medium">Uitvoerder</th>
-                <th className="py-2 pr-0 text-right font-medium">Kosten</th>
+                <th className="py-2 pr-4 font-medium">{t("dashboard.history.colDate")}</th>
+                <th className="py-2 pr-4 font-medium">{t("dashboard.history.colMachine")}</th>
+                <th className="py-2 pr-4 font-medium">{t("dashboard.history.colKind")}</th>
+                <th className="py-2 pr-4 font-medium">{t("dashboard.history.colAction")}</th>
+                <th className="py-2 pr-4 font-medium">{t("dashboard.history.colPerformedBy")}</th>
+                <th className="py-2 pr-0 text-right font-medium">{t("dashboard.history.colCost")}</th>
               </tr>
             </thead>
             <tbody>

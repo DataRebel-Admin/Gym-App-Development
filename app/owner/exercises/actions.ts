@@ -19,6 +19,7 @@ import {
   isExerciseType,
 } from "@/lib/exercise-types";
 import { audit } from "@/lib/audit";
+import { firstValidationError } from "@/lib/validation-message";
 
 const addSchema = z.object({
   catalogId: z.string().min(1),
@@ -292,7 +293,7 @@ export type CustomExerciseState = { error?: string };
 
 const customSchema = z.object({
   id: z.string().optional(),
-  name: z.string().trim().min(1, "Naam is verplicht"),
+  name: z.string().trim().min(1, "nameRequired"),
   exerciseType: z.enum(EXERCISE_TYPE_KEYS).optional(),
   description: z.string().trim().optional(),
   targetMuscle: z.string().trim().optional(),
@@ -306,7 +307,7 @@ const customSchema = z.object({
   videoUrl: z
     .string()
     .trim()
-    .url("Ongeldige video-URL")
+    .url("invalidVideoUrl")
     .optional()
     .or(z.literal("")),
 });
@@ -359,7 +360,7 @@ export async function saveCustomExercise(
     videoUrl: formData.get("videoUrl") || "",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+    return { error: await firstValidationError(parsed.error) };
   }
   const data = parsed.data;
 

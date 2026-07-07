@@ -9,19 +9,20 @@ import { requireOwner } from "@/lib/owner";
 import { uploadMachineImage } from "@/lib/blob";
 import { MACHINE_TYPES } from "@/lib/machine";
 import { audit } from "@/lib/audit";
+import { firstValidationError } from "@/lib/validation-message";
 
 export type MachineFormState = { error?: string };
 
 const machineSchema = z.object({
   id: z.string().optional(),
-  name: z.string().trim().min(1, "Naam is verplicht"),
+  name: z.string().trim().min(1, "nameRequired"),
   type: z.enum(MACHINE_TYPES),
   description: z.string().trim().optional(),
   instructionsMd: z.string().optional(),
   videoUrl: z
     .string()
     .trim()
-    .url("Ongeldige video-URL")
+    .url("invalidVideoUrl")
     .optional()
     .or(z.literal("")),
   location: z.string().trim().optional(),
@@ -29,7 +30,7 @@ const machineSchema = z.object({
   purchaseDate: z
     .string()
     .trim()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Ongeldige datum")
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "invalidDate")
     .optional()
     .or(z.literal("")),
 });
@@ -57,7 +58,7 @@ export async function saveMachine(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+    return { error: await firstValidationError(parsed.error) };
   }
   const data = parsed.data;
   const purchaseDate = data.purchaseDate ? new Date(data.purchaseDate) : null;

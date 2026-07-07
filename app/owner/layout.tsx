@@ -59,7 +59,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
         { href: "/owner/machines", label: t("machines"), iconPath: ICON_MACHINES, description: t("machinesDesc"), permission: "machines:qr-export" },
         { href: "/owner/exercises", label: t("exercises"), iconPath: ICON_EXERCISES, description: t("exercisesDesc"), permission: "exercises:manage" },
         { href: "/owner/schemas", label: t("schemas"), iconPath: ICON_SCHEMAS, description: t("schemasDesc"), permission: "schemas:manage" },
-        { href: "/owner/maintenance", label: "Onderhoud", iconPath: ICON_MAINTENANCE, description: "Onderhoud van machines: signalering op gebruik en tijd", permission: "maintenance:manage" },
+        { href: "/owner/maintenance", label: t("maintenance"), iconPath: ICON_MAINTENANCE, description: t("maintenanceDesc"), permission: "maintenance:manage" },
       ],
     },
     {
@@ -71,7 +71,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
         { href: "/owner/members", label: t("members"), iconPath: ICON_MEMBERS, description: t("membersDesc"), permission: "members:view" },
         { href: "/owner/staff", label: t("staff"), iconPath: ICON_STAFF, description: t("staffDesc"), adminOnly: true },
         { href: "/owner/requests", label: t("requests"), iconPath: ICON_REQUESTS, description: t("requestsDesc"), permission: "schemas:manage" },
-        { href: "/owner/engagement", label: "Betrokkenheid", iconPath: ICON_ENGAGEMENT, description: "Trofeeën, mijlpalen en streaks van je leden", permission: "members:view" },
+        { href: "/owner/engagement", label: t("engagement"), iconPath: ICON_ENGAGEMENT, description: t("engagementDesc"), permission: "members:view" },
         { href: "/owner/rooster", label: t("rooster"), iconPath: ICON_ROOSTER, description: t("roosterDesc"), permission: "schedule:manage" },
       ],
     },
@@ -83,7 +83,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
       items: [
         { href: "/owner/insights", label: t("insights"), iconPath: ICON_INSIGHTS, description: t("insightsDesc"), adminOnly: true },
         { href: "/owner/audit", label: t("audit"), iconPath: ICON_AUDIT, description: t("auditDesc"), adminOnly: true },
-        { href: "/owner/changelog", label: "Wijzigingslogboek", iconPath: ICON_CHANGELOG, description: "Nieuwe functies en verbeteringen in GymRebel", adminOnly: true },
+        { href: "/owner/changelog", label: t("changelog"), iconPath: ICON_CHANGELOG, description: t("changelogDesc"), adminOnly: true },
       ],
     },
     {

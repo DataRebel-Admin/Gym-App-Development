@@ -13,6 +13,7 @@ import {
   notifyMaintenanceEvent,
   notifyMaintenanceThresholds,
 } from "@/lib/maintenance/notify";
+import { firstValidationError } from "@/lib/validation-message";
 
 export type MaintenanceActionState = { error?: string; ok?: boolean };
 
@@ -59,7 +60,7 @@ export async function saveMaintenanceRules(
     usageThreshold: rawThreshold ? Number(rawThreshold) : 0,
     intervalDays: rawInterval ? Number(rawInterval) : 0,
   });
-  if (!parsed.success) return { error: "Ongeldige invoer" };
+  if (!parsed.success) return { error: await firstValidationError(parsed.error) };
 
   const machine = await loadMachine(parsed.data.machineId, user.tenantId);
   if (!machine) return { error: "Machine niet gevonden" };
@@ -99,8 +100,8 @@ export async function saveMaintenanceRules(
 const logSchema = z.object({
   machineId: z.string().min(1),
   kind: z.enum(["SERVICE", "INSPECTION", "SAFETY_CHECK", "REPAIR"]),
-  performedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Ongeldige datum"),
-  action: z.string().trim().min(1, "Omschrijf de uitgevoerde actie"),
+  performedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "invalidDate"),
+  action: z.string().trim().min(1, "actionRequired"),
   note: z.string().trim().optional(),
   performedByName: z.string().trim().optional(),
   cost: z.string().trim().optional(),
@@ -124,7 +125,7 @@ export async function logMaintenance(
     nextIntervalDays: formData.get("nextIntervalDays") ? Number(formData.get("nextIntervalDays")) : undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+    return { error: await firstValidationError(parsed.error) };
   }
   const d = parsed.data;
 
@@ -307,7 +308,7 @@ export async function saveMaintenancePolicy(
     intervalDays: formData.get("intervalDays") ? Number(formData.get("intervalDays")) : 0,
     applyToExisting: formData.get("applyToExisting") || undefined,
   });
-  if (!parsed.success) return { error: "Ongeldige invoer" };
+  if (!parsed.success) return { error: await firstValidationError(parsed.error) };
 
   const usageThreshold = parsed.data.usageThreshold ? Number(parsed.data.usageThreshold) : null;
   const intervalDays = parsed.data.intervalDays ? Number(parsed.data.intervalDays) : null;

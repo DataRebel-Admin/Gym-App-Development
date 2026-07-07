@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { MachineStatus } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { MACHINE_STATUS_META, type MaintenanceLevel } from "@/lib/maintenance";
@@ -15,10 +16,11 @@ export function MachineStatusBadge({
   level?: MaintenanceLevel;
   className?: string;
 }) {
+  const t = useTranslations("maintenance");
   if (status === "ACTIVE" && level === "soon") {
     return (
       <Badge tone="warning" className={className}>
-        <span aria-hidden>🕒</span> Binnenkort
+        <span aria-hidden>🕒</span> {t("badge.soon")}
       </Badge>
     );
   }

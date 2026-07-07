@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/card";
 import { Trophy, Flame, Activity, Sparkles, Clock } from "@/components/ui/icons";
@@ -19,11 +20,13 @@ function Section({
   title,
   icon,
   empty,
+  emptyLabel,
   children,
 }: {
   title: string;
   icon: React.ReactNode;
   empty: boolean;
+  emptyLabel: string;
   children: React.ReactNode;
 }) {
   return (
@@ -33,7 +36,7 @@ function Section({
         {title}
       </h2>
       {empty ? (
-        <Card className="p-5 text-center text-sm text-neutral-500">Nog geen gegevens.</Card>
+        <Card className="p-5 text-center text-sm text-neutral-500">{emptyLabel}</Card>
       ) : (
         children
       )}
@@ -45,10 +48,12 @@ function Section({
  * Coach-inzichten rond betrokkenheid: wie behaalde net een mijlpaal, wie is bijna,
  * langste streaks, meest actieve leden en wie al langer geen nieuwe mijlpaal haalde.
  */
-export function CoachOverview({ data }: { data: CoachEngagement }) {
+export async function CoachOverview({ data }: { data: CoachEngagement }) {
+  const t = await getTranslations("achievements.ui");
+  const emptyLabel = t("coach.noData");
   return (
     <div className="flex flex-col gap-8">
-      <Section title="Recente mijlpalen" icon={<Trophy className="size-4" />} empty={data.recentMilestones.length === 0}>
+      <Section title={t("coach.recentMilestones")} icon={<Trophy className="size-4" />} empty={data.recentMilestones.length === 0} emptyLabel={emptyLabel}>
         <div className="flex flex-col gap-2">
           {data.recentMilestones.map((m, i) => {
             const meta = rarityMeta(m.rarity);
@@ -70,7 +75,7 @@ export function CoachOverview({ data }: { data: CoachEngagement }) {
         </div>
       </Section>
 
-      <Section title="Bijna een achievement" icon={<Sparkles className="size-4" />} empty={data.nearAchievements.length === 0}>
+      <Section title={t("coach.nearAchievement")} icon={<Sparkles className="size-4" />} empty={data.nearAchievements.length === 0} emptyLabel={emptyLabel}>
         <div className="flex flex-col gap-2">
           {data.nearAchievements.map((n, i) => (
             <Card key={`${n.userId}-${i}`} className="flex items-center gap-3 p-3">
@@ -92,26 +97,29 @@ export function CoachOverview({ data }: { data: CoachEngagement }) {
       </Section>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <Section title="Langste streaks" icon={<Flame className="size-4" />} empty={data.longestStreaks.length === 0}>
+        <Section title={t("coach.longestStreaks")} icon={<Flame className="size-4" />} empty={data.longestStreaks.length === 0} emptyLabel={emptyLabel}>
           <div className="flex flex-col gap-2">
             {data.longestStreaks.map((s) => (
               <Card key={s.userId} className="flex items-center justify-between gap-3 p-3">
                 <MemberLink userId={s.userId} name={s.name} />
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
-                  <Flame className="size-3.5" /> {s.streakDays} dagen
+                  <Flame className="size-3.5" /> {t("coach.days", { count: s.streakDays })}
                 </span>
               </Card>
             ))}
           </div>
         </Section>
 
-        <Section title="Meest actieve leden" icon={<Activity className="size-4" />} empty={data.mostActive.length === 0}>
+        <Section title={t("coach.mostActive")} icon={<Activity className="size-4" />} empty={data.mostActive.length === 0} emptyLabel={emptyLabel}>
           <div className="flex flex-col gap-2">
             {data.mostActive.map((a) => (
               <Card key={a.userId} className="flex items-center justify-between gap-3 p-3">
                 <MemberLink userId={a.userId} name={a.name} />
                 <span className="shrink-0 text-xs text-neutral-500">
-                  <span className="font-semibold text-neutral-700">{a.sessions}</span> trainingen
+                  {t.rich("coach.sessions", {
+                    count: a.sessions,
+                    b: (chunks) => <span className="font-semibold text-neutral-700">{chunks}</span>,
+                  })}
                 </span>
               </Card>
             ))}
@@ -119,15 +127,15 @@ export function CoachOverview({ data }: { data: CoachEngagement }) {
         </Section>
       </div>
 
-      <Section title="Al even geen mijlpaal" icon={<Clock className="size-4" />} empty={data.staleMembers.length === 0}>
+      <Section title={t("coach.stale")} icon={<Clock className="size-4" />} empty={data.staleMembers.length === 0} emptyLabel={emptyLabel}>
         <div className="flex flex-col gap-2">
           {data.staleMembers.map((s) => (
             <Card key={s.userId} className="flex items-center justify-between gap-3 p-3">
               <MemberLink userId={s.userId} name={s.name} />
               <span className="shrink-0 text-xs text-neutral-500">
                 {s.lastMilestoneAt
-                  ? `${s.daysSince} dagen geleden`
-                  : "Nog geen mijlpaal"}
+                  ? t("coach.daysAgo", { count: s.daysSince })
+                  : t("coach.noMilestone")}
               </span>
             </Card>
           ))}

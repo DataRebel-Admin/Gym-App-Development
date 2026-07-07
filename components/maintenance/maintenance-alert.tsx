@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 /**
  * Dashboard-banner die waarschuwt hoeveel machines aandacht nodig hebben.
  * Rendert niets als er niets aan de hand is. Server-compatibel (geen client-JS).
  */
-export function MaintenanceAlert({ count }: { count: number }) {
+export async function MaintenanceAlert({ count }: { count: number }) {
   if (count <= 0) return null;
+  const t = await getTranslations("maintenance");
   return (
     <Link
       href="/owner/maintenance"
@@ -17,14 +19,14 @@ export function MaintenanceAlert({ count }: { count: number }) {
         </span>
         <div>
           <p className="font-semibold text-amber-900">
-            {count} {count === 1 ? "machine vraagt" : "machines vragen"} om aandacht
+            {t("alert.attention", { count })}
           </p>
           <p className="text-sm text-amber-700">
-            Bekijk het onderhoudsoverzicht om apparatuur veilig en op tijd te onderhouden.
+            {t("alert.body")}
           </p>
         </div>
       </div>
-      <span className="shrink-0 text-sm font-medium text-amber-800">Bekijk →</span>
+      <span className="shrink-0 text-sm font-medium text-amber-800">{t("alert.view")}</span>
     </Link>
   );
 }

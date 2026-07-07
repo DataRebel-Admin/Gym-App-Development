@@ -210,6 +210,7 @@ export function achievementsByCategory(): Record<AchievementCategory, Achievemen
 const UNIT_KEY: Record<string, string> = {
   trainingen: "trainingen",
   dagen: "dagen",
+  weken: "weken",
   kg: "kg",
   km: "km",
   uur: "uur",

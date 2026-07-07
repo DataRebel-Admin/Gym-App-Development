@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ export function LogMaintenanceDialog({
   machineName: string;
   currentIntervalDays: number | null;
 }) {
+  const t = useTranslations("maintenance");
   const [state, formAction, pending] = useActionState<MaintenanceActionState, FormData>(
     logMaintenance,
     {}
@@ -43,13 +45,13 @@ export function LogMaintenanceDialog({
   }, [state.ok, onClose]);
 
   return (
-    <Modal open={open} onClose={onClose} title={`Onderhoud vastleggen — ${machineName}`}>
+    <Modal open={open} onClose={onClose} title={t("log.title", { machine: machineName })}>
       <form action={formAction} className="flex flex-col gap-4">
         <input type="hidden" name="machineId" value={machineId} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Soort
+            {t("log.kind")}
             <select name="kind" defaultValue="SERVICE" className={inputClass}>
               {MAINTENANCE_KINDS.map((k) => (
                 <option key={k} value={k}>
@@ -59,49 +61,49 @@ export function LogMaintenanceDialog({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Datum
+            {t("log.date")}
             <input type="date" name="performedAt" defaultValue={todayIso()} className={inputClass} />
           </label>
         </div>
 
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Uitgevoerde actie *
+          {t("log.action")}
           <input
             name="action"
             required
             className={inputClass}
-            placeholder="bv. Kabels gecontroleerd en gesmeerd"
+            placeholder={t("log.actionPlaceholder")}
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Opmerking
+          {t("log.note")}
           <textarea name="note" rows={2} className={inputClass} />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Uitvoerder (naam)
+            {t("log.performedBy")}
             <input
               name="performedByName"
               className={inputClass}
-              placeholder="bv. externe monteur"
+              placeholder={t("log.performedByPlaceholder")}
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Kosten (€, optioneel)
-            <input name="cost" inputMode="decimal" className={inputClass} placeholder="0,00" />
+            {t("log.cost")}
+            <input name="cost" inputMode="decimal" className={inputClass} placeholder={t("log.costPlaceholder")} />
           </label>
         </div>
 
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Volgende onderhoud over
+          {t("log.nextInterval")}
           <select
             name="nextIntervalDays"
             defaultValue={currentIntervalDays ? String(currentIntervalDays) : "0"}
             className={inputClass}
           >
-            <option value="0">Ongewijzigd / geen</option>
+            <option value="0">{t("log.nextIntervalNone")}</option>
             {INTERVAL_PRESETS.map((p) => (
               <option key={p.days} value={p.days}>
                 {p.label}
@@ -109,7 +111,7 @@ export function LogMaintenanceDialog({
             ))}
           </select>
           <span className="text-xs text-neutral-500">
-            De volgende onderhoudsdatum wordt vanaf de bovenstaande datum berekend.
+            {t("log.nextIntervalHint")}
           </span>
         </label>
 
@@ -117,10 +119,10 @@ export function LogMaintenanceDialog({
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Annuleren
+            {t("log.cancel")}
           </Button>
           <Button type="submit" loading={pending}>
-            Onderhoud afronden
+            {t("log.submit")}
           </Button>
         </div>
       </form>

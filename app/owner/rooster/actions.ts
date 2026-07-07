@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { areClassesEnabled } from "@/lib/classes";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
+import { firstValidationError } from "@/lib/validation-message";
 
 /** 404 als de groepslessen-module uit staat (Superadmin-flag óf owner-toggle). */
 async function assertClassesEnabled(tenantId: string) {
@@ -14,7 +15,7 @@ async function assertClassesEnabled(tenantId: string) {
 }
 
 const classSchema = z.object({
-  name: z.string().trim().min(1, "Naam is verplicht"),
+  name: z.string().trim().min(1, "nameRequired"),
   instructorName: z.string().trim().optional(),
   maxParticipants: z.coerce.number().int().min(1).max(200),
 });
@@ -33,7 +34,7 @@ export async function createClass(
     maxParticipants: formData.get("maxParticipants") || 12,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+    return { error: await firstValidationError(parsed.error) };
   }
 
   const created = await prisma.groupClass.create({
@@ -66,7 +67,7 @@ const sessionSchema = z
     location: z.string().trim().optional(),
   })
   .refine((d) => d.endsAt > d.startsAt, {
-    message: "Eindtijd moet na de starttijd liggen",
+    message: "endAfterStart",
   });
 
 export type SessionFormState = { error?: string };
@@ -84,7 +85,7 @@ export async function addSession(
     location: formData.get("location") || undefined,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+    return { error: await firstValidationError(parsed.error) };
   }
 
   const groupClass = await prisma.groupClass.findFirst({

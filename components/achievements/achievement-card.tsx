@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cn } from "@/lib/cn";
 import { Check } from "@/components/ui/icons";
 import { rarityMeta } from "@/lib/achievements/rarity";
@@ -7,7 +8,8 @@ import { AchievementBadge } from "@/components/achievements/achievement-badge";
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 
 /** Kaart voor één trofee — behaald (met datum) of vergrendeld (met voortgang). */
-export function AchievementCard({ item }: { item: AchievementItem }) {
+export async function AchievementCard({ item }: { item: AchievementItem }) {
+  const t = await getTranslations("achievements.ui");
   const { def, earned, earnedAt, progress } = item;
   const meta = rarityMeta(def.rarity);
   const pct = Math.round(progress * 100);
@@ -47,7 +49,7 @@ export function AchievementCard({ item }: { item: AchievementItem }) {
       {earned ? (
         <div className="flex items-center gap-1.5 text-xs font-medium text-green-600">
           <Check className="size-4" />
-          Behaald{earnedAt ? ` op ${DATE_FMT.format(earnedAt)}` : ""}
+          {earnedAt ? t("card.earnedOn", { date: DATE_FMT.format(earnedAt) }) : t("card.earned")}
         </div>
       ) : (
         <div>

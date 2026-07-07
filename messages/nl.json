@@ -1,4 +1,142 @@
 {
+  "validation": {
+    "nameRequired": "Naam is verplicht",
+    "invalidVideoUrl": "Ongeldige video-URL",
+    "invalidDate": "Ongeldige datum",
+    "actionRequired": "Omschrijf de uitgevoerde actie",
+    "endAfterStart": "Eindtijd moet na de starttijd liggen",
+    "invalidInput": "Ongeldige invoer"
+  },
+  "maintenance": {
+    "badge": {
+      "soon": "Binnenkort"
+    },
+    "alert": {
+      "attention": "{count, plural, one {# machine vraagt} other {# machines vragen}} om aandacht",
+      "body": "Bekijk het onderhoudsoverzicht om apparatuur veilig en op tijd te onderhouden.",
+      "view": "Bekijk →"
+    },
+    "status": {
+      "reactivate": "Weer activeren",
+      "inMaintenance": "In onderhoud",
+      "outOfService": "Buiten gebruik"
+    },
+    "due": {
+      "overdue": "({days} d te laat)",
+      "in": "(over {days} d)"
+    },
+    "log": {
+      "title": "Onderhoud vastleggen — {machine}",
+      "kind": "Soort",
+      "date": "Datum",
+      "action": "Uitgevoerde actie *",
+      "actionPlaceholder": "bv. Kabels gecontroleerd en gesmeerd",
+      "note": "Opmerking",
+      "performedBy": "Uitvoerder (naam)",
+      "performedByPlaceholder": "bv. externe monteur",
+      "cost": "Kosten (€, optioneel)",
+      "costPlaceholder": "0,00",
+      "nextInterval": "Volgende onderhoud over",
+      "nextIntervalNone": "Ongewijzigd / geen",
+      "nextIntervalHint": "De volgende onderhoudsdatum wordt vanaf de bovenstaande datum berekend.",
+      "cancel": "Annuleren",
+      "submit": "Onderhoud afronden"
+    },
+    "panel": {
+      "title": "Onderhoud",
+      "usageSinceLast": "Gebruik sinds laatste onderhoud",
+      "usageSince": "Gebruik sinds onderhoud: {count}",
+      "lastMaintenance": "Laatste onderhoud: {date}",
+      "next": "Volgende: {date}",
+      "logButton": "Onderhoud vastleggen",
+      "rulesTitle": "Onderhoudsregels",
+      "usageLimit": "Gebruikslimiet",
+      "usageLimitPlaceholder": "bv. 500",
+      "intervalDays": "Interval (dagen)",
+      "intervalDaysPlaceholder": "bv. 90",
+      "saveRules": "Regels opslaan",
+      "saved": "Opgeslagen.",
+      "adjustCounter": "Gebruiksteller aanpassen",
+      "update": "Bijwerken",
+      "history": "Historie",
+      "noHistory": "Nog geen onderhoud vastgelegd.",
+      "counterWas": "teller stond op {count}"
+    },
+    "calendar": {
+      "title": "Onderhoudskalender",
+      "prevMonth": "Vorige maand",
+      "nextMonth": "Volgende maand",
+      "more": "+{count} meer",
+      "months": {
+        "0": "januari",
+        "1": "februari",
+        "2": "maart",
+        "3": "april",
+        "4": "mei",
+        "5": "juni",
+        "6": "juli",
+        "7": "augustus",
+        "8": "september",
+        "9": "oktober",
+        "10": "november",
+        "11": "december"
+      },
+      "weekdays": {
+        "0": "ma",
+        "1": "di",
+        "2": "wo",
+        "3": "do",
+        "4": "vr",
+        "5": "za",
+        "6": "zo"
+      }
+    },
+    "policy": {
+      "title": "Standaardregels per type",
+      "description": "Stel per machinetype een standaard gebruikslimiet en onderhoudsinterval in.",
+      "type": "Type",
+      "usageLimit": "Gebruikslimiet",
+      "usageLimitPlaceholder": "bv. 500",
+      "intervalDays": "Interval (dagen)",
+      "intervalDaysPlaceholder": "bv. 90",
+      "applyToExisting": "Bestaande machines bijwerken",
+      "save": "Opslaan",
+      "saved": "Opgeslagen."
+    },
+    "dashboard": {
+      "cardDue": "Direct aandacht",
+      "cardSoon": "Binnenkort",
+      "cardInMaintenance": "In onderhoud",
+      "cardOutOfService": "Buiten gebruik",
+      "searchPlaceholder": "Zoek op naam, serienummer of locatie…",
+      "filterAllStatuses": "Alle statussen",
+      "filterDue": "Onderhoud nodig",
+      "filterSoon": "Binnenkort",
+      "filterActive": "Actief",
+      "filterInMaintenance": "In onderhoud",
+      "filterOutOfService": "Buiten gebruik",
+      "filterAllTypes": "Alle types",
+      "filterAllLocations": "Alle locaties",
+      "noMachines": "Geen machines gevonden voor deze filters.",
+      "usageSince": "Gebruik sinds onderhoud",
+      "usageNoLimit": "Gebruik: {count} (geen limiet ingesteld)",
+      "last": "Laatste: {date}",
+      "next": "Volgende: {date}",
+      "logButton": "Onderhoud vastleggen",
+      "history": {
+        "title": "Onderhoudshistorie",
+        "searchPlaceholder": "Zoek…",
+        "everyone": "Iedereen",
+        "empty": "Nog geen onderhoud vastgelegd.",
+        "colDate": "Datum",
+        "colMachine": "Machine",
+        "colKind": "Soort",
+        "colAction": "Actie",
+        "colPerformedBy": "Uitvoerder",
+        "colCost": "Kosten"
+      }
+    }
+  },
   "member": {
     "home": {
       "metaTitle": "Mijn training",
@@ -640,6 +778,56 @@
     "filterRejected": "Afgewezen"
   },
   "achievements": {
+    "ui": {
+      "celebration": {
+        "close": "Sluiten",
+        "title": "Trofee behaald!",
+        "next": "Volgende ({current}/{total})",
+        "celebrate": "Vieren!",
+        "viewAll": "Bekijk al je trofeeën"
+      },
+      "card": {
+        "earned": "Behaald",
+        "earnedOn": "Behaald op {date}"
+      },
+      "coach": {
+        "noData": "Nog geen gegevens.",
+        "recentMilestones": "Recente mijlpalen",
+        "nearAchievement": "Bijna een achievement",
+        "longestStreaks": "Langste streaks",
+        "mostActive": "Meest actieve leden",
+        "stale": "Al even geen mijlpaal",
+        "days": "{count, plural, one {# dag} other {# dagen}}",
+        "sessions": "{count, plural, one {<b>#</b> training} other {<b>#</b> trainingen}}",
+        "daysAgo": "{count, plural, one {# dag geleden} other {# dagen geleden}}",
+        "noMilestone": "Nog geen mijlpaal"
+      },
+      "dashboard": {
+        "trophies": "Trofeeën",
+        "lastEarned": "Laatst behaald",
+        "total": "{count} totaal",
+        "none": "Nog geen trofeeën",
+        "startToEarn": "Start een training om te verdienen",
+        "nextMilestone": "Volgende mijlpaal"
+      },
+      "hide": {
+        "title": "Trofeeën tonen",
+        "description": "Toon je trofeeën, mijlpalen en Gym Passport in de app."
+      },
+      "profile": {
+        "title": "Trofeeën & mijlpalen",
+        "engagement": "Betrokkenheid →",
+        "earned": "Behaald",
+        "level": "Niveau",
+        "longestStreak": "Langste streak",
+        "bestTrophy": "Mooiste trofee",
+        "noTrophies": "Dit lid heeft nog geen trofeeën behaald."
+      },
+      "passport": {
+        "earned": "Behaald",
+        "toEarn": "Nog te behalen"
+      }
+    },
     "level": {
       "0": "Nieuwkomer",
       "1": "Beginner",
@@ -661,12 +849,63 @@
     "unit": {
       "trainingen": "trainingen",
       "dagen": "dagen",
+      "weken": "weken",
       "kg": "kg",
       "km": "km",
       "uur": "uur",
       "prs": "PR's",
       "doelen": "doelen",
       "metingen": "metingen"
+    },
+    "ui": {
+      "card": {
+        "earned": "Behaald",
+        "earnedOn": "Behaald op {date}"
+      },
+      "celebration": {
+        "close": "Sluiten",
+        "title": "Trofee behaald!",
+        "next": "Volgende ({current}/{total})",
+        "celebrate": "Vieren!",
+        "viewAll": "Bekijk al je trofeeën"
+      },
+      "passport": {
+        "earned": "Behaald",
+        "toEarn": "Nog te behalen"
+      },
+      "hide": {
+        "title": "Trofeeën verbergen",
+        "description": "Verberg trofeeën en mijlpalen uit je dashboard en navigatie."
+      },
+      "profile": {
+        "title": "Trofeeën",
+        "engagement": "Betrokkenheid",
+        "earned": "Behaald",
+        "level": "Niveau",
+        "longestStreak": "Langste streak",
+        "bestTrophy": "Mooiste trofee",
+        "noTrophies": "Nog geen trofeeën behaald."
+      },
+      "dashboard": {
+        "trophies": "Trofeeën",
+        "lastEarned": "Laatst behaald",
+        "total": "{count} totaal",
+        "none": "Nog geen trofeeën",
+        "startToEarn": "Start met trainen om trofeeën te verdienen.",
+        "nextMilestone": "Volgende mijlpaal"
+      },
+      "coach": {
+        "noData": "Nog geen gegevens",
+        "recentMilestones": "Recente mijlpalen",
+        "nearAchievement": "Bijna behaald",
+        "longestStreaks": "Langste streaks",
+        "days": "{count} {count, plural, one {dag} other {dagen}}",
+        "mostActive": "Meest actief",
+        "sessions": "<b>{count}</b> {count, plural, one {sessie} other {sessies}}",
+        "stale": "Al even inactief",
+        "daysAgo": "{count} {count, plural, one {dag} other {dagen}} geleden",
+        "noMilestone": "Nog geen mijlpaal"
+      }
     },
     "category": {
       "training": { "label": "Training", "description": "Mijlpalen voor het aantal voltooide trainingen." },
@@ -904,6 +1143,12 @@
       "insightsDesc": "Statistieken & trends",
       "audit": "Audit log",
       "auditDesc": "Activiteitenlogboek",
+      "maintenance": "Onderhoud",
+      "maintenanceDesc": "Onderhoud van machines: signalering op gebruik en tijd",
+      "engagement": "Betrokkenheid",
+      "engagementDesc": "Trofeeën, mijlpalen en streaks van je leden",
+      "changelog": "Wijzigingslogboek",
+      "changelogDesc": "Nieuwe functies en verbeteringen in GymRebel",
       "settings": "Instellingen",
       "roleOwner": "Eigenaar",
       "roleStaff": "Medewerker"

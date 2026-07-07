@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { m, AnimatePresence, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
 import { Trophy, ChevronRight, X } from "@/components/ui/icons";
@@ -43,6 +44,7 @@ function Confetti() {
  * sluiten worden ze server-side als "gevierd" gemarkeerd (geen herhaling).
  */
 export function CelebrationOverlay({ celebrations }: { celebrations: PendingCelebration[] }) {
+  const t = useTranslations("achievements.ui");
   const reduced = useReducedMotion();
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(celebrations.length > 0);
@@ -94,13 +96,13 @@ export function CelebrationOverlay({ celebrations }: { celebrations: PendingCele
             type="button"
             onClick={close}
             className="absolute right-3 top-3 z-10 flex size-8 items-center justify-center rounded-full text-neutral-400 transition-colors hover:bg-neutral-100"
-            aria-label="Sluiten"
+            aria-label={t("celebration.close")}
           >
             <X className="size-4" />
           </button>
 
           <p className="relative text-xs font-bold uppercase tracking-[0.2em] text-accent">
-            Trofee behaald!
+            {t("celebration.title")}
           </p>
 
           <m.div
@@ -129,14 +131,16 @@ export function CelebrationOverlay({ celebrations }: { celebrations: PendingCele
               onClick={next}
               className="w-full rounded-2xl bg-accent-gradient px-6 py-3.5 text-center text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
             >
-              {hasNext ? `Volgende (${index + 1}/${celebrations.length})` : "Vieren!"}
+              {hasNext
+                ? t("celebration.next", { current: index + 1, total: celebrations.length })
+                : t("celebration.celebrate")}
             </button>
             <Link
               href="/member/trophies"
               onClick={close}
               className="inline-flex items-center justify-center gap-1 text-sm font-semibold text-accent"
             >
-              Bekijk al je trofeeën <ChevronRight className="size-4" />
+              {t("celebration.viewAll")} <ChevronRight className="size-4" />
             </Link>
           </div>
         </m.div>

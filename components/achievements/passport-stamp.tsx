@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { cn } from "@/lib/cn";
 import { rarityMeta } from "@/lib/achievements/rarity";
 import type { PassportStamp as Stamp } from "@/lib/achievements/passport";
@@ -5,7 +6,8 @@ import type { PassportStamp as Stamp } from "@/lib/achievements/passport";
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", year: "numeric" });
 
 /** Eén stempel in het Gym Passport — behaald (gekleurd) of nog te behalen (vaag). */
-export function PassportStamp({ stamp }: { stamp: Stamp }) {
+export async function PassportStamp({ stamp }: { stamp: Stamp }) {
+  const t = await getTranslations("achievements.ui");
   const { def, earned, earnedAt } = stamp;
   const meta = rarityMeta(def.rarity);
 
@@ -38,7 +40,7 @@ export function PassportStamp({ stamp }: { stamp: Stamp }) {
         {def.title}
       </span>
       <span className={cn("text-[10px]", earned ? "text-neutral-500" : "text-neutral-400")}>
-        {earned ? (earnedAt ? DATE_FMT.format(earnedAt) : "Behaald") : "Nog te behalen"}
+        {earned ? (earnedAt ? DATE_FMT.format(earnedAt) : t("passport.earned")) : t("passport.toEarn")}
       </span>
     </div>
   );

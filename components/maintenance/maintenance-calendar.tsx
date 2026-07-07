@@ -1,18 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 
 export type CalendarItem = { date: string; name: string; overdue: boolean };
 
-const MONTHS = [
-  "januari", "februari", "maart", "april", "mei", "juni",
-  "juli", "augustus", "september", "oktober", "november", "december",
-];
-const WEEKDAYS = ["ma", "di", "wo", "do", "vr", "za", "zo"];
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
 /** Maandkalender met de geplande volgende onderhoudsdata per machine. */
 export function MaintenanceCalendar({ items }: { items: CalendarItem[] }) {
+  const t = useTranslations("maintenance");
   const [cursor, setCursor] = useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
@@ -53,23 +51,23 @@ export function MaintenanceCalendar({ items }: { items: CalendarItem[] }) {
   return (
     <div className="rounded-2xl border border-border bg-surface-1 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-neutral-900">Onderhoudskalender</h3>
+        <h3 className="text-sm font-semibold text-neutral-900">{t("calendar.title")}</h3>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => shift(-1)}
-            aria-label="Vorige maand"
+            aria-label={t("calendar.prevMonth")}
             className="rounded-lg px-2 py-1 text-neutral-500 hover:bg-neutral-100"
           >
             ‹
           </button>
           <span className="min-w-[9rem] text-center text-sm font-medium text-neutral-700">
-            {MONTHS[cursor.month]} {cursor.year}
+            {t(`calendar.months.${cursor.month}`)} {cursor.year}
           </span>
           <button
             type="button"
             onClick={() => shift(1)}
-            aria-label="Volgende maand"
+            aria-label={t("calendar.nextMonth")}
             className="rounded-lg px-2 py-1 text-neutral-500 hover:bg-neutral-100"
           >
             ›
@@ -80,7 +78,7 @@ export function MaintenanceCalendar({ items }: { items: CalendarItem[] }) {
       <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-neutral-400">
         {WEEKDAYS.map((d) => (
           <div key={d} className="py-1">
-            {d}
+            {t(`calendar.weekdays.${d}`)}
           </div>
         ))}
       </div>
@@ -118,7 +116,7 @@ export function MaintenanceCalendar({ items }: { items: CalendarItem[] }) {
               ))}
               {dayItems.length > 2 ? (
                 <div className="mt-0.5 text-[10px] text-neutral-400">
-                  +{dayItems.length - 2} meer
+                  {t("calendar.more", { count: dayItems.length - 2 })}
                 </div>
               ) : null}
             </div>

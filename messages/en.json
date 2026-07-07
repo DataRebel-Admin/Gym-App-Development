@@ -1,4 +1,142 @@
 {
+  "validation": {
+    "nameRequired": "Name is required",
+    "invalidVideoUrl": "Invalid video URL",
+    "invalidDate": "Invalid date",
+    "actionRequired": "Describe the action performed",
+    "endAfterStart": "End time must be after the start time",
+    "invalidInput": "Invalid input"
+  },
+  "maintenance": {
+    "badge": {
+      "soon": "Soon"
+    },
+    "alert": {
+      "attention": "{count, plural, one {# machine needs} other {# machines need}} attention",
+      "body": "Open the maintenance overview to keep equipment safe and serviced on time.",
+      "view": "View →"
+    },
+    "status": {
+      "reactivate": "Reactivate",
+      "inMaintenance": "In maintenance",
+      "outOfService": "Out of service"
+    },
+    "due": {
+      "overdue": "({days} d overdue)",
+      "in": "(in {days} d)"
+    },
+    "log": {
+      "title": "Log maintenance — {machine}",
+      "kind": "Type",
+      "date": "Date",
+      "action": "Action performed *",
+      "actionPlaceholder": "e.g. Checked and lubricated cables",
+      "note": "Note",
+      "performedBy": "Performed by (name)",
+      "performedByPlaceholder": "e.g. external technician",
+      "cost": "Cost (€, optional)",
+      "costPlaceholder": "0.00",
+      "nextInterval": "Next maintenance in",
+      "nextIntervalNone": "Unchanged / none",
+      "nextIntervalHint": "The next maintenance date is calculated from the date above.",
+      "cancel": "Cancel",
+      "submit": "Complete maintenance"
+    },
+    "panel": {
+      "title": "Maintenance",
+      "usageSinceLast": "Usage since last maintenance",
+      "usageSince": "Usage since maintenance: {count}",
+      "lastMaintenance": "Last maintenance: {date}",
+      "next": "Next: {date}",
+      "logButton": "Log maintenance",
+      "rulesTitle": "Maintenance rules",
+      "usageLimit": "Usage limit",
+      "usageLimitPlaceholder": "e.g. 500",
+      "intervalDays": "Interval (days)",
+      "intervalDaysPlaceholder": "e.g. 90",
+      "saveRules": "Save rules",
+      "saved": "Saved.",
+      "adjustCounter": "Adjust usage counter",
+      "update": "Update",
+      "history": "History",
+      "noHistory": "No maintenance logged yet.",
+      "counterWas": "counter was at {count}"
+    },
+    "calendar": {
+      "title": "Maintenance calendar",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "more": "+{count} more",
+      "months": {
+        "0": "January",
+        "1": "February",
+        "2": "March",
+        "3": "April",
+        "4": "May",
+        "5": "June",
+        "6": "July",
+        "7": "August",
+        "8": "September",
+        "9": "October",
+        "10": "November",
+        "11": "December"
+      },
+      "weekdays": {
+        "0": "Mon",
+        "1": "Tue",
+        "2": "Wed",
+        "3": "Thu",
+        "4": "Fri",
+        "5": "Sat",
+        "6": "Sun"
+      }
+    },
+    "policy": {
+      "title": "Default rules per type",
+      "description": "Set a default usage limit and maintenance interval per machine type.",
+      "type": "Type",
+      "usageLimit": "Usage limit",
+      "usageLimitPlaceholder": "e.g. 500",
+      "intervalDays": "Interval (days)",
+      "intervalDaysPlaceholder": "e.g. 90",
+      "applyToExisting": "Update existing machines",
+      "save": "Save",
+      "saved": "Saved."
+    },
+    "dashboard": {
+      "cardDue": "Needs attention",
+      "cardSoon": "Soon",
+      "cardInMaintenance": "In maintenance",
+      "cardOutOfService": "Out of service",
+      "searchPlaceholder": "Search by name, serial number or location…",
+      "filterAllStatuses": "All statuses",
+      "filterDue": "Maintenance needed",
+      "filterSoon": "Soon",
+      "filterActive": "Active",
+      "filterInMaintenance": "In maintenance",
+      "filterOutOfService": "Out of service",
+      "filterAllTypes": "All types",
+      "filterAllLocations": "All locations",
+      "noMachines": "No machines found for these filters.",
+      "usageSince": "Usage since maintenance",
+      "usageNoLimit": "Usage: {count} (no limit set)",
+      "last": "Last: {date}",
+      "next": "Next: {date}",
+      "logButton": "Log maintenance",
+      "history": {
+        "title": "Maintenance history",
+        "searchPlaceholder": "Search…",
+        "everyone": "Everyone",
+        "empty": "No maintenance logged yet.",
+        "colDate": "Date",
+        "colMachine": "Machine",
+        "colKind": "Type",
+        "colAction": "Action",
+        "colPerformedBy": "Performed by",
+        "colCost": "Cost"
+      }
+    }
+  },
   "member": {
     "home": {
       "metaTitle": "My training",
@@ -640,6 +778,56 @@
     "filterRejected": "Rejected"
   },
   "achievements": {
+    "ui": {
+      "celebration": {
+        "close": "Close",
+        "title": "Trophy earned!",
+        "next": "Next ({current}/{total})",
+        "celebrate": "Celebrate!",
+        "viewAll": "View all your trophies"
+      },
+      "card": {
+        "earned": "Earned",
+        "earnedOn": "Earned on {date}"
+      },
+      "coach": {
+        "noData": "No data yet.",
+        "recentMilestones": "Recent milestones",
+        "nearAchievement": "Close to an achievement",
+        "longestStreaks": "Longest streaks",
+        "mostActive": "Most active members",
+        "stale": "No milestone in a while",
+        "days": "{count, plural, one {# day} other {# days}}",
+        "sessions": "{count, plural, one {<b>#</b> workout} other {<b>#</b> workouts}}",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+        "noMilestone": "No milestone yet"
+      },
+      "dashboard": {
+        "trophies": "Trophies",
+        "lastEarned": "Last earned",
+        "total": "{count} total",
+        "none": "No trophies yet",
+        "startToEarn": "Start a workout to earn some",
+        "nextMilestone": "Next milestone"
+      },
+      "hide": {
+        "title": "Show trophies",
+        "description": "Show your trophies, milestones and Gym Passport in the app."
+      },
+      "profile": {
+        "title": "Trophies & milestones",
+        "engagement": "Engagement →",
+        "earned": "Earned",
+        "level": "Level",
+        "longestStreak": "Longest streak",
+        "bestTrophy": "Best trophy",
+        "noTrophies": "This member hasn't earned any trophies yet."
+      },
+      "passport": {
+        "earned": "Earned",
+        "toEarn": "Not earned yet"
+      }
+    },
     "level": {
       "0": "Newcomer",
       "1": "Beginner",
@@ -661,12 +849,63 @@
     "unit": {
       "trainingen": "workouts",
       "dagen": "days",
+      "weken": "weeks",
       "kg": "kg",
       "km": "km",
       "uur": "hrs",
       "prs": "PRs",
       "doelen": "goals",
       "metingen": "measurements"
+    },
+    "ui": {
+      "card": {
+        "earned": "Earned",
+        "earnedOn": "Earned on {date}"
+      },
+      "celebration": {
+        "close": "Close",
+        "title": "Trophy earned!",
+        "next": "Next ({current}/{total})",
+        "celebrate": "Celebrate!",
+        "viewAll": "View all your trophies"
+      },
+      "passport": {
+        "earned": "Earned",
+        "toEarn": "Yet to earn"
+      },
+      "hide": {
+        "title": "Hide trophies",
+        "description": "Hide trophies and milestones from your dashboard and navigation."
+      },
+      "profile": {
+        "title": "Trophies",
+        "engagement": "Engagement",
+        "earned": "Earned",
+        "level": "Level",
+        "longestStreak": "Longest streak",
+        "bestTrophy": "Best trophy",
+        "noTrophies": "No trophies earned yet."
+      },
+      "dashboard": {
+        "trophies": "Trophies",
+        "lastEarned": "Last earned",
+        "total": "{count} total",
+        "none": "No trophies yet",
+        "startToEarn": "Start training to earn trophies.",
+        "nextMilestone": "Next milestone"
+      },
+      "coach": {
+        "noData": "No data yet",
+        "recentMilestones": "Recent milestones",
+        "nearAchievement": "Almost there",
+        "longestStreaks": "Longest streaks",
+        "days": "{count} {count, plural, one {day} other {days}}",
+        "mostActive": "Most active",
+        "sessions": "<b>{count}</b> {count, plural, one {session} other {sessions}}",
+        "stale": "Inactive for a while",
+        "daysAgo": "{count} {count, plural, one {day} other {days}} ago",
+        "noMilestone": "No milestone yet"
+      }
     },
     "category": {
       "training": { "label": "Training", "description": "Milestones for the number of completed workouts." },
@@ -904,6 +1143,12 @@
       "insightsDesc": "Statistics & trends",
       "audit": "Audit log",
       "auditDesc": "Activity log",
+      "maintenance": "Maintenance",
+      "maintenanceDesc": "Machine maintenance: usage- and time-based alerts",
+      "engagement": "Engagement",
+      "engagementDesc": "Trophies, milestones and streaks of your members",
+      "changelog": "Changelog",
+      "changelogDesc": "New features and improvements in GymRebel",
       "settings": "Settings",
       "roleOwner": "Owner",
       "roleStaff": "Staff"

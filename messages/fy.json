@@ -1,4 +1,12 @@
 {
+  "validation": {
+    "nameRequired": "Namme is ferplichte",
+    "invalidVideoUrl": "Unjildige fideo-URL",
+    "invalidDate": "Unjildige datum",
+    "actionRequired": "Beskriuw de útfierde aksje",
+    "endAfterStart": "Eintiid moat nei de starttiid lizze",
+    "invalidInput": "Unjildige ynfier"
+  },
   "member": {
     "home": {
       "metaTitle": "Myn training",
@@ -633,12 +641,63 @@
     "unit": {
       "trainingen": "trainingen",
       "dagen": "dagen",
+      "weken": "wiken",
       "kg": "kg",
       "km": "km",
       "uur": "oere",
       "prs": "PR's",
       "doelen": "doelen",
       "metingen": "mjittingen"
+    },
+    "ui": {
+      "card": {
+        "earned": "Behelle",
+        "earnedOn": "Behelle op {date}"
+      },
+      "celebration": {
+        "close": "Slute",
+        "title": "Trofee behelle!",
+        "next": "Folgjende ({current}/{total})",
+        "celebrate": "Fiere!",
+        "viewAll": "Besjoch al dyn trofeeën"
+      },
+      "passport": {
+        "earned": "Behelle",
+        "toEarn": "Noch te beheljen"
+      },
+      "hide": {
+        "title": "Trofeeën ferstopje",
+        "description": "Ferstopje trofeeën en mylpeallen út dyn dashboard en navigaasje."
+      },
+      "profile": {
+        "title": "Trofeeën",
+        "engagement": "Belutsenheid",
+        "earned": "Behelle",
+        "level": "Nivo",
+        "longestStreak": "Langste streak",
+        "bestTrophy": "Moaiste trofee",
+        "noTrophies": "Noch gjin trofeeën behelle."
+      },
+      "dashboard": {
+        "trophies": "Trofeeën",
+        "lastEarned": "Lêst behelle",
+        "total": "{count} totaal",
+        "none": "Noch gjin trofeeën",
+        "startToEarn": "Begjin mei trene om trofeeën te fertsjinjen.",
+        "nextMilestone": "Folgjende mylpeal"
+      },
+      "coach": {
+        "noData": "Noch gjin gegevens",
+        "recentMilestones": "Resinte mylpeallen",
+        "nearAchievement": "Hast behelle",
+        "longestStreaks": "Langste streaks",
+        "days": "{count} {count, plural, one {dei} other {dagen}}",
+        "mostActive": "Meast aktyf",
+        "sessions": "<b>{count}</b> {count, plural, one {sesje} other {sesjes}}",
+        "stale": "In skoftke ynaktyf",
+        "daysAgo": "{count} {count, plural, one {dei} other {dagen}} lyn",
+        "noMilestone": "Noch gjin mylpeal"
+      }
     },
     "category": {
       "training": { "label": "Training", "description": "Mylpeallen foar it oantal foltôge trainingen." },
@@ -876,6 +935,12 @@
       "insightsDesc": "Statistiken & trends",
       "audit": "Audit log",
       "auditDesc": "Aktiviteitenlochboek",
+      "maintenance": "Underhâld",
+      "maintenanceDesc": "Underhâld fan masines: sinjalearring op gebrûk en tiid",
+      "engagement": "Belutsenheid",
+      "engagementDesc": "Trofeeën, mylpeallen en streaks fan dyn leden",
+      "changelog": "Wizigingslochboek",
+      "changelogDesc": "Nije funksjes en ferbetteringen yn GymRebel",
       "settings": "Ynstellingen",
       "roleOwner": "Eigener",
       "roleStaff": "Meiwurker"

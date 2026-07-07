@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { MachineStatus } from "@prisma/client";
 import { cn } from "@/lib/cn";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -48,6 +49,7 @@ export function MachineMaintenancePanel({
   machine: PanelMachine;
   records: MaintenanceRecordRow[];
 }) {
+  const t = useTranslations("maintenance");
   const [logOpen, setLogOpen] = useState(false);
   const [rulesState, rulesAction, rulesPending] = useActionState<MaintenanceActionState, FormData>(
     saveMaintenanceRules,
@@ -59,7 +61,7 @@ export function MachineMaintenancePanel({
   return (
     <section className="flex max-w-2xl flex-col gap-5 rounded-xl border border-border p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-neutral-900">Onderhoud</h2>
+        <h2 className="text-sm font-semibold text-neutral-900">{t("panel.title")}</h2>
         <MachineStatusBadge status={m.effectiveStatus} level={m.level} />
       </div>
 
@@ -68,7 +70,7 @@ export function MachineMaintenancePanel({
         {ratio != null ? (
           <>
             <div className="flex justify-between text-xs text-neutral-500">
-              <span>Gebruik sinds laatste onderhoud</span>
+              <span>{t("panel.usageSinceLast")}</span>
               <span className="tabular-nums">
                 {m.usageCount} / {m.usageThreshold}
               </span>
@@ -76,16 +78,16 @@ export function MachineMaintenancePanel({
             <ProgressBar value={ratio} className={m.effectiveStatus === "MAINTENANCE_DUE" ? "bg-red-500" : ""} />
           </>
         ) : (
-          <p className="text-xs text-neutral-500">Gebruik sinds onderhoud: {m.usageCount}</p>
+          <p className="text-xs text-neutral-500">{t("panel.usageSince", { count: m.usageCount })}</p>
         )}
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500">
-          <span>Laatste onderhoud: {fmtDate(m.lastMaintenanceAt)}</span>
+          <span>{t("panel.lastMaintenance", { date: fmtDate(m.lastMaintenanceAt) })}</span>
           <span>
-            Volgende: {fmtDate(m.nextMaintenanceAt)}
+            {t("panel.next", { date: fmtDate(m.nextMaintenanceAt) })}
             {m.daysUntilDue != null
               ? m.daysUntilDue <= 0
-                ? ` (${Math.abs(m.daysUntilDue)} d te laat)`
-                : ` (over ${m.daysUntilDue} d)`
+                ? ` ${t("due.overdue", { days: Math.abs(m.daysUntilDue) })}`
+                : ` ${t("due.in", { days: m.daysUntilDue })}`
               : ""}
           </span>
         </div>
@@ -109,14 +111,14 @@ export function MachineMaintenancePanel({
       {/* Snelle acties */}
       <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" onClick={() => setLogOpen(true)}>
-          Onderhoud vastleggen
+          {t("panel.logButton")}
         </Button>
         {m.status === "OUT_OF_SERVICE" || m.status === "IN_MAINTENANCE" ? (
-          <StatusForm machineId={m.id} status="ACTIVE" label="Weer activeren" />
+          <StatusForm machineId={m.id} status="ACTIVE" label={t("status.reactivate")} />
         ) : (
           <>
-            <StatusForm machineId={m.id} status="IN_MAINTENANCE" label="In onderhoud" />
-            <StatusForm machineId={m.id} status="OUT_OF_SERVICE" label="Buiten gebruik" variant="ghost" />
+            <StatusForm machineId={m.id} status="IN_MAINTENANCE" label={t("status.inMaintenance")} />
+            <StatusForm machineId={m.id} status="OUT_OF_SERVICE" label={t("status.outOfService")} variant="ghost" />
           </>
         )}
       </div>
@@ -124,28 +126,28 @@ export function MachineMaintenancePanel({
       {/* Regels */}
       <form action={rulesAction} className="flex flex-col gap-3 rounded-lg bg-surface-2 p-4">
         <input type="hidden" name="machineId" value={m.id} />
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Onderhoudsregels</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{t("panel.rulesTitle")}</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Gebruikslimiet
+            {t("panel.usageLimit")}
             <input
               name="usageThreshold"
               type="number"
               min={0}
               defaultValue={m.usageThreshold ?? ""}
               className={inputClass}
-              placeholder="bv. 500"
+              placeholder={t("panel.usageLimitPlaceholder")}
             />
           </label>
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
-            Interval (dagen)
+            {t("panel.intervalDays")}
             <input
               name="intervalDays"
               type="number"
               min={0}
               defaultValue={m.maintenanceIntervalDays ?? ""}
               className={inputClass}
-              placeholder="bv. 90"
+              placeholder={t("panel.intervalDaysPlaceholder")}
               list="detail-interval-presets"
             />
             <datalist id="detail-interval-presets">
@@ -159,9 +161,9 @@ export function MachineMaintenancePanel({
         </div>
         <div className="flex items-center gap-3">
           <Button type="submit" size="sm" variant="outline" loading={rulesPending}>
-            Regels opslaan
+            {t("panel.saveRules")}
           </Button>
-          {rulesState.ok ? <span className="text-xs text-green-600">Opgeslagen.</span> : null}
+          {rulesState.ok ? <span className="text-xs text-green-600">{t("panel.saved")}</span> : null}
           {rulesState.error ? <span className="text-xs text-red-600">{rulesState.error}</span> : null}
         </div>
       </form>
@@ -170,19 +172,19 @@ export function MachineMaintenancePanel({
       <form action={adjustUsage} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="machineId" value={m.id} />
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Gebruiksteller aanpassen
+          {t("panel.adjustCounter")}
           <input name="usageCount" type="number" min={0} defaultValue={m.usageCount} className={inputClass} />
         </label>
         <Button type="submit" size="sm" variant="ghost">
-          Bijwerken
+          {t("panel.update")}
         </Button>
       </form>
 
       {/* Historie van deze machine */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">Historie</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">{t("panel.history")}</p>
         {records.length === 0 ? (
-          <p className="text-sm text-neutral-500">Nog geen onderhoud vastgelegd.</p>
+          <p className="text-sm text-neutral-500">{t("panel.noHistory")}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {records.map((r) => (
@@ -196,7 +198,7 @@ export function MachineMaintenancePanel({
                 <div className="mt-0.5 text-xs text-neutral-500">
                   {r.performedBy ? `${r.performedBy} · ` : ""}
                   {fmtCost(r.cost) !== "—" ? `${fmtCost(r.cost)} · ` : ""}
-                  teller stond op {r.usageAtService}
+                  {t("panel.counterWas", { count: r.usageAtService })}
                 </div>
                 {r.note ? <p className="mt-1 text-xs text-neutral-500">{r.note}</p> : null}
               </li>
