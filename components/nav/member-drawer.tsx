@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Menu } from "lucide-react";
@@ -9,7 +9,7 @@ import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
 import { reopenOnboarding } from "@/components/member/onboarding";
 import type { UserTenant } from "@/lib/tenants";
 
@@ -154,28 +154,7 @@ export function MemberDrawer({
                   <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
                     Sportschool
                   </p>
-                  <div className="flex flex-col gap-1.5">
-                    {tenants.map((t) => {
-                      const active = t.slug === currentSlug;
-                      return (
-                        <form key={t.id} action={switchTenant}>
-                          <input type="hidden" name="slug" value={t.slug} />
-                          <button
-                            type="submit"
-                            disabled={active}
-                            className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-sm transition-colors ${
-                              active
-                                ? "border-accent/40 bg-accent-soft text-accent"
-                                : "border-border bg-surface-0 text-neutral-700 hover:bg-surface-2"
-                            }`}
-                          >
-                            <span className="truncate font-medium">{t.name}</span>
-                            {active ? <Check className="size-4 shrink-0" /> : null}
-                          </button>
-                        </form>
-                      );
-                    })}
-                  </div>
+                  <TenantDropdown tenants={tenants} currentSlug={currentSlug} />
                 </div>
               ) : null}
 
@@ -223,6 +202,99 @@ export function MemberDrawer({
           )
         : null}
     </>
+  );
+}
+
+/**
+ * Uitklapbare sportschool-keuze: een knop toont de actieve sportschool; klikken
+ * vouwt de rest uit. Elke keuze submit `switchTenant`. Sluit bij klik-buiten en
+ * Escape — visueel gelijk aan de taal-dropdown erboven.
+ */
+function TenantDropdown({
+  tenants,
+  currentSlug,
+}: {
+  tenants: UserTenant[];
+  currentSlug: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const activeName =
+    tenants.find((t) => t.slug === currentSlug)?.name ?? tenants[0]?.name ?? "—";
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: PointerEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className={`flex w-full items-center gap-2.5 rounded-lg border border-border bg-surface-1 px-3 py-2 text-left text-sm text-neutral-700 transition-colors hover:bg-neutral-100 ${
+          open ? "bg-neutral-100" : ""
+        }`}
+      >
+        <Building2 className="size-4 text-accent" />
+        <span className="flex-1 truncate font-medium">{activeName}</span>
+        <ChevronDown
+          className={`size-4 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open ? (
+          <m.ul
+            role="listbox"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-0 top-full z-10 mt-1.5 w-full overflow-hidden rounded-lg border border-border bg-surface-1 p-0.5 shadow-lg"
+          >
+            {tenants.map((t) => {
+              const active = t.slug === currentSlug;
+              return (
+                <li key={t.id} role="option" aria-selected={active}>
+                  <form action={switchTenant}>
+                    <input type="hidden" name="slug" value={t.slug} />
+                    <button
+                      type="submit"
+                      disabled={active}
+                      onClick={() => setOpen(false)}
+                      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
+                        active
+                          ? "font-medium text-accent"
+                          : "text-neutral-700 hover:bg-neutral-100"
+                      }`}
+                    >
+                      <span className="flex-1 truncate">{t.name}</span>
+                      {active ? <Check className="size-4 shrink-0" /> : null}
+                    </button>
+                  </form>
+                </li>
+              );
+            })}
+          </m.ul>
+        ) : null}
+      </AnimatePresence>
+    </div>
   );
 }
 
