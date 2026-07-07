@@ -19,11 +19,16 @@ import { LOCALES, LOCALE_META, isLocale, type AppLocale } from "@/lib/i18n/confi
  * - `variant="menu"`     → compacte rij voor in een dropdown/gebruikersmenu.
  * - `variant="dropdown"` → uitklapbare knop (toont de actieve taal, klapt de rest uit).
  * - `variant="settings"` → radio-kaarten met vlag + volledige naam (accountpagina).
+ *
+ * `direction` bepaalt of de dropdown-lijst naar beneden (standaard) of naar boven
+ * opent — "up" voor een knop onderin een kaart (login-footer).
  */
 export function LanguageSwitcher({
   variant = "menu",
+  direction = "down",
 }: {
   variant?: "menu" | "dropdown" | "settings";
+  direction?: "up" | "down";
 }) {
   const router = useRouter();
   const active = useLocale();
@@ -41,7 +46,15 @@ export function LanguageSwitcher({
   }
 
   if (variant === "dropdown") {
-    return <LanguageDropdown active={active} isPending={isPending} onChange={change} t={t} />;
+    return (
+      <LanguageDropdown
+        active={active}
+        isPending={isPending}
+        onChange={change}
+        t={t}
+        direction={direction}
+      />
+    );
   }
 
   if (variant === "settings") {
@@ -123,11 +136,13 @@ function LanguageDropdown({
   isPending,
   onChange,
   t,
+  direction,
 }: {
   active: string;
   isPending: boolean;
   onChange: (next: AppLocale) => void;
   t: ReturnType<typeof useTranslations>;
+  direction: "up" | "down";
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -180,7 +195,10 @@ function LanguageDropdown({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute bottom-full left-0 z-10 mb-1.5 w-full overflow-hidden rounded-lg border border-border bg-surface-1 p-0.5 shadow-lg"
+            className={cn(
+              "absolute left-0 z-10 w-full overflow-hidden rounded-lg border border-border bg-surface-1 p-0.5 shadow-lg",
+              direction === "up" ? "bottom-full mb-1.5" : "top-full mt-1.5",
+            )}
           >
             {LOCALES.map((code) => {
               const meta = LOCALE_META[code];

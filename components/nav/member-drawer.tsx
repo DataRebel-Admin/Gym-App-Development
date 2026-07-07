@@ -184,7 +184,7 @@ export function MemberDrawer({
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
                   Taal
                 </p>
-                <LanguageSwitcher variant="menu" />
+                <LanguageSwitcher variant="dropdown" />
               </div>
 
               {/* Thema */}
