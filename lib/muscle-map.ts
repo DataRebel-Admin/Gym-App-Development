@@ -47,7 +47,10 @@ export const MUSCLE_REGIONS: Record<MuscleRegion, MuscleRegionMeta> = {
   forearms: { region: "forearms", label: "Onderarmen", views: ["front", "back"] },
   abs: { region: "abs", label: "Buik", views: ["front"] },
   obliques: { region: "obliques", label: "Schuine buik", views: ["front"] },
-  traps: { region: "traps", label: "Trapezius", views: ["front", "back"] },
+  // De gevendorde body-dataset heeft geen aparte trapezius-polygoon aan de
+  // voorkant (alleen in POSTERIOR) → de spier is enkel via het achteraanzicht
+  // benaderbaar op de heatmap. Vgl. de lats-kanttekening.
+  traps: { region: "traps", label: "Trapezius", views: ["back"] },
   lats: { region: "lats", label: "Lats", views: ["back"] },
   upperBack: { region: "upperBack", label: "Bovenrug", views: ["back"] },
   lowerBack: { region: "lowerBack", label: "Onderrug", views: ["back"] },

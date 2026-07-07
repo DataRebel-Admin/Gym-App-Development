@@ -674,9 +674,9 @@
       "training_count_500": { "title": "500 trainingen", "description": "Fiifhûndert trainingen. In wiere feteraan." },
       "consistency_streak_3": { "title": "3 dagen op rige", "description": "Trije dagen efter elkoar traind." },
       "consistency_streak_7": { "title": "7 dagen op rige", "description": "In folle wike elke dei traind." },
-      "consistency_streak_30": { "title": "30 dagen op rige", "description": "In moanne lang deistige dissipline." },
-      "consistency_streak_100": { "title": "100 dagen op rige", "description": "Hûndert dagen efter elkoar. Legindaryske dissipline." },
+      "consistency_weeks_8": { "title": "8 aktive wiken", "description": "Acht wiken lang traind. De gewoante sit deryn." },
       "consistency_member_365": { "title": "1 jier aktyf", "description": "In hiel jier lid fan dyn sportskoalle." },
+      "consistency_weeks_26": { "title": "26 aktive wiken", "description": "Yn in heal jier tiid 26 wiken traind. Izeren dissipline." },
       "strength_first_pr": { "title": "Earste PR", "description": "Dyn earste persoanlike record set." },
       "strength_volume_100": { "title": "100 kg ferpleatst", "description": "Yn totaal 100 kg ferpleatst." },
       "strength_volume_1000": { "title": "1.000 kg ferpleatst", "description": "Tûzen kilo totaal folume tild." },
@@ -696,8 +696,7 @@
       "goals_muscle_gained": { "title": "Spiermassa groeid", "description": "Dyn spiermassa is oantoanber tanommen." },
       "goals_first_measurement": { "title": "Earste lichemsmjitting", "description": "Dyn earste lichemsmjitting dien." },
       "community_profile_complete": { "title": "Profyl kompleet", "description": "Dyn profyl folslein ynfolle." },
-      "community_first_schema_done": { "title": "Earste skema ôfrûne", "description": "Dyn earste trainingsskema folslein trochrûn." },
-      "community_first_measurement": { "title": "Earste mjitting tafoege", "description": "Dyn earste mjitting registrearre." }
+      "community_first_schema_done": { "title": "Earste skema ôfrûne", "description": "Dyn earste trainingsskema folslein trochrûn." }
     }
   },
   "pdf": {

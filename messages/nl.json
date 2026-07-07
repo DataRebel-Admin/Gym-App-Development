@@ -55,6 +55,7 @@
       "daysCount": "{count} dagen",
       "trainerMessage": "Bericht van je trainer",
       "coachNote": "Coach-notitie",
+      "chooseDay": "Kies je trainingsdag",
       "startTraining": "Start training",
       "downloadPdf": "Download als PDF",
       "muscleAnalysis": "Spieranalyse",
@@ -701,9 +702,9 @@
       "training_count_500": { "title": "500 trainingen", "description": "Vijfhonderd trainingen. Een ware veteraan." },
       "consistency_streak_3": { "title": "3 dagen op rij", "description": "Drie dagen achter elkaar getraind." },
       "consistency_streak_7": { "title": "7 dagen op rij", "description": "Een volle week elke dag getraind." },
-      "consistency_streak_30": { "title": "30 dagen op rij", "description": "Een maand lang dagelijkse discipline." },
-      "consistency_streak_100": { "title": "100 dagen op rij", "description": "Honderd dagen onafgebroken. Legendarische discipline." },
+      "consistency_weeks_8": { "title": "8 actieve weken", "description": "Acht weken lang getraind. De gewoonte zit erin." },
       "consistency_member_365": { "title": "1 jaar actief", "description": "Een heel jaar lid van je sportschool." },
+      "consistency_weeks_26": { "title": "26 actieve weken", "description": "In een half jaar tijd 26 weken getraind. IJzeren discipline." },
       "strength_first_pr": { "title": "Eerste PR", "description": "Je eerste persoonlijk record gezet." },
       "strength_volume_100": { "title": "100 kg verplaatst", "description": "In totaal 100 kg verplaatst." },
       "strength_volume_1000": { "title": "1.000 kg verplaatst", "description": "Duizend kilo totaal volume getild." },
@@ -723,8 +724,7 @@
       "goals_muscle_gained": { "title": "Spiermassa gegroeid", "description": "Je spiermassa is aantoonbaar toegenomen." },
       "goals_first_measurement": { "title": "Eerste lichaamsmeting", "description": "Je eerste lichaamsmeting voltooid." },
       "community_profile_complete": { "title": "Profiel compleet", "description": "Je profiel volledig ingevuld." },
-      "community_first_schema_done": { "title": "Eerste schema afgerond", "description": "Je eerste trainingsschema volledig doorlopen." },
-      "community_first_measurement": { "title": "Eerste meting toegevoegd", "description": "Je eerste meting geregistreerd." }
+      "community_first_schema_done": { "title": "Eerste schema afgerond", "description": "Je eerste trainingsschema volledig doorlopen." }
     }
   },
   "pdf": {

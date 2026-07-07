@@ -101,6 +101,14 @@ export function GymContactCard({ gym }: { gym: GymContact }) {
   const socials = asStringMap(gym.socials);
   const socialEntries = Object.entries(socials);
 
+  const hasAnyDetails =
+    hasAddress ||
+    Boolean(gym.contactPhone) ||
+    Boolean(gym.contactEmail) ||
+    Boolean(gym.website) ||
+    hourEntries.length > 0 ||
+    socialEntries.length > 0;
+
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-surface-1 shadow-sm">
       {/* Kop: logo + naam */}
@@ -126,6 +134,21 @@ export function GymContactCard({ gym }: { gym: GymContact }) {
       </div>
 
       <div className="divide-y divide-neutral-100">
+        {!hasAnyDetails ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <span className="flex size-11 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+              <MapPin className="size-5" />
+            </span>
+            <p className="text-sm font-medium text-neutral-700">
+              Nog geen contactgegevens
+            </p>
+            <p className="max-w-xs text-xs text-neutral-500">
+              De sportschool heeft nog geen adres, openingstijden of
+              contactgegevens ingevuld.
+            </p>
+          </div>
+        ) : null}
+
         {hasAddress ? (
           <Row icon={<MapPin className="size-4" />}>
             <div className="flex items-start justify-between gap-3">

@@ -2,6 +2,7 @@ import { PrismaClient, MachineType, Role, Locale, MeasurementSource, GoalMetric 
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { snapshotOf } from "../lib/schema-diff";
+import { formatExerciseName } from "../lib/exercise-name";
 
 const prisma = new PrismaClient();
 
@@ -52,12 +53,25 @@ type TemplateSpec = {
 /** Herbruikbare trainingsdag in de bibliotheek (WorkoutTemplate kind = DAY). */
 type DayTemplateSpec = { name: string; notes?: string; items: ItemSpec[] };
 
+type TenantContactSpec = {
+  addressLine?: string;
+  postalCode?: string;
+  city?: string;
+  country?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  website?: string;
+  openingHours?: Record<string, string>;
+  socials?: Record<string, string>;
+};
+
 type TenantSpec = {
   slug: string;
   name: string;
   accentColor: string;
   locale: Locale;
   aiEnabled?: boolean;
+  contact?: TenantContactSpec;
   owner: { email: string; name: string };
   staff?: { email: string; name: string }[];
   members: { email: string; name: string }[];
@@ -135,16 +149,37 @@ async function createTemplate(
   return tpl;
 }
 
+/**
+ * Map de demo-contactgegevens naar Tenant-kolommen. Alleen ingevulde velden
+ * worden meegenomen; JSON-velden (openingstijden/socials) passeren als object.
+ */
+function contactData(contact: TenantContactSpec | undefined) {
+  if (!contact) return {};
+  return {
+    addressLine: contact.addressLine ?? null,
+    postalCode: contact.postalCode ?? null,
+    city: contact.city ?? null,
+    country: contact.country ?? null,
+    contactPhone: contact.contactPhone ?? null,
+    contactEmail: contact.contactEmail ?? null,
+    website: contact.website ?? null,
+    openingHours: contact.openingHours ?? undefined,
+    socials: contact.socials ?? undefined,
+  };
+}
+
 async function seedTenant(spec: TenantSpec) {
+  const contact = contactData(spec.contact);
   const tenant = await prisma.tenant.upsert({
     where: { slug: spec.slug },
-    update: { name: spec.name, accentColor: spec.accentColor, locale: spec.locale },
+    update: { name: spec.name, accentColor: spec.accentColor, locale: spec.locale, ...contact },
     create: {
       slug: spec.slug,
       name: spec.name,
       accentColor: spec.accentColor,
       locale: spec.locale,
       aiEnabled: spec.aiEnabled ?? false,
+      ...contact,
     },
   });
 
@@ -290,26 +325,41 @@ async function seedTenant(spec: TenantSpec) {
   const catalogIdByName = new Map(
     catalogItems.map((c) => [c.name.toLowerCase(), c.id])
   );
+  // Displaynaam van een catalogus-gekoppelde oefening = de (Engelse) catalogusnaam,
+  // exact zoals een owner-add via /owner/exercises die opslaat. Zo geen NL-namen
+  // als "Beenpers"; de spec-`name` blijft alleen de referentiesleutel hieronder.
+  const catalogNameByKey = new Map(
+    catalogItems.map((c) => [c.name.toLowerCase(), c.name])
+  );
 
-  // Oefeningen.
-  const exercises = await Promise.all(
-    spec.exercises.map((e) =>
-      prisma.exercise.create({
+  // Oefeningen. `e.name` blijft de stabiele sleutel voor de schema-items; de
+  // opgeslagen naam volgt de catalogus (Engels) waar een koppeling bestaat.
+  const created = await Promise.all(
+    spec.exercises.map(async (e) => {
+      const catalogName = e.catalogName
+        ? catalogNameByKey.get(e.catalogName.toLowerCase())
+        : undefined;
+      const displayName = catalogName
+        ? formatExerciseName(catalogName)
+        : e.name;
+      const row = await prisma.exercise.create({
         data: {
           tenantId: tenant.id,
-          name: e.name,
+          name: displayName,
           targetMuscle: e.targetMuscle,
           machineId: e.machine ? machineByName.get(e.machine)?.id ?? null : null,
           catalogId: e.catalogName
             ? catalogIdByName.get(e.catalogName.toLowerCase()) ?? null
             : null,
           exerciseType: e.exerciseType ?? "strength",
-          description: `${e.name} — gericht op ${e.targetMuscle.toLowerCase()}.`,
+          description: `${displayName} — gericht op ${e.targetMuscle.toLowerCase()}.`,
         },
-      })
-    )
+      });
+      return { key: e.name, row };
+    })
   );
-  const exerciseByName = new Map(exercises.map((e) => [e.name, e]));
+  const exercises = created.map((c) => c.row);
+  const exerciseByName = new Map(created.map((c) => [c.key, c.row]));
 
   // Library-schema's (kind = SCHEMA), met dagen, coach-notities en tempo.
   for (const tpl of spec.templates) {
@@ -864,6 +914,28 @@ async function main() {
     name: "GymRebel Sportschool",
     accentColor: "#E84B1F",
     locale: Locale.NL,
+    contact: {
+      addressLine: "Krachtstraat 12",
+      postalCode: "8911 AB",
+      city: "Leeuwarden",
+      country: "Nederland",
+      contactPhone: "058 123 4567",
+      contactEmail: "info@gymrebel.nl",
+      website: "https://gymrebel.nl",
+      openingHours: {
+        mon: "06:00 - 23:00",
+        tue: "06:00 - 23:00",
+        wed: "06:00 - 23:00",
+        thu: "06:00 - 23:00",
+        fri: "06:00 - 22:00",
+        sat: "08:00 - 20:00",
+        sun: "08:00 - 18:00",
+      },
+      socials: {
+        instagram: "https://instagram.com/gymrebel",
+        facebook: "https://facebook.com/gymrebel",
+      },
+    },
     owner: { email: "keimpe@gymrebel.nl", name: "Keimpe Krachtpatser" },
     staff: [{ email: "coach@gymrebel.nl", name: "Coen Coach" }],
     members: [
@@ -1096,6 +1168,27 @@ async function main() {
     name: "IronHouse Amsterdam",
     accentColor: "#2563EB", // blauw i.p.v. oranje
     locale: Locale.EN,
+    contact: {
+      addressLine: "Ironlaan 88",
+      postalCode: "1017 CD",
+      city: "Amsterdam",
+      country: "Netherlands",
+      contactPhone: "020 987 6543",
+      contactEmail: "hello@ironhouse.nl",
+      website: "https://ironhouse.nl",
+      openingHours: {
+        mon: "05:30 - 23:59",
+        tue: "05:30 - 23:59",
+        wed: "05:30 - 23:59",
+        thu: "05:30 - 23:59",
+        fri: "05:30 - 23:00",
+        sat: "07:00 - 21:00",
+        sun: "07:00 - 21:00",
+      },
+      socials: {
+        instagram: "https://instagram.com/ironhouse",
+      },
+    },
     owner: { email: "owner@ironhouse.nl", name: "Ivo IJzer" },
     // Bewust hetzelfde e-mailadres als een GymRebel-lid: dezelfde persoon kan
     // bij meerdere sportscholen sporten (e-mail is uniek *per tenant*).

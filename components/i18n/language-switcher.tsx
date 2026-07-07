@@ -7,6 +7,7 @@ import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/cn";
 import { Check, ChevronDown } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/toast";
+import { Dropdown } from "@/components/ui/dropdown";
 import { setLocale } from "@/lib/i18n/actions";
 import { LocaleFlag } from "@/components/i18n/locale-flag";
 import { LOCALES, LOCALE_META, isLocale, type AppLocale } from "@/lib/i18n/config";
@@ -19,11 +20,12 @@ import { LOCALES, LOCALE_META, isLocale, type AppLocale } from "@/lib/i18n/confi
  * - `variant="menu"`     → compacte rij voor in een dropdown/gebruikersmenu.
  * - `variant="dropdown"` → uitklapbare knop (toont de actieve taal, klapt de rest uit).
  * - `variant="settings"` → radio-kaarten met vlag + volledige naam (accountpagina).
+ * - `variant="compact"`  → vlag-icoonknop voor in een header (opent naar beneden).
  */
 export function LanguageSwitcher({
   variant = "menu",
 }: {
-  variant?: "menu" | "dropdown" | "settings";
+  variant?: "menu" | "dropdown" | "settings" | "compact";
 }) {
   const router = useRouter();
   const active = useLocale();
@@ -42,6 +44,55 @@ export function LanguageSwitcher({
 
   if (variant === "dropdown") {
     return <LanguageDropdown active={active} isPending={isPending} onChange={change} t={t} />;
+  }
+
+  if (variant === "compact") {
+    const activeCode = isLocale(active) ? active : "nl";
+    return (
+      <Dropdown
+        trigger={({ toggle }) => (
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={isPending}
+            aria-label={t("switchLabel")}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-surface-1 text-neutral-700 transition-colors hover:bg-neutral-50 focus-ring disabled:opacity-60"
+          >
+            <LocaleFlag code={activeCode} className="h-4 w-6" />
+          </button>
+        )}
+      >
+        {({ close }) => (
+          <div role="group" aria-label={t("switchLabel")} className="flex flex-col gap-0.5">
+            {LOCALES.map((code) => {
+              const meta = LOCALE_META[code];
+              const selected = isLocale(active) && active === code;
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => {
+                    change(code);
+                    close();
+                  }}
+                  disabled={isPending}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors disabled:opacity-60",
+                    selected
+                      ? "font-medium text-accent"
+                      : "text-neutral-700 hover:bg-neutral-100",
+                  )}
+                >
+                  <LocaleFlag code={code} />
+                  <span className="flex-1">{meta.label}</span>
+                  {selected ? <Check className="size-4" /> : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Dropdown>
+    );
   }
 
   if (variant === "settings") {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/cn";
 import { logout } from "@/app/login/actions";
 import { Dropdown, DropdownItem } from "@/components/ui/dropdown";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
@@ -18,12 +19,16 @@ export function UserMenu({
   email,
   image,
   support,
+  compact = false,
 }: {
   name: string | null;
   email: string | null;
   image?: string | null;
   /** Aanwezig voor tenant-gebruikers → toont "Contact opnemen" (opent modal). */
   support?: SupportInitial | null;
+  /** Verbergt de naam-tekst onder 2xl (alleen avatar) — voor drukke headers
+   *  (owner: bel + switcher + badge concurreren om ruimte). */
+  compact?: boolean;
 }) {
   const t = useTranslations("nav.userMenu");
   const tLang = useTranslations("account.language");
@@ -48,7 +53,15 @@ export function UserMenu({
               initial
             )}
           </span>
-          <span className="max-w-[10rem] truncate text-sm font-medium text-neutral-700">
+          <span
+            className={cn(
+              "max-w-[10rem] truncate text-sm font-medium text-neutral-700",
+              // Header-inhoud is gecapt op max-w-7xl (1280px) → breder scherm geeft
+              // geen extra ruimte. Bij een drukke header (owner) daarom de naam
+              // altijd verbergen (staat in het dropdown-menu), niet pas vanaf 2xl.
+              compact && "hidden"
+            )}
+          >
             {display}
           </span>
         </button>

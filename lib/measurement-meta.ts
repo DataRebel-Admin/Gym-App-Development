@@ -162,14 +162,32 @@ export const POSE_LABEL: Record<string, string> = {
   BACK: "Achterkant",
 };
 
-/** Formatteert een metric-waarde met het juiste aantal decimalen + eenheid. */
-export function formatMetric(key: MetricKey, value: number | null | undefined): string {
+/** Alleen het getal (zonder eenheid), met het juiste aantal decimalen. */
+export function formatMetricNumber(key: MetricKey, value: number | null | undefined): string {
   if (value == null) return "—";
   const def = METRIC_BY_KEY[key];
   const num = def.integer ? Math.round(value) : Number(value.toFixed(def.decimals));
-  const formatted = num.toLocaleString("nl-NL", {
+  return num.toLocaleString("nl-NL", {
     minimumFractionDigits: def.integer ? 0 : def.decimals,
     maximumFractionDigits: def.integer ? 0 : def.decimals,
   });
-  return def.unit ? `${formatted} ${def.unit}` : formatted;
+}
+
+/**
+ * Splitst een metric-waarde in getal + eenheid, zodat de UI ze apart kan
+ * stylen (bv. eenheid kleiner, op de baseline) en op één regel kan houden.
+ */
+export function formatMetricParts(
+  key: MetricKey,
+  value: number | null | undefined
+): { number: string; unit: string } {
+  if (value == null) return { number: "—", unit: "" };
+  return { number: formatMetricNumber(key, value), unit: METRIC_BY_KEY[key].unit };
+}
+
+/** Formatteert een metric-waarde met het juiste aantal decimalen + eenheid. */
+export function formatMetric(key: MetricKey, value: number | null | undefined): string {
+  if (value == null) return "—";
+  const { number, unit } = formatMetricParts(key, value);
+  return unit ? `${number} ${unit}` : number;
 }

@@ -101,18 +101,27 @@ export default async function ActiveSessionPage() {
     });
   }
 
+  // Gekozen trainingsdag (je doet één dag per sessie). Alleen honoreren als de dag
+  // nog in het schema bestaat — anders vallen we terug op het hele schema zodat de
+  // sessie nooit leeg is als een dag intussen is verwijderd.
+  const selectedDayId =
+    open.dayId && template.days.some((d) => d.id === open.dayId) ? open.dayId : null;
+
   // Bouw één geordende lijst, gegroepeerd op trainingsdag wanneer die er zijn.
   // (Na de dag-backfill zitten alle items in een dag; oudere schema's vallen
-  // terug op de platte items-lijst.)
+  // terug op de platte items-lijst.) Is er een dag gekozen, dan filteren we tot
+  // die dag en tonen we altijd de dagnaam als kop (bevestiging welke dag je doet).
   type Item = (typeof template.items)[number];
   const ordered: { item: Item; dayName: string | null }[] =
     template.days.length > 0
-      ? template.days.flatMap((d) =>
-          d.items.map((item) => ({
-            item,
-            dayName: template.days.length > 1 ? d.name : null,
-          }))
-        )
+      ? template.days
+          .filter((d) => !selectedDayId || d.id === selectedDayId)
+          .flatMap((d) =>
+            d.items.map((item) => ({
+              item,
+              dayName: selectedDayId || template.days.length > 1 ? d.name : null,
+            }))
+          )
       : template.items.map((item) => ({ item, dayName: null }));
 
   const exercises: ActiveExercise[] = ordered.map(({ item, dayName }) => {

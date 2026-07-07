@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { formatMetric, isMetricEnabled, type MetricKey } from "@/lib/measurement-meta";
+import { formatMetric, formatMetricParts, isMetricEnabled, type MetricKey } from "@/lib/measurement-meta";
 import type { DeltaItem } from "@/lib/measurements";
 
 /** Headline-voortgangsindicatoren: huidige waarde + verschil t.o.v. de vorige meting. */
@@ -27,6 +27,7 @@ export function ProgressDeltas({
           d.delta == null
             ? "—"
             : `${arrow} ${d.delta > 0 ? "+" : ""}${formatMetric(d.key, d.delta)}`;
+        const value = formatMetricParts(d.key, d.current);
         return (
           <div
             key={d.key}
@@ -35,10 +36,13 @@ export function ProgressDeltas({
             <p className="truncate text-xs text-neutral-500" title={d.label}>
               {d.label}
             </p>
-            <p className="mt-1 break-words font-display text-xl font-bold leading-tight tabular-nums text-neutral-900 sm:text-2xl">
-              {d.current != null ? formatMetric(d.key, d.current) : "—"}
+            <p className="mt-1 flex items-baseline gap-1 whitespace-nowrap font-display leading-tight tabular-nums text-neutral-900">
+              <span className="text-xl font-bold sm:text-2xl">{value.number}</span>
+              {value.unit ? (
+                <span className="text-sm font-semibold text-neutral-500">{value.unit}</span>
+              ) : null}
             </p>
-            <p className={cn("mt-0.5 break-words text-xs font-semibold tabular-nums", tone)}>
+            <p className={cn("mt-0.5 whitespace-nowrap text-xs font-semibold tabular-nums", tone)}>
               {deltaText}
             </p>
           </div>

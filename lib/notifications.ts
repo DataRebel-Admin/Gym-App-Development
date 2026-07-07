@@ -22,25 +22,41 @@ export type NotificationCategory =
 
 export type NotificationChannel = "email" | "inApp" | "push";
 
-/** Standaardwaarden — gelijk aan de UI (`notifications-form.tsx`). */
+/** Standaardwaarden per kanaal (categorie-onafhankelijk). */
 export const NOTIFICATION_DEFAULTS: Record<NotificationChannel, boolean> = {
-  email: true,
+  email: false,
   inApp: true,
   push: false,
 };
+
+/**
+ * Categorieën waarvoor e-mail standaard AAN staat. Voor alle overige categorieën
+ * staat e-mail standaard uit — de gebruiker kan het per categorie aanzetten onder
+ * /account/meldingen. In-app en push volgen `NOTIFICATION_DEFAULTS`.
+ */
+const EMAIL_ON_BY_DEFAULT: ReadonlySet<NotificationCategory> = new Set(["schemas"]);
+
+/** De standaardwaarde voor een (categorie × kanaal) — gespiegeld in de UI (`notifications-form.tsx`). */
+export function notificationDefault(
+  category: NotificationCategory,
+  channel: NotificationChannel
+): boolean {
+  if (channel === "email") return EMAIL_ON_BY_DEFAULT.has(category);
+  return NOTIFICATION_DEFAULTS[channel];
+}
 
 type PrefsShape = Record<string, Partial<Record<NotificationChannel, boolean>>>;
 
 /**
  * Pure check (zonder DB) — bruikbaar als je de prefs al hebt opgehaald.
- * Onbekende/ontbrekende waarden vallen terug op de standaard van het kanaal.
+ * Onbekende/ontbrekende waarden vallen terug op de standaard van (categorie × kanaal).
  */
 export function prefAllows(
   prefs: unknown,
   category: NotificationCategory,
   channel: NotificationChannel
 ): boolean {
-  const fallback = NOTIFICATION_DEFAULTS[channel];
+  const fallback = notificationDefault(category, channel);
   if (!prefs || typeof prefs !== "object") return fallback;
   const row = (prefs as PrefsShape)[category];
   if (!row || typeof row !== "object") return fallback;

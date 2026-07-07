@@ -9,6 +9,7 @@ import { getNotificationOverview } from "@/lib/notifications";
 import { MemberNav } from "@/components/nav/member-nav";
 import { MemberDrawer } from "@/components/nav/member-drawer";
 import { NotificationBell } from "@/components/nav/notification-bell";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { PageTransition } from "@/components/motion/page-transition";
 import { MemberOnboarding } from "@/components/member/onboarding";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
@@ -63,6 +64,7 @@ export default async function MemberLayout({
           <span className="truncate">{tenant?.name ?? "GymRebel"}</span>
         </Link>
         <div className="flex shrink-0 items-center gap-2">
+          <LanguageSwitcher variant="compact" />
           <NotificationBell
             unreadCount={notifications.unreadCount}
             items={notifications.items}

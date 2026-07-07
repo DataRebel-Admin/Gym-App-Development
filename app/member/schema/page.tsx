@@ -146,6 +146,12 @@ export default async function MemberSchemaPage() {
   }));
   const flatItems: ChecklistItem[] = schema.items.map(toChecklistItem);
   const multiDay = days.length > 1;
+  // Per-dag startopties: je doet één trainingsdag per sessie.
+  const dayOptions = schema.days.map((d) => ({
+    id: d.id,
+    name: d.name,
+    count: d.items.length,
+  }));
 
   return (
     <Fullscreenable className="flex flex-1 flex-col gap-5 px-5 py-8">
@@ -240,14 +246,36 @@ export default async function MemberSchemaPage() {
         <SchemaChecklist items={flatItems} />
       )}
 
-      <form action={startSession}>
-        <button
-          type="submit"
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-5 text-center text-lg font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
-        >
-          <Play className="size-5 fill-current" /> {t("startTraining")}
-        </button>
-      </form>
+      {multiDay ? (
+        <div className="mt-2 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-neutral-900">{t("chooseDay")}</p>
+          {dayOptions.map((d) => (
+            <form key={d.id} action={startSession}>
+              <input type="hidden" name="dayId" value={d.id} />
+              <button
+                type="submit"
+                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-accent-gradient px-6 py-4 text-left font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
+              >
+                <span className="flex items-center gap-2 text-lg">
+                  <Play className="size-5 fill-current" /> {d.name}
+                </span>
+                <span className="text-sm font-medium text-accent-foreground/80">
+                  {t("exercisesCount", { count: d.count })}
+                </span>
+              </button>
+            </form>
+          ))}
+        </div>
+      ) : (
+        <form action={startSession}>
+          <button
+            type="submit"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-5 text-center text-lg font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
+          >
+            <Play className="size-5 fill-current" /> {t("startTraining")}
+          </button>
+        </form>
+      )}
 
       <a
         href="/member/schema/pdf"

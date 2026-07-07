@@ -10,6 +10,7 @@ import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
 import { suggestMachineType } from "@/lib/machine";
 import { buildCatalogWhere, myEquipmentValues } from "@/lib/catalog";
 import { getCatalogPreview, type CatalogPreview } from "@/lib/exercise";
+import { formatExerciseName } from "@/lib/exercise-name";
 import { getCurrentTenant } from "@/lib/tenant";
 import {
   EXERCISE_TYPE_KEYS,
@@ -62,10 +63,11 @@ export async function addCatalogExerciseToGym(formData: FormData) {
     validMachineId = machine?.id ?? null;
   }
 
+  const displayName = formatExerciseName(catalog.name);
   const created = await prisma.exercise.create({
     data: {
       tenantId: owner.tenantId,
-      name: catalog.name,
+      name: displayName,
       targetMuscle: catalog.target,
       catalogId,
       machineId: validMachineId,
@@ -78,7 +80,7 @@ export async function addCatalogExerciseToGym(formData: FormData) {
     tenantId: owner.tenantId,
     targetType: "Exercise",
     targetId: created.id,
-    metadata: { name: catalog.name },
+    metadata: { name: displayName },
   });
 
   revalidatePath("/owner/exercises");

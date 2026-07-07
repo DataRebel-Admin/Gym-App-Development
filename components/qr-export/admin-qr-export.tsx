@@ -123,12 +123,12 @@ export function AdminQrExport({
     <div className="flex flex-col gap-5">
       {/* Tenant-kiezer */}
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-surface-1 p-4">
-        <label className="flex flex-col gap-1.5 text-sm">
+        <label className="flex w-full flex-col gap-1.5 text-sm sm:w-auto">
           <span className="font-medium text-neutral-700">Sportschool</span>
           <Select
             value={selectedTenantId}
             onChange={(e) => chooseTenant(e.target.value)}
-            className="w-64"
+            className="w-full sm:w-64"
           >
             <option value="">— Kies een sportschool —</option>
             <option value="all">Alle sportscholen (gebundeld)</option>
@@ -140,7 +140,7 @@ export function AdminQrExport({
           </Select>
         </label>
         {isAll ? (
-          <Button onClick={() => setAllOpen(true)} className="ml-auto">
+          <Button onClick={() => setAllOpen(true)} className="w-full sm:ml-auto sm:w-auto">
             <QrCode className="size-4" />
             Alle QR-codes exporteren
           </Button>
@@ -167,7 +167,7 @@ export function AdminQrExport({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Zoek apparaat…"
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
             />
             <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-auto">
               <option value="">Alle types</option>

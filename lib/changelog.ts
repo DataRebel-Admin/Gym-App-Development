@@ -41,11 +41,36 @@ export type ChangelogEntry = {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2026.8",
+    date: "2026-07-07",
+    title: "Focus op je trainingsdag",
+    summary:
+      "Train gerichter per dag, met een rustiger inbox en nog nettere details.",
+    changes: [
+      {
+        type: "new",
+        text: "Kies je trainingsdag bij de start: heeft een schema meerdere dagen, dan pak je er één per keer en zie je meteen precies de oefeningen van die dag.",
+      },
+      {
+        type: "improved",
+        text: "E-mailmeldingen staan voortaan standaard uit — behalve voor een nieuw schema. Elke categorie zet je zelf aan onder Meldingen, zodat je inbox rustig blijft.",
+      },
+      {
+        type: "improved",
+        text: "Oefeningen uit de catalogus krijgen een verzorgde, correct geschreven naam.",
+      },
+      {
+        type: "improved",
+        text: "Diverse verfijningen in weergave en navigatie, waaronder een compacte taalkiezer en een nettere presentatie van je metingen.",
+      },
+    ],
+  },
+  {
     version: "2026.7",
     date: "2026-07-04",
     title: "Meertalig & je persoonlijke AI-coach",
     summary:
-      "De app spreekt nu drie talen en krijgt er een slimme assistent bij voor coaches én leden.",
+      "De app spreekt nu drie talen en krijgt er een slimme assistent bij — plus meer grip op je training en apparatuur.",
     changes: [
       {
         type: "new",
@@ -54,6 +79,18 @@ export const CHANGELOG: ChangelogEntry[] = [
       {
         type: "new",
         text: "AI Coach & Assistent: uitleg bij oefeningen, alternatieven en een samenvatting van de voortgang van een lid. De AI stelt alleen voor — jij bevestigt met één klik voordat er iets wijzigt.",
+      },
+      {
+        type: "new",
+        text: "Meer grip tijdens de training: sla een oefening over, kies een alternatief als een apparaat bezet is, zet de rusttimers aan of uit en rond af of annuleer wanneer je wilt.",
+      },
+      {
+        type: "new",
+        text: "QR-codes van al je apparaten in één keer downloaden als printklare A4-pagina of los bestand — in je eigen huisstijl. En je ziet nu hoe vaak elke apparaat-QR gescand wordt.",
+      },
+      {
+        type: "improved",
+        text: "Spiergroep-vergelijking voor leden: zie in één oogopslag of je traint zoals je schema bedoeld is, en welke spiergroepen achterblijven.",
       },
       {
         type: "improved",

@@ -171,45 +171,49 @@ export default async function TenantDetailPage({
         ) : (
           <ul className="flex flex-col divide-y divide-neutral-100">
             {users.map((u) => (
-              <li key={u.id} className="flex flex-wrap items-center gap-3 py-3">
-                <Avatar name={u.name ?? u.email} size="sm" status={u.active ? "online" : "offline"} />
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-2 truncate font-medium text-neutral-900">
-                    {u.name ?? u.email}
-                    {!u.active ? <Badge tone="warning">gedeactiveerd</Badge> : null}
-                  </p>
-                  <p className="truncate text-xs text-neutral-500">{u.email}</p>
+              <li key={u.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar name={u.name ?? u.email} size="sm" status={u.active ? "online" : "offline"} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 truncate font-medium text-neutral-900">
+                      {u.name ?? u.email}
+                      {!u.active ? <Badge tone="warning">gedeactiveerd</Badge> : null}
+                    </p>
+                    <p className="truncate text-xs text-neutral-500">{u.email}</p>
+                  </div>
                 </div>
-                <form action={setMemberRole} className="flex items-center gap-1">
-                  <input type="hidden" name="tenantId" value={tenant.id} />
-                  <input type="hidden" name="userId" value={u.id} />
-                  <select
-                    name="role"
-                    defaultValue={u.role}
-                    className="rounded-lg border border-neutral-300 px-2 py-1 text-sm"
-                  >
-                    <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
-                    <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
-                  </select>
-                  <button type="submit" className="rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
-                    Wijzig
-                  </button>
-                </form>
-                <form action={setMemberActive}>
-                  <input type="hidden" name="tenantId" value={tenant.id} />
-                  <input type="hidden" name="userId" value={u.id} />
-                  <input type="hidden" name="active" value={u.active ? "false" : "true"} />
-                  <button type="submit" className="rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
-                    {u.active ? "Deactiveren" : "Activeren"}
-                  </button>
-                </form>
-                <form action={deleteMember}>
-                  <input type="hidden" name="tenantId" value={tenant.id} />
-                  <input type="hidden" name="userId" value={u.id} />
-                  <button type="submit" className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
-                    Verwijder
-                  </button>
-                </form>
+                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                  <form action={setMemberRole} className="flex min-w-0 flex-1 items-center gap-1 sm:flex-initial">
+                    <input type="hidden" name="tenantId" value={tenant.id} />
+                    <input type="hidden" name="userId" value={u.id} />
+                    <select
+                      name="role"
+                      defaultValue={u.role}
+                      className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm sm:flex-initial"
+                    >
+                      <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
+                      <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
+                    </select>
+                    <button type="submit" className="shrink-0 rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                      Wijzig
+                    </button>
+                  </form>
+                  <form action={setMemberActive}>
+                    <input type="hidden" name="tenantId" value={tenant.id} />
+                    <input type="hidden" name="userId" value={u.id} />
+                    <input type="hidden" name="active" value={u.active ? "false" : "true"} />
+                    <button type="submit" className="rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                      {u.active ? "Deactiveren" : "Activeren"}
+                    </button>
+                  </form>
+                  <form action={deleteMember}>
+                    <input type="hidden" name="tenantId" value={tenant.id} />
+                    <input type="hidden" name="userId" value={u.id} />
+                    <button type="submit" className="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50">
+                      Verwijder
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>

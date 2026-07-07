@@ -55,6 +55,7 @@
       "daysCount": "{count} days",
       "trainerMessage": "Message from your trainer",
       "coachNote": "Coach note",
+      "chooseDay": "Choose your training day",
       "startTraining": "Start workout",
       "downloadPdf": "Download as PDF",
       "muscleAnalysis": "Muscle analysis",
@@ -701,9 +702,9 @@
       "training_count_500": { "title": "500 workouts", "description": "Five hundred workouts. A true veteran." },
       "consistency_streak_3": { "title": "3 days in a row", "description": "Trained three days in a row." },
       "consistency_streak_7": { "title": "7 days in a row", "description": "Trained every day for a full week." },
-      "consistency_streak_30": { "title": "30 days in a row", "description": "A whole month of daily discipline." },
-      "consistency_streak_100": { "title": "100 days in a row", "description": "A hundred days unbroken. Legendary discipline." },
+      "consistency_weeks_8": { "title": "8 active weeks", "description": "Trained across eight weeks. The habit has taken hold." },
       "consistency_member_365": { "title": "1 year active", "description": "A whole year as a member of your gym." },
+      "consistency_weeks_26": { "title": "26 active weeks", "description": "Trained 26 weeks within half a year. Iron discipline." },
       "strength_first_pr": { "title": "First PR", "description": "You set your first personal record." },
       "strength_volume_100": { "title": "100 kg moved", "description": "Moved 100 kg in total." },
       "strength_volume_1000": { "title": "1,000 kg moved", "description": "Lifted a thousand kilos of total volume." },
@@ -723,8 +724,7 @@
       "goals_muscle_gained": { "title": "Muscle gained", "description": "Your muscle mass has measurably increased." },
       "goals_first_measurement": { "title": "First body measurement", "description": "You completed your first body measurement." },
       "community_profile_complete": { "title": "Profile complete", "description": "You filled in your profile completely." },
-      "community_first_schema_done": { "title": "First schedule completed", "description": "You completed your first training schedule in full." },
-      "community_first_measurement": { "title": "First measurement added", "description": "You logged your first measurement." }
+      "community_first_schema_done": { "title": "First schedule completed", "description": "You completed your first training schedule in full." }
     }
   },
   "pdf": {

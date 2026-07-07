@@ -10,6 +10,7 @@ import {
   unskipExercise,
   substituteExercise,
   getExerciseAlternatives,
+  cancelSession,
 } from "../actions";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import { ExerciseBlock } from "./exercise-block";
@@ -18,7 +19,7 @@ import { CompletionScreen } from "./completion-screen";
 import { useRestTimer, FloatingTimer } from "./rest-timer";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { Modal } from "@/components/ui/modal";
-import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell } from "@/components/ui/icons";
+import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
 /** Lokale (optimistische) staat van één set. */
@@ -205,6 +206,7 @@ export function ActiveSession({
   // Bevestigings-/keuze-modals.
   const [skipFor, setSkipFor] = useState<ActiveExercise | null>(null);
   const [altFor, setAltFor] = useState<ActiveExercise | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
   function patchSet(exerciseId: string, idx: number, patch: Partial<SetValue>) {
     setSetState((prev) => {
@@ -590,16 +592,27 @@ export function ActiveSession({
           );
         })}
 
-        <button
-          type="button"
-          onClick={() => {
-            setDismissed(false);
-            setShowCompletion(true);
-          }}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
-        >
-          <Check className="size-5" /> {t("finishWorkout")}
-        </button>
+        <div className="flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setDismissed(false);
+              setShowCompletion(true);
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
+          >
+            <Check className="size-5" /> {t("finishWorkout")}
+          </button>
+
+          {/* Annuleren — subtiel onder afronden, met bevestiging. */}
+          <button
+            type="button"
+            onClick={() => setConfirmCancel(true)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-2xl px-6 py-3 text-center text-sm font-medium text-neutral-400 active:bg-surface-2"
+          >
+            <X className="size-4" /> {t("cancelWorkout")}
+          </button>
+        </div>
       </div>
 
       <FloatingTimer timer={timer} />
@@ -623,6 +636,33 @@ export function ActiveSession({
             className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground active:opacity-90"
           >
             {t("skipConfirm")}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Workout annuleren bevestigen */}
+      <Modal
+        open={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        title={t("cancelConfirmTitle")}
+      >
+        <p className="text-sm text-neutral-600">{t("cancelConfirmBody")}</p>
+        <div className="mt-5 flex flex-col gap-2">
+          <form action={cancelSession}>
+            <input type="hidden" name="sessionId" value={sessionId} />
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white active:opacity-90"
+            >
+              {t("cancelConfirm")}
+            </button>
+          </form>
+          <button
+            type="button"
+            onClick={() => setConfirmCancel(false)}
+            className="w-full rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+          >
+            {t("keepWorkout")}
           </button>
         </div>
       </Modal>

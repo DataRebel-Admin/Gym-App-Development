@@ -47,8 +47,16 @@ export async function markActiveSchemaSeen(): Promise<void> {
   }
 }
 
-/** Start (of hervat) een trainingssessie en ga naar de actieve-sessie-pagina. */
-export async function startSession() {
+/**
+ * Start (of hervat) een trainingssessie en ga naar de actieve-sessie-pagina.
+ *
+ * Bij een schema met meerdere trainingsdagen kiest het lid welke dag het gaat
+ * doen (je doet één dag per keer) — de gekozen `dayId` wordt op de sessie
+ * vastgelegd zodat de actieve sessie tot die dag filtert. Geen dag gekozen (of
+ * één-dag-schema) → NULL = heel schema. Is er al een open sessie, dan hervatten
+ * we die en negeren we de dagkeuze (één workout tegelijk).
+ */
+export async function startSession(formData?: FormData) {
   const member = await requireMember();
 
   const assignment = await getAssignedSchema(member.id, member.tenantId);
@@ -58,8 +66,22 @@ export async function startSession() {
     where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
   });
   if (!open) {
+    // Optionele dagkeuze: alleen accepteren als de dag echt bij dit schema hoort.
+    const requestedDayId = formData ? String(formData.get("dayId") ?? "") : "";
+    let dayId: string | null = null;
+    if (requestedDayId && assignment.template) {
+      const day = await prisma.workoutDay.findFirst({
+        where: {
+          id: requestedDayId,
+          tenantId: member.tenantId,
+          templateId: assignment.template.id,
+        },
+        select: { id: true },
+      });
+      dayId = day?.id ?? null;
+    }
     await prisma.workoutSession.create({
-      data: { tenantId: member.tenantId, userId: member.id },
+      data: { tenantId: member.tenantId, userId: member.id, dayId },
     });
   }
   redirect("/member/schema/active");

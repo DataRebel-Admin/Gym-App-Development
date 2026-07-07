@@ -181,12 +181,12 @@ export default async function OwnerLayout({
                   {(tenant?.name ?? "G").charAt(0)}
                 </span>
               )}
-              <span className="truncate">{tenant?.name ?? "GymRebel"}</span>
+              <span className="max-w-[14rem] truncate">{tenant?.name ?? "GymRebel"}</span>
             </Link>
             <Badge tone={isAdmin ? "accent" : "neutral"} className="hidden shrink-0 sm:inline-flex">
               {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
             </Badge>
-            <div className="hidden items-center gap-4 lg:flex">
+            <div className="hidden items-center gap-4 xl:flex">
               <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
               <OwnerNav entries={NAV} rootHref="/owner" />
             </div>
@@ -196,13 +196,14 @@ export default async function OwnerLayout({
               unreadCount={notifications.unreadCount}
               items={notifications.items}
             />
-            <div className="hidden items-center gap-2 lg:flex">
+            <div className="hidden items-center gap-2 xl:flex">
               <ThemeToggle />
               <UserMenu
                 name={badge?.name ?? user.name ?? null}
                 email={badge?.email ?? user.email ?? null}
                 image={badge?.image ?? null}
                 support={support}
+                compact
               />
             </div>
             <SideNavDrawer
@@ -218,7 +219,7 @@ export default async function OwnerLayout({
               currentSlug={tenant?.slug ?? null}
               support={support}
               side="right"
-              className="lg:hidden"
+              className="xl:hidden"
             />
           </div>
         </div>

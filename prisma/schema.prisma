@@ -1171,6 +1171,12 @@ model WorkoutSession {
   // Puur read-time toegepast (zie app/member/schema/active/page.tsx).
   overrides Json?
 
+  // Gekozen trainingsdag binnen het schema (je doet één dag per sessie). NULL =
+  // heel schema / één-dag-schema (backward compatible). Verwijst naar WorkoutDay
+  // van het gekozen template; puur read-time gebruikt om de actieve sessie tot die
+  // dag te filteren. Geen FK-relatie → overleeft dagwijzigingen in het schema.
+  dayId     String?
+
   tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   performanceEntries PerformanceEntry[]

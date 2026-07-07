@@ -53,6 +53,16 @@ export function ExerciseLibrary({
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [exercises]);
 
+  // Bevroren snapshot van de favorieten voor de "favorieten-bovenaan"-sortering.
+  // We verversen 'm alléén als de zoek/filter-weergave verandert — niet bij een
+  // toggle — zodat een net-aangetikte favoriet niet meteen naar boven springt en
+  // de lijst niet onder je vinger wegscrolt.
+  const sortFavorites = useMemo(
+    () => new Set(favorites),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [query, bodyPart, favOnly]
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = exercises.filter((e) => {
@@ -66,13 +76,14 @@ export function ExerciseLibrary({
       );
     });
     // Favorieten bovenaan (stabiel — behoudt de alfabetische volgorde daarbinnen).
+    // Gebruikt de bevroren snapshot zodat toggelen de volgorde niet verspringt.
     if (!favOnly) {
       list.sort(
-        (a, b) => Number(favorites.has(b.id)) - Number(favorites.has(a.id))
+        (a, b) => Number(sortFavorites.has(b.id)) - Number(sortFavorites.has(a.id))
       );
     }
     return list;
-  }, [exercises, query, bodyPart, favOnly, favorites]);
+  }, [exercises, query, bodyPart, favOnly, favorites, sortFavorites]);
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 py-7">

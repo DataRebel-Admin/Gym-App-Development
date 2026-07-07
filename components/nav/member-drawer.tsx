@@ -8,7 +8,8 @@ import { AnimatePresence, m } from "motion/react";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList, PersonStanding, Trophy, Sparkles } from "@/components/ui/icons";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
 import { reopenOnboarding } from "@/components/member/onboarding";
 import type { UserTenant } from "@/lib/tenants";
 
@@ -145,18 +146,6 @@ export function MemberDrawer({
                 <DrawerLink href="/account" icon={<Settings className="size-5" />} onClick={() => setOpen(false)}>
                   Accountinstellingen
                 </DrawerLink>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    reopenOnboarding();
-                  }}
-                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
-                >
-                  <span className="text-accent"><Sparkles className="size-5" /></span>
-                  <span className="flex-1 text-left">Rondleiding opnieuw bekijken</span>
-                  <ChevronRight className="size-4 text-neutral-300" />
-                </button>
               </nav>
 
               {/* Sportschool wisselen */}
@@ -190,11 +179,31 @@ export function MemberDrawer({
                 </div>
               ) : null}
 
+              {/* Taal */}
+              <div className="mt-4 px-4">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+                  Taal
+                </p>
+                <LanguageSwitcher variant="menu" />
+              </div>
+
               {/* Thema */}
               <div className="mt-4 flex items-center justify-between px-4">
                 <span className="text-sm font-medium text-neutral-700">Donker / licht thema</span>
                 <ThemeToggle />
               </div>
+
+              {/* Rondleiding — bewust subtiel, geen prominente nav-link */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  reopenOnboarding();
+                }}
+                className="mt-4 px-4 text-left text-xs font-medium text-neutral-400 transition-colors hover:text-neutral-600"
+              >
+                Rondleiding opnieuw bekijken
+              </button>
 
               <div className="mt-auto px-2.5 pb-4 pt-6">
                 <form action={logout}>

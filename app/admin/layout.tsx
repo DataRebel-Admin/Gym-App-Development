@@ -90,26 +90,15 @@ export default async function AdminLayout({
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/80 backdrop-blur-lg">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-5">
-            <SideNavDrawer
-              entries={NAV}
-              rootHref="/admin"
-              brand={{ name: "GymRebel", logoUrl: null }}
-              profile={{
-                name: badge?.name ?? session.user.name ?? null,
-                email: badge?.email ?? session.user.email ?? null,
-                image: badge?.image ?? null,
-              }}
-              className="lg:hidden"
-            />
+          <div className="flex min-w-0 items-center gap-3 lg:gap-5">
             <Link
               href="/admin"
-              className="flex shrink-0 items-center gap-2.5 font-display text-lg font-bold text-neutral-900"
+              className="flex min-w-0 shrink-0 items-center gap-2.5 font-display text-lg font-bold text-neutral-900"
             >
-              <span className="flex size-8 items-center justify-center rounded-xl bg-accent-gradient text-sm font-bold text-accent-foreground shadow-accent">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-gradient text-sm font-bold text-accent-foreground shadow-accent">
                 G
               </span>
-              <span>
+              <span className="truncate">
                 GymRebel
                 <span className="ml-1.5 rounded-md bg-accent px-1.5 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
                   Platform
@@ -120,12 +109,26 @@ export default async function AdminLayout({
               <OwnerNav entries={NAV} rootHref="/admin" />
             </div>
           </div>
-          <div className="hidden shrink-0 items-center gap-2 lg:flex">
-            <ThemeToggle />
-            <UserMenu
-              name={badge?.name ?? session.user.name ?? null}
-              email={badge?.email ?? session.user.email ?? null}
-              image={badge?.image ?? null}
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden items-center gap-2 lg:flex">
+              <ThemeToggle />
+              <UserMenu
+                name={badge?.name ?? session.user.name ?? null}
+                email={badge?.email ?? session.user.email ?? null}
+                image={badge?.image ?? null}
+              />
+            </div>
+            <SideNavDrawer
+              entries={NAV}
+              rootHref="/admin"
+              brand={{ name: "GymRebel", logoUrl: null }}
+              profile={{
+                name: badge?.name ?? session.user.name ?? null,
+                email: badge?.email ?? session.user.email ?? null,
+                image: badge?.image ?? null,
+              }}
+              side="right"
+              className="lg:hidden"
             />
           </div>
         </div>
