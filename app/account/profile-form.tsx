@@ -41,11 +41,11 @@ type Profile = {
 function Avatar({ image, name, email }: { image: string | null; name: string | null; email: string }) {
   if (image) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={image} alt="" className="size-16 rounded-full object-cover" />;
+    return <img src={image} alt="" className="size-16 shrink-0 rounded-full object-cover" />;
   }
   const initial = (name ?? email).charAt(0).toUpperCase();
   return (
-    <span className="flex size-16 items-center justify-center rounded-full bg-accent-gradient text-xl font-bold text-accent-foreground">
+    <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-accent-gradient text-xl font-bold text-accent-foreground">
       {initial}
     </span>
   );
@@ -80,16 +80,16 @@ export function ProfileForm({ user }: { user: Profile }) {
       </header>
 
       {/* Avatar */}
-      <section className="flex items-center gap-5 rounded-2xl border border-border bg-surface-1 p-5">
+      <section className="flex flex-col items-start gap-4 rounded-2xl border border-border bg-surface-1 p-5 sm:flex-row sm:items-center sm:gap-5">
         <Avatar image={user.image} name={user.name} email={user.email} />
-        <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-2 max-sm:w-full">
           <p className="text-sm font-medium text-neutral-900">Profielfoto</p>
           <form action={uploadAvatarAction} className="flex flex-wrap items-center gap-2">
             <input
               type="file"
               name="avatar"
               accept="image/*"
-              className="min-w-0 max-w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background hover:file:opacity-90"
+              className="w-full min-w-0 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-foreground file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-background hover:file:opacity-90 sm:w-auto"
             />
             <Button type="submit" size="sm" variant="outline" loading={uploading}>
               Uploaden

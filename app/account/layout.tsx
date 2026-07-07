@@ -51,7 +51,7 @@ export default async function AccountLayout({
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
           <Link href={back} className="flex items-center gap-2 text-sm font-medium text-neutral-500 hover:text-neutral-900">
             ← {t("back")}
           </Link>
@@ -66,8 +66,8 @@ export default async function AccountLayout({
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-6 py-8 lg:grid-cols-[210px_1fr]">
-        <aside className="lg:pt-1">
+      <div className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[210px_1fr] lg:gap-8 lg:py-8">
+        <aside className="min-w-0 lg:pt-1">
           <AccountNav items={items} />
         </aside>
         <main className="min-w-0">

@@ -117,7 +117,8 @@ export function NotificationsForm({ initial }: { initial: Prefs | null }) {
       <form ref={formRef} action={save}>
         <input type="hidden" name="prefs" value={serialized} />
         <div className="overflow-hidden rounded-2xl border border-border bg-surface-1">
-          <div className="grid grid-cols-[1fr_repeat(3,72px)] items-center gap-2 border-b border-border px-4 py-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
+          {/* Kolomkoppen alleen op sm+ waar het een echte tabel is. */}
+          <div className="hidden grid-cols-[1fr_repeat(3,72px)] items-center gap-2 border-b border-border px-4 py-3 text-xs font-medium uppercase tracking-wide text-neutral-400 sm:grid">
             <span>Categorie</span>
             {CHANNELS.map((ch) => (
               <span key={ch.key} className="text-center">{ch.label}</span>
@@ -126,18 +127,22 @@ export function NotificationsForm({ initial }: { initial: Prefs | null }) {
           {CATEGORIES.map((cat) => (
             <div
               key={cat.key}
-              className="grid grid-cols-[1fr_repeat(3,72px)] items-center gap-2 border-b border-neutral-100 px-4 py-3 last:border-0"
+              className="border-b border-neutral-100 px-4 py-3 last:border-0 sm:grid sm:grid-cols-[1fr_repeat(3,72px)] sm:items-center sm:gap-2"
             >
               <span className="text-sm font-medium text-neutral-900">{cat.label}</span>
-              {CHANNELS.map((ch) => (
-                <span key={ch.key} className="flex justify-center">
-                  <Toggle
-                    checked={prefs[cat.key][ch.key]}
-                    onChange={(v) => set(cat.key, ch.key, v)}
-                    label={`${cat.label} – ${ch.label}`}
-                  />
-                </span>
-              ))}
+              {/* Mobiel: gelabelde toggles onder de categorie; sm+: uitgelijnd in de grid. */}
+              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3 sm:contents sm:mt-0">
+                {CHANNELS.map((ch) => (
+                  <span key={ch.key} className="flex items-center gap-2 sm:justify-center">
+                    <Toggle
+                      checked={prefs[cat.key][ch.key]}
+                      onChange={(v) => set(cat.key, ch.key, v)}
+                      label={`${cat.label} – ${ch.label}`}
+                    />
+                    <span className="text-xs font-medium text-neutral-500 sm:hidden">{ch.label}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           ))}
         </div>

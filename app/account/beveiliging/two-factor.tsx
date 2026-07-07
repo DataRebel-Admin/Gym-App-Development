@@ -38,14 +38,14 @@ export function TwoFactor({ enabled }: { enabled: boolean }) {
             Scan de QR-code met je authenticator-app (of voer de sleutel handmatig in)
             en bevestig met de 6-cijferige code.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={setup.qr} alt="2FA QR-code" className="size-40 rounded-xl border border-border" />
-            <code className="break-all rounded-lg bg-neutral-100 px-2 py-1 text-xs text-neutral-700">
+            <code className="max-w-full break-all rounded-lg bg-neutral-100 px-2 py-1 text-xs text-neutral-700">
               {setup.secret}
             </code>
           </div>
-          <form action={confirmAction} className="flex items-end gap-2">
+          <form action={confirmAction} className="flex flex-wrap items-end gap-2">
             <Field label="Code uit app">
               <Input name="code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" className="w-32" />
             </Field>
