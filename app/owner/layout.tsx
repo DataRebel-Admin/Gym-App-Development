@@ -183,9 +183,11 @@ export default async function OwnerLayout({
               )}
               <span className="max-w-[14rem] truncate">{tenant?.name ?? "GymRebel"}</span>
             </Link>
-            <Badge tone={isAdmin ? "accent" : "neutral"} className="hidden shrink-0 sm:inline-flex">
-              {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
-            </Badge>
+            <span className="hidden shrink-0 sm:inline-flex">
+              <Badge tone={isAdmin ? "accent" : "neutral"}>
+                {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
+              </Badge>
+            </span>
             <div className="hidden items-center gap-4 xl:flex">
               <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
               <OwnerNav entries={NAV} rootHref="/owner" />
