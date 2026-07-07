@@ -8,6 +8,7 @@ import { AnimatePresence, m } from "motion/react";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
 import { reopenOnboarding } from "@/components/member/onboarding";
 import type { UserTenant } from "@/lib/tenants";
@@ -177,6 +178,14 @@ export function MemberDrawer({
                   </div>
                 </div>
               ) : null}
+
+              {/* Taal */}
+              <div className="mt-4 px-4">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+                  Taal
+                </p>
+                <LanguageSwitcher variant="menu" />
+              </div>
 
               {/* Thema */}
               <div className="mt-4 flex items-center justify-between px-4">

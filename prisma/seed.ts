@@ -931,10 +931,8 @@ async function main() {
         sat: "08:00 - 20:00",
         sun: "08:00 - 18:00",
       },
-      socials: {
-        instagram: "https://instagram.com/gymrebel",
-        facebook: "https://facebook.com/gymrebel",
-      },
+      // Geen demo-socials: lege placeholders zouden naar niet-bestaande accounts
+      // linken. Een echte sportschool vult deze zelf via /owner/settings.
     },
     owner: { email: "keimpe@gymrebel.nl", name: "Keimpe Krachtpatser" },
     staff: [{ email: "coach@gymrebel.nl", name: "Coen Coach" }],
@@ -1185,9 +1183,7 @@ async function main() {
         sat: "07:00 - 21:00",
         sun: "07:00 - 21:00",
       },
-      socials: {
-        instagram: "https://instagram.com/ironhouse",
-      },
+      // Geen demo-socials (zie fitpower): voorkomt links naar random accounts.
     },
     owner: { email: "owner@ironhouse.nl", name: "Ivo IJzer" },
     // Bewust hetzelfde e-mailadres als een GymRebel-lid: dezelfde persoon kan
