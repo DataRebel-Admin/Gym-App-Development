@@ -96,7 +96,7 @@ export async function notifyAchievementsEarned(opts: {
               description: descOf(headline),
               count: earned.length - 1,
             });
-      await sendEmail({
+      const delivery = await sendEmail({
         to: user.email,
         message: await achievementEarnedMessage({
           branding,
@@ -109,7 +109,9 @@ export async function notifyAchievementsEarned(opts: {
         }),
         devLink: viewUrl,
       });
-      channels.push("email");
+      // Alleen echt bezorgde mail als e-mailkanaal auditen (geen valse claim
+      // wanneer er geen transport is geconfigureerd of de killswitch aan staat).
+      if (delivery === "sent") channels.push("email");
     }
 
     if (channels.length > 0) {

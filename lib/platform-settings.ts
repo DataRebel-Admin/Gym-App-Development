@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 
 export const PLATFORM_SETTING_KEYS = {
   supportEmail: "support.email",
+  outgoingEmail: "email.outgoing",
 } as const;
 
 /** GymRebel-default; overschrijfbaar via env of via de Superadmin-UI. */
@@ -59,4 +60,28 @@ export async function setSupportEmail(
   actor?: { id?: string | null; email?: string | null }
 ): Promise<void> {
   await setPlatformSetting(PLATFORM_SETTING_KEYS.supportEmail, email, actor);
+}
+
+/**
+ * Staat het platform toe daadwerkelijk uitgaande e-mail te versturen?
+ * Default `true`. Zet de Superadmin dit op `false`, dan short-circuit
+ * `sendEmail` (log naar console, niets de deur uit) — één globale killswitch
+ * voor álle transactionele mail, handig tijdens ontwikkeling/testen wanneer
+ * echte mail naar admins irritant is. Alleen "off" schakelt uit → een
+ * ontbrekende rij betekent gewoon "aan".
+ */
+export async function getOutgoingEmailEnabled(): Promise<boolean> {
+  const raw = await getPlatformSetting(PLATFORM_SETTING_KEYS.outgoingEmail);
+  return raw !== "off";
+}
+
+export async function setOutgoingEmailEnabled(
+  enabled: boolean,
+  actor?: { id?: string | null; email?: string | null }
+): Promise<void> {
+  await setPlatformSetting(
+    PLATFORM_SETTING_KEYS.outgoingEmail,
+    enabled ? "on" : "off",
+    actor
+  );
 }

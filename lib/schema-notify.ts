@@ -112,7 +112,7 @@ export async function notifyAssignmentsPublished(opts: {
 
       let emailed = false;
       if (prefAllows(prefs, "schemas", "email")) {
-        await sendEmail({
+        const delivery = await sendEmail({
           to: a.user.email,
           message: await schemaAssignedMessage({
             branding,
@@ -123,8 +123,13 @@ export async function notifyAssignmentsPublished(opts: {
           }),
           devLink: viewUrl,
         });
-        emailed = true;
-        channels.push("email");
+        // Alleen als er echt iets bij de ontvanger is bezorgd tellen we het als
+        // een e-mailkanaal en auditen we "e-mail verzonden" — anders liegt de
+        // audittrail (geen transport geconfigureerd / killswitch uit).
+        if (delivery === "sent") {
+          emailed = true;
+          channels.push("email");
+        }
       }
 
       await prisma.assignedWorkout.update({

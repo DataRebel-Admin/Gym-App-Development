@@ -126,7 +126,7 @@ async function deliverToAll(opts: {
         if (delivered > 0) any = true;
       }
       if (prefAllows(prefs, "maintenance", "email")) {
-        await sendEmail({
+        const emailDelivery = await sendEmail({
           to: r.email,
           message: await maintenanceAlertMessage({
             branding,
@@ -140,7 +140,9 @@ async function deliverToAll(opts: {
           }),
           devLink: manageUrl,
         });
-        any = true;
+        // Alleen echt bezorgde mail telt als bereikt (anders inflateren we de
+        // teller terwijl er geen transport is geconfigureerd).
+        if (emailDelivery === "sent") any = true;
       }
       if (any) reached += 1;
     } catch (err) {
