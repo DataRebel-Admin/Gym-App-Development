@@ -61,7 +61,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "improved",
-        text: "Diverse verfijningen in weergave en navigatie, waaronder een compacte taalkiezer en een nettere presentatie van je metingen.",
+        text: "Diverse verfijningen in weergave en navigatie, waaronder een nettere presentatie van je metingen.",
       },
     ],
   },
