@@ -241,8 +241,9 @@ export async function oauthSignIn(formData: FormData) {
 
 /**
  * Demo-login: log direct in als een demo-account, zonder wachtwoord of magic
- * link. Uitsluitend actief wanneer DEMO_LOGIN="true" (ook in productie — zie
- * demoLoginEnabled). Zet de tenant-cookie zodat de tenant-scoped resolutie
+ * link. Uitsluitend actief wanneer DEMO_LOGIN="true" (in productie óók
+ * DEMO_LOGIN_ALLOW_PRODUCTION="true" — zie demoLoginEnabled). Zet de
+ * tenant-cookie zodat de tenant-scoped resolutie
  * (en de signIn-callback) het juiste account vinden — net als de OAuth-flow.
  */
 export async function demoSignIn(formData: FormData) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 /**
  * Geplande publicatie van trainingsschema's. Publiceert toewijzingen met status
@@ -12,22 +13,16 @@ import { notifyAssignmentsPublished } from "@/lib/schema-notify";
  * een al-gepubliceerde toewijzing wordt niet opnieuw opgepakt; `notifiedAt`
  * voorkomt dubbele meldingen.
  *
- * Beveiliging: vereist `Authorization: Bearer ${CRON_SECRET}` wanneer CRON_SECRET
- * is gezet (Vercel Cron stuurt deze header automatisch mee). Zonder CRON_SECRET
- * is de route open — zet 'm dus in productie.
+ * Beveiliging: vereist `Authorization: Bearer ${CRON_SECRET}` (Vercel Cron stuurt
+ * deze header automatisch mee). Fail-closed in productie — zonder CRON_SECRET
+ * wordt de route daar geweigerd (zie lib/cron-auth.ts). Zet 'm dus in productie.
  */
 export const dynamic = "force-dynamic";
 
 const BATCH = 500;
 
-function authorized(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // dev: geen secret geconfigureerd
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!authorized(req)) {
+  if (!cronAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

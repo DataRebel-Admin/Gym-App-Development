@@ -6,7 +6,11 @@ import "server-only";
  * te proberen is — handig voor lokaal testen én voor demo's van de
  * gepubliceerde versie.
  *
- * Geactiveerd met DEMO_LOGIN="true" (ook in productie, bewust).
+ * Geactiveerd met DEMO_LOGIN="true". In **productie** is dat bewust niet genoeg:
+ * daar is óók DEMO_LOGIN_ALLOW_PRODUCTION="true" vereist. Zo kan één per ongeluk
+ * gezette env-var geen productie-omgeving met de authenticatie-bypass openzetten
+ * — een expliciete, tweede bevestiging is nodig voor een demo van de
+ * gepubliceerde versie.
  *
  * ⚠️ LET OP — dit omzeilt de authenticatie volledig: iedereen die de
  * inlogpagina bereikt kan als élk demo-account inloggen, inclusief de
@@ -14,7 +18,11 @@ import "server-only";
  * testomgeving en uit zodra er echte gebruikers of data in de omgeving staan.
  */
 export function demoLoginEnabled(): boolean {
-  return process.env.DEMO_LOGIN === "true";
+  if (process.env.DEMO_LOGIN !== "true") return false;
+  if (process.env.NODE_ENV === "production") {
+    return process.env.DEMO_LOGIN_ALLOW_PRODUCTION === "true";
+  }
+  return true;
 }
 
 export type DemoAccount = {

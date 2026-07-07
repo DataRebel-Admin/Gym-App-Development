@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { evaluateDueMachines } from "@/lib/maintenance-eval";
 import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
 import { isFeatureEnabled } from "@/lib/features/service";
+import { cronAuthorized } from "@/lib/cron-auth";
 
 /**
  * Dagelijkse onderhoudscontrole. Evalueert per tenant de gebruik- én
@@ -10,19 +11,14 @@ import { isFeatureEnabled } from "@/lib/features/service";
  * MAINTENANCE_DUE) en stuurt de beheerders idempotente meldingen
  * ("bijna nodig"/"nu nodig"). Draait als Vercel Cron (zie vercel.json).
  *
- * Beveiliging: vereist `Authorization: Bearer ${CRON_SECRET}` als CRON_SECRET
- * is gezet (Vercel Cron stuurt die header mee). Zet 'm dus in productie.
+ * Beveiliging: vereist `Authorization: Bearer ${CRON_SECRET}` (Vercel Cron stuurt
+ * die header mee). Fail-closed in productie — zonder CRON_SECRET wordt de route
+ * daar geweigerd (zie lib/cron-auth.ts). Zet 'm dus in productie.
  */
 export const dynamic = "force-dynamic";
 
-function authorized(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true; // dev: geen secret geconfigureerd
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
-
 export async function GET(req: Request) {
-  if (!authorized(req)) {
+  if (!cronAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
