@@ -41,6 +41,23 @@ export type ChangelogEntry = {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2026.9",
+    date: "2026-07-07",
+    title: "Overal in jouw taal",
+    summary:
+      "Engels en Frysk zijn verder doorgevoerd, en meldingen worden betrouwbaarder geregistreerd.",
+    changes: [
+      {
+        type: "improved",
+        text: "Engels en Frysk zijn nu volledig doorgevoerd in de trofeeën- en onderhoudsschermen, de menu-onderdelen en de meldingen bij formulieren — een Engels- of Friestalige sportschool ziet daar geen Nederlands meer.",
+      },
+      {
+        type: "improved",
+        text: "Een melding wordt voortaan alleen als 'verzonden' vastgelegd wanneer er daadwerkelijk een e-mail is afgeleverd, zodat het logboek klopt.",
+      },
+    ],
+  },
+  {
     version: "2026.8",
     date: "2026-07-07",
     title: "Focus op je trainingsdag",
