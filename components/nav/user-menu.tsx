@@ -43,7 +43,12 @@ export function UserMenu({
         <button
           type="button"
           onClick={toggle}
-          className="flex items-center gap-2 rounded-full border border-border bg-surface-1 py-1 pl-1 pr-3 transition-colors hover:bg-neutral-50 focus-ring"
+          className={cn(
+            "flex items-center gap-2 rounded-full border border-border bg-surface-1 transition-colors hover:bg-neutral-50 focus-ring",
+            // Zonder naam-tekst (compact) → symmetrische padding zodat de knop een
+            // net rondje om de avatar is i.p.v. een scheve pil.
+            compact ? "p-1" : "py-1 pl-1 pr-3"
+          )}
         >
           <span className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent-gradient text-xs font-bold text-accent-foreground">
             {image ? (

@@ -225,7 +225,7 @@ const QUICK_LINKS = [
 export function QuickActions() {
   const t = useTranslations("owner.widgets");
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
       {QUICK_LINKS.map((l) => (
         <Link
           key={l.href}

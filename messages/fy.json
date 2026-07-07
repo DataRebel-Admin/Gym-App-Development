@@ -319,7 +319,8 @@
       "quickSchemas": "Skema's",
       "quickMembers": "Leden",
       "quickRooster": "Roaster",
-      "quickInsights": "Ynsjoggen"
+      "quickInsights": "Ynsjoggen",
+      "quickActionsTitle": "Fluchkeppelingen"
     },
     "settings": {
       "metaTitle": "Ynstellingen",

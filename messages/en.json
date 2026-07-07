@@ -477,7 +477,8 @@
       "quickSchemas": "Plans",
       "quickMembers": "Members",
       "quickRooster": "Schedule",
-      "quickInsights": "Insights"
+      "quickInsights": "Insights",
+      "quickActionsTitle": "Quick actions"
     },
     "settings": {
       "metaTitle": "Settings",

@@ -30,8 +30,9 @@ export async function generateMetadata() {
 
 export default async function OwnerDashboard() {
   const owner = await requireTenantUser();
-  const [t, locale] = await Promise.all([
+  const [t, tw, locale] = await Promise.all([
     getTranslations("owner.dashboard"),
+    getTranslations("owner.widgets"),
     getLocale(),
   ]);
 
@@ -76,7 +77,6 @@ export default async function OwnerDashboard() {
     "top-machines": <UsageList items={stats.topMachines} />,
     "bottom-machines": <UsageList items={stats.bottomMachines} />,
     "recent-activity": <RecentActivity rows={recentActivity} />,
-    "quick-actions": <QuickActions />,
   };
 
   const firstName = owner.name?.split(" ")[0];
@@ -105,6 +105,15 @@ export default async function OwnerDashboard() {
           </div>
           <FullscreenButton />
         </div>
+      </section>
+
+      {/* Snelkoppelingen: vaste actiebalk bovenaan i.p.v. verstopt onderin het
+          configureerbare grid — de meest gebruikte acties zijn zo meteen bereikbaar. */}
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-neutral-900">
+          {tw("quickActionsTitle")}
+        </h2>
+        <QuickActions />
       </section>
 
       {maintenanceEnabled ? <MaintenanceAlert count={maintenanceAttention} /> : null}
