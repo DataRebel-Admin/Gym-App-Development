@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { Html5Qrcode } from "html5-qrcode";
 
 const READER_ID = "qr-reader";
 
@@ -20,40 +21,93 @@ function extractToken(text: string): string {
 export function QrScanner() {
   const router = useRouter();
   const t = useTranslations("member.scan");
-  const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Houd de nieuwste vertaal-functie in een ref zodat het effect niet
+  // opnieuw hoeft te draaien (en de camera niet onnodig herstart).
+  const tRef = useRef(t);
+  tRef.current = t;
+
   useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
+    let scanner: Html5Qrcode | null = null;
+    let handled = false; // een QR is gedecodeerd → we navigeren weg
+    let running = false; // camerastream is nu actief
+    let starting = false; // start() is bezig (async)
+    let disposed = false; // component is ontkoppeld
 
-    let stop: (() => Promise<void>) | null = null;
-    let cancelled = false;
+    const isVisible = () =>
+      typeof document !== "undefined" && document.visibilityState === "visible";
 
-    (async () => {
+    const onDecoded = (decoded: string) => {
+      if (handled) return;
+      handled = true;
+      const token = extractToken(decoded);
+      void stop().finally(() => router.push(`/m/${token}`));
+    };
+
+    async function ensureScanner(): Promise<Html5Qrcode | null> {
+      if (scanner) return scanner;
       const { Html5Qrcode } = await import("html5-qrcode");
-      const scanner = new Html5Qrcode(READER_ID);
-      stop = () => scanner.stop().catch(() => {});
+      if (disposed) return null;
+      scanner = new Html5Qrcode(READER_ID);
+      return scanner;
+    }
+
+    // Start de camera — alléén wanneer de pagina echt zichtbaar is.
+    async function start() {
+      if (disposed || handled || running || starting) return;
+      if (!isVisible()) return;
+      starting = true;
       try {
-        await scanner.start(
+        const s = await ensureScanner();
+        if (!s || disposed || handled || !isVisible()) return;
+        await s.start(
           { facingMode: "environment" },
           { fps: 10, qrbox: 250 },
-          (decoded) => {
-            if (cancelled) return;
-            cancelled = true;
-            const token = extractToken(decoded);
-            scanner.stop().finally(() => router.push(`/m/${token}`));
-          },
+          onDecoded,
           () => {}
         );
+        running = true;
+        setError(null);
+        // Zichtbaarheid kan tijdens de async start zijn omgeslagen: als de
+        // pagina intussen verborgen is (of ontkoppeld), meteen weer vrijgeven.
+        if (disposed || !isVisible()) void stop();
       } catch {
-        setError(t("cameraError"));
+        if (!disposed) setError(tRef.current("cameraError"));
+      } finally {
+        starting = false;
       }
-    })();
+    }
+
+    // Stop de camera en geef het toestel fysiek vrij (indicator uit).
+    async function stop() {
+      if (!scanner || !running) return;
+      running = false;
+      try {
+        await scanner.stop();
+      } catch {
+        // negeren — kan al gestopt zijn
+      }
+    }
+
+    const onVisibilityChange = () => {
+      if (isVisible()) void start();
+      else void stop();
+    };
+
+    // pagehide dekt bfcache / app-suspend waar visibilitychange soms uitblijft.
+    const onPageHide = () => void stop();
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
+
+    void start();
 
     return () => {
-      cancelled = true;
-      if (stop) void stop();
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
+      void stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
