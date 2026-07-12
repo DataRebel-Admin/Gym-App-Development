@@ -13,6 +13,7 @@ import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { FullscreenToggle } from "@/components/fullscreen-toggle";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { AppBackground } from "@/components/ui/app-background";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -84,6 +85,8 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" style={themeStyle}>
+        {/* Levende aurora-achtergrond — achter alle content (zie .app-bg). */}
+        <AppBackground />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <MotionProvider>
             <ToastProvider>

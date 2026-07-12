@@ -99,6 +99,13 @@
     ),
     linear-gradient(180deg, #f7f8fb 0%, #eef0f5 55%, #e9ebf2 100%);
   --app-grain-opacity: 0.03;
+
+  /* Aurora-orbs (licht): getinte kern → zachte halo → transparant. Sterker dan
+     de statische basiswash omdat ze bewegen — de tint mag opvallen. */
+  --orb-accent: color-mix(in srgb, var(--tenant-accent) 32%, transparent);
+  --orb-accent-soft: color-mix(in srgb, var(--tenant-accent) 12%, transparent);
+  --orb-secondary: color-mix(in srgb, var(--tenant-secondary) 30%, transparent);
+  --orb-secondary-soft: color-mix(in srgb, var(--tenant-secondary) 11%, transparent);
 }
 
 /*
@@ -166,6 +173,13 @@
     ),
     linear-gradient(180deg, #0f1116 0%, #0a0b0e 55%, #0c0d12 100%);
   --app-grain-opacity: 0.055;
+
+  /* Aurora-orbs (donker): feller zodat ze op de bijna-zwarte basis oplichten
+     (glow-effect) — surface-kaarten komen er nog steeds duidelijk voor los. */
+  --orb-accent: color-mix(in srgb, var(--tenant-accent) 42%, transparent);
+  --orb-accent-soft: color-mix(in srgb, var(--tenant-accent) 17%, transparent);
+  --orb-secondary: color-mix(in srgb, var(--tenant-secondary) 36%, transparent);
+  --orb-secondary-soft: color-mix(in srgb, var(--tenant-secondary) 15%, transparent);
 }
 
 @theme inline {
@@ -246,28 +260,25 @@ body {
 }
 
 /* ============================================================
- * Premium gelaagde app-achtergrond
+ * Premium gelaagde app-achtergrond — "levende aurora"
  * ------------------------------------------------------------
- * Pure-CSS dieptewerking (gradients + zachte kleurvlakken + grain),
- * vast in de viewport zodat de content er rustig overheen scrollt.
- * Whitelabel: de tenant-kleuren (--tenant-accent/--tenant-secondary)
- * zijn héél subtiel verweven via color-mix. Twee lagen:
- *   ::before = gelaagde kleurverlopen (langzaam driftend → leeft licht)
- *   ::after  = fijne grain-textuur + zachte sheen (diepte zonder ruis)
- * Beide pointer-events:none en achter de content (negatieve z-index).
+ * Drie lagen, vast in de viewport zodat de content er rustig overheen
+ * scrollt. Whitelabel: de tenant-kleuren (--tenant-accent/--tenant-secondary)
+ * kleuren alles runtime mee via color-mix.
+ *   body::before  z -3  statische basiswash (no-flash foundation)
+ *   .app-bg orbs  z -2  vier zwevende, tenant-getinte orbs (de levendigheid)
+ *   body::after   z -1  fijne grain over de kleur (filmische textuur + anti-banding)
+ * Alle lagen pointer-events:none en achter de content (negatieve z-index).
  * ============================================================ */
 body::before {
   content: "";
   position: fixed;
-  /* Iets groter dan de viewport zodat de drift-animatie nooit randen toont. */
-  inset: -20%;
-  z-index: -2;
+  inset: 0;
+  z-index: -3;
   pointer-events: none;
+  /* Statische basiswash — no-flash onderlaag; de beweging zit in .app-bg. */
   background-color: var(--app-bg-base);
   background-image: var(--app-bg);
-  will-change: transform;
-  transform: translate3d(0, 0, 0);
-  animation: app-bg-drift 42s var(--ease-in-out) infinite alternate;
 }
 
 body::after {
@@ -283,14 +294,172 @@ body::after {
   mix-blend-mode: soft-light;
 }
 
-/* Langzame lichtverschuiving — nauwelijks waarneembaar, geeft de achtergrond
-   leven zonder af te leiden. Reduced-motion schakelt dit globaal uit. */
-@keyframes app-bg-drift {
+/* ------------------------------------------------------------
+ * Levende aurora — vier onafhankelijk zwevende, tenant-getinte orbs
+ * (gemount via <AppBackground/> als eerste kind van <body>). Elk orb
+ * heeft een eigen pad, tempo én "ademhaling" (opacity), met verschillende
+ * looptijden zodat de compositie nooit hoorbaar herhaalt. Er animeren
+ * alléén transform + opacity → GPU-goedkoop, ook op mobiel. Negatieve
+ * animation-delays zetten de orbs bij het laden al verspreid (meteen leven).
+ * Onder prefers-reduced-motion (globale regel onderaan) stoppen ze en blijft
+ * een rustige, mooi gecomponeerde stilstaande aurora over.
+ * ------------------------------------------------------------ */
+/* Getypeerde muis-vars → de calc(number * length) in .app-bg__layer is
+   gegarandeerd geldig, en de waarde interpoleert netjes. */
+@property --px {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --py {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint;
+  /* Genormaliseerde muispositie t.o.v. het midden (−1…1), gezet door de
+     client-controller op desktop; default 0 (touch/geen muis → geen parallax). */
+  --px: 0;
+  --py: 0;
+}
+
+/* Elk orb zit in een eigen laag-wrapper: de wrapper draagt de MUIS-parallax
+   (transform, alleen desktop), het orb zelf de autonome zweefanimatie. Zo staan
+   de twee transforms op verschillende elementen → geen compositie-twijfel. De
+   wrapper schuift naar rato van zijn eigen --depth met de cursor mee; op
+   touch/geen-muis blijven --px/--py 0 → geen verschuiving. */
+.app-bg__layer {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+  transform: translate3d(
+    calc(var(--px, 0) * var(--depth, 0px)),
+    calc(var(--py, 0) * var(--depth, 0px)),
+    0
+  );
+  /* Zachte na-ijl zodat de orbs naar de cursor toe glijden i.p.v. springen. */
+  transition: transform 0.4s var(--ease-out);
+}
+
+.app-bg__orb {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Parallax-diepte per laag — bewust groot en van richting wisselend zodat de
+   orbs zichtbaar uit elkaar/naar elkaar toe schuiven als je de muis beweegt
+   (i.p.v. één onmerkbaar plat vlak). Waarden = 2,0× sterkte (via demo gekozen). */
+.app-bg__layer--1 { --depth: 160px; }
+.app-bg__layer--2 { --depth: -260px; }
+.app-bg__layer--3 { --depth: 120px; }
+.app-bg__layer--4 { --depth: -360px; }
+
+/* 1 — accent, linksboven → zakt naar rechtsonder terwijl het opademt. */
+.app-bg__orb--1 {
+  top: -20%;
+  left: -15%;
+  width: 65vmax;
+  height: 65vmax;
+  background: radial-gradient(
+    closest-side,
+    var(--orb-accent) 0%,
+    var(--orb-accent-soft) 45%,
+    transparent 72%
+  );
+  animation: orb-1 10s var(--ease-in-out) -6s infinite alternate;
+}
+
+/* 2 — secundair, rechtsboven → glijdt naar links, sneller tempo. */
+.app-bg__orb--2 {
+  top: -18%;
+  right: -18%;
+  width: 58vmax;
+  height: 58vmax;
+  background: radial-gradient(
+    closest-side,
+    var(--orb-secondary) 0%,
+    var(--orb-secondary-soft) 45%,
+    transparent 72%
+  );
+  animation: orb-2 8s var(--ease-in-out) -12s infinite alternate;
+}
+
+/* 3 — accent, rechtsonder → stijgt naar linksboven, traag en breed. */
+.app-bg__orb--3 {
+  right: -12%;
+  bottom: -22%;
+  width: 68vmax;
+  height: 68vmax;
+  background: radial-gradient(
+    closest-side,
+    var(--orb-accent) 0%,
+    var(--orb-accent-soft) 45%,
+    transparent 72%
+  );
+  animation: orb-3 13s var(--ease-in-out) -3s infinite alternate;
+}
+
+/* 4 — zacht secundair, midden-links → trage ambient-orbit, vult het middenveld. */
+.app-bg__orb--4 {
+  top: 28%;
+  left: 6%;
+  width: 50vmax;
+  height: 50vmax;
+  background: radial-gradient(
+    closest-side,
+    var(--orb-secondary-soft) 0%,
+    transparent 70%
+  );
+  animation: orb-4 15s var(--ease-in-out) -20s infinite alternate;
+}
+
+@keyframes orb-1 {
   from {
     transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.7;
   }
   to {
-    transform: translate3d(2.4%, 1.6%, 0) scale(1.05);
+    transform: translate3d(18%, 24%, 0) scale(1.15);
+    opacity: 1;
+  }
+}
+@keyframes orb-2 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1.05);
+    opacity: 0.6;
+  }
+  to {
+    transform: translate3d(-22%, 16%, 0) scale(1.2);
+    opacity: 0.95;
+  }
+}
+@keyframes orb-3 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.75;
+  }
+  to {
+    transform: translate3d(-16%, -20%, 0) scale(1.12);
+    opacity: 1;
+  }
+}
+@keyframes orb-4 {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  to {
+    transform: translate3d(14%, -18%, 0) scale(1.1);
+    opacity: 0.85;
   }
 }
 
