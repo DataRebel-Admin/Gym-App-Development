@@ -18,11 +18,14 @@ export default async function ActiveSessionPage() {
   // Automatische 5-uur-timeout: sluit een te lang openstaande sessie eerst af.
   // Daarna is er geen open sessie meer → terug naar het schema (met melding).
   const timeout = await enforceSessionTimeout(member.tenantId, member.id);
-  if (timeout.autoStopped) redirect("/member/schema");
+  // Geen (nog-open) sessie of net auto-gestopt → terug naar het schema. Voorkomt een
+  // tweede open-sessie-query wanneer er toch niets te hervatten is.
+  if (timeout.autoStopped || !timeout.sessionId) redirect("/member/schema");
 
+  // De volledige rij is nodig (overrides/dayId); haal 'm gericht op via de reeds
+  // door enforceSessionTimeout bepaalde id.
   const open = await prisma.workoutSession.findFirst({
-    where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
-    orderBy: { startedAt: "desc" },
+    where: { id: timeout.sessionId, tenantId: member.tenantId, userId: member.id, endedAt: null },
   });
   if (!open) redirect("/member/schema");
 
@@ -66,10 +69,23 @@ export default async function ActiveSessionPage() {
   // "Vorige keer": de sets van de meest recente eerder afgeronde sessie waarin
   // het lid deze oefening deed (per oefening apart — kan uit verschillende
   // sessies komen). Placeholder-entries (reps 0 én 0 kg) negeren.
+  //
+  // Begrens de scan tot de oefeningen die vandaag getoond worden (schema-oefeningen
+  // + gekozen alternatieven) i.p.v. de volledige prestatiehistorie van álle
+  // oefeningen te lezen. prevByExercise wordt hieronder alleen per gerenderde
+  // oefening uitgelezen, dus de output is identiek.
+  const relevantExerciseIds = [
+    ...new Set<string>([
+      ...template.items.map((i) => i.exerciseId),
+      ...template.days.flatMap((d) => d.items.map((i) => i.exerciseId)),
+      ...overrides.subs.map((s) => s.to),
+    ]),
+  ];
   const prevRows = await prisma.performanceEntry.findMany({
     where: {
       tenantId: member.tenantId,
       sessionId: { not: open.id },
+      exerciseId: { in: relevantExerciseIds },
       session: { userId: member.id, endedAt: { not: null } },
     },
     select: {

@@ -135,7 +135,7 @@ export async function StaffDashboard({
 
       {canMaintenance ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <StatCard label="Leden actief vandaag" value={activeToday} />
         {canMembers ? (
           <StatCard label="Mijn leden" value={myMembers.length} href="/owner/members?mine=1" />

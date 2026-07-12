@@ -16,7 +16,7 @@ export function TwoFactor({ enabled }: { enabled: boolean }) {
           ✓ Twee-factor-authenticatie is ingeschakeld.
         </p>
         <form action={disable2FA}>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="outline">
             2FA uitschakelen
           </Button>
         </form>

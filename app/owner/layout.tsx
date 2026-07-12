@@ -15,6 +15,7 @@ import { getNotificationOverview } from "@/lib/notifications";
 import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NativePushRegister } from "@/components/pwa/native-push-register";
 
 // Geen platte, scrollende rij meer: de bestemmingen zijn gegroepeerd in
 // categorieën die uitklappen in een mega-menu. Dashboard en Instellingen
@@ -181,14 +182,14 @@ export default async function OwnerLayout({
                   {(tenant?.name ?? "G").charAt(0)}
                 </span>
               )}
-              <span className="max-w-[14rem] truncate">{tenant?.name ?? "GymRebel"}</span>
+              <span className="max-w-[14rem] truncate lg:max-w-[9rem] xl:max-w-[14rem]">{tenant?.name ?? "GymRebel"}</span>
             </Link>
             <span className="hidden shrink-0 sm:inline-flex">
               <Badge tone={isAdmin ? "accent" : "neutral"}>
                 {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
               </Badge>
             </span>
-            <div className="hidden items-center gap-4 xl:flex">
+            <div className="hidden items-center gap-2 lg:flex xl:gap-4">
               <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
               <OwnerNav entries={NAV} rootHref="/owner" />
             </div>
@@ -198,7 +199,7 @@ export default async function OwnerLayout({
               unreadCount={notifications.unreadCount}
               items={notifications.items}
             />
-            <div className="hidden items-center gap-2 xl:flex">
+            <div className="hidden items-center gap-2 lg:flex">
               <ThemeToggle />
               <UserMenu
                 name={badge?.name ?? user.name ?? null}
@@ -221,7 +222,7 @@ export default async function OwnerLayout({
               currentSlug={tenant?.slug ?? null}
               support={support}
               side="right"
-              className="xl:hidden"
+              className="lg:hidden"
             />
           </div>
         </div>
@@ -229,6 +230,7 @@ export default async function OwnerLayout({
       <main className="mx-auto w-full max-w-7xl flex-1">
         <PageTransition>{children}</PageTransition>
       </main>
+      <NativePushRegister />
     </div>
   );
 }

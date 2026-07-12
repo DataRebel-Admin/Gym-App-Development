@@ -63,9 +63,6 @@ const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() 
 export async function getMaintenanceOverview(
   tenantId: string
 ): Promise<MaintenanceOverview> {
-  // Lazy fallback op de cron: transitioneer statussen bij openen.
-  await evaluateDueMachines(tenantId).catch(() => {});
-
   const now = new Date();
   const [machines, records] = await Promise.all([
     prisma.machine.findMany({
@@ -109,10 +106,18 @@ export async function getMaintenanceOverview(
   ]);
 
   const counts = { due: 0, soon: 0, inMaintenance: 0, outOfService: 0, active: 0 };
+  // Afgeleide auto-status-transities (ACTIVE↔MAINTENANCE_DUE) verzamelen uit de
+  // machines die we hier tóch al ophalen — voorheen deed evaluateDueMachines dit
+  // met een tweede volledige machine-scan bij élke dashboard-load. Handmatige
+  // statussen (IN_MAINTENANCE/OUT_OF_SERVICE) blijven ongemoeid.
+  const toDue: string[] = [];
+  const toActive: string[] = [];
 
   const machineRows: MaintenanceMachineRow[] = machines.map((m) => {
     const state = computeMaintenanceState(m, now);
     const eff = effectiveStatus(m.status, state);
+    if (state.level === "due" && m.status === "ACTIVE") toDue.push(m.id);
+    else if (state.level !== "due" && m.status === "MAINTENANCE_DUE") toActive.push(m.id);
     if (eff === "OUT_OF_SERVICE") counts.outOfService += 1;
     else if (eff === "IN_MAINTENANCE") counts.inMaintenance += 1;
     else if (eff === "MAINTENANCE_DUE") counts.due += 1;
@@ -141,6 +146,20 @@ export async function getMaintenanceOverview(
       reasons: state.reasons,
     };
   });
+
+  // Persisteer de transities in max. twee batches (i.p.v. een losse update per
+  // machine). Best-effort: de weergave hierboven gebruikt toch effectiveStatus,
+  // dus dit synchroniseert enkel de opgeslagen status voor andere views + de cron.
+  if (toDue.length > 0) {
+    await prisma.machine
+      .updateMany({ where: { id: { in: toDue }, tenantId }, data: { status: "MAINTENANCE_DUE" } })
+      .catch(() => {});
+  }
+  if (toActive.length > 0) {
+    await prisma.machine
+      .updateMany({ where: { id: { in: toActive }, tenantId }, data: { status: "ACTIVE" } })
+      .catch(() => {});
+  }
 
   const recordRows: MaintenanceRecordRow[] = records.map((r) => ({
     id: r.id,

@@ -31,7 +31,7 @@ export function AssistantLauncher({
       </button>
 
       {open ? (
-        <div className="fixed inset-x-4 bottom-40 z-40 mx-auto flex max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-1 shadow-lg">
+        <div className="fixed inset-x-4 bottom-40 z-40 mx-auto flex max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-surface-1 shadow-lg sm:max-w-lg">
           <div className="border-b border-border px-4 py-3">
             <p className="text-sm font-semibold text-neutral-900">{title}</p>
             <p className="text-xs text-neutral-500">{subtitle}</p>

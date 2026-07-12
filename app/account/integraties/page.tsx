@@ -4,6 +4,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { oauthEnabled } from "@/lib/oauth";
 import { graphConfigured } from "@/lib/email/graph";
 import { Badge } from "@/components/ui/badge";
+import { AccountPageHeader } from "@/components/account/account-page-header";
 import { oauthSignIn } from "@/app/login/actions";
 
 function StatusBadge({ ok, offLabel = "Niet verbonden" }: { ok: boolean; offLabel?: string }) {
@@ -47,7 +48,7 @@ function ConnectButton({
     <form action={oauthSignIn}>
       <input type="hidden" name="provider" value={provider} />
       <input type="hidden" name="tenant" value={tenantSlug} />
-      <button type="submit" className="rounded-lg border border-border-strong px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+      <button type="submit" className="inline-flex h-10 items-center rounded-xl border border-border-strong px-4 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
         Verbinden
       </button>
     </form>
@@ -71,11 +72,8 @@ export default async function IntegrationsPage() {
   const isAdmin = user.role === "TENANT_ADMIN";
 
   return (
-    <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-neutral-900">Integraties</h1>
-        <p className="mt-1 text-sm text-neutral-500">Verbonden accounts en koppelingen.</p>
-      </header>
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <AccountPageHeader title="Integraties" description="Verbonden accounts en koppelingen." />
 
       <section className="rounded-2xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">Verbonden accounts</h2>

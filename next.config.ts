@@ -7,8 +7,21 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts");
 
 const nextConfig: NextConfig = {
-  // Native addon (QR-rasterisatie) — niet bundelen, als extern server-package laden.
-  serverExternalPackages: ["@resvg/resvg-js"],
+  // Native/HTTP2-packages niet bundelen, als extern server-package laden.
+  // @resvg/resvg-js = QR-rasterisatie (native addon); apns2 = APNs-push (undici/HTTP2).
+  serverExternalPackages: ["@resvg/resvg-js", "apns2"],
+  images: {
+    // AVIF/WebP-varianten (met bron-fallback) → fors kleinere afbeeldingen op mobiel.
+    formats: ["image/avif", "image/webp"],
+    // Toegestane remote bronnen voor next/image. `datarebel.blob.core.windows.net` =
+    // de oefeningen-catalogus (statische .jpg-thumbnails); Vercel Blob = door tenants
+    // geüploade eigen-oefening-afbeeldingen. Animatie-gifs (detail/actieve sessie)
+    // blijven bewust rauwe <img> — die optimaliseren we niet (zou animatie strippen).
+    remotePatterns: [
+      { protocol: "https", hostname: "datarebel.blob.core.windows.net" },
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
+    ],
+  },
   experimental: {
     // Schakelt `forbidden()` / `unauthorized()` (next/navigation) in zodat de
     // guards naar de premium 403/401-pagina's kunnen onderbreken i.p.v. te

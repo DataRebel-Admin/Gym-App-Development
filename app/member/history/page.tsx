@@ -4,11 +4,11 @@ import { requireMember, getMemberHistory } from "@/lib/member";
 import { getMemberStats, getRecentSessions } from "@/lib/member-stats";
 import { LOCALE_META, type AppLocale } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
-import { HistoryChart } from "./history-chart";
+import { HistoryChart } from "./history-chart.lazy";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { StatCard } from "@/components/ui/stat-card";
 import { TrainingHeatmap } from "@/components/charts/training-heatmap";
-import { MiniBarChart } from "@/components/charts/mini-bar-chart";
+import { MiniBarChart } from "@/components/charts/mini-bar-chart.lazy";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Activity,

@@ -13,6 +13,7 @@ import {
   cancelSession,
 } from "../actions";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
+import { haptic } from "@/lib/haptics";
 import { ExerciseBlock } from "./exercise-block";
 import { DynamicExerciseBlock } from "./dynamic-exercise-block";
 import { CompletionScreen } from "./completion-screen";
@@ -270,9 +271,7 @@ export function ActiveSession({
 
     // Timers uit voor deze sessie → geen auto-rusttimer, geen trilling/geluid.
     if (!timersEnabled) return;
-    if (timer.vibrateOn && typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(15);
-    }
+    if (timer.vibrateOn) void haptic("light", 15);
     timer.startRest(ex.restSeconds > 0 ? ex.restSeconds : DEFAULT_REST);
   }
 

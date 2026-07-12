@@ -8,9 +8,10 @@ import {
   loginWithPassword,
   oauthSignIn,
   demoSignIn,
-  type LoginState,
 } from "./actions";
+import type { LoginState } from "@/lib/login-types";
 import type { DemoAccount } from "@/lib/demo-login";
+import { PasskeyLoginButton } from "./passkey-login-button";
 import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -25,7 +26,7 @@ export function LoginForm({
   demoAccounts?: DemoAccount[] | null;
 }) {
   const t = useTranslations("auth");
-  const [mode, setMode] = useState<"link" | "password">("link");
+  const [mode, setMode] = useState<"password" | "link">("password");
   const [linkState, linkAction, linkPending] = useActionState<LoginState, FormData>(requestMagicLink, {});
   const [pwState, pwAction, pwPending] = useActionState<LoginState, FormData>(loginWithPassword, {});
 
@@ -33,7 +34,11 @@ export function LoginForm({
 
   return (
     <div className="flex w-full flex-col gap-5">
-      {/* SSO eerst — de snelste route. Alleen zichtbaar als geconfigureerd. */}
+      {/* Passkey bovenaan — de snelste, biometrische route. Verbergt zichzelf als
+          de browser geen WebAuthn ondersteunt. */}
+      <PasskeyLoginButton />
+
+      {/* SSO — alleen zichtbaar als geconfigureerd. */}
       {hasSso ? (
         <div className="flex flex-col gap-2.5">
           {oauth?.microsoft ? (
@@ -59,43 +64,67 @@ export function LoginForm({
         </div>
       ) : null}
 
-      {/* Segmented control: magic link vs. wachtwoord */}
+      {/* Segmented control: wachtwoord (standaard, links) vs. magic link (rechts) */}
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-neutral-100 p-1">
-        <SegTab active={mode === "link"} onClick={() => setMode("link")}>
-          {t("magicLink")}
-        </SegTab>
         <SegTab active={mode === "password"} onClick={() => setMode("password")}>
           {t("password")}
         </SegTab>
+        <SegTab active={mode === "link"} onClick={() => setMode("link")}>
+          {t("magicLink")}
+        </SegTab>
       </div>
 
-      {mode === "link" ? (
-        <form action={linkAction} className="flex w-full flex-col gap-4">
-          <input type="hidden" name="tenant" value={tenant} />
-          <Field label={t("emailLabel")} error={linkState.error}>
-            <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
-          </Field>
-          <Button type="submit" size="lg" loading={linkPending} className="mt-1 w-full">
-            {linkPending ? t("sending") : t("sendMagicLink")}
-          </Button>
-          <p className="text-center text-xs text-neutral-500">
-            {t("magicLinkHint")}
-          </p>
-        </form>
-      ) : (
-        <form action={pwAction} className="flex w-full flex-col gap-4">
-          <input type="hidden" name="tenant" value={tenant} />
-          <Field label={t("emailLabel")} error={pwState.error}>
-            <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
-          </Field>
-          <Field label={t("passwordLabel")}>
-            <Input name="password" type="password" required autoComplete="current-password" className="py-3 text-base" />
-          </Field>
-          <Button type="submit" size="lg" loading={pwPending} className="mt-1 w-full">
-            {pwPending ? t("loggingIn") : t("login")}
-          </Button>
-        </form>
-      )}
+      {/* Eén formulier voor beide modi zodat de kaart niet in hoogte verspringt bij
+          het wisselen. Het wachtwoordveld blijft altijd staan (reserveert ruimte),
+          maar is bij magic link uitgeschakeld en niet vereist — je hoeft het dan niet
+          in te vullen. Het e-mailadres blijft zo ook behouden tussen de tabs. */}
+      <form
+        action={mode === "password" ? pwAction : linkAction}
+        className="flex w-full flex-col gap-4"
+      >
+        <input type="hidden" name="tenant" value={tenant} />
+        <Field
+          label={t("emailLabel")}
+          error={mode === "password" ? pwState.error : linkState.error}
+        >
+          <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
+        </Field>
+        <Field label={t("passwordLabel")}>
+          <Input
+            name="password"
+            type="password"
+            required={mode === "password"}
+            disabled={mode === "link"}
+            autoComplete="current-password"
+            className="py-3 text-base"
+          />
+        </Field>
+        <Button
+          type="submit"
+          size="lg"
+          loading={mode === "password" ? pwPending : linkPending}
+          className="mt-1 w-full"
+        >
+          {mode === "password"
+            ? pwPending
+              ? t("loggingIn")
+              : t("login")
+            : linkPending
+              ? t("sending")
+              : t("sendMagicLink")}
+        </Button>
+        {/* Altijd gerenderd (identieke hoogte), alleen zichtbaar bij magic link →
+            de kaarthoogte blijft constant. */}
+        <p
+          className={cn(
+            "text-center text-xs text-neutral-500 transition-opacity",
+            mode === "link" ? "opacity-100" : "opacity-0"
+          )}
+          aria-hidden={mode !== "link"}
+        >
+          {t("magicLinkHint")}
+        </p>
+      </form>
 
       {demoAccounts && demoAccounts.length > 0 ? (
         <DemoPanel accounts={demoAccounts} />

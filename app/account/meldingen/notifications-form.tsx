@@ -102,14 +102,14 @@ export function NotificationsForm({ initial }: { initial: Prefs | null }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-neutral-900">Meldingen</h1>
-          <p className="mt-1 text-sm text-neutral-500">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="hidden font-display text-2xl font-bold text-neutral-900 lg:block">Meldingen</h1>
+          <p className="text-sm text-neutral-500 lg:mt-1">
             Kies per categorie hoe je op de hoogte wilt blijven.
           </p>
         </div>
-        <span className="text-xs text-neutral-400" aria-live="polite">
+        <span className="shrink-0 text-xs text-neutral-400" aria-live="polite">
           {saving ? "Opslaan…" : state.ok ? "Opgeslagen ✓" : ""}
         </span>
       </header>

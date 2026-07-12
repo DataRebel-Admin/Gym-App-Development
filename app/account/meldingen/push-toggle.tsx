@@ -104,7 +104,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
         <button
           type="button"
           onClick={disable}
-          className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          className="inline-flex h-10 shrink-0 items-center rounded-xl border border-border px-4 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
         >
           Uitschakelen
         </button>
@@ -114,7 +114,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
           onClick={enable}
           disabled={state === "unsupported" || state === "denied" || state === "busy" || state === "loading"}
           className={cn(
-            "shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:opacity-90",
+            "inline-flex h-10 shrink-0 items-center rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground hover:opacity-90",
             (state === "unsupported" || state === "denied" || state === "busy" || state === "loading") &&
               "cursor-not-allowed opacity-50"
           )}

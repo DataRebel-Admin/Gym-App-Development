@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 
 /**
@@ -63,12 +64,26 @@ function startOfWeek(d: Date): Date {
 
 /**
  * Wekelijkse scan-buckets voor de mini-grafiek op het machine-detail. Levert
- * altijd `weeks` opeenvolgende weken (ook lege), oud → nieuw.
+ * altijd `weeks` opeenvolgende weken (ook lege), oud → nieuw. Gecachet per
+ * (tenant, machine, weken) met 5-min revalidatie — een weekgebucketde trend,
+ * dus staleness is onmerkbaar (idioom lib/insights.ts).
  */
-export async function getMachineScanTrend(
+export function getMachineScanTrend(
   tenantId: string,
   machineId: string,
   weeks = 12,
+): Promise<ScanTrendPoint[]> {
+  return unstable_cache(
+    () => computeMachineScanTrend(tenantId, machineId, weeks),
+    ["machine-scan-trend", tenantId, machineId, String(weeks)],
+    { revalidate: 300 }
+  )();
+}
+
+async function computeMachineScanTrend(
+  tenantId: string,
+  machineId: string,
+  weeks: number,
 ): Promise<ScanTrendPoint[]> {
   const thisWeek = startOfWeek(new Date());
   const from = new Date(thisWeek.getTime() - (weeks - 1) * WEEK_MS);

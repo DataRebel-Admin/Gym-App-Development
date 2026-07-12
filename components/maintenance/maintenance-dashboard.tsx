@@ -104,7 +104,7 @@ export function MaintenanceDashboard({
   return (
     <div className="flex flex-col gap-6">
       {/* Samenvattingskaarten — klikbaar als filter */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {statCards.map((c) => (
           <button
             key={c.key}

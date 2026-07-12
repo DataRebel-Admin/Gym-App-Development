@@ -74,7 +74,7 @@ export default async function MachinePublicPage({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6">
+    <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6 sm:max-w-lg">
       {/* Registreert de scan (client-beacon, dedupe per sessie). */}
       <TrackScan qrToken={qrToken} />
       {/* Hero */}

@@ -96,7 +96,7 @@ export async function CoachOverview({ data }: { data: CoachEngagement }) {
         </div>
       </Section>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <Section title={t("coach.longestStreaks")} icon={<Flame className="size-4" />} empty={data.longestStreaks.length === 0} emptyLabel={emptyLabel}>
           <div className="flex flex-col gap-2">
             {data.longestStreaks.map((s) => (

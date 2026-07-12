@@ -1174,6 +1174,26 @@
       "goals": "My goals",
       "gym": "Gym"
     },
+    "hub": {
+      "overview": "Overview",
+      "groups": {
+        "account": "Account",
+        "prefs": "Preferences",
+        "security": "Security & privacy",
+        "admin": "Management"
+      },
+      "subtitles": {
+        "profile": "Name, photo, email address",
+        "goals": "What you're working on",
+        "language": "Interface language",
+        "notifications": "Email, in-app and push",
+        "security": "Password, 2FA, passkeys, sessions",
+        "privacy": "Consents, export, deletion",
+        "integrations": "Connected accounts",
+        "activity": "Recent account activity",
+        "gym": "Gym settings"
+      }
+    },
     "language": {
       "navLabel": "Language",
       "title": "Language",

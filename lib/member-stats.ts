@@ -1,4 +1,6 @@
 import "server-only";
+import { cache } from "react";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 /**
@@ -71,7 +73,7 @@ export type MemberStats = {
   lastSessionAt: Date | null;
 };
 
-type SessionRow = {
+export type MemberSessionRow = {
   id: string;
   startedAt: Date;
   endedAt: Date | null;
@@ -79,41 +81,57 @@ type SessionRow = {
     reps: number;
     weightKg: number;
     exerciseId: string;
+    params: Prisma.JsonValue;
     exercise: {
       name: string;
+      exerciseType: string;
       targetMuscle: string | null;
       catalog: { target: string | null; muscleGroup: string | null } | null;
     };
   }[];
 };
 
-async function loadSessions(memberId: string, tenantId: string): Promise<SessionRow[]> {
-  return prisma.workoutSession.findMany({
-    where: { tenantId, userId: memberId },
-    orderBy: { startedAt: "asc" },
-    select: {
-      id: true,
-      startedAt: true,
-      endedAt: true,
-      performanceEntries: {
-        select: {
-          reps: true,
-          weightKg: true,
-          exerciseId: true,
-          exercise: {
-            select: {
-              name: true,
-              targetMuscle: true,
-              catalog: { select: { target: true, muscleGroup: true } },
+/**
+ * Laadt de volledige sessie-/prestatiehistorie van één lid — de gedeelde bron voor
+ * álle read-only aggregaties (stats, records, workout-context, achievements-metrics).
+ * Per-request gememoïseerd met React `cache()` zodat een pagina die zowel
+ * [[getMemberStats]] als de achievements-metrics gebruikt (bv. `/member`) de historie
+ * **één keer** ophaalt i.p.v. per aggregator opnieuw. De `select` is een superset:
+ * `params`/`exerciseType` voor de achievements-metrics, `catalog`/`targetMuscle` voor
+ * de spiergroep-analyse hier. Bevat álle sessies (ook lopende); consumenten filteren
+ * zelf op `endedAt` waar nodig.
+ */
+export const loadMemberSessions = cache(
+  async (memberId: string, tenantId: string): Promise<MemberSessionRow[]> => {
+    return prisma.workoutSession.findMany({
+      where: { tenantId, userId: memberId },
+      orderBy: { startedAt: "asc" },
+      select: {
+        id: true,
+        startedAt: true,
+        endedAt: true,
+        performanceEntries: {
+          select: {
+            reps: true,
+            weightKg: true,
+            exerciseId: true,
+            params: true,
+            exercise: {
+              select: {
+                name: true,
+                exerciseType: true,
+                targetMuscle: true,
+                catalog: { select: { target: true, muscleGroup: true } },
+              },
             },
           },
         },
       },
-    },
-  });
-}
+    });
+  }
+);
 
-function muscleOf(entry: SessionRow["performanceEntries"][number]): string | null {
+function muscleOf(entry: MemberSessionRow["performanceEntries"][number]): string | null {
   const raw =
     entry.exercise.catalog?.target ??
     entry.exercise.catalog?.muscleGroup ??
@@ -158,7 +176,7 @@ export async function getMemberStats(
   memberId: string,
   tenantId: string
 ): Promise<MemberStats> {
-  const sessions = await loadSessions(memberId, tenantId);
+  const sessions = await loadMemberSessions(memberId, tenantId);
   const now = new Date();
   const weekStart = startOfWeek(now).getTime();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -315,7 +333,7 @@ export async function getRecentSessions(
   tenantId: string,
   take = 20
 ): Promise<RecentSession[]> {
-  const sessions = await loadSessions(memberId, tenantId);
+  const sessions = await loadMemberSessions(memberId, tenantId);
   return sessions
     .filter((s) => s.endedAt != null)
     .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
@@ -370,7 +388,7 @@ export async function getWorkoutContext(
   memberId: string,
   tenantId: string
 ): Promise<WorkoutContext> {
-  const sessions = await loadSessions(memberId, tenantId);
+  const sessions = await loadMemberSessions(memberId, tenantId);
 
   const historicalBest: Record<string, number> = {};
   for (const s of sessions) {
@@ -431,7 +449,7 @@ export async function getSessionSummary(
   memberId: string,
   tenantId: string
 ): Promise<SessionSummary> {
-  const sessions = await loadSessions(memberId, tenantId);
+  const sessions = await loadMemberSessions(memberId, tenantId);
   const target = sessions.find((s) => s.id === sessionId);
 
   // Historische beste 1RM per oefening, exclusief de doelsessie.

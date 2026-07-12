@@ -4,7 +4,7 @@ import { requireMember, getExerciseProgress } from "@/lib/member";
 import { getExerciseDetail, getAlternativeExercises } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
 import { isAiEnabled } from "@/lib/ai/enabled";
-import { ProgressLineChart } from "@/components/charts/progress-line-chart";
+import { ProgressLineChart } from "@/components/charts/progress-line-chart.lazy";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
 import { ExerciseAssistant } from "@/components/ai/exercise-assistant";
 import { surfaceSuggestions } from "@/lib/ai";

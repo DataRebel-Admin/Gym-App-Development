@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db";
 import { getAccountUser } from "@/lib/account";
 import { buttonClasses } from "@/components/ui/button-classes";
+import { AccountPageHeader } from "@/components/account/account-page-header";
 import { PasswordForm } from "./password-form";
 import { TwoFactor } from "./two-factor";
+import { Passkeys } from "./passkeys";
 import { logoutAllDevices } from "../security-actions";
 
 const DT = new Intl.DateTimeFormat("nl-NL", {
@@ -31,7 +33,7 @@ export default async function SecurityPage() {
     where: { id: user.id }, select: { twoFactorEnabled: true },
   }))?.twoFactorEnabled);
 
-  const [sessions, lastLogin, activity] = await Promise.all([
+  const [sessions, lastLogin, activity, passkeys] = await Promise.all([
     prisma.userSession.findMany({
       where: { userId: user.id, revokedAt: null },
       orderBy: { lastSeenAt: "desc" },
@@ -48,14 +50,23 @@ export default async function SecurityPage() {
       take: 12,
       select: { id: true, action: true, createdAt: true, ipAddress: true },
     }),
+    prisma.authenticator.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, name: true, createdAt: true, lastUsedAt: true },
+    }),
   ]);
 
+  const passkeyRows = passkeys.map((p) => ({
+    id: p.id,
+    name: p.name,
+    createdAt: p.createdAt.toISOString(),
+    lastUsedAt: p.lastUsedAt ? p.lastUsedAt.toISOString() : null,
+  }));
+
   return (
-    <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-neutral-900">Beveiliging</h1>
-        <p className="mt-1 text-sm text-neutral-500">Wachtwoord, twee-factor en je sessies.</p>
-      </header>
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <AccountPageHeader title="Beveiliging" description="Wachtwoord, twee-factor en je sessies." />
 
       {lastLogin ? (
         <p className="text-sm text-neutral-500">
@@ -78,10 +89,20 @@ export default async function SecurityPage() {
       </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Toegangssleutels (passkeys)</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Log in met Face ID, Touch ID of je vingerafdruk — zonder wachtwoord.
+          </p>
+        </div>
+        <Passkeys passkeys={passkeyRows} />
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-neutral-900">Actieve sessies</h2>
           <form action={logoutAllDevices}>
-            <button type="submit" className={buttonClasses({ variant: "outline", size: "sm" })}>
+            <button type="submit" className={buttonClasses({ variant: "outline" })}>
               Overal uitloggen
             </button>
           </form>

@@ -1,4 +1,5 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import {
   MUSCLE_REGIONS,
@@ -105,8 +106,21 @@ function round05(n: number): number {
   return Math.round(n * 2) / 2;
 }
 
+/**
+ * Gecachet per (tenant, lid) met 5-min revalidatie — de spier-analyse is een
+ * 4-weken-trend, dus lichte staleness is onmerkbaar (één sessie verschuift het
+ * weekgemiddelde nauwelijks). Idioom van lib/insights.ts (getDashboardStats).
+ */
+export function getMuscleAnalysis(memberId: string, tenantId: string): Promise<MuscleAnalysis> {
+  return unstable_cache(
+    () => computeMuscleAnalysis(memberId, tenantId),
+    ["muscle-analysis", tenantId, memberId],
+    { revalidate: 300 }
+  )();
+}
+
 /** Bouw de analyse voor het actieve schema van een lid. */
-export async function getMuscleAnalysis(
+async function computeMuscleAnalysis(
   memberId: string,
   tenantId: string
 ): Promise<MuscleAnalysis> {

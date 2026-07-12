@@ -98,7 +98,7 @@ function ImageUploadField({
         ) : (
           <div className={`${previewClass} shrink-0 rounded-lg border border-dashed border-neutral-300`} />
         )}
-        <div className="flex flex-1 flex-col gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
           <input
             type="file"
             name={fileName}

@@ -149,7 +149,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* KPI's met trend */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           label="Actieve tenants"
           value={kpis.tenantsActive}
@@ -189,7 +189,7 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
             {data.attention.map((item) => (
               <AttentionCard key={item.key} item={item} />
             ))}

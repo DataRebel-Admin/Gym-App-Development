@@ -34,6 +34,7 @@ DECLARE
     'ClassSession',
     'ClassEnrollment',
     'PushSubscription',
+    'NativePushToken',
     'Measurement',
     'MeasurementPhoto',
     'MemberGoal',

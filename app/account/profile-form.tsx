@@ -73,8 +73,8 @@ export function ProfileForm({ user }: { user: Profile }) {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="font-display text-2xl font-bold text-neutral-900">Profiel</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <h1 className="hidden font-display text-2xl font-bold text-neutral-900 lg:block">Profiel</h1>
+        <p className="text-sm text-neutral-500 lg:mt-1">
           Beheer je persoonlijke gegevens. Wijzigingen worden automatisch opgeslagen.
         </p>
       </header>

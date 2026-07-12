@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
-import { verifyTwoFactor, type LoginState } from "../actions";
+import { verifyTwoFactor } from "../actions";
+import type { LoginState } from "@/lib/login-types";
 import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
 

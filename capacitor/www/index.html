@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>GymRebel</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #16120e; color: #f4eee7;
+        font-family: -apple-system, system-ui, sans-serif; }
+      .wrap { display: flex; flex-direction: column; align-items: center; justify-content: center;
+        height: 100%; gap: 1.25rem; padding: env(safe-area-inset-top) 1.5rem env(safe-area-inset-bottom); text-align: center; }
+      .mark { width: 64px; height: 64px; border-radius: 18px; background: #e8461c; display: grid; place-items: center; }
+      .mark svg { width: 42px; height: 42px; fill: #fff; }
+      h1 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+      p { margin: 0; font-size: .9rem; color: #a99e93; max-width: 22rem; }
+      .spin { width: 22px; height: 22px; border: 2px solid #443; border-top-color: #e8461c;
+        border-radius: 50%; animation: s 0.8s linear infinite; }
+      @keyframes s { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <!-- Fallback-scherm: getoond terwijl de gehoste app laadt of als er (nog) geen
+         verbinding is. De echte app komt van server.url (zie capacitor.config.ts). -->
+    <div class="wrap">
+      <div class="mark">
+        <svg viewBox="0 0 512 512" aria-hidden="true">
+          <rect x="150" y="240" width="212" height="32" rx="16" />
+          <rect x="160" y="214" width="24" height="84" rx="10" />
+          <rect x="328" y="214" width="24" height="84" rx="10" />
+          <rect x="116" y="190" width="34" height="132" rx="16" />
+          <rect x="362" y="190" width="34" height="132" rx="16" />
+        </svg>
+      </div>
+      <div class="spin"></div>
+      <h1>GymRebel</h1>
+      <p>Bezig met laden… Controleer je internetverbinding als dit blijft staan.</p>
+    </div>
+  </body>
+</html>

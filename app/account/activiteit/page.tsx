@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getAccountUser } from "@/lib/account";
+import { AccountPageHeader } from "@/components/account/account-page-header";
 
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -41,12 +42,10 @@ export default async function ActivityPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-neutral-900">Activiteit</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Je recente account- en beveiligingsactiviteit (laatste 50).
-        </p>
-      </header>
+      <AccountPageHeader
+        title="Activiteit"
+        description="Je recente account- en beveiligingsactiviteit (laatste 50)."
+      />
 
       {logs.length === 0 ? (
         <p className="text-sm text-neutral-500">Nog geen activiteit.</p>

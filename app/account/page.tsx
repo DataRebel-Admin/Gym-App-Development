@@ -1,26 +1,24 @@
-import { getAccountUser } from "@/lib/account";
-import { ProfileForm } from "./profile-form";
+import { getTranslations } from "next-intl/server";
+import { requireAccount } from "@/lib/account";
+import { accountSectionsRaw, ACCOUNT_ICON, type AccountGroup } from "@/lib/account-sections";
+import { AccountHub } from "@/components/account/account-hub";
 
-export const metadata = { title: "Profiel" };
+export const metadata = { title: "Accountinstellingen" };
 
-export default async function AccountProfilePage() {
-  const user = await getAccountUser();
+export default async function AccountHubPage() {
+  const me = await requireAccount();
+  const t = await getTranslations("account");
 
-  return (
-    <ProfileForm
-      user={{
-        email: user.email,
-        pendingEmail: user.pendingEmail,
-        emailVerified: Boolean(user.emailVerified),
-        firstName: user.firstName,
-        lastName: user.lastName,
-        jobTitle: user.jobTitle,
-        phone: user.phone,
-        timezone: user.timezone,
-        locale: user.locale,
-        image: user.image,
-        name: user.name,
-      }}
-    />
-  );
+  const groups: AccountGroup[] = accountSectionsRaw(me.role).map((g) => ({
+    key: g.key,
+    label: t(g.labelKey),
+    items: g.items.map((it) => ({
+      href: it.href,
+      label: t(it.labelKey),
+      desc: t(it.descKey),
+      iconPath: ACCOUNT_ICON[it.icon],
+    })),
+  }));
+
+  return <AccountHub title={t("title")} groups={groups} />;
 }

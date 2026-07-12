@@ -111,7 +111,7 @@ export default async function MemberProgressPage({
         <>
           <ProgressDeltas deltas={deltas} enabled={enabled} />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <MeasurementCharts points={series} enabled={enabled} />
             </div>

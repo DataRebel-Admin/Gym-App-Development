@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -156,13 +157,16 @@ export function ExerciseLibrary({
               >
                 <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
                   {e.thumbUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={e.thumbUrl}
                       alt=""
                       aria-hidden
-                      loading="lazy"
-                      className="size-full object-cover"
+                      fill
+                      sizes="(max-width: 480px) 50vw, 224px"
+                      // Catalogus-thumbnails zijn statische .jpg → optimaliseren.
+                      // Mocht een bron ooit een .gif zijn: onbewerkt laten (animatie).
+                      unoptimized={e.thumbUrl.toLowerCase().endsWith(".gif")}
+                      className="object-cover"
                     />
                   ) : (
                     <span className="flex size-full items-center justify-center text-accent">

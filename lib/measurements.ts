@@ -1,5 +1,5 @@
 import "server-only";
-import type { Measurement, MeasurementSource, PhotoPose, GoalMetric } from "@prisma/client";
+import type { Measurement, MeasurementSource, PhotoPose, GoalMetric, MemberGoal } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import {
   METRICS,
@@ -206,19 +206,13 @@ export type GoalProgress = {
   achieved: boolean;
 };
 
-/** Actieve doelen (meest recente per metric) met huidige waarde + voortgang. */
-export async function getGoals(tenantId: string, userId: string): Promise<GoalProgress[]> {
-  const [goals, latest] = await Promise.all([
-    prisma.memberGoal.findMany({
-      where: { tenantId, userId },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.measurement.findFirst({
-      where: { tenantId, userId },
-      orderBy: { measuredAt: "desc" },
-    }),
-  ]);
-
+/**
+ * Pure omzetting van ruwe doelen + de laatste meting naar voortgang. Gedeeld door
+ * [[getGoals]] (per lid) en [[getGoalsBulk]] (meerdere leden in één query-set) zodat
+ * beide paden gegarandeerd identiek rekenen. Verwacht `goals` in createdAt-desc
+ * volgorde (meest recente doel per metric wint).
+ */
+function goalsToProgress(goals: MemberGoal[], latest: Measurement | null): GoalProgress[] {
   const seen = new Set<GoalMetric>();
   const result: GoalProgress[] = [];
   for (const g of goals) {
@@ -242,6 +236,62 @@ export async function getGoals(tenantId: string, userId: string): Promise<GoalPr
       targetDate: g.targetDate ? g.targetDate.toISOString() : null,
       achieved: g.achievedAt != null || (percent != null && percent >= 100),
     });
+  }
+  return result;
+}
+
+/** Actieve doelen (meest recente per metric) met huidige waarde + voortgang. */
+export async function getGoals(tenantId: string, userId: string): Promise<GoalProgress[]> {
+  const [goals, latest] = await Promise.all([
+    prisma.memberGoal.findMany({
+      where: { tenantId, userId },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.measurement.findFirst({
+      where: { tenantId, userId },
+      orderBy: { measuredAt: "desc" },
+    }),
+  ]);
+  return goalsToProgress(goals, latest);
+}
+
+/**
+ * Bulk-variant van [[getGoals]] voor meerdere leden in **twee** queries (i.p.v. twee
+ * per lid). Gebruikt door de coach-betrokkenheidsberekening (lib/achievements/coach.ts)
+ * om de N+1 over "bijna behaald"-kandidaten te vermijden. Retourneert een lege lijst
+ * voor leden zonder doelen.
+ */
+export async function getGoalsBulk(
+  tenantId: string,
+  userIds: string[]
+): Promise<Map<string, GoalProgress[]>> {
+  const result = new Map<string, GoalProgress[]>();
+  if (userIds.length === 0) return result;
+
+  const [goals, measurements] = await Promise.all([
+    prisma.memberGoal.findMany({
+      where: { tenantId, userId: { in: userIds } },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.measurement.findMany({
+      where: { tenantId, userId: { in: userIds } },
+      orderBy: { measuredAt: "desc" },
+    }),
+  ]);
+
+  // Laatste meting per lid = eerste in desc-volgorde.
+  const latestByUser = new Map<string, Measurement>();
+  for (const m of measurements) if (!latestByUser.has(m.userId)) latestByUser.set(m.userId, m);
+
+  const goalsByUser = new Map<string, MemberGoal[]>();
+  for (const g of goals) {
+    const arr = goalsByUser.get(g.userId);
+    if (arr) arr.push(g);
+    else goalsByUser.set(g.userId, [g]);
+  }
+
+  for (const userId of userIds) {
+    result.set(userId, goalsToProgress(goalsByUser.get(userId) ?? [], latestByUser.get(userId) ?? null));
   }
   return result;
 }

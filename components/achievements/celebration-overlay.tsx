@@ -9,6 +9,7 @@ import { Trophy, ChevronRight, X } from "@/components/ui/icons";
 import { rarityMeta } from "@/lib/achievements/rarity";
 import type { PendingCelebration } from "@/lib/achievements/evaluate";
 import { dismissCelebrations } from "@/app/member/trophies/actions";
+import { haptic } from "@/lib/haptics";
 
 const CONFETTI_COLORS = ["var(--tenant-accent)", "#fbbf24", "#34d399", "#60a5fa", "#f472b6"];
 const CONFETTI = Array.from({ length: 26 }, (_, i) => ({
@@ -52,13 +53,8 @@ export function CelebrationOverlay({ celebrations }: { celebrations: PendingCele
 
   useEffect(() => {
     if (!open) return;
-    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-      try {
-        navigator.vibrate([25, 40, 60]);
-      } catch {
-        /* niet ondersteund */
-      }
-    }
+    // Native (Taptic Engine op iOS) of web-trilling — zie lib/haptics.
+    void haptic("success", [25, 40, 60]);
   }, [index, open]);
 
   if (celebrations.length === 0 || !open) return null;

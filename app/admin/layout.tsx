@@ -133,7 +133,14 @@ export default async function AdminLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1">
+      {/* `overflow-x-clip` maakt horizontaal pagina-scrollen structureel
+          onmogelijk op mobiel (lange tenantnamen/e-mails/serienummers of
+          native inputs kunnen anders de breedte oprekken). `clip` i.p.v.
+          `hidden` zodat er géén verticale scroll-container ontstaat → de
+          sticky header en verticaal scrollen blijven werken. Brede content
+          (tabellen, editor) scrolt binnen z'n eigen `overflow-x-auto`-wrapper;
+          modals/drawer zitten in een portal op <body> en blijven ongemoeid. */}
+      <main className="mx-auto w-full min-w-0 max-w-7xl flex-1 overflow-x-clip">
         <PageTransition>{children}</PageTransition>
       </main>
     </div>

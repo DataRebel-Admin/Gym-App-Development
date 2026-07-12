@@ -9,70 +9,85 @@ import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/security";
 import { resolveLoginUser } from "@/lib/login-user";
 import {
-  mintLoginChallenge,
+  findLoginTenantsForEmail,
+  matchPasswordAcrossTenants,
+} from "@/lib/login-tenants";
+import {
   parseLoginChallenge,
+  mintTenantSelection,
+  verifyTenantSelection,
 } from "@/lib/login-challenge";
+import { completePasswordLogin } from "@/lib/login-complete";
+import type { LoginState } from "@/lib/login-types";
 import {
   AUTH_TENANT_COOKIE,
-  DEV_FALLBACK_TENANT,
+  GYM_SELECT_COOKIE,
+  TENANT_COOKIE_MAX_AGE,
   TWO_FACTOR_CHALLENGE_COOKIE,
 } from "@/lib/constants";
 import { demoLoginEnabled } from "@/lib/demo-login";
 
+/** Duurzame tenant-context-cookie (subdomein-loos: de proxy valt hierop terug). */
+const TENANT_COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: TENANT_COOKIE_MAX_AGE,
+} as const;
+
 const requestSchema = z.object({
   email: z.string().email("Ongeldig e-mailadres"),
-  tenant: z.string().min(1).default(DEV_FALLBACK_TENANT),
 });
 
-export type LoginState = { error?: string };
-
 /**
- * Vraag een magic link aan voor het opgegeven e-mailadres, gescoped op de
- * tenant uit het formulier. De tenant-slug wordt in een cookie gezet zodat de
- * tenant-scoped adapter de juiste sportschool kiest bij het verifiëren.
+ * Vraag een magic link aan. De sportschool wordt afgeleid uit het e-mailadres
+ * (geen subdomein nodig): superadmin → globaal; één sportschool → die; meerdere →
+ * `sendVerificationRequest` stuurt een gelabelde link per sportschool. Het scherm
+ * toont altijd "check je mail" (geen enumeratie).
  */
 export async function requestMagicLink(
   _prev: LoginState,
   formData: FormData
 ): Promise<LoginState> {
-  const parsed = requestSchema.safeParse({
-    email: formData.get("email"),
-    tenant: formData.get("tenant"),
-  });
-
+  const parsed = requestSchema.safeParse({ email: formData.get("email") });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
   }
+  const email = parsed.data.email.toLowerCase().trim();
+  const store = await cookies();
 
-  const { email, tenant } = parsed.data;
-
-  // Platform-superadmins hebben geen tenant. Detecteer ze zodat we GEEN
-  // tenant-cookie zetten — dan doet de adapter de globale superadmin-lookup
-  // (zie lib/auth-adapter.ts). Tenant-gebruikers krijgen wél de tenant-cookie.
+  // Platform-superadmin (geen tenant) → geen tenant-cookie; adapter zoekt globaal.
   const isSuperadmin = Boolean(
     await prisma.user.findFirst({
       where: { email, tenantId: null, role: "SUPERADMIN" },
       select: { id: true },
     })
   );
-
-  const store = await cookies();
   if (isSuperadmin) {
     store.delete(AUTH_TENANT_COOKIE);
-  } else {
-    // Onthoud de tenant voor de verificatiestap (phase 2 van de magic link).
-    store.set(AUTH_TENANT_COOKIE, tenant, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 15, // 15 minuten
-    });
+    try {
+      await signIn("nodemailer", { email, redirectTo: "/" });
+    } catch (e) {
+      if (e instanceof AuthError) return { error: "Inloggen niet gelukt." };
+      throw e;
+    }
+    return {};
   }
 
-  // Magic link is pas beschikbaar nadat het account is geactiveerd (wachtwoord
-  // ingesteld). Zolang dat niet is gebeurd, sturen we terug naar de activatieflow.
-  // Superadmins (geen tenant) zijn uitgezonderd — die hebben geen activatielink.
-  if (!isSuperadmin) {
+  const tenants = await findLoginTenantsForEmail(email);
+
+  // Onbekend e-mailadres → toch "check je mail" tonen (geen enumeratie).
+  if (tenants.length === 0) redirect("/login/check");
+
+  // Zet de tenant-cookie op de eerste sportschool. Auth.js roept de signIn-gate
+  // (getUserByEmail) óók bij het VERSTUREN aan — zonder cookie zou die niemand
+  // vinden en de mail weigeren. Bij multi-gym overschrijft /login/magic de cookie
+  // bij het klikken met de gekozen sportschool; de send-time waarde bepaalt de
+  // uiteindelijke keuze dus niet.
+  store.set(AUTH_TENANT_COOKIE, tenants[0].slug, TENANT_COOKIE_OPTS);
+
+  if (tenants.length === 1) {
+    // Nog niet geactiveerd (uitgenodigd, geen wachtwoord) → naar de activatieflow.
     const user = await resolveLoginUser(email);
     if (user && user.active && !user.passwordHash) {
       return {
@@ -82,37 +97,29 @@ export async function requestMagicLink(
     }
   }
 
-  // signIn verstuurt de magic link (console in dev). Bij succes gooit het een
-  // redirect (naar de verifyRequest-pagina) die we moeten doorgooien; bij een
-  // weigering gooit het een AuthError die we hier netjes afvangen i.p.v. crashen.
   try {
     await signIn("nodemailer", { email, redirectTo: "/" });
   } catch (e) {
     if (e instanceof AuthError) {
-      return {
-        error:
-          "Inloggen niet gelukt. Controleer je e-mailadres (en of je bij deze sportschool hoort).",
-      };
+      return { error: "Inloggen niet gelukt. Controleer je e-mailadres." };
     }
-    throw e; // NEXT_REDIRECT (succes) of een andere fout
+    throw e;
   }
-
-  // Onbereikbaar (signIn redirect bij succes), maar bevredigt het type.
   return {};
 }
 
 const pwLoginSchema = z.object({
   email: z.string().email("Ongeldig e-mailadres"),
   password: z.string().min(1, "Wachtwoord vereist"),
-  tenant: z.string().min(1).default(DEV_FALLBACK_TENANT),
 });
 
 /**
- * Stap 1 van de wachtwoord-login: verifieer e-mail + wachtwoord. Heeft de
- * gebruiker 2FA ingeschakeld, dan vragen we de code NIET hier maar sturen we
- * door naar de aparte verificatiepagina (`/login/2fa`). Een ondertekende
- * challenge (cookie) draagt het bewijs van de wachtwoordcheck mee, zodat stap 2
- * alleen de code hoeft te verzamelen. Zonder 2FA loggen we meteen in.
+ * Stap 1 van de wachtwoord-login (subdomein-loos). Het wachtwoord wordt gecheckt
+ * tegen álle sportschool-accounts van dit e-mailadres:
+ *  - 0 match → generieke fout;
+ *  - 1 match → inloggen (of 2FA);
+ *  - >1 match → gym-kiezer (`/login/gym`) met een proof-getekend keuze-token.
+ * De kiezer verschijnt dus alleen ná een geldig wachtwoord → geen enumeratie.
  */
 export async function loginWithPassword(
   _prev: LoginState,
@@ -121,64 +128,100 @@ export async function loginWithPassword(
   const parsed = pwLoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
-    tenant: formData.get("tenant"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
   }
-  const { email, password, tenant } = parsed.data;
-
-  const isSuperadmin = Boolean(
-    await prisma.user.findFirst({
-      where: { email, tenantId: null, role: "SUPERADMIN" },
-      select: { id: true },
-    })
-  );
+  const email = parsed.data.email.toLowerCase().trim();
+  const { password } = parsed.data;
   const store = await cookies();
-  if (isSuperadmin) store.delete(AUTH_TENANT_COOKIE);
-  else
-    store.set(AUTH_TENANT_COOKIE, tenant, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 15,
-    });
 
-  // Verifieer wachtwoord vóór we eventueel om 2FA vragen (geen enumeration:
-  // dezelfde generieke fout bij onbekende gebruiker én verkeerd wachtwoord).
-  const user = await resolveLoginUser(email);
-  if (
-    !user ||
-    !user.active ||
-    !user.passwordHash ||
-    !(await verifyPassword(password, user.passwordHash))
-  ) {
-    return { error: "Onjuiste inloggegevens." };
-  }
-
-  const challenge = mintLoginChallenge({ email: user.email, tenantId: user.tenantId });
-
-  // 2FA aan → naar de aparte verificatiepagina, met de challenge in een cookie.
-  if (user.twoFactorEnabled && user.twoFactorSecret) {
-    store.set(TWO_FACTOR_CHALLENGE_COOKIE, challenge, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 5,
-    });
-    redirect("/login/2fa");
-  }
-
-  // Geen 2FA → meteen inloggen; de challenge bewijst de wachtwoordcheck.
-  try {
-    await signIn("credentials", { email: user.email, challenge, redirectTo: "/" });
-  } catch (e) {
-    if (e instanceof AuthError) {
-      return { error: "Inloggen niet gelukt." };
+  // 1) Platform-superadmin (globaal, geen tenant).
+  const superadmin = await prisma.user.findFirst({
+    where: { email, tenantId: null, role: "SUPERADMIN" },
+  });
+  if (superadmin) {
+    store.delete(AUTH_TENANT_COOKIE);
+    if (
+      !superadmin.active ||
+      !superadmin.passwordHash ||
+      !(await verifyPassword(password, superadmin.passwordHash))
+    ) {
+      return { error: "Onjuiste inloggegevens." };
     }
-    throw e; // NEXT_REDIRECT bij succes
+    return completePasswordLogin({
+      email: superadmin.email,
+      tenantId: null,
+      twoFactorEnabled: superadmin.twoFactorEnabled,
+      twoFactorSecret: superadmin.twoFactorSecret,
+    });
   }
-  return {};
+
+  // 2) Tenant-accounts: wachtwoord checken over alle sportscholen van dit e-mailadres.
+  const matched = await matchPasswordAcrossTenants(email, password);
+  if (matched.length === 0) return { error: "Onjuiste inloggegevens." };
+
+  if (matched.length === 1) {
+    const acc = matched[0];
+    store.set(AUTH_TENANT_COOKIE, acc.slug, TENANT_COOKIE_OPTS);
+    return completePasswordLogin({
+      email: acc.email,
+      tenantId: acc.tenantId,
+      twoFactorEnabled: acc.twoFactorEnabled,
+      twoFactorSecret: acc.twoFactorSecret,
+    });
+  }
+
+  // >1: gym-kiezer. Het proof-token draagt de reeds-geverifieerde tenant-ids.
+  const token = mintTenantSelection({
+    email,
+    tenantIds: matched.map((m) => m.tenantId),
+  });
+  store.set(GYM_SELECT_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 10,
+  });
+  redirect("/login/gym");
+}
+
+/**
+ * Kies een sportschool ná een geldige wachtwoord-check (multi-gym). Het
+ * keuze-token bewijst dat het wachtwoord voor deze tenant-ids klopte, dus we
+ * hoeven het niet opnieuw te vragen.
+ */
+export async function selectGym(formData: FormData) {
+  const slug = String(formData.get("slug") ?? "").trim();
+  const store = await cookies();
+  const token = store.get(GYM_SELECT_COOKIE)?.value;
+  const claims = token ? verifyTenantSelection(token) : null;
+  if (!slug || !claims) redirect("/login");
+
+  const tenant = await prisma.tenant.findFirst({
+    where: { slug, status: "ACTIVE", deletedAt: null },
+    select: { id: true, slug: true },
+  });
+  if (!tenant || !claims.tenantIds.includes(tenant.id)) redirect("/login");
+
+  const user = await prisma.user.findUnique({
+    where: { tenantId_email: { tenantId: tenant.id, email: claims.email } },
+    select: { active: true, twoFactorEnabled: true, twoFactorSecret: true },
+  });
+  if (!user || !user.active) redirect("/login");
+
+  store.set(AUTH_TENANT_COOKIE, tenant.slug, TENANT_COOKIE_OPTS);
+  store.delete(GYM_SELECT_COOKIE);
+
+  const res = await completePasswordLogin({
+    email: claims.email,
+    tenantId: tenant.id,
+    twoFactorEnabled: user.twoFactorEnabled,
+    twoFactorSecret: user.twoFactorSecret,
+  });
+  // completePasswordLogin gooit een redirect bij succes/2FA; hier belanden we
+  // alleen bij een onverwachte fout → terug naar de login.
+  if (res?.error) redirect("/login");
 }
 
 const twoFactorSchema = z.object({
@@ -186,9 +229,8 @@ const twoFactorSchema = z.object({
 });
 
 /**
- * Stap 2 van de wachtwoord-login: verifieer de 2FA-code tegen de challenge die
- * in stap 1 is gezet. De `authorize`-callback valideert de challenge-handtekening
- * én de TOTP-code; het wachtwoord komt hier niet meer aan te pas.
+ * Stap 2 van de wachtwoord-login: verifieer de 2FA-code tegen de challenge uit
+ * stap 1. De `authorize`-callback valideert challenge-handtekening én TOTP-code.
  */
 export async function verifyTwoFactor(
   _prev: LoginState,
@@ -217,7 +259,7 @@ export async function verifyTwoFactor(
     if (e instanceof AuthError) {
       return { error: "Ongeldige of verlopen 2FA-code." };
     }
-    throw e; // NEXT_REDIRECT bij succes
+    throw e;
   }
   return {};
 }
@@ -229,22 +271,14 @@ export async function oauthSignIn(formData: FormData) {
   const tenant = String(formData.get("tenant") ?? "");
   if (provider !== "google" && provider !== "microsoft-entra-id") return;
   if (tenant) {
-    (await cookies()).set(AUTH_TENANT_COOKIE, tenant, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 15,
-    });
+    (await cookies()).set(AUTH_TENANT_COOKIE, tenant, TENANT_COOKIE_OPTS);
   }
   await signIn(provider, { redirectTo: "/" });
 }
 
 /**
  * Demo-login: log direct in als een demo-account, zonder wachtwoord of magic
- * link. Uitsluitend actief wanneer DEMO_LOGIN="true" (in productie óók
- * DEMO_LOGIN_ALLOW_PRODUCTION="true" — zie demoLoginEnabled). Zet de
- * tenant-cookie zodat de tenant-scoped resolutie
- * (en de signIn-callback) het juiste account vinden — net als de OAuth-flow.
+ * link. Uitsluitend actief wanneer DEMO_LOGIN="true" (zie demoLoginEnabled).
  */
 export async function demoSignIn(formData: FormData) {
   if (!demoLoginEnabled()) return;
@@ -254,12 +288,7 @@ export async function demoSignIn(formData: FormData) {
 
   const store = await cookies();
   if (tenant) {
-    store.set(AUTH_TENANT_COOKIE, tenant, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 15,
-    });
+    store.set(AUTH_TENANT_COOKIE, tenant, TENANT_COOKIE_OPTS);
   } else {
     // Geen tenant → platform-superadmin (resolveLoginUser zoekt tenantId == null).
     store.delete(AUTH_TENANT_COOKIE);
@@ -268,9 +297,8 @@ export async function demoSignIn(formData: FormData) {
   try {
     await signIn("demo-login", { email, redirectTo: "/" });
   } catch (e) {
-    // Mislukte demo-login (bv. seed niet gedraaid) → netjes terug naar /login.
     if (e instanceof AuthError) redirect("/login?devError=1");
-    throw e; // NEXT_REDIRECT bij succes
+    throw e;
   }
 }
 

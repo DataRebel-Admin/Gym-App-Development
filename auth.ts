@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { verifyPassword, verifyTotp } from "@/lib/security";
 import { resolveLoginUser } from "@/lib/login-user";
+import { findLoginTenantsForEmail } from "@/lib/login-tenants";
 import { verifyLoginChallenge } from "@/lib/login-challenge";
 import { demoLoginEnabled } from "@/lib/demo-login";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
@@ -89,12 +90,32 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       server: { host: "localhost", port: 1025 },
       from: "no-reply@gymrebel.app",
       async sendVerificationRequest({ identifier, url }) {
-        // Branded magic link met de huisstijl van de tenant (uit de login-cookie).
-        // Met Graph geconfigureerd gaat 'ie de deur uit; anders naar de console.
-        const slug = (await cookies()).get(AUTH_TENANT_COOKIE)?.value ?? null;
+        const email = identifier.toLowerCase().trim();
+        const tenants = await findLoginTenantsForEmail(email);
+
+        // Multi-gym: één gebrande, gelabelde link per sportschool. Elke link gaat
+        // via /login/magic?t=<slug>, dat de tenant-cookie zet vóór Auth.js de
+        // (gedeelde, eenmalige) token verifieert. De gebruiker klikt de juiste;
+        // niets wordt on-screen prijsgegeven (alleen de mailbox-eigenaar ziet ze).
+        if (tenants.length > 1) {
+          const origin = new URL(url).origin;
+          for (const t of tenants) {
+            const wrapped = `${origin}/login/magic?t=${encodeURIComponent(t.slug)}&u=${encodeURIComponent(url)}`;
+            const branding = await loadTenantBrandingBySlug(t.slug);
+            await sendEmail({
+              to: email,
+              message: await magicLinkMessage({ branding, url: wrapped }),
+              devLink: wrapped,
+            });
+          }
+          return;
+        }
+
+        // 0 of 1 sportschool: branding uit de login-cookie of de enige tenant.
+        const slug = (await cookies()).get(AUTH_TENANT_COOKIE)?.value ?? tenants[0]?.slug ?? null;
         const branding = await loadTenantBrandingBySlug(slug);
         await sendEmail({
-          to: identifier,
+          to: email,
           message: await magicLinkMessage({ branding, url }),
           devLink: url,
         });

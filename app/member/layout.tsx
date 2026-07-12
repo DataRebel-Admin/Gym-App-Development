@@ -13,6 +13,7 @@ import { PageTransition } from "@/components/motion/page-transition";
 import { MemberOnboarding } from "@/components/member/onboarding";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
 import { CelebrationOverlay } from "@/components/achievements/celebration-overlay";
+import { NativePushRegister } from "@/components/pwa/native-push-register";
 
 export default async function MemberLayout({
   children,
@@ -42,7 +43,7 @@ export default async function MemberLayout({
     : [];
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-md flex-col">
+    <div className="mx-auto flex min-h-full w-full max-w-md flex-col sm:max-w-lg">
       <header className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border bg-surface-1/80 px-4 py-3 backdrop-blur-xl">
         <Link
           href="/member"
@@ -85,6 +86,7 @@ export default async function MemberLayout({
       <MemberNav classesEnabled={classesEnabled} />
       <MemberOnboarding />
       <CelebrationOverlay celebrations={celebrations} />
+      <NativePushRegister />
     </div>
   );
 }

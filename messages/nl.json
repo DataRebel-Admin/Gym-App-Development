@@ -1174,6 +1174,26 @@
       "goals": "Mijn doelen",
       "gym": "Sportschool"
     },
+    "hub": {
+      "overview": "Overzicht",
+      "groups": {
+        "account": "Account",
+        "prefs": "Voorkeuren",
+        "security": "Beveiliging & privacy",
+        "admin": "Beheer"
+      },
+      "subtitles": {
+        "profile": "Naam, foto, e-mailadres",
+        "goals": "Waar je aan werkt",
+        "language": "Taal van de interface",
+        "notifications": "E-mail, in-app en push",
+        "security": "Wachtwoord, 2FA, passkeys, sessies",
+        "privacy": "Toestemmingen, export, verwijderen",
+        "integrations": "Verbonden accounts",
+        "activity": "Recente account-activiteit",
+        "gym": "Sportschool-instellingen"
+      }
+    },
     "language": {
       "navLabel": "Taal",
       "title": "Taal",

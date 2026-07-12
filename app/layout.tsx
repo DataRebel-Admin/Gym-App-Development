@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { Viewport } from "next";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -11,6 +12,7 @@ import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { FullscreenToggle } from "@/components/fullscreen-toggle";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +34,13 @@ const displayFont = Space_Grotesk({
 
 // Titel-sjabloon + dynamische favicon (per tenant). Zie lib/metadata.ts.
 export const generateMetadata = rootMetadata;
+
+// Browser-chrome themekleur volgt de tenant-huisstijl (whitelabel), met de
+// GymRebel-merkkleur als fallback. getCurrentTenant is per-request gecachet.
+export async function generateViewport(): Promise<Viewport> {
+  const tenant = await getCurrentTenant();
+  return { themeColor: tenant?.accentColor ?? "#e84b1f" };
+}
 
 export default async function RootLayout({
   children,
@@ -81,6 +90,7 @@ export default async function RootLayout({
               <TenantProvider tenant={tenantInfo}>
                 {children}
                 <FullscreenToggle />
+                <ServiceWorkerRegister />
               </TenantProvider>
             </ToastProvider>
           </MotionProvider>

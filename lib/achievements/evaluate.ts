@@ -11,7 +11,7 @@ import {
   type AchievementDef,
 } from "@/lib/achievements/definitions";
 import { rarityMeta, type Rarity, RARITY_META } from "@/lib/achievements/rarity";
-import { getAchievementTranslator } from "@/lib/achievements/i18n";
+import { getAchievementTranslator, type AchievementTranslator } from "@/lib/achievements/i18n";
 import { computeMemberMetrics, type MemberMetrics } from "@/lib/achievements/metrics";
 import { notifyAchievementsEarned } from "@/lib/achievements/notify";
 import { getHideAchievements } from "@/lib/user-preferences";
@@ -163,6 +163,32 @@ function levelIndexFromEarned(earnedCount: number, total: number): number {
 }
 
 /**
+ * Bouwt één weergave-item (behaald/vergrendeld + voortgang + vertaalde labels) uit een
+ * definitie, de huidige metricwaarde en de eventuele behaaldatum. Gedeeld door het
+ * volledige overzicht ([[getAchievementsView]]) en de "bijna behaald"-lijst
+ * ([[nextUpFromMetrics]]) zodat labels/voortgang overal identiek zijn.
+ */
+function buildAchievementItem(
+  def: AchievementDef,
+  current: number,
+  earnedAt: Date | null,
+  tr: AchievementTranslator
+): AchievementItem {
+  const earned = earnedAt != null;
+  return {
+    def: { ...def, title: tr.title(def.key), description: tr.description(def.key) },
+    earned,
+    earnedAt,
+    progress: earned ? 1 : progressOf(def, current),
+    current,
+    currentLabel: tr.metric(def, Math.min(current, def.threshold)),
+    targetLabel: tr.metric(def, def.threshold),
+    rarityLabel: tr.rarity(def.rarity),
+    remaining: Math.max(0, def.threshold - current),
+  };
+}
+
+/**
  * Volledig weergavemodel voor de achievements van één lid: behaald + vergrendeld
  * + voortgang, gegroepeerd per categorie, met samenvatting/level/nextUp. Verborgen
  * (`hidden`) definities die nog niet behaald zijn worden weggelaten.
@@ -183,21 +209,9 @@ export async function getAchievementsView(
 
   const items: AchievementItem[] = [];
   for (const def of ACHIEVEMENTS) {
-    const earned = earnedAt.has(def.key);
-    if (def.hidden && !earned) continue;
-    const current = metrics[def.metric] ?? 0;
-    const progress = earned ? 1 : progressOf(def, current);
-    items.push({
-      def: { ...def, title: tr.title(def.key), description: tr.description(def.key) },
-      earned,
-      earnedAt: earnedAt.get(def.key) ?? null,
-      progress,
-      current,
-      currentLabel: tr.metric(def, Math.min(current, def.threshold)),
-      targetLabel: tr.metric(def, def.threshold),
-      rarityLabel: tr.rarity(def.rarity),
-      remaining: Math.max(0, def.threshold - current),
-    });
+    const earnedDate = earnedAt.get(def.key) ?? null;
+    if (def.hidden && earnedDate == null) continue;
+    items.push(buildAchievementItem(def, metrics[def.metric] ?? 0, earnedDate, tr));
   }
 
   const byCategory = CATEGORY_ORDER.map((category) => {
@@ -247,6 +261,26 @@ export async function getAchievementsView(
     latest,
     best,
   };
+}
+
+/**
+ * "Bijna behaald"-lijst (nog-vergrendelde, zichtbare achievements met voortgang in
+ * (0,1), aflopend op voortgang) rechtstreeks uit metrics + reeds behaalde keys — zónder
+ * het volledige [[getAchievementsView]] op te bouwen. Zo berekent de coach-betrokkenheid
+ * dit voor veel leden zonder N+1. Identiek aan `getAchievementsView(...).nextUp`.
+ */
+export function nextUpFromMetrics(
+  metrics: MemberMetrics,
+  earnedKeys: ReadonlySet<string>,
+  tr: AchievementTranslator
+): AchievementItem[] {
+  const items: AchievementItem[] = [];
+  for (const def of ACHIEVEMENTS) {
+    if (def.hidden || earnedKeys.has(def.key)) continue; // alleen zichtbare, nog-vergrendelde
+    const item = buildAchievementItem(def, metrics[def.metric] ?? 0, null, tr);
+    if (item.progress > 0 && item.progress < 1) items.push(item);
+  }
+  return items.sort((a, b) => b.progress - a.progress).slice(0, 6);
 }
 
 // --- UI-zichtbaarheid (opt-in per tenant + opt-out per lid) ------------------

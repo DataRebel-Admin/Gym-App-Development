@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getMemberStats } from "@/lib/member-stats";
 import { enforceSessionTimeout } from "@/lib/session-timeout";
@@ -45,15 +44,14 @@ function greetingKey(d: Date) {
 export default async function MemberHome() {
   const member = await requireMember();
   // Automatische 5-uur-timeout: sluit een te lang openstaande sessie af zodat het
-  // dashboard 'm niet als "hervat training" blijft tonen.
-  await enforceSessionTimeout(member.tenantId, member.id);
-  const [assignment, stats, openSession, t] = await Promise.all([
+  // dashboard 'm niet als "hervat training" blijft tonen. De teruggegeven sessie-id is
+  // de nog-open sessie (null bij auto-stop of geen sessie) — hergebruikt zodat we
+  // dezelfde open-sessie-query niet nogmaals draaien.
+  const timeout = await enforceSessionTimeout(member.tenantId, member.id);
+  const openSessionId = timeout.autoStopped ? null : timeout.sessionId;
+  const [assignment, stats, t] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getMemberStats(member.id, member.tenantId),
-    prisma.workoutSession.findFirst({
-      where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
-      select: { id: true },
-    }),
     getTranslations("member.home"),
   ]);
   // AI-widget: alleen als de AI-module beschikbaar is (Superadmin-flag én owner-toggle).
@@ -181,7 +179,7 @@ export default async function MemberHome() {
           className="pointer-events-none absolute -right-8 -top-10 size-40 rounded-full bg-white/15 blur-2xl"
         />
         <p className="relative text-xs font-medium uppercase tracking-wide opacity-80">
-          {openSession ? t("trainingBusy") : t("yourSchema")}
+          {openSessionId ? t("trainingBusy") : t("yourSchema")}
         </p>
         {schema ? (
           <>
@@ -194,11 +192,11 @@ export default async function MemberHome() {
               <SchemaBadges badges={schema.badges} size="xs" max={4} />
             </div>
             <Link
-              href={openSession ? "/member/schema/active" : "/member/schema"}
+              href={openSessionId ? "/member/schema/active" : "/member/schema"}
               className="relative mt-4 flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-center text-lg font-bold text-[#171717] shadow-md transition-transform active:scale-[0.98]"
             >
               <Play className="size-5 fill-current" />
-              {openSession ? t("resumeTraining") : t("startTraining")}
+              {openSessionId ? t("resumeTraining") : t("startTraining")}
             </Link>
           </>
         ) : (

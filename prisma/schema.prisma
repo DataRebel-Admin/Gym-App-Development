@@ -205,6 +205,7 @@ model Tenant {
   classEnrollments  ClassEnrollment[]
   notifications     Notification[]
   pushSubscriptions PushSubscription[]
+  nativePushTokens  NativePushToken[]
   measurements      Measurement[]
   measurementPhotos MeasurementPhoto[]
   memberGoals       MemberGoal[]
@@ -524,9 +525,11 @@ model User {
   classEnrollments ClassEnrollment[]
   accounts         Account[] // Auth.js (OAuth, later)
   authSessions     Session[] // Auth.js DB-sessies (we gebruiken jwt, maar model vereist)
+  authenticators   Authenticator[] // WebAuthn/passkeys (biometrische login)
   userSessions     UserSession[] // device/sessie-registratie
   notifications    Notification[]
   pushSubscriptions PushSubscription[]
+  nativePushTokens NativePushToken[] // APNs/FCM device-tokens (native app)
   measurements     Measurement[] @relation("MemberMeasurements")
   goals            MemberGoal[]  @relation("MemberGoals")
   schemaRequests   SchemaRequest[]
@@ -707,6 +710,27 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// WebAuthn/passkey-credential. Auth-infra (zoals Account/Session): géén tenantId/
+// RLS — de login zoekt de credential vóór er tenant-context is. De tenant volgt
+// uit de gekoppelde User. credentialId/publicKey worden base64url opgeslagen.
+model Authenticator {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique
+  publicKey    String // base64url (COSE public key)
+  counter      Int       @default(0)
+  transports   String[] // bv. ["internal","hybrid"]
+  deviceType   String? // "singleDevice" | "multiDevice"
+  backedUp     Boolean   @default(false)
+  name         String? // gebruiker-gekozen label ("iPhone van Duco")
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Machine {
@@ -1148,6 +1172,25 @@ model PushSubscription {
   @@index([userId])
 }
 
+// Native push-device-token (APNs op iOS; voorbereid op FCM/Android). Tenant-scoped
+// + RLS (zoals PushSubscription). Dode tokens (BadDeviceToken/Unregistered) worden
+// opgeruimd bij verzenden in lib/push-apns.ts.
+model NativePushToken {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  platform   String // "ios" | "android"
+  token      String   @unique
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
 model WorkoutSession {
   id        String    @id @default(cuid())
   tenantId  String
@@ -1181,8 +1224,14 @@ model WorkoutSession {
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   performanceEntries PerformanceEntry[]
 
-  @@index([tenantId])
+  // Hoogste-churn tabel: per-lid queries filteren op (tenantId, userId) + sorteren
+  // op startedAt (member-stats/metrics/history/timeout); owner-dashboards op
+  // (tenantId, startedAt). De losse userId-index blijft voor de GDPR-export
+  // (app/account/export) die alléén op userId filtert. De losse tenantId-index is
+  // overbodig — beide composieten leiden met tenantId.
   @@index([userId])
+  @@index([tenantId, userId, startedAt])
+  @@index([tenantId, startedAt])
 }
 
 model PerformanceEntry {

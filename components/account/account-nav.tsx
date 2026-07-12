@@ -6,10 +6,14 @@ import { cn } from "@/lib/cn";
 
 export type AccountNavItem = { href: string; label: string; iconPath: string };
 
+/**
+ * Verticale account-zijbalk — alléén desktop (`lg+`). Op mobiel navigeert de
+ * gebruiker via de settings-hub (`/account`) en de terug-pijl in de topbalk.
+ */
 export function AccountNav({ items }: { items: AccountNavItem[] }) {
   const pathname = usePathname();
   return (
-    <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-col lg:overflow-visible lg:border-0 lg:px-0 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <nav className="flex flex-col gap-1">
       {items.map((it) => {
         const active = pathname === it.href;
         return (
@@ -18,7 +22,7 @@ export function AccountNav({ items }: { items: AccountNavItem[] }) {
             href={it.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors lg:px-3 lg:py-2",
+              "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
               active
                 ? "bg-accent-soft text-accent"
                 : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"

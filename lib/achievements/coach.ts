@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { getAchievementDef } from "@/lib/achievements/definitions";
 import { type Rarity } from "@/lib/achievements/rarity";
 import { getAchievementTranslator } from "@/lib/achievements/i18n";
-import { getAchievementsView } from "@/lib/achievements/evaluate";
+import { nextUpFromMetrics } from "@/lib/achievements/evaluate";
+import { computeMemberMetricsBulk } from "@/lib/achievements/metrics";
 
 /**
  * Coach-/medewerker-inzichten rond betrokkenheid: wie behaalde net een mijlpaal,
@@ -154,25 +155,42 @@ export async function getCoachEngagement(
     .sort((a, b) => b.daysSince - a.daysSince)
     .slice(0, 8);
 
-  // Bijna behaald: gecapt op de meest actieve leden (zwaardere berekening).
+  // Bijna behaald: gecapt op de meest actieve leden. Voorheen N+1 (een volledige
+  // achievements-view per kandidaat → ~5 queries × kandidaat); nu één bulk-metrics-
+  // fetch + één earned-query voor álle kandidaten samen, waarna "next up" puur
+  // in-memory volgt.
   const nearCandidates = [...aggList].sort((a, b) => b.sessions - a.sessions).slice(0, NEAR_CANDIDATES);
-  const nearResults = await Promise.all(
-    nearCandidates.map(async (c) => {
-      const view = await getAchievementsView(c.userId, tenantId);
-      const top = view.nextUp[0];
-      if (!top || top.progress < 0.6) return null;
-      return {
-        userId: c.userId,
-        name: c.name,
-        title: top.def.title,
-        progress: top.progress,
-        currentLabel: top.currentLabel,
-        targetLabel: top.targetLabel,
-      } satisfies NearRow;
+  const candidateIds = nearCandidates.map((c) => c.userId);
+  const [metricsByUser, earnedRows] = await Promise.all([
+    computeMemberMetricsBulk(candidateIds, tenantId),
+    prisma.earnedAchievement.findMany({
+      where: { tenantId, userId: { in: candidateIds } },
+      select: { userId: true, key: true },
+    }),
+  ]);
+  const earnedByUser = new Map<string, Set<string>>();
+  for (const r of earnedRows) {
+    const set = earnedByUser.get(r.userId);
+    if (set) set.add(r.key);
+    else earnedByUser.set(r.userId, new Set([r.key]));
+  }
+  const nearAchievements: NearRow[] = nearCandidates
+    .flatMap((c) => {
+      const metrics = metricsByUser.get(c.userId);
+      if (!metrics) return [];
+      const top = nextUpFromMetrics(metrics, earnedByUser.get(c.userId) ?? new Set<string>(), tr)[0];
+      if (!top || top.progress < 0.6) return [];
+      return [
+        {
+          userId: c.userId,
+          name: c.name,
+          title: top.def.title,
+          progress: top.progress,
+          currentLabel: top.currentLabel,
+          targetLabel: top.targetLabel,
+        } satisfies NearRow,
+      ];
     })
-  );
-  const nearAchievements = nearResults
-    .filter((r): r is NearRow => r !== null)
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 8);
 

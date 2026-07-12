@@ -1,7 +1,7 @@
 import { requireMember } from "@/lib/member";
 import { listMeasurements, getDeltas, getSeries, getGoals, getEnabledMeasurementKeys } from "@/lib/measurements";
 import { ProgressDeltas } from "@/components/progress/progress-deltas";
-import { MeasurementCharts } from "@/components/progress/measurement-charts";
+import { MeasurementCharts } from "@/components/progress/measurement-charts.lazy";
 import { GoalsPanel } from "@/components/progress/goals-panel";
 import { MeasurementTimeline } from "@/components/progress/measurement-timeline";
 import { PhotoCompare } from "@/components/progress/photo-compare";

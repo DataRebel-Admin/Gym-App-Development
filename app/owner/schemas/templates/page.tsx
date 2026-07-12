@@ -16,8 +16,8 @@ function TemplateTable({
   emptyLabel: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200">
-      <table className="w-full text-left text-sm">
+    <div className="overflow-x-auto rounded-xl border border-neutral-200">
+      <table className="w-full min-w-[24rem] text-left text-sm">
         <thead className="bg-neutral-50 text-neutral-500">
           <tr>
             <th className="px-4 py-2 font-medium">Naam</th>

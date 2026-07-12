@@ -1,6 +1,8 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getGoals } from "@/lib/measurements";
+import { getGoals, getGoalsBulk } from "@/lib/measurements";
+import { loadMemberSessions } from "@/lib/member-stats";
 import type { MetricKey } from "@/lib/achievements/definitions";
 
 /**
@@ -45,45 +47,43 @@ function longestDayStreak(dayStarts: Set<number>): number {
   return longest;
 }
 
-export async function computeMemberMetrics(
-  memberId: string,
-  tenantId: string
-): Promise<MemberMetrics> {
-  const [sessions, user, goals, measurements, archivedSchemas] = await Promise.all([
-    prisma.workoutSession.findMany({
-      where: { tenantId, userId: memberId, endedAt: { not: null } },
-      select: {
-        startedAt: true,
-        performanceEntries: {
-          select: {
-            reps: true,
-            weightKg: true,
-            params: true,
-            exercise: { select: { name: true, exerciseType: true } },
-          },
-        },
-      },
-    }),
-    prisma.user.findFirst({
-      where: { id: memberId, tenantId },
-      select: {
-        createdAt: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        birthDate: true,
-        trainingGoals: true,
-      },
-    }),
-    getGoals(tenantId, memberId),
-    prisma.measurement.findMany({
-      where: { tenantId, userId: memberId },
-      orderBy: { measuredAt: "asc" },
-      select: { bodyFatPct: true, muscleMassKg: true },
-    }),
-    prisma.assignedWorkout.count({ where: { tenantId, userId: memberId, status: "ARCHIVED" } }),
-  ]);
+// --- Pure kern -------------------------------------------------------------
+// De data-inputs die de metric-berekening nodig heeft. Bewust minimaal getypeerd
+// (structureel) zodat zowel de per-lid- als de bulk-fetch hun rijen kunnen doorgeven.
 
+type MetricsSessionInput = {
+  startedAt: Date;
+  performanceEntries: readonly {
+    reps: number;
+    weightKg: number;
+    params: Prisma.JsonValue;
+    exercise: { name: string; exerciseType: string };
+  }[];
+};
+
+type MetricsUserInput = {
+  createdAt: Date;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  birthDate: Date | null;
+  trainingGoals: Prisma.JsonValue;
+} | null;
+
+type MetricsMeasurementInput = { bodyFatPct: number | null; muscleMassKg: number | null };
+
+/**
+ * Zuivere metric-berekening: dezelfde math voor één lid ([[computeMemberMetrics]]) en
+ * voor een batch ([[computeMemberMetricsBulk]]). `sessions` moet **alleen afgeronde**
+ * sessies bevatten (callers filteren vooraf). Géén I/O — puur in-memory.
+ */
+function computeMetrics(
+  sessions: readonly MetricsSessionInput[],
+  user: MetricsUserInput,
+  goals: readonly { achieved: boolean }[],
+  measurements: readonly MetricsMeasurementInput[],
+  archivedSchemas: number
+): MemberMetrics {
   let totalWorkouts = 0;
   let totalVolume = 0;
   let totalDistanceM = 0;
@@ -161,4 +161,118 @@ export async function computeMemberMetrics(
     profileComplete,
     schemasCompleted: archivedSchemas,
   };
+}
+
+const USER_METRICS_SELECT = {
+  createdAt: true,
+  firstName: true,
+  lastName: true,
+  phone: true,
+  birthDate: true,
+  trainingGoals: true,
+} as const;
+
+export async function computeMemberMetrics(
+  memberId: string,
+  tenantId: string
+): Promise<MemberMetrics> {
+  const [sessions, user, goals, measurements, archivedSchemas] = await Promise.all([
+    // Gedeelde, per-request gecachete historie-loader (zie lib/member-stats.ts):
+    // op `/member` deelt dit dezelfde fetch als getMemberStats i.p.v. de volledige
+    // historie tweemaal te scannen. Bevat álle sessies — we filteren op afgerond
+    // (`endedAt`), wat voorheen het DB-`where` deed.
+    loadMemberSessions(memberId, tenantId),
+    prisma.user.findFirst({ where: { id: memberId, tenantId }, select: USER_METRICS_SELECT }),
+    getGoals(tenantId, memberId),
+    prisma.measurement.findMany({
+      where: { tenantId, userId: memberId },
+      orderBy: { measuredAt: "asc" },
+      select: { bodyFatPct: true, muscleMassKg: true },
+    }),
+    prisma.assignedWorkout.count({ where: { tenantId, userId: memberId, status: "ARCHIVED" } }),
+  ]);
+
+  return computeMetrics(
+    sessions.filter((s) => s.endedAt != null),
+    user,
+    goals,
+    measurements,
+    archivedSchemas
+  );
+}
+
+/**
+ * Bulk-variant van [[computeMemberMetrics]]: berekent de metrics voor meerdere leden
+ * met een **vast** aantal queries (i.p.v. ~5 per lid). Gebruikt door de coach-
+ * betrokkenheidsberekening om de N+1 over "bijna behaald"-kandidaten te elimineren.
+ * De math is identiek — dezelfde [[computeMetrics]]-kern.
+ */
+export async function computeMemberMetricsBulk(
+  memberIds: string[],
+  tenantId: string
+): Promise<Map<string, MemberMetrics>> {
+  const out = new Map<string, MemberMetrics>();
+  if (memberIds.length === 0) return out;
+
+  const [sessions, users, goalsByUser, measurements, archivedGroups] = await Promise.all([
+    prisma.workoutSession.findMany({
+      where: { tenantId, userId: { in: memberIds }, endedAt: { not: null } },
+      select: {
+        userId: true,
+        startedAt: true,
+        performanceEntries: {
+          select: {
+            reps: true,
+            weightKg: true,
+            params: true,
+            exercise: { select: { name: true, exerciseType: true } },
+          },
+        },
+      },
+    }),
+    prisma.user.findMany({
+      where: { tenantId, id: { in: memberIds } },
+      select: { id: true, ...USER_METRICS_SELECT },
+    }),
+    getGoalsBulk(tenantId, memberIds),
+    prisma.measurement.findMany({
+      where: { tenantId, userId: { in: memberIds } },
+      orderBy: { measuredAt: "asc" },
+      select: { userId: true, bodyFatPct: true, muscleMassKg: true },
+    }),
+    prisma.assignedWorkout.groupBy({
+      by: ["userId"],
+      where: { tenantId, userId: { in: memberIds }, status: "ARCHIVED" },
+      _count: true,
+    }),
+  ]);
+
+  const sessionsByUser = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const arr = sessionsByUser.get(s.userId);
+    if (arr) arr.push(s);
+    else sessionsByUser.set(s.userId, [s]);
+  }
+  const userById = new Map(users.map((u) => [u.id, u]));
+  const measByUser = new Map<string, typeof measurements>();
+  for (const m of measurements) {
+    const arr = measByUser.get(m.userId);
+    if (arr) arr.push(m);
+    else measByUser.set(m.userId, [m]);
+  }
+  const archivedByUser = new Map(archivedGroups.map((g) => [g.userId, g._count]));
+
+  for (const memberId of memberIds) {
+    out.set(
+      memberId,
+      computeMetrics(
+        sessionsByUser.get(memberId) ?? [],
+        userById.get(memberId) ?? null,
+        goalsByUser.get(memberId) ?? [],
+        measByUser.get(memberId) ?? [],
+        archivedByUser.get(memberId) ?? 0
+      )
+    );
+  }
+  return out;
 }

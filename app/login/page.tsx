@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
+import { DEV_FALLBACK_TENANT } from "@/lib/constants";
 import { oauthEnabled } from "@/lib/oauth";
 import { demoLoginEnabled, DEMO_ACCOUNTS } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
@@ -133,7 +134,11 @@ export default async function LoginPage() {
 
           <LoginForm tenant={slug} oauth={oauth} demoAccounts={demoAccounts} />
 
-          {!tenant ? (
+          {/* "Onbekende sportschool"-hint alleen bij een expliciet (verkeerd)
+              subdomein/param — niet in de app, waar neutraal (fallback-slug,
+              GymRebel-branding) de bedoelde staat is: de tenant volgt uit het
+              e-mailadres bij het inloggen. */}
+          {!tenant && slug !== DEV_FALLBACK_TENANT ? (
             <p className="mt-4 text-center text-xs text-neutral-500">
               {t("unknownGym", { slug })}
             </p>

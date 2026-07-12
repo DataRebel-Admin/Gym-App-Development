@@ -28,7 +28,7 @@ export default async function CoachInsightsPage() {
         <Badge tone="warning">{insights.totals.personalized} gepersonaliseerd</Badge>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2">
         <Card
           title="Vaakst aangepaste oefeningen"
           hint="Oefeningen die leden het meest afwijken van de master — kandidaat om de master bij te stellen."

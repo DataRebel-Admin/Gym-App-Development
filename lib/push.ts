@@ -1,6 +1,7 @@
 import "server-only";
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
+import { sendApnsToUser } from "@/lib/push-apns";
 
 /**
  * Web-push-verzending (VAPID). Centrale, best-effort laag — net als
@@ -44,46 +45,54 @@ export type PushPayload = {
 };
 
 /**
- * Verstuur een push naar álle apparaten van een gebruiker. Ruimt verlopen
- * abonnementen op (HTTP 404/410). Retourneert het aantal succesvol bezorgde
- * pushes. No-op (0) zonder VAPID-config.
+ * Verstuur een push naar álle apparaten van een gebruiker — web-push (VAPID) én
+ * native iOS (APNs). Ruimt verlopen web-abonnementen (404/410) en dode APNs-tokens
+ * op. Retourneert het totaal aantal bezorgde pushes. Best-effort: elk kanaal
+ * degradeert los naar 0 zonder config.
  */
 export async function sendPushToUser(
   userId: string,
   payload: PushPayload
 ): Promise<number> {
-  if (!configured) return 0;
-
-  const subs = await prisma.pushSubscription.findMany({ where: { userId } });
-  if (subs.length === 0) return 0;
-
-  const body = JSON.stringify(payload);
   let delivered = 0;
-  const expired: string[] = [];
 
-  await Promise.all(
-    subs.map(async (s) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          body
-        );
-        delivered += 1;
-      } catch (err) {
-        const code = (err as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) {
-          expired.push(s.id);
-        } else {
-          console.error("[push] verzending mislukt:", (err as Error).message);
-        }
+  // Web-push (VAPID) — alleen als geconfigureerd.
+  if (configured) {
+    const subs = await prisma.pushSubscription.findMany({ where: { userId } });
+    if (subs.length > 0) {
+      const body = JSON.stringify(payload);
+      const expired: string[] = [];
+      await Promise.all(
+        subs.map(async (s) => {
+          try {
+            await webpush.sendNotification(
+              { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+              body
+            );
+            delivered += 1;
+          } catch (err) {
+            const code = (err as { statusCode?: number }).statusCode;
+            if (code === 404 || code === 410) {
+              expired.push(s.id);
+            } else {
+              console.error("[push] verzending mislukt:", (err as Error).message);
+            }
+          }
+        })
+      );
+      if (expired.length > 0) {
+        await prisma.pushSubscription
+          .deleteMany({ where: { id: { in: expired } } })
+          .catch(() => {});
       }
-    })
-  );
+    }
+  }
 
-  if (expired.length > 0) {
-    await prisma.pushSubscription
-      .deleteMany({ where: { id: { in: expired } } })
-      .catch(() => {});
+  // Native iOS (APNs) — onafhankelijk van de web-push-config; best-effort.
+  try {
+    delivered += await sendApnsToUser(userId, payload);
+  } catch (err) {
+    console.error("[push] APNs mislukt:", (err as Error).message);
   }
 
   return delivered;

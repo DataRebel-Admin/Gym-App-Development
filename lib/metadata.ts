@@ -59,6 +59,11 @@ export async function rootMetadata(): Promise<Metadata> {
       default: suffix,
     },
     description: "Slimmer trainen in jouw sportschool.",
-    ...(icon ? { icons: { icon } } : {}),
+    // iOS "Zet op beginscherm". De PWA-manifest-link wordt door app/manifest.ts
+    // automatisch geïnjecteerd; hier alleen de iOS-specifieke meta + apple-touch.
+    appleWebApp: { capable: true, statusBarStyle: "default", title: APP_NAME },
+    // Favicon blijft per tenant (tenant-favicon → -logo → app/favicon.ico); de
+    // apple-touch-icon is whitelabel-neutraal (één binary, één merk).
+    icons: { icon: icon ?? "/favicon.ico", apple: "/icons/apple-icon-180.png" },
   };
 }
