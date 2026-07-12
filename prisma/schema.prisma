@@ -513,6 +513,9 @@ model User {
   pendingEmail       String?
   emailChangeToken   String?   @unique
   emailChangeExpires DateTime?
+  // Wachtwoord-reset via e-mail (eenmalige, kortlevende token — 1 uur).
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
   tenantId      String? // NULL voor SUPERADMIN (transcendeert tenants)
   // Persoonlijke owner-dashboard indeling (widget-volgorde + zichtbaarheid).
   // null = standaard-layout. Geen RLS-impact (kolom op bestaand model).

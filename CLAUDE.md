@@ -105,6 +105,20 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
     scoped user-lookup is gedeeld in `lib/login-user.ts` (`resolveLoginUser`).
   - Auth.js infra-tabellen (`Account`, `Session`, `VerificationToken`) hebben **geen**
     `tenantId`/RLS — het zijn framework-tabellen.
+  - **Wachtwoord vergeten (`lib/password-reset.ts`).** Eenmalige, kortlevende reset-token
+    (**1 uur**) op `User` (`passwordResetToken @unique` + `passwordResetExpires`, migratie
+    `20260712140000_password_reset`) — zelfde patroon als de e-mailwijziging-token, pre-auth
+    met de base `prisma`. `requestPasswordReset(email, origin)` zet per **actief account** van
+    het e-mailadres (tenant-accounts + superadmin) een token en stuurt per sportschool een
+    gebrande mail (template-key `passwordReset`, composer `passwordResetMessage`) — **geen
+    enumeratie** (scherm toont altijd "check je mail"). `completePasswordReset` dwingt
+    `passwordMeetsPolicy` server-side af, nult de token (**eenmalig**) en zet
+    `sessionsValidFrom = now` + revoket device-sessies (**logout overal**), plus best-effort
+    `passwordChangedMessage`. Server-actions `requestPasswordResetAction`/`submitPasswordReset`
+    in `app/login/actions.ts`; pagina's `/login/reset` (aanvraag), `/login/reset/check`
+    ("check je mail") en `/login/reset/[token]` (nieuw wachtwoord, live checklist via
+    `lib/password-policy`). "Wachtwoord vergeten?"-link in `login-form.tsx`. Audit
+    `auth.password.reset.request`/`auth.password.reset.complete`. i18n `auth.reset.*` (nl/en/fy).
 - **Tenant-resolutie (prompt 04).** `proxy.ts` lost de tenant op (subdomein of `?tenant`)
   via `lib/tenant-resolve.ts` en zet `x-tenant-slug` als request-header. Server Components
   lezen die via `lib/tenant.ts` (`getCurrentTenant()`, per-request `cache()`). Client

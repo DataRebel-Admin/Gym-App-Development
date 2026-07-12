@@ -2,11 +2,16 @@
 
 import { z } from "zod";
 import { AuthError } from "next-auth";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/security";
+import {
+  requestPasswordReset,
+  completePasswordReset,
+  type ResetResult,
+} from "@/lib/password-reset";
 import { resolveLoginUser } from "@/lib/login-user";
 import {
   findLoginTenantsForEmail,
@@ -34,6 +39,14 @@ const TENANT_COOKIE_OPTS = {
   path: "/",
   maxAge: TENANT_COOKIE_MAX_AGE,
 } as const;
+
+/** Absolute origin van het huidige request (voor links in e-mails). */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 const requestSchema = z.object({
   email: z.string().email("Ongeldig e-mailadres"),
@@ -262,6 +275,52 @@ export async function verifyTwoFactor(
     throw e;
   }
   return {};
+}
+
+// ── Wachtwoord vergeten ─────────────────────────────────────────────────────
+
+const resetRequestSchema = z.object({
+  email: z.string().email("Ongeldig e-mailadres"),
+});
+
+/**
+ * Vraag een wachtwoord-reset aan. Verstuurt (per sportschool) een reset-link naar
+ * elk actief account van dit e-mailadres. Het scherm toont altijd "check je mail"
+ * — bestaat het adres niet, dan gebeurt er niets (geen enumeratie).
+ */
+export async function requestPasswordResetAction(
+  _prev: LoginState,
+  formData: FormData
+): Promise<LoginState> {
+  const parsed = resetRequestSchema.safeParse({ email: formData.get("email") });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+  }
+  await requestPasswordReset(parsed.data.email, await requestOrigin());
+  redirect("/login/reset/check");
+}
+
+const resetSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(1, "Kies een wachtwoord"),
+});
+
+/**
+ * Voltooi de wachtwoord-reset vanaf de token-pagina. Valideert het beleid en de
+ * token server-side (nooit de client vertrouwen) en zet het nieuwe wachtwoord.
+ */
+export async function submitPasswordReset(
+  _prev: ResetResult | undefined,
+  formData: FormData
+): Promise<ResetResult> {
+  const parsed = resetSchema.safeParse({
+    token: formData.get("token"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
+  }
+  return completePasswordReset(parsed.data.token, parsed.data.password, await requestOrigin());
 }
 
 /** Start OAuth-login (Microsoft Entra of Google). Zet de tenant-cookie zodat de

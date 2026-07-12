@@ -141,6 +141,23 @@ export async function welcomeMessage(opts: {
   });
 }
 
+// ── Wachtwoord vergeten (reset-link) ────────────────────────────────────────
+
+export async function passwordResetMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  resetUrl: string;
+  locale?: Locale | null;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, resetUrl } = opts;
+  return composeFromTemplate({
+    key: "passwordReset",
+    locale: opts.locale ?? branding.locale,
+    branding,
+    data: { firstName: firstNameOf(recipientName), resetLink: resetUrl },
+  });
+}
+
 // ── Wachtwoord gewijzigd (beveiligingsmelding) ──────────────────────────────
 
 export async function passwordChangedMessage(opts: {

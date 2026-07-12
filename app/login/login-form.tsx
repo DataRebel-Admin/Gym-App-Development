@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, m } from "motion/react";
 import {
@@ -89,16 +90,58 @@ export function LoginForm({
         >
           <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
         </Field>
-        <Field label={t("passwordLabel")}>
-          <Input
-            name="password"
-            type="password"
-            required={mode === "password"}
-            disabled={mode === "link"}
-            autoComplete="current-password"
-            className="py-3 text-base"
-          />
-        </Field>
+        {/* Wachtwoordveld en de "geen wachtwoord nodig"-kaart delen één grid-cel →
+            de kaarthoogte springt niet bij het wisselen. In magic-link-modus is het
+            veld visueel wég (niet slechts grijs) zodat het glashelder is dat je hier
+            niets hoeft in te vullen. Het input blijft in de DOM voor de wachtwoord-submit. */}
+        <div className="grid">
+          <div
+            className={cn(
+              "col-start-1 row-start-1 transition-opacity duration-200",
+              mode === "password" ? "opacity-100" : "pointer-events-none opacity-0"
+            )}
+            aria-hidden={mode !== "password"}
+          >
+            <Field label={t("passwordLabel")}>
+              <Input
+                name="password"
+                type="password"
+                required={mode === "password"}
+                disabled={mode === "link"}
+                autoComplete="current-password"
+                className="py-3 text-base"
+              />
+            </Field>
+            <div className="mt-1.5 text-right">
+              <Link
+                href="/login/reset"
+                tabIndex={mode === "password" ? undefined : -1}
+                className="text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-800 focus-ring"
+              >
+                {t("forgotPassword")}
+              </Link>
+            </div>
+          </div>
+          <div
+            className={cn(
+              "col-start-1 row-start-1 flex items-center gap-3 self-end rounded-xl border border-accent/25 bg-accent/5 px-4 py-3 transition-opacity duration-200",
+              mode === "link" ? "opacity-100" : "pointer-events-none opacity-0"
+            )}
+            aria-hidden={mode !== "link"}
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent/12 text-accent">
+              <MagicLinkIcon />
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-sm font-semibold text-neutral-900">
+                {t("noPasswordTitle")}
+              </span>
+              <span className="text-xs leading-snug text-neutral-500">
+                {t("noPasswordBody")}
+              </span>
+            </span>
+          </div>
+        </div>
         <Button
           type="submit"
           size="lg"
@@ -113,17 +156,6 @@ export function LoginForm({
               ? t("sending")
               : t("sendMagicLink")}
         </Button>
-        {/* Altijd gerenderd (identieke hoogte), alleen zichtbaar bij magic link →
-            de kaarthoogte blijft constant. */}
-        <p
-          className={cn(
-            "text-center text-xs text-neutral-500 transition-opacity",
-            mode === "link" ? "opacity-100" : "opacity-0"
-          )}
-          aria-hidden={mode !== "link"}
-        >
-          {t("magicLinkHint")}
-        </p>
       </form>
 
       {demoAccounts && demoAccounts.length > 0 ? (
@@ -221,6 +253,20 @@ function ChevronIcon({ open }: { open: boolean }) {
       aria-hidden
     >
       <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MagicLinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" aria-hidden>
+      <path
+        d="M9.5 14.5l5-5M10 6l1-1a3.5 3.5 0 0 1 5 5l-1 1m-5 6l-1 1a3.5 3.5 0 0 1-5-5l1-1"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

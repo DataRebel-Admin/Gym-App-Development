@@ -645,6 +645,14 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "auth", label: "Mislukte inlogpoging", icon: "⚠️", tone: "danger",
     sentence: ({ actor }) => `Mislukte inlogpoging voor ${actor}`,
   },
+  "auth.password.reset.request": {
+    category: "auth", label: "Wachtwoord-reset aangevraagd", icon: "🔑", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft een wachtwoord-reset aangevraagd`,
+  },
+  "auth.password.reset.complete": {
+    category: "auth", label: "Wachtwoord gereset", icon: "🔐", tone: "accent",
+    sentence: ({ actor }) => `${actor} heeft het wachtwoord opnieuw ingesteld via een reset-link`,
+  },
 };
 
 /** Definitie voor een actie, met nette fallback voor onbekende acties. */

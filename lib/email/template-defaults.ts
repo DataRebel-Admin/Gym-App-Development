@@ -19,6 +19,7 @@ export type EmailTemplateKey =
   | "magicLink"
   | "invite"
   | "welcome"
+  | "passwordReset"
   | "passwordChanged"
   | "schemaAssigned"
   | "emailChange"
@@ -262,6 +263,65 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
             "Dyn account is aktyf. Log yn om dyn trainingsskema's te besjen, dyn fuortgong by te hâlden en te begjinnen."
           ),
           button("loginLink", "Ynlogge"),
+        ].join("\n"),
+      },
+    },
+  },
+
+  // ── Wachtwoord vergeten (reset-link) ──────────────────────────────────────
+  passwordReset: {
+    key: "passwordReset",
+    name: "Wachtwoord opnieuw instellen",
+    description: "Eenmalige reset-link waarmee een gebruiker een nieuw wachtwoord kiest.",
+    reason:
+      "Je ontvangt deze e-mail omdat er een verzoek is gedaan om het wachtwoord van je {{gymName}}-account opnieuw in te stellen.",
+    hasTrigger: true,
+    placeholders: [
+      P_FIRSTNAME,
+      { token: "resetLink", label: "Reset-link", sample: "https://gymrebel.app/login/reset/…", required: true },
+    ],
+    defaultSubject: "Stel je wachtwoord opnieuw in voor {{gymName}}",
+    defaultPreheader: "Je persoonlijke, eenmalige reset-link staat klaar.",
+    defaultBodyHtml: [
+      heading("Wachtwoord opnieuw instellen"),
+      paragraph("Hoi {{firstName}},"),
+      paragraph(
+        "Er is gevraagd om het wachtwoord van je account bij <strong>{{gymName}}</strong> opnieuw in te stellen. Klik op de knop hieronder om een nieuw wachtwoord te kiezen. De link is eenmalig te gebruiken en verloopt na 1 uur."
+      ),
+      button("resetLink", "Nieuw wachtwoord kiezen"),
+      muted(
+        "Heb je dit niet aangevraagd? Negeer deze e-mail — je wachtwoord blijft dan ongewijzigd."
+      ),
+    ].join("\n"),
+    localizedContent: {
+      EN: {
+        subject: "Reset your password for {{gymName}}",
+        preheader: "Your personal, one-time reset link is ready.",
+        reason:
+          "You're receiving this email because a request was made to reset the password of your {{gymName}} account.",
+        bodyHtml: [
+          heading("Reset your password"),
+          paragraph("Hi {{firstName}},"),
+          paragraph(
+            "A request was made to reset the password of your account at <strong>{{gymName}}</strong>. Click the button below to choose a new password. The link works once and expires after 1 hour."
+          ),
+          button("resetLink", "Choose a new password"),
+          muted("Didn't request this? Ignore this email — your password will stay the same."),
+        ].join("\n"),
+      },
+      FY: {
+        subject: "Stel dyn wachtwurd opnij yn foar {{gymName}}",
+        preheader: "Dyn persoanlike, ienmalige reset-link stiet klear.",
+        reason:
+          "Do krigest dizze e-mail omdat der frege is om it wachtwurd fan dyn {{gymName}}-account opnij yn te stellen.",
+        bodyHtml: [
+          heading("Wachtwurd opnij ynstelle"),
+          paragraph("Hoi {{firstName}},"),
+          paragraph(
+            "Der is frege om it wachtwurd fan dyn account by <strong>{{gymName}}</strong> opnij yn te stellen. Klik op de knop hjirûnder om in nij wachtwurd te kiezen. De link is ienris te brûken en ferrint nei 1 oere."
+          ),
+          button("resetLink", "Nij wachtwurd kieze"),
+          muted("Hast dit net oanfrege? Negearje dizze e-mail — dyn wachtwurd bliuwt dan ûnferoare."),
         ].join("\n"),
       },
     },
