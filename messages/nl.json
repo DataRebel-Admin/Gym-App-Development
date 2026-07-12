@@ -192,6 +192,7 @@
       "exercisesCount": "{count} oefeningen",
       "daysCount": "{count} dagen",
       "trainerMessage": "Bericht van je trainer",
+      "assignedBy": "Toegewezen door {trainer}",
       "coachNote": "Coach-notitie",
       "chooseDay": "Kies je trainingsdag",
       "startTraining": "Start training",
@@ -341,6 +342,7 @@
       "noPastSessions": "Nog geen afgeronde sessies.",
       "sessionMeta": "{count} oef · {duration}",
       "setsCount": "{count} sets",
+      "conductedBy": "Geregistreerd door {trainer}",
       "durationHm": "{hours}u {minutes}m",
       "durationM": "{minutes}m"
     },

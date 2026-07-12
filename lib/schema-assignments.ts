@@ -169,6 +169,7 @@ export async function getAssignmentsForMember(tenantId: string, userId: string) 
       publishedAt: true,
       seenAt: true,
       trainerMessage: true,
+      assignedById: true,
       template: {
         select: {
           id: true,

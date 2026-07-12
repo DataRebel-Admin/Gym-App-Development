@@ -192,6 +192,7 @@
       "exercisesCount": "{count} exercises",
       "daysCount": "{count} days",
       "trainerMessage": "Message from your trainer",
+      "assignedBy": "Assigned by {trainer}",
       "coachNote": "Coach note",
       "chooseDay": "Choose your training day",
       "startTraining": "Start workout",
@@ -341,6 +342,7 @@
       "noPastSessions": "No completed sessions yet.",
       "sessionMeta": "{count} ex · {duration}",
       "setsCount": "{count} sets",
+      "conductedBy": "Recorded by {trainer}",
       "durationHm": "{hours}h {minutes}m",
       "durationM": "{minutes}m"
     },

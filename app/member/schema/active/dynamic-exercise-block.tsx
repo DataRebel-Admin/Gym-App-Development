@@ -11,8 +11,7 @@ import {
   entryToLogInputValues,
   type InputValues,
 } from "@/lib/exercise-params";
-import { saveLog } from "../actions";
-import type { ActiveExercise } from "./active-session";
+import type { ActiveExercise, SessionActions } from "./active-session";
 
 /** Eén log-veld (mobile-first) voor de live training. */
 function LogField({
@@ -79,11 +78,13 @@ type Row = { values: InputValues; saved: boolean };
 export function DynamicExerciseBlock({
   exercise,
   sessionId,
+  saveLog,
   onDoneChange,
   onSetDone,
 }: {
   exercise: ActiveExercise;
   sessionId: string;
+  saveLog: SessionActions["saveLog"];
   onDoneChange: (done: boolean) => void;
   onSetDone: (restSeconds: number) => void;
 }) {

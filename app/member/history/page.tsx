@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
+import { prisma } from "@/lib/db";
 import { requireMember, getMemberHistory } from "@/lib/member";
 import { getMemberStats, getRecentSessions } from "@/lib/member-stats";
+import { trainerDisplayName } from "@/lib/schema-status";
 import { LOCALE_META, type AppLocale } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
 import { HistoryChart } from "./history-chart.lazy";
@@ -17,6 +19,7 @@ import {
   Clock,
   Trophy,
   ChevronRight,
+  PersonStanding,
 } from "@/components/ui/icons";
 
 export async function generateMetadata() {
@@ -52,6 +55,32 @@ export default async function MemberHistoryPage() {
 
   const totalHours = Math.round((stats.totalDurationSec / 3600) * 10) / 10;
   const hasActivity = stats.totalWorkouts > 0;
+
+  // Herkomst per sessie: welke sessies zijn door een trainer gedraaid (PT-sessie).
+  const conductedRows =
+    sessions.length > 0
+      ? await prisma.workoutSession.findMany({
+          where: {
+            tenantId: member.tenantId,
+            userId: member.id,
+            id: { in: sessions.map((s) => s.id) },
+            conductedById: { not: null },
+          },
+          select: { id: true, conductedById: true },
+        })
+      : [];
+  const conductorIds = [...new Set(conductedRows.map((r) => r.conductedById!).filter(Boolean))];
+  const conductors =
+    conductorIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: conductorIds }, tenantId: member.tenantId },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+  const conductorName = new Map(conductors.map((c) => [c.id, trainerDisplayName(c)]));
+  const conductedBy = new Map(
+    conductedRows.map((r) => [r.id, conductorName.get(r.conductedById!) ?? null])
+  );
 
   return (
     <Reveal stagger className="flex flex-1 flex-col gap-6 px-5 py-8">
@@ -179,6 +208,12 @@ export default async function MemberHistoryPage() {
                         {t("setsCount", { count: s.totalSets })}
                       </span>
                     </div>
+                    {conductedBy.get(s.id) ? (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+                        <PersonStanding className="size-3.5 text-accent" />
+                        {t("conductedBy", { trainer: conductedBy.get(s.id)! })}
+                      </p>
+                    ) : null}
                     {s.muscles.length > 0 ? (
                       <div className="mt-2.5 flex flex-wrap gap-1.5">
                         {s.muscles.map((m) => (

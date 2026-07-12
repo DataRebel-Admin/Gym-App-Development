@@ -280,6 +280,21 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ meta }) =>
       `E-mail over '${s(meta, "name") ?? "een schema"}' verzonden aan ${s(meta, "to") ?? "een lid"}`,
   },
+  "session.conduct.start": {
+    category: "members", label: "PT-sessie gestart", icon: "▶️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} startte een training voor ${s(meta, "member") ?? "een lid"}`,
+  },
+  "session.conduct.complete": {
+    category: "members", label: "PT-sessie afgerond", icon: "✅", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} rondde een training af voor ${s(meta, "member") ?? "een lid"}`,
+  },
+  "session.conduct.cancel": {
+    category: "members", label: "PT-sessie geannuleerd", icon: "✖️", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} annuleerde een training voor ${s(meta, "member") ?? "een lid"}`,
+  },
   "schema.pdf.export": {
     category: "schemas", label: "PDF geëxporteerd", icon: "📄", tone: "neutral",
     sentence: ({ actor }) => `${actor} heeft een schema-PDF geëxporteerd`,

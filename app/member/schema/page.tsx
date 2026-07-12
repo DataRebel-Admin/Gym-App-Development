@@ -18,7 +18,7 @@ import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { exerciseTypeLabel } from "@/lib/exercise-types";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
-import { computeValidity } from "@/lib/schema-status";
+import { computeValidity, trainerDisplayName } from "@/lib/schema-status";
 
 type ItemWithRel = {
   id: string;
@@ -81,6 +81,16 @@ export default async function MemberSchemaPage() {
   ]);
   const canBuild = memberSchemaMode !== "DISABLED";
   const schema = assignment?.template;
+
+  // Herkomst: naam van de trainer die dit schema toewees (zichtbare provenance).
+  // Oude toewijzingen zonder `assignedById` tonen we niet (geen fallback-ruis).
+  const assignedByTrainer = assignment?.assignedById
+    ? await prisma.user.findFirst({
+        where: { id: assignment.assignedById, tenantId: member.tenantId },
+        select: { name: true, email: true },
+      })
+    : null;
+  const assignedByName = trainerDisplayName(assignedByTrainer);
   const isNew = assignment ? assignment.seenAt === null : false;
   const trainerMessage = assignment?.trainerMessage?.trim() || null;
   const validity = assignment
@@ -185,6 +195,12 @@ export default async function MemberSchemaPage() {
               </span>
             ) : null}
           </div>
+          {assignedByName ? (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+              <PersonStanding className="size-3.5 text-accent" />
+              {t("assignedBy", { trainer: assignedByName })}
+            </p>
+          ) : null}
         </div>
         <FullscreenButton />
       </div>

@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { m, useReducedMotion } from "motion/react";
 import { useFormStatus } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
-import { endSession, saveWorkoutMood, cancelSession } from "../actions";
-import type { RewardProps } from "./active-session";
+import type { RewardProps, SessionActions } from "./active-session";
 import { Modal } from "@/components/ui/modal";
 import { Trophy, Flame, Check, Dumbbell, Clock, Target, Sparkles, HeartPulse } from "@/components/ui/icons";
 import { type AppLocale, isLocale } from "@/lib/i18n/config";
@@ -72,6 +71,9 @@ function Confetti() {
  */
 export function CompletionScreen({
   sessionId,
+  endSession,
+  saveWorkoutMood,
+  cancelSession,
   completedExercises,
   totalExercises,
   completedSets,
@@ -88,6 +90,9 @@ export function CompletionScreen({
   onContinue,
 }: {
   sessionId: string;
+  endSession: SessionActions["endSession"];
+  saveWorkoutMood: SessionActions["saveWorkoutMood"];
+  cancelSession: SessionActions["cancelSession"];
   completedExercises: number;
   totalExercises: number;
   completedSets: number;

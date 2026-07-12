@@ -4,23 +4,36 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireMember, getAssignedSchema } from "@/lib/member";
-import { logParamsFromInputValues, logColumnsFromParams } from "@/lib/exercise-params";
-import { evaluateAndAward } from "@/lib/achievements/evaluate";
+import { requireMember } from "@/lib/member";
 import { isMood } from "@/lib/workout-moods";
+import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import {
-  recordMachineUsageForSession,
-  evaluateDueMachines,
-} from "@/lib/maintenance-eval";
-import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
-import { isFeatureEnabled } from "@/lib/features/service";
-import {
-  toOverridesJson,
-  withSkipped,
-  withoutSkipped,
-  withSub,
-} from "@/lib/session-overrides";
-import { findAlternatives, type AlternativeSuggestion } from "@/lib/exercise-alternatives";
+  startOrResumeSession,
+  upsertSet,
+  upsertLog,
+  upsertNote,
+  setSkipped,
+  alternativesFor,
+  substitute,
+  setMood,
+  finishSession,
+  cancelSession as cancelSessionCore,
+  type SetInput,
+  type LogInput,
+  type NoteInput,
+  type SkipInput,
+  type SubstituteInput,
+  type SubstituteReplacement,
+} from "@/lib/workout-session-ops";
+
+// De actieve-trainingslogica leeft in lib/workout-session-ops.ts (subject-
+// geparametriseerd, gedeeld met de trainer-flow). Deze actions zijn de dunne
+// lid-wrappers: autoriseren via requireMember (subject = het ingelogde lid zelf,
+// geen conductedById) en verzorgen revalidatie/redirect.
+
+export type SaveSetResult = { ok: boolean };
+export type AlternativesResult = { ok: boolean; alternatives: AlternativeSuggestion[] };
+export type SubstituteResult = { ok: boolean; replacement?: SubstituteReplacement };
 
 /**
  * Markeer het actieve schema als gezien (verwijdert de "Nieuw"-indicator).
@@ -47,223 +60,37 @@ export async function markActiveSchemaSeen(): Promise<void> {
   }
 }
 
-/**
- * Start (of hervat) een trainingssessie en ga naar de actieve-sessie-pagina.
- *
- * Bij een schema met meerdere trainingsdagen kiest het lid welke dag het gaat
- * doen (je doet één dag per keer) — de gekozen `dayId` wordt op de sessie
- * vastgelegd zodat de actieve sessie tot die dag filtert. Geen dag gekozen (of
- * één-dag-schema) → NULL = heel schema. Is er al een open sessie, dan hervatten
- * we die en negeren we de dagkeuze (één workout tegelijk).
- */
+/** Start (of hervat) een trainingssessie en ga naar de actieve-sessie-pagina. */
 export async function startSession(formData?: FormData) {
   const member = await requireMember();
-
-  const assignment = await getAssignedSchema(member.id, member.tenantId);
-  if (!assignment) redirect("/member/schema");
-
-  const open = await prisma.workoutSession.findFirst({
-    where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
-  });
-  if (!open) {
-    // Optionele dagkeuze: alleen accepteren als de dag echt bij dit schema hoort.
-    const requestedDayId = formData ? String(formData.get("dayId") ?? "") : "";
-    let dayId: string | null = null;
-    if (requestedDayId && assignment.template) {
-      const day = await prisma.workoutDay.findFirst({
-        where: {
-          id: requestedDayId,
-          tenantId: member.tenantId,
-          templateId: assignment.template.id,
-        },
-        select: { id: true },
-      });
-      dayId = day?.id ?? null;
-    }
-    await prisma.workoutSession.create({
-      data: { tenantId: member.tenantId, userId: member.id, dayId },
-    });
-  }
+  const requestedDayId = formData ? String(formData.get("dayId") ?? "") : "";
+  const sessionId = await startOrResumeSession(
+    { tenantId: member.tenantId, userId: member.id },
+    { requestedDayId }
+  );
+  if (!sessionId) redirect("/member/schema");
   redirect("/member/schema/active");
 }
 
-const setSchema = z.object({
-  sessionId: z.string().min(1),
-  exerciseId: z.string().min(1),
-  setNumber: z.number().int().min(1).max(20),
-  reps: z.number().int().min(0).max(100),
-  weightKg: z.number().min(0).max(1000),
-});
-
-export type SaveSetResult = { ok: boolean };
-
-/** Sla één set (reps + gewicht) op. Idempotent via upsert op de unieke set. */
-export async function saveSet(
-  input: z.infer<typeof setSchema>
-): Promise<SaveSetResult> {
+/** Sla één kracht-set (reps + gewicht) op. Idempotent via upsert op de unieke set. */
+export async function saveSet(input: SetInput): Promise<SaveSetResult> {
   const member = await requireMember();
-  const parsed = setSchema.safeParse(input);
-  if (!parsed.success) return { ok: false };
-  const data = parsed.data;
-
-  // De sessie moet van dit lid zijn én nog open.
-  const session = await prisma.workoutSession.findFirst({
-    where: {
-      id: data.sessionId,
-      tenantId: member.tenantId,
-      userId: member.id,
-      endedAt: null,
-    },
-    select: { id: true },
-  });
-  if (!session) return { ok: false };
-
-  // De oefening moet bij de tenant horen.
-  const exercise = await prisma.exercise.findFirst({
-    where: { id: data.exerciseId, tenantId: member.tenantId },
-    select: { id: true },
-  });
-  if (!exercise) return { ok: false };
-
-  await prisma.performanceEntry.upsert({
-    where: {
-      sessionId_exerciseId_setNumber: {
-        sessionId: data.sessionId,
-        exerciseId: data.exerciseId,
-        setNumber: data.setNumber,
-      },
-    },
-    create: {
-      tenantId: member.tenantId,
-      sessionId: data.sessionId,
-      exerciseId: data.exerciseId,
-      setNumber: data.setNumber,
-      reps: data.reps,
-      weightKg: data.weightKg,
-    },
-    update: { reps: data.reps, weightKg: data.weightKg },
-  });
-
-  return { ok: true };
+  const ok = await upsertSet({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
 }
 
-const logSchema = z.object({
-  sessionId: z.string().min(1),
-  exerciseId: z.string().min(1),
-  setNumber: z.number().int().min(1).max(50),
-  values: z.record(z.string(), z.string()).default({}),
-});
-
-/**
- * Sla één type-bewust logresultaat op (cardio/isometrisch/…): de invoerwaarden
- * worden via de registry omgezet naar reps/weightKg-kolommen (kracht) + JSON-
- * params. Idempotent via upsert op (sessie, oefening, setNummer).
- */
-export async function saveLog(
-  input: z.infer<typeof logSchema>
-): Promise<SaveSetResult> {
+/** Sla één type-bewust logresultaat op (cardio/isometrisch/…). */
+export async function saveLog(input: LogInput): Promise<SaveSetResult> {
   const member = await requireMember();
-  const parsed = logSchema.safeParse(input);
-  if (!parsed.success) return { ok: false };
-  const { sessionId, exerciseId, setNumber, values } = parsed.data;
-
-  const session = await prisma.workoutSession.findFirst({
-    where: { id: sessionId, tenantId: member.tenantId, userId: member.id, endedAt: null },
-    select: { id: true },
-  });
-  if (!session) return { ok: false };
-
-  const exercise = await prisma.exercise.findFirst({
-    where: { id: exerciseId, tenantId: member.tenantId },
-    select: { exerciseType: true },
-  });
-  if (!exercise) return { ok: false };
-
-  const params = logParamsFromInputValues(exercise.exerciseType, values);
-  const cols = logColumnsFromParams(exercise.exerciseType, params);
-
-  await prisma.performanceEntry.upsert({
-    where: {
-      sessionId_exerciseId_setNumber: { sessionId, exerciseId, setNumber },
-    },
-    create: {
-      tenantId: member.tenantId,
-      sessionId,
-      exerciseId,
-      setNumber,
-      reps: cols.reps,
-      weightKg: cols.weightKg,
-      params: cols.params ?? undefined,
-    },
-    update: { reps: cols.reps, weightKg: cols.weightKg, params: cols.params ?? undefined },
-  });
-
-  return { ok: true };
+  const ok = await upsertLog({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
 }
 
-const noteSchema = z.object({
-  sessionId: z.string().min(1),
-  exerciseId: z.string().min(1),
-  notes: z.string().max(500),
-});
-
-/**
- * Sla een opmerking bij een oefening op. De notitie hangt aan de laagste
- * bestaande set-entry van de oefening in deze sessie; bestaat die nog niet, dan
- * komt er één lege entry (reps/gewicht 0). Zo blijft de notitie behouden los van
- * het afvinken van losse sets.
- */
-export async function saveExerciseNote(
-  input: z.infer<typeof noteSchema>
-): Promise<SaveSetResult> {
+/** Sla een opmerking bij een oefening op. */
+export async function saveExerciseNote(input: NoteInput): Promise<SaveSetResult> {
   const member = await requireMember();
-  const parsed = noteSchema.safeParse(input);
-  if (!parsed.success) return { ok: false };
-  const { sessionId, exerciseId, notes } = parsed.data;
-
-  const session = await prisma.workoutSession.findFirst({
-    where: {
-      id: sessionId,
-      tenantId: member.tenantId,
-      userId: member.id,
-      endedAt: null,
-    },
-    select: { id: true },
-  });
-  if (!session) return { ok: false };
-
-  const exercise = await prisma.exercise.findFirst({
-    where: { id: exerciseId, tenantId: member.tenantId },
-    select: { id: true },
-  });
-  if (!exercise) return { ok: false };
-
-  const existing = await prisma.performanceEntry.findFirst({
-    where: { sessionId, exerciseId },
-    orderBy: { setNumber: "asc" },
-    select: { id: true },
-  });
-
-  if (existing) {
-    await prisma.performanceEntry.update({
-      where: { id: existing.id },
-      data: { notes },
-    });
-  } else {
-    await prisma.performanceEntry.create({
-      data: {
-        tenantId: member.tenantId,
-        sessionId,
-        exerciseId,
-        setNumber: 1,
-        reps: 0,
-        weightKg: 0,
-        notes,
-      },
-    });
-  }
-
-  return { ok: true };
+  const ok = await upsertNote({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
 }
 
 const moodSchema = z.object({
@@ -271,25 +98,19 @@ const moodSchema = z.object({
   mood: z.string().refine(isMood, "Onbekende mood"),
 });
 
-/**
- * Sla de trainingsbeleving (Workout Mood) op — one-tap na het afronden. Werkt op
- * een sessie van dit lid (open of net afgesloten). Idempotent: overschrijft de
- * vorige keuze. Lichtgewicht (geen redirect) — het afrondscherm roept dit
- * optimistisch aan.
- */
+/** Sla de trainingsbeleving (Workout Mood) op — one-tap na het afronden. */
 export async function saveWorkoutMood(
   input: z.infer<typeof moodSchema>
 ): Promise<SaveSetResult> {
   const member = await requireMember();
   const parsed = moodSchema.safeParse(input);
   if (!parsed.success) return { ok: false };
-  const { sessionId, mood } = parsed.data;
-
-  const res = await prisma.workoutSession.updateMany({
-    where: { id: sessionId, tenantId: member.tenantId, userId: member.id },
-    data: { mood },
-  });
-  return { ok: res.count > 0 };
+  const ok = await setMood(
+    { tenantId: member.tenantId, userId: member.id },
+    parsed.data.sessionId,
+    parsed.data.mood
+  );
+  return { ok };
 }
 
 /** Sluit de sessie af (zet endedAt) en ga naar de historie. */
@@ -297,107 +118,37 @@ export async function endSession(formData: FormData) {
   const member = await requireMember();
   const sessionId = String(formData.get("sessionId") ?? "");
 
-  const res = await prisma.workoutSession.updateMany({
-    where: {
-      id: sessionId,
-      tenantId: member.tenantId,
-      userId: member.id,
-      endedAt: null,
-    },
-    data: { endedAt: new Date() },
-  });
-
-  // Trofeeën evalueren zodra de training is afgerond (best-effort — breekt de
-  // afronding nooit). De celebration-overlay toont het lid het resultaat.
-  if (res.count > 0) {
-    await evaluateAndAward(member.id, member.tenantId, { actor: { id: member.id, email: member.email } });
+  const ended = await finishSession(
+    { tenantId: member.tenantId, userId: member.id },
+    sessionId,
+    { id: member.id, email: member.email ?? null }
+  );
+  if (ended) {
     revalidatePath("/member");
     revalidatePath("/member/trophies");
-
-    // Machine-onderhoud: +1 gebruiksmoment per gebruikte machine, daarna direct
-    // evalueren en de beheerders melden zodra een drempel bereikt is. Best-effort
-    // — mag het afronden van de training nooit breken.
-    try {
-      // Onderhoudsmodule uit (Superadmin-flag) → geen telling/evaluatie/melding.
-      if (await isFeatureEnabled(member.tenantId, "maintenance")) {
-        const usedMachineIds = await recordMachineUsageForSession(sessionId, member.tenantId);
-        if (usedMachineIds.length > 0) {
-          const { due, soon } = await evaluateDueMachines(member.tenantId);
-          await notifyMaintenanceThresholds({ tenantId: member.tenantId, dueIds: due, soonIds: soon });
-        }
-      }
-    } catch (err) {
-      console.error("[maintenance] usage-hook mislukt:", (err as Error).message);
-    }
   }
-
   revalidatePath("/member/history");
   redirect("/member/history");
 }
 
-// --- Actieve-sessie flexibiliteit: overslaan, vervangen, annuleren, timeout ---
-
-/** Laad de open sessie van dit lid (incl. overrides). Null als niet gevonden. */
-async function loadOpenSession(sessionId: string, tenantId: string, userId: string) {
-  return prisma.workoutSession.findFirst({
-    where: { id: sessionId, tenantId, userId, endedAt: null },
-    select: { id: true, overrides: true },
-  });
-}
-
-const skipSchema = z.object({
-  sessionId: z.string().min(1),
-  exerciseId: z.string().min(1),
-});
-
-/**
- * Markeer een oefening als overgeslagen in déze sessie (sessie-scoped; het
- * template blijft ongewijzigd). Idempotent. De client stopt eventuele lopende
- * timers en gaat door naar de volgende oefening.
- */
-export async function skipExercise(
-  input: z.infer<typeof skipSchema>
-): Promise<SaveSetResult> {
+/** Markeer een oefening als overgeslagen in déze sessie (sessie-scoped). */
+export async function skipExercise(input: SkipInput): Promise<SaveSetResult> {
   const member = await requireMember();
-  const parsed = skipSchema.safeParse(input);
-  if (!parsed.success) return { ok: false };
-  const { sessionId, exerciseId } = parsed.data;
-
-  const session = await loadOpenSession(sessionId, member.tenantId, member.id);
-  if (!session) return { ok: false };
-
-  await prisma.workoutSession.update({
-    where: { id: session.id },
-    data: { overrides: toOverridesJson(withSkipped(session.overrides, exerciseId)) },
-  });
-  return { ok: true };
+  const ok = await setSkipped({ tenantId: member.tenantId, userId: member.id }, input, true);
+  return { ok };
 }
 
 /** Maak een skip ongedaan (oefening weer actief in deze sessie). */
-export async function unskipExercise(
-  input: z.infer<typeof skipSchema>
-): Promise<SaveSetResult> {
+export async function unskipExercise(input: SkipInput): Promise<SaveSetResult> {
   const member = await requireMember();
-  const parsed = skipSchema.safeParse(input);
-  if (!parsed.success) return { ok: false };
-  const { sessionId, exerciseId } = parsed.data;
-
-  const session = await loadOpenSession(sessionId, member.tenantId, member.id);
-  if (!session) return { ok: false };
-
-  await prisma.workoutSession.update({
-    where: { id: session.id },
-    data: { overrides: toOverridesJson(withoutSkipped(session.overrides, exerciseId)) },
-  });
-  return { ok: true };
+  const ok = await setSkipped({ tenantId: member.tenantId, userId: member.id }, input, false);
+  return { ok };
 }
 
 const alternativesSchema = z.object({
   exerciseId: z.string().min(1),
   excludeIds: z.array(z.string()).default([]),
 });
-
-export type AlternativesResult = { ok: boolean; alternatives: AlternativeSuggestion[] };
 
 /** Haal alternatieve oefeningen op (zelfde spiergroep/type/lichaamsdeel). */
 export async function getExerciseAlternatives(
@@ -406,85 +157,25 @@ export async function getExerciseAlternatives(
   const member = await requireMember();
   const parsed = alternativesSchema.safeParse(input);
   if (!parsed.success) return { ok: false, alternatives: [] };
-  const { exerciseId, excludeIds } = parsed.data;
-  const alternatives = await findAlternatives(member.tenantId, exerciseId, excludeIds);
+  const alternatives = await alternativesFor(
+    { tenantId: member.tenantId, userId: member.id },
+    parsed.data.exerciseId,
+    parsed.data.excludeIds
+  );
   return { ok: true, alternatives };
 }
 
-const substituteSchema = z.object({
-  sessionId: z.string().min(1),
-  fromExerciseId: z.string().min(1),
-  toExerciseId: z.string().min(1),
-});
-
-export type SubstituteResult = {
-  ok: boolean;
-  replacement?: { exerciseId: string; name: string; machineName: string | null; thumbUrl: string | null };
-};
-
-/**
- * Vervang een oefening door een alternatief voor déze sessie (het template
- * blijft ongewijzigd). Registreert de vervanging in `overrides.subs` (origineel +
- * vervanger) zodat de historie klopt. Retourneert de identiteit van de vervanger
- * zodat de client 'm direct kan tonen; het set/rep-schema van het origineel blijft.
- */
-export async function substituteExercise(
-  input: z.infer<typeof substituteSchema>
-): Promise<SubstituteResult> {
+/** Vervang een oefening door een alternatief voor déze sessie (template blijft ongewijzigd). */
+export async function substituteExercise(input: SubstituteInput): Promise<SubstituteResult> {
   const member = await requireMember();
-  const parsed = substituteSchema.safeParse(input);
-  if (!parsed.success) return { ok: false };
-  const { sessionId, fromExerciseId, toExerciseId } = parsed.data;
-  if (fromExerciseId === toExerciseId) return { ok: false };
-
-  const session = await loadOpenSession(sessionId, member.tenantId, member.id);
-  if (!session) return { ok: false };
-
-  // Beide oefeningen moeten bij de tenant horen; de vervanger mag niet gearchiveerd zijn.
-  const replacement = await prisma.exercise.findFirst({
-    where: { id: toExerciseId, tenantId: member.tenantId, archivedAt: null },
-    select: {
-      id: true,
-      name: true,
-      machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
-    },
-  });
-  if (!replacement) return { ok: false };
-
-  await prisma.workoutSession.update({
-    where: { id: session.id },
-    data: {
-      overrides: toOverridesJson(
-        withSub(session.overrides, { from: fromExerciseId, to: toExerciseId, name: replacement.name })
-      ),
-    },
-  });
-
-  return {
-    ok: true,
-    replacement: {
-      exerciseId: replacement.id,
-      name: replacement.name,
-      machineName: replacement.machine?.name ?? null,
-      thumbUrl: replacement.catalog?.imageUrl ?? replacement.catalog?.gifUrl ?? null,
-    },
-  };
+  return substitute({ tenantId: member.tenantId, userId: member.id }, input);
 }
 
-/**
- * Annuleer de actieve workout: verwijder de sessie volledig (de set-entries
- * cascaden mee). Zo telt een geannuleerde training gegarandeerd niet mee in
- * statistieken, PR's of voortgang. Het lid komt terug op het schema-overzicht.
- */
+/** Annuleer de actieve workout: verwijder de sessie volledig (entries cascaden mee). */
 export async function cancelSession(formData: FormData) {
   const member = await requireMember();
   const sessionId = String(formData.get("sessionId") ?? "");
-
-  await prisma.workoutSession.deleteMany({
-    where: { id: sessionId, tenantId: member.tenantId, userId: member.id, endedAt: null },
-  });
-
+  await cancelSessionCore({ tenantId: member.tenantId, userId: member.id }, sessionId);
   revalidatePath("/member");
   revalidatePath("/member/schema");
   redirect("/member/schema");

@@ -1220,6 +1220,12 @@ model WorkoutSession {
   // dag te filteren. Geen FK-relatie → overleeft dagwijzigingen in het schema.
   dayId     String?
 
+  // Trainer die deze sessie namens het lid heeft gedraaid (PT-sessie vastleggen).
+  // NULL = het lid loggde zelf. Puur attributie/audit — géén FK (zoals
+  // AssignedWorkout.assignedById); de naam wordt read-time opgelost. De sessie
+  // blijft toe aan `userId` (het lid): stats/PR's/trofeeën tellen als het lid.
+  conductedById String?
+
   tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   performanceEntries PerformanceEntry[]

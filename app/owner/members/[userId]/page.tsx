@@ -5,6 +5,15 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requirePermission } from "@/lib/staff";
 import { deriveInviteStatus, INVITE_STATUS_LABEL, type InviteStatus } from "@/lib/members";
+import { getAssignmentsForMember } from "@/lib/schema-assignments";
+import {
+  ASSIGNMENT_STATUS_META,
+  computeValidity,
+  isActiveNow,
+  fmtDate,
+  fmtSince,
+  trainerDisplayName,
+} from "@/lib/schema-status";
 import { listMemberCoaches, listAvailableCoaches } from "@/lib/coach-assignments";
 import { getMemberMoodInsight, getMemberFavorites } from "@/lib/member-insights";
 import { getAchievementsView } from "@/lib/achievements/evaluate";
@@ -96,14 +105,27 @@ export default async function MemberDetailPage({
   });
   const status = deriveInviteStatus(member, invitation ?? undefined);
 
-  const assignment = await prisma.assignedWorkout.findFirst({
-    where: { tenantId: me.tenantId, userId: member.id, status: { not: "ARCHIVED" } },
-    orderBy: { createdAt: "desc" },
-    include: { template: { select: { name: true } } },
-  });
-
   // Coach-koppelingen (alleen zinvol voor een sporter).
   const isMember = member.role === "TENANT_MEMBER";
+
+  // Toegewezen schema('s) van dit lid — compacte "Trainingsschema"-sectie. Het
+  // actieve gepubliceerde schema wint; anders het eerste concept/geplande.
+  const assignments = isMember ? await getAssignmentsForMember(me.tenantId, member.id) : [];
+  const liveOrDraft = assignments.filter((a) => a.status !== "ARCHIVED");
+  const primaryAssignment = liveOrDraft.find((a) => isActiveNow(a)) ?? liveOrDraft[0] ?? null;
+  const assignedByTrainer = primaryAssignment?.assignedById
+    ? await prisma.user.findFirst({
+        where: { id: primaryAssignment.assignedById, tenantId: me.tenantId },
+        select: { name: true, email: true },
+      })
+    : null;
+  const primaryActive = primaryAssignment ? isActiveNow(primaryAssignment) : false;
+  const primaryValidity = primaryAssignment
+    ? computeValidity(
+        primaryActive ? primaryAssignment.publishedAt : null,
+        primaryActive ? primaryAssignment.template?.validityWeeks ?? null : null
+      )
+    : null;
   const [coaches, availableCoaches] = isMember
     ? await Promise.all([
         listMemberCoaches(me.tenantId, member.id),
@@ -280,7 +302,69 @@ export default async function MemberDetailPage({
         </section>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-4 rounded-2xl border border-border p-5 text-sm sm:grid-cols-3">
+      {isMember ? (
+        <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-neutral-900">Trainingsschema</h2>
+            {canSchema ? (
+              <div className="flex items-center gap-3">
+                <Link
+                  href={`/owner/schemas/members/${member.id}/run`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground hover:opacity-90"
+                >
+                  ▶ Workout draaien
+                </Link>
+                <Link
+                  href={`/owner/schemas/members/${member.id}`}
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  Schema beheren →
+                </Link>
+              </div>
+            ) : null}
+          </div>
+
+          {primaryAssignment ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-border px-4 py-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-neutral-900">
+                  {primaryAssignment.template?.name ?? "Schema"}
+                </span>
+                <Badge tone={ASSIGNMENT_STATUS_META[primaryAssignment.status].tone}>
+                  {ASSIGNMENT_STATUS_META[primaryAssignment.status].label}
+                </Badge>
+                {primaryActive ? <Badge tone="accent">Actief</Badge> : null}
+                {primaryValidity && primaryValidity.state !== "none" && primaryValidity.state !== "ok" ? (
+                  <Badge tone={primaryValidity.tone}>{primaryValidity.label}</Badge>
+                ) : null}
+              </div>
+              <p className="text-xs text-neutral-500">
+                Toegewezen door{" "}
+                <span className="text-neutral-700">
+                  {trainerDisplayName(assignedByTrainer) ?? "onbekend"}
+                </span>
+                {primaryActive && primaryAssignment.publishedAt
+                  ? ` · sinds ${fmtSince(primaryAssignment.publishedAt)}`
+                  : ""}
+                {primaryAssignment.endDate ? ` · t/m ${fmtDate(primaryAssignment.endDate)}` : ""}
+              </p>
+              {liveOrDraft.length > 1 ? (
+                <p className="text-xs text-neutral-400">
+                  +{liveOrDraft.length - 1} andere toewijzing
+                  {liveOrDraft.length - 1 === 1 ? "" : "en"} (concept/gepland)
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-neutral-500">
+              Nog geen schema toegewezen.
+              {canSchema ? " Gebruik “Schema beheren” om er een aan te maken." : ""}
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      <section className="grid grid-cols-2 gap-4 rounded-2xl border border-border p-5 text-sm sm:grid-cols-2">
         <div>
           <p className="text-neutral-500">Lid sinds</p>
           <p className="font-medium text-neutral-900">{DATE_FMT.format(member.createdAt)}</p>
@@ -289,22 +373,7 @@ export default async function MemberDetailPage({
           <p className="text-neutral-500">Account</p>
           <p className="font-medium text-neutral-900">{member.active ? "Actief" : "Gedeactiveerd"}</p>
         </div>
-        <div>
-          <p className="text-neutral-500">Schema</p>
-          <p className="font-medium text-neutral-900">
-            {assignment?.template?.name ?? assignment?.customName ?? "Geen"}
-          </p>
-        </div>
       </section>
-
-      {canSchema ? (
-        <Link
-          href={`/owner/schemas/members/${member.id}`}
-          className="text-sm font-medium text-accent hover:underline"
-        >
-          Schema beheren →
-        </Link>
-      ) : null}
     </div>
   );
 }

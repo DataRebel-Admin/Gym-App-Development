@@ -3,15 +3,6 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, m } from "motion/react";
-import {
-  saveSet,
-  saveExerciseNote,
-  skipExercise,
-  unskipExercise,
-  substituteExercise,
-  getExerciseAlternatives,
-  cancelSession,
-} from "../actions";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import { haptic } from "@/lib/haptics";
 import { ExerciseBlock } from "./exercise-block";
@@ -22,6 +13,50 @@ import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { Modal } from "@/components/ui/modal";
 import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
+
+/**
+ * Server-actions die de actieve sessie muteren, geïnjecteerd door de pagina die
+ * `ActiveSession` rendert. De lid-pagina injecteert de zelf-gescoopte lid-actions
+ * (`app/member/schema/actions.ts`); de trainer-pagina de op het lid gebonden
+ * trainer-varianten. Zo blijft er één UI voor beide flows.
+ */
+export type SessionActions = {
+  saveSet: (input: {
+    sessionId: string;
+    exerciseId: string;
+    setNumber: number;
+    reps: number;
+    weightKg: number;
+  }) => Promise<{ ok: boolean }>;
+  saveLog: (input: {
+    sessionId: string;
+    exerciseId: string;
+    setNumber: number;
+    values: Record<string, string>;
+  }) => Promise<{ ok: boolean }>;
+  saveExerciseNote: (input: {
+    sessionId: string;
+    exerciseId: string;
+    notes: string;
+  }) => Promise<{ ok: boolean }>;
+  skipExercise: (input: { sessionId: string; exerciseId: string }) => Promise<{ ok: boolean }>;
+  unskipExercise: (input: { sessionId: string; exerciseId: string }) => Promise<{ ok: boolean }>;
+  getExerciseAlternatives: (input: {
+    exerciseId: string;
+    excludeIds: string[];
+  }) => Promise<{ ok: boolean; alternatives: AlternativeSuggestion[] }>;
+  substituteExercise: (input: {
+    sessionId: string;
+    fromExerciseId: string;
+    toExerciseId: string;
+  }) => Promise<{
+    ok: boolean;
+    replacement?: { exerciseId: string; name: string; machineName: string | null; thumbUrl: string | null };
+  }>;
+  saveWorkoutMood: (input: { sessionId: string; mood: string }) => Promise<{ ok: boolean }>;
+  cancelSession: (formData: FormData) => void | Promise<void>;
+  endSession: (formData: FormData) => void | Promise<void>;
+};
 
 /** Lokale (optimistische) staat van één set. */
 export type SetValue = { reps: string; kg: string; done: boolean; saving: boolean };
@@ -117,6 +152,7 @@ export function ActiveSession({
   context,
   reward,
   timersDefaultOn,
+  actions,
 }: {
   sessionId: string;
   startedAt: string;
@@ -124,6 +160,7 @@ export function ActiveSession({
   context: WorkoutContextProps;
   reward: RewardProps;
   timersDefaultOn: boolean;
+  actions: SessionActions;
 }) {
   const t = useTranslations("member.active");
   const timer = useRestTimer();
@@ -265,7 +302,7 @@ export function ActiveSession({
     });
 
     startTransition(async () => {
-      await saveSet({ sessionId, exerciseId: ex.exerciseId, setNumber, reps, weightKg: kg });
+      await actions.saveSet({ sessionId, exerciseId: ex.exerciseId, setNumber, reps, weightKg: kg });
       patchSet(ex.exerciseId, idx, { saving: false });
     });
 
@@ -278,7 +315,7 @@ export function ActiveSession({
   function noteBlur(exerciseId: string) {
     const value = notes[exerciseId] ?? "";
     startTransition(async () => {
-      await saveExerciseNote({ sessionId, exerciseId, notes: value });
+      await actions.saveExerciseNote({ sessionId, exerciseId, notes: value });
     });
   }
 
@@ -291,7 +328,7 @@ export function ActiveSession({
     timer.dismiss();
     setSkipped((prev) => new Set(prev).add(ex.originalExerciseId));
     startTransition(async () => {
-      await skipExercise({ sessionId, exerciseId: ex.originalExerciseId });
+      await actions.skipExercise({ sessionId, exerciseId: ex.originalExerciseId });
     });
   }
 
@@ -302,7 +339,7 @@ export function ActiveSession({
       return next;
     });
     startTransition(async () => {
-      await unskipExercise({ sessionId, exerciseId: ex.originalExerciseId });
+      await actions.unskipExercise({ sessionId, exerciseId: ex.originalExerciseId });
     });
   }
 
@@ -559,6 +596,7 @@ export function ActiveSession({
                       key={ex.exerciseId}
                       exercise={ex}
                       sessionId={sessionId}
+                      saveLog={actions.saveLog}
                       onDoneChange={(done) =>
                         setDynamicDone((p) => ({ ...p, [ex.exerciseId]: done }))
                       }
@@ -647,7 +685,7 @@ export function ActiveSession({
       >
         <p className="text-sm text-neutral-600">{t("cancelConfirmBody")}</p>
         <div className="mt-5 flex flex-col gap-2">
-          <form action={cancelSession}>
+          <form action={actions.cancelSession}>
             <input type="hidden" name="sessionId" value={sessionId} />
             <button
               type="submit"
@@ -671,6 +709,8 @@ export function ActiveSession({
         exercise={altFor}
         sessionId={sessionId}
         excludeIds={exList.map((e) => e.exerciseId)}
+        getAlternatives={actions.getExerciseAlternatives}
+        substitute={actions.substituteExercise}
         onClose={() => setAltFor(null)}
         onChosen={(ex, alt) => {
           applySubstitution(ex, alt);
@@ -682,6 +722,9 @@ export function ActiveSession({
         {completionVisible ? (
           <CompletionScreen
             sessionId={sessionId}
+            endSession={actions.endSession}
+            saveWorkoutMood={actions.saveWorkoutMood}
+            cancelSession={actions.cancelSession}
             completedExercises={stats.completedExercises}
             totalExercises={activeCount}
             completedSets={stats.completedSets}
@@ -715,12 +758,16 @@ function AlternativesModal({
   exercise,
   sessionId,
   excludeIds,
+  getAlternatives,
+  substitute,
   onClose,
   onChosen,
 }: {
   exercise: ActiveExercise | null;
   sessionId: string;
   excludeIds: string[];
+  getAlternatives: SessionActions["getExerciseAlternatives"];
+  substitute: SessionActions["substituteExercise"];
   onClose: () => void;
   onChosen: (ex: ActiveExercise, alt: AlternativeSuggestion) => void;
 }) {
@@ -734,7 +781,7 @@ function AlternativesModal({
     let cancelled = false;
     setLoading(true);
     setAlternatives([]);
-    getExerciseAlternatives({ exerciseId: exercise.exerciseId, excludeIds })
+    getAlternatives({ exerciseId: exercise.exerciseId, excludeIds })
       .then((res) => {
         if (!cancelled) setAlternatives(res.ok ? res.alternatives : []);
       })
@@ -753,7 +800,7 @@ function AlternativesModal({
   function choose(alt: AlternativeSuggestion) {
     if (!exercise) return;
     setChoosing(alt.exerciseId);
-    substituteExercise({
+    substitute({
       sessionId,
       fromExerciseId: exercise.originalExerciseId,
       toExerciseId: alt.exerciseId,

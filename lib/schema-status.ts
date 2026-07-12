@@ -96,6 +96,20 @@ export function fmtSince(d: Date | null | undefined, now: Date = new Date()): st
   return remMonths > 0 ? `${years} jaar ${remMonths} mnd` : years === 1 ? "1 jaar" : `${years} jaar`;
 }
 
+/**
+ * Weergavenaam van de trainer die een schema toewees of een sessie draaide
+ * (provenance). Naam heeft voorrang op e-mail; `null` als de trainer onbekend is
+ * (bv. oude rijen zonder `assignedById`/`conductedById`). Puur — de call-site
+ * kiest de fallbacktekst ("je trainer" voor het lid, "onbekend" voor de owner).
+ */
+export function trainerDisplayName(
+  t: { name: string | null; email: string } | null | undefined
+): string | null {
+  if (!t) return null;
+  const name = t.name?.trim();
+  return name || t.email || null;
+}
+
 /** NL-datum + tijd. */
 export function fmtDateTime(d: Date | null | undefined): string {
   if (!d) return "—";
