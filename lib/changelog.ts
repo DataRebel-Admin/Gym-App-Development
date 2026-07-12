@@ -41,6 +41,39 @@ export type ChangelogEntry = {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2026.10",
+    date: "2026-07-12",
+    title: "Installeer als app & inloggen zonder gedoe",
+    summary:
+      "GymRebel werkt nu als echte app op je telefoon, inloggen kan met je vingerafdruk en alles voelt merkbaar sneller.",
+    changes: [
+      {
+        type: "new",
+        text: "Installeer GymRebel als app op je telefoon: eigen app-icoon, volledig scherm en een nette offline-weergave zonder verbinding. Achter de schermen is ook het fundament gelegd voor de Play Store en App Store, inclusief pushmeldingen op iPhone.",
+      },
+      {
+        type: "new",
+        text: "Inloggen met je vingerafdruk of gezicht (passkeys): sneller en veiliger dan een wachtwoord. Je beheert je toegangssleutels zelf onder Account → Beveiliging.",
+      },
+      {
+        type: "improved",
+        text: "Eén inlogscherm voor iedereen: de app herkent je sportschool aan je e-mailadres. Train je bij meerdere sportscholen, dan kies je na het inloggen bij welke — ook de e-mail-loginlink werkt per sportschool.",
+      },
+      {
+        type: "improved",
+        text: "Accountinstellingen zijn opnieuw ingedeeld als overzichtelijke hub, zodat je alles sneller vindt — juist op mobiel.",
+      },
+      {
+        type: "improved",
+        text: "Merkbaar sneller: afbeeldingen in moderne compacte formaten, grafieken laden pas wanneer je ze ziet en drukbevraagde overzichten zijn onder de motorkap versneld.",
+      },
+      {
+        type: "improved",
+        text: "Je account verwijderen regel je nu volledig zelf: na een bedenktijd van 30 dagen wordt alles automatisch en definitief verwijderd — tot die tijd kun je annuleren.",
+      },
+    ],
+  },
+  {
     version: "2026.9",
     date: "2026-07-07",
     title: "Overal in jouw taal",
