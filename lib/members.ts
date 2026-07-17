@@ -93,6 +93,69 @@ export async function listMembers(
   const pageSize = opts.pageSize ?? 25;
   const page = Math.max(1, opts.page ?? 1);
   const sort = opts.sort ?? "name";
+
+  const select = {
+    id: true,
+    email: true,
+    name: true,
+    role: true,
+    active: true,
+    archivedAt: true,
+    createdAt: true,
+    emailVerified: true,
+  } as const;
+
+  const toRow = (
+    u: Prisma.UserGetPayload<{ select: typeof select }>,
+    inviteByEmail: Map<string, Invitation>
+  ): MemberRow => ({
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    active: u.active,
+    archivedAt: u.archivedAt,
+    createdAt: u.createdAt,
+    inviteStatus: deriveInviteStatus(u, inviteByEmail.get(u.email)),
+  });
+
+  const loadInvites = async (emails: string[]) => {
+    const invitations = await prisma.invitation.findMany({
+      where: { tenantId, email: { in: emails } },
+      select: { email: true, acceptedAt: true, expiresAt: true },
+    });
+    return new Map(invitations.map((i) => [i.email, i]));
+  };
+
+  // De uitnodigingsstatus is afgeleid (emailVerified + invitation) en dus niet
+  // DB-queryable. Wordt er op status gefilterd óf gesorteerd, dan moet dat over
+  // álle matchende leden — anders klopt total/totalPages niet en mis je treffers
+  // buiten de eerste pagina. In dat geval: alles ophalen → status afleiden →
+  // filteren/sorteren → in-memory pagineren. Zonder statusfilter blijft de
+  // efficiënte DB-paginatie (schaalt naar duizenden leden).
+  if (opts.status || sort === "status") {
+    const users = await prisma.user.findMany({ where, select });
+    const inviteByEmail = await loadInvites(users.map((u) => u.email));
+    let rows = users.map((u) => toRow(u, inviteByEmail));
+
+    if (opts.status) rows = rows.filter((r) => r.inviteStatus === opts.status);
+    rows.sort((a, b) => {
+      if (sort === "status")
+        return STATUS_ORDER[a.inviteStatus] - STATUS_ORDER[b.inviteStatus];
+      if (sort === "created") return b.createdAt.getTime() - a.createdAt.getTime();
+      return (a.name ?? "").localeCompare(b.name ?? "");
+    });
+
+    const total = rows.length;
+    const start = (page - 1) * pageSize;
+    return {
+      rows: rows.slice(start, start + pageSize),
+      total,
+      page,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    };
+  }
+
   const orderBy: Prisma.UserOrderByWithRelationInput =
     sort === "created" ? { createdAt: "desc" } : { name: "asc" };
 
@@ -103,39 +166,12 @@ export async function listMembers(
       orderBy,
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        active: true,
-        archivedAt: true,
-        createdAt: true,
-        emailVerified: true,
-      },
+      select,
     }),
   ]);
 
-  const invitations = await prisma.invitation.findMany({
-    where: { tenantId, email: { in: users.map((u) => u.email) } },
-    select: { email: true, acceptedAt: true, expiresAt: true },
-  });
-  const inviteByEmail = new Map(invitations.map((i) => [i.email, i]));
-
-  let rows: MemberRow[] = users.map((u) => ({
-    id: u.id,
-    email: u.email,
-    name: u.name,
-    role: u.role,
-    active: u.active,
-    archivedAt: u.archivedAt,
-    createdAt: u.createdAt,
-    inviteStatus: deriveInviteStatus(u, inviteByEmail.get(u.email)),
-  }));
-
-  if (opts.status) rows = rows.filter((r) => r.inviteStatus === opts.status);
-  if (sort === "status")
-    rows.sort((a, b) => STATUS_ORDER[a.inviteStatus] - STATUS_ORDER[b.inviteStatus]);
+  const inviteByEmail = await loadInvites(users.map((u) => u.email));
+  const rows = users.map((u) => toRow(u, inviteByEmail));
 
   return { rows, total, page, totalPages: Math.max(1, Math.ceil(total / pageSize)) };
 }

@@ -83,6 +83,7 @@ export function ExerciseBlock({
   historicalBestOneRm,
   onChangeSet,
   onToggleSet,
+  onRetrySet,
   onAddSet,
   onRemoveSet,
   onNoteChange,
@@ -94,6 +95,7 @@ export function ExerciseBlock({
   historicalBestOneRm: number;
   onChangeSet: (setNumber: number, field: "reps" | "kg", value: string) => void;
   onToggleSet: (setNumber: number) => void;
+  onRetrySet: (setNumber: number) => void;
   onAddSet: () => void;
   onRemoveSet: (setNumber: number) => void;
   onNoteChange: (value: string) => void;
@@ -206,7 +208,11 @@ export function ExerciseBlock({
               animate={{ opacity: s.done ? 1 : 0.92 }}
               className={cn(
                 "relative rounded-2xl border p-3 transition-colors",
-                s.done ? "border-accent/40 bg-accent-soft" : "border-border bg-surface-1"
+                s.failed
+                  ? "border-red-300 bg-red-50"
+                  : s.done
+                    ? "border-accent/40 bg-accent-soft"
+                    : "border-border bg-surface-1"
               )}
             >
               {removable ? (
@@ -246,18 +252,34 @@ export function ExerciseBlock({
                   onClick={() => onToggleSet(setNumber)}
                   className={cn(
                     "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl font-bold transition-colors active:scale-90",
-                    s.done
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-neutral-300 text-neutral-300"
+                    s.failed
+                      ? "border-red-400 bg-red-100 text-red-600"
+                      : s.done
+                        ? "border-accent bg-accent text-accent-foreground"
+                        : "border-neutral-300 text-neutral-300"
                   )}
                 >
                   {s.saving ? (
                     <span className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : s.failed ? (
+                    "!"
                   ) : (
                     "✓"
                   )}
                 </button>
               </div>
+              {s.failed ? (
+                <div className="mt-2 flex items-center justify-between gap-2 pl-11">
+                  <span className="text-xs font-medium text-red-600">{t("notSaved")}</span>
+                  <button
+                    type="button"
+                    onClick={() => onRetrySet(setNumber)}
+                    className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white active:scale-95 focus-ring"
+                  >
+                    {t("retrySave")}
+                  </button>
+                </div>
+              ) : null}
             </m.div>
           );
         })}

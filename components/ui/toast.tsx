@@ -63,6 +63,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
+      {/* Screenreaders: fouten onderbreken (assertive), succes/info niet (polite).
+          Twee regio's omdat één element maar één live-modus kan dragen. */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {toasts.filter((t) => t.tone !== "error").map((t) => (
+          <div key={t.id}>{t.message}</div>
+        ))}
+      </div>
+      <div role="alert" aria-live="assertive" aria-atomic="true" className="sr-only">
+        {toasts.filter((t) => t.tone === "error").map((t) => (
+          <div key={t.id}>{t.message}</div>
+        ))}
+      </div>
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-2 px-4">
         <AnimatePresence>
           {toasts.map((t) => (
@@ -73,16 +90,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-              onClick={() => remove(t.id)}
               className={cn(
-                "pointer-events-auto flex max-w-sm cursor-pointer items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg",
+                "pointer-events-auto flex max-w-sm items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg",
                 toneStyles[t.tone]
               )}
             >
               <span aria-hidden className="text-base leading-none">
                 {toneIcon[t.tone]}
               </span>
-              <span>{t.message}</span>
+              <span className="flex-1">{t.message}</span>
+              <button
+                type="button"
+                onClick={() => remove(t.id)}
+                aria-label="Melding sluiten"
+                className="-mr-1 shrink-0 rounded-md px-1.5 text-lg leading-none opacity-60 transition-opacity hover:opacity-100 focus-ring"
+              >
+                ×
+              </button>
             </m.div>
           ))}
         </AnimatePresence>

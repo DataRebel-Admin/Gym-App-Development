@@ -196,6 +196,7 @@
       "coachNote": "Coach-notitie",
       "chooseDay": "Kies je trainingsdag",
       "startTraining": "Start training",
+      "starting": "Training starten…",
       "downloadPdf": "Download als PDF",
       "muscleAnalysis": "Spieranalyse",
       "validityExpiringTitle": "Je schema verloopt binnenkort",
@@ -296,7 +297,13 @@
       "cancelConfirmTitle": "Workout annuleren?",
       "cancelConfirmBody": "Weet je zeker dat je deze workout wilt annuleren? Niet-opgeslagen gegevens van deze sessie gaan verloren.",
       "cancelConfirm": "Workout annuleren",
-      "keepWorkout": "Workout behouden"
+      "keepWorkout": "Workout behouden",
+      "saveFailed": "Set niet opgeslagen — controleer je verbinding.",
+      "notSaved": "Niet opgeslagen",
+      "retrySave": "Opnieuw",
+      "logFailed": "Resultaat niet opgeslagen — controleer je verbinding.",
+      "noteFailed": "Notitie niet opgeslagen.",
+      "actionFailed": "Actie mislukt — probeer opnieuw."
     },
     "scan": {
       "metaTitle": "Scannen",

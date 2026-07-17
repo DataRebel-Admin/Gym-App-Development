@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { ChevronRight, Check, Plus } from "@/components/ui/icons";
+import { useToast } from "@/components/ui/toast";
 import { getExerciseType, type ParamField } from "@/lib/exercise-types";
 import {
   defaultLogInputValues,
@@ -67,7 +68,7 @@ function LogField({
   );
 }
 
-type Row = { values: InputValues; saved: boolean };
+type Row = { values: InputValues; saved: boolean; failed?: boolean };
 
 /**
  * Type-bewuste oefeningkaart voor alle niet-kracht-types tijdens een training.
@@ -89,6 +90,7 @@ export function DynamicExerciseBlock({
   onSetDone: (restSeconds: number) => void;
 }) {
   const t = useTranslations("member.active");
+  const toast = useToast();
   const type = getExerciseType(exercise.exerciseType);
   const TypeIcon = type.icon;
   const [, startTransition] = useTransition();
@@ -123,17 +125,29 @@ export function DynamicExerciseBlock({
     const row = rows[idx];
     setRows((prev) => {
       const next = prev.slice();
-      next[idx] = { ...next[idx], saved: true };
+      next[idx] = { ...next[idx], saved: true, failed: false };
       reportDone(next);
       return next;
     });
+    // Catch verplicht: een gooiende transitie sloopt anders de hele sessie-UI.
     startTransition(async () => {
-      await saveLog({
-        sessionId,
-        exerciseId: exercise.exerciseId,
-        setNumber: idx + 1,
-        values: row.values,
-      });
+      try {
+        const res = await saveLog({
+          sessionId,
+          exerciseId: exercise.exerciseId,
+          setNumber: idx + 1,
+          values: row.values,
+        });
+        if (!res?.ok) throw new Error("log save failed");
+      } catch {
+        setRows((prev) => {
+          const next = prev.slice();
+          next[idx] = { ...next[idx], saved: false, failed: true };
+          reportDone(next);
+          return next;
+        });
+        toast.error(t("logFailed"));
+      }
     });
     if (exercise.restSeconds > 0) onSetDone(exercise.restSeconds);
   }
@@ -194,10 +208,16 @@ export function DynamicExerciseBlock({
             key={idx}
             className={cn(
               "rounded-2xl border p-3 transition-colors",
-              row.saved ? "border-accent/40 bg-accent-soft" : "border-border bg-surface-1"
+              row.failed
+                ? "border-red-300 bg-red-50"
+                : row.saved
+                  ? "border-accent/40 bg-accent-soft"
+                  : "border-border bg-surface-1"
             )}
           >
-            {!isSingle ? (
+            {row.failed ? (
+              <p className="mb-2 text-xs font-medium text-red-600">{t("notSaved")}</p>
+            ) : !isSingle ? (
               <p className="mb-2 text-xs font-semibold text-neutral-500">{t("setLabel", { number: idx + 1 })}</p>
             ) : null}
             <div className="flex flex-wrap items-end gap-2.5">

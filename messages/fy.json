@@ -65,6 +65,7 @@
       "assignedBy": "Tawiisd troch {trainer}",
       "coachNote": "Coach-notysje",
       "startTraining": "Start training",
+      "starting": "Training starte…",
       "downloadPdf": "Download as PDF",
       "muscleAnalysis": "Spieranalyze",
       "validityExpiringTitle": "Dyn skema ferrint ynkoarten",
@@ -166,7 +167,13 @@
       "cancelConfirmTitle": "Workout annulearje?",
       "cancelConfirmBody": "Witst wis datst dizze workout annulearje wolst? Net-bewarre gegevens fan dizze sesje geane ferlern.",
       "cancelConfirm": "Workout annulearje",
-      "keepWorkout": "Workout behâlde"
+      "keepWorkout": "Workout behâlde",
+      "saveFailed": "Set net bewarre — kontrolearje dyn ferbining.",
+      "notSaved": "Net bewarre",
+      "retrySave": "Opnij",
+      "logFailed": "Resultaat net bewarre — kontrolearje dyn ferbining.",
+      "noteFailed": "Notysje net bewarre.",
+      "actionFailed": "Aksje mislearre — probearje opnij."
     },
     "scan": {
       "metaTitle": "Scanne",

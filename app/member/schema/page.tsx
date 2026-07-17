@@ -14,6 +14,7 @@ import {
   type ChecklistDay,
 } from "./schema-checklist";
 import { startSession } from "./actions";
+import { StartSessionButton } from "./start-session-button";
 import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { exerciseTypeLabel } from "@/lib/exercise-types";
@@ -268,9 +269,10 @@ export default async function MemberSchemaPage() {
           {dayOptions.map((d) => (
             <form key={d.id} action={startSession}>
               <input type="hidden" name="dayId" value={d.id} />
-              <button
-                type="submit"
-                className="flex w-full items-center justify-between gap-3 rounded-2xl bg-accent-gradient px-6 py-4 text-left font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
+              <StartSessionButton
+                label={d.name}
+                pendingLabel={t("starting")}
+                className="justify-between px-6 py-4 text-left"
               >
                 <span className="flex items-center gap-2 text-lg">
                   <Play className="size-5 fill-current" /> {d.name}
@@ -278,18 +280,17 @@ export default async function MemberSchemaPage() {
                 <span className="text-sm font-medium text-accent-foreground/80">
                   {t("exercisesCount", { count: d.count })}
                 </span>
-              </button>
+              </StartSessionButton>
             </form>
           ))}
         </div>
       ) : (
-        <form action={startSession}>
-          <button
-            type="submit"
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-5 text-center text-lg font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
-          >
-            <Play className="size-5 fill-current" /> {t("startTraining")}
-          </button>
+        <form action={startSession} className="mt-2">
+          <StartSessionButton
+            label={t("startTraining")}
+            pendingLabel={t("starting")}
+            className="justify-center px-6 py-5 text-lg"
+          />
         </form>
       )}
 

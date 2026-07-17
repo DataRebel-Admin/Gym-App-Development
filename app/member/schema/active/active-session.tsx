@@ -11,6 +11,7 @@ import { CompletionScreen } from "./completion-screen";
 import { useRestTimer, FloatingTimer } from "./rest-timer";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { Modal } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
 import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
@@ -58,8 +59,15 @@ export type SessionActions = {
   endSession: (formData: FormData) => void | Promise<void>;
 };
 
-/** Lokale (optimistische) staat van één set. */
-export type SetValue = { reps: string; kg: string; done: boolean; saving: boolean };
+/** Lokale (optimistische) staat van één set. `failed` = opslaan mislukte (netwerk
+ *  of server) → toon een retry-affordance i.p.v. stil dataverlies. */
+export type SetValue = {
+  reps: string;
+  kg: string;
+  done: boolean;
+  saving: boolean;
+  failed?: boolean;
+};
 
 type SetEntry = { setNumber: number; reps: number; weightKg: number; params?: unknown };
 export type PreviousPerformance = {
@@ -163,6 +171,7 @@ export function ActiveSession({
   actions: SessionActions;
 }) {
   const t = useTranslations("member.active");
+  const toast = useToast();
   const timer = useRestTimer();
   const [, startTransition] = useTransition();
 
@@ -275,13 +284,45 @@ export function ActiveSession({
     });
   }
 
+  /**
+   * Sla één kracht-set op met harde foutafhandeling. Cruciaal: de promise wordt
+   * hier ge-`catch`t. Zonder dat escaleert een netwerkfout in een async-transitie
+   * (React 19) naar de error-boundary → de hele sessie-UI unmount en alle nog niet
+   * opgeslagen sets in state zijn weg. Nu blijft de UI leven; alleen de betrokken
+   * set krijgt een `failed`-vlag + een retry-affordance, en het lid ziet een toast.
+   */
+  function saveSetValue(ex: ActiveExercise, setNumber: number, reps: number, kg: number) {
+    const idx = setNumber - 1;
+    patchSet(ex.exerciseId, idx, { saving: true, failed: false });
+    startTransition(async () => {
+      try {
+        const res = await actions.saveSet({
+          sessionId,
+          exerciseId: ex.exerciseId,
+          setNumber,
+          reps,
+          weightKg: kg,
+        });
+        if (res?.ok) {
+          patchSet(ex.exerciseId, idx, { saving: false, failed: false });
+        } else {
+          patchSet(ex.exerciseId, idx, { saving: false, failed: true });
+          toast.error(t("saveFailed"));
+        }
+      } catch {
+        patchSet(ex.exerciseId, idx, { saving: false, failed: true });
+        toast.error(t("saveFailed"));
+      }
+    });
+  }
+
   function toggleSet(ex: ActiveExercise, setNumber: number) {
     const idx = setNumber - 1;
     const cur = setState[ex.exerciseId][idx];
     const nextDone = !cur.done;
 
     if (!nextDone) {
-      patchSet(ex.exerciseId, idx, { done: false });
+      patchSet(ex.exerciseId, idx, { done: false, failed: false });
       return;
     }
 
@@ -296,15 +337,10 @@ export function ActiveSession({
     const kg = Number(cur.kg || fallbackKg || 0);
     patchSet(ex.exerciseId, idx, {
       done: true,
-      saving: true,
       reps: String(reps),
       kg: cur.kg || (fallbackKg ? String(fallbackKg) : ""),
     });
-
-    startTransition(async () => {
-      await actions.saveSet({ sessionId, exerciseId: ex.exerciseId, setNumber, reps, weightKg: kg });
-      patchSet(ex.exerciseId, idx, { saving: false });
-    });
+    saveSetValue(ex, setNumber, reps, kg);
 
     // Timers uit voor deze sessie → geen auto-rusttimer, geen trilling/geluid.
     if (!timersEnabled) return;
@@ -312,10 +348,24 @@ export function ActiveSession({
     timer.startRest(ex.restSeconds > 0 ? ex.restSeconds : DEFAULT_REST);
   }
 
+  /** Opnieuw opslaan na een mislukte set — leest de huidige (evt. bijgestelde) waarden. */
+  function retrySet(ex: ActiveExercise, setNumber: number) {
+    const cur = setState[ex.exerciseId]?.[setNumber - 1];
+    if (!cur) return;
+    const reps = Number(cur.reps || 0);
+    const kg = Number(cur.kg || 0);
+    saveSetValue(ex, setNumber, reps, kg);
+  }
+
   function noteBlur(exerciseId: string) {
     const value = notes[exerciseId] ?? "";
     startTransition(async () => {
-      await actions.saveExerciseNote({ sessionId, exerciseId, notes: value });
+      try {
+        const res = await actions.saveExerciseNote({ sessionId, exerciseId, notes: value });
+        if (!res?.ok) toast.error(t("noteFailed"));
+      } catch {
+        toast.error(t("noteFailed"));
+      }
     });
   }
 
@@ -328,7 +378,18 @@ export function ActiveSession({
     timer.dismiss();
     setSkipped((prev) => new Set(prev).add(ex.originalExerciseId));
     startTransition(async () => {
-      await actions.skipExercise({ sessionId, exerciseId: ex.originalExerciseId });
+      try {
+        const res = await actions.skipExercise({ sessionId, exerciseId: ex.originalExerciseId });
+        if (!res?.ok) throw new Error("skip failed");
+      } catch {
+        // Rollback: de skip is niet doorgekomen → oefening weer actief tonen.
+        setSkipped((prev) => {
+          const next = new Set(prev);
+          next.delete(ex.originalExerciseId);
+          return next;
+        });
+        toast.error(t("actionFailed"));
+      }
     });
   }
 
@@ -339,7 +400,14 @@ export function ActiveSession({
       return next;
     });
     startTransition(async () => {
-      await actions.unskipExercise({ sessionId, exerciseId: ex.originalExerciseId });
+      try {
+        const res = await actions.unskipExercise({ sessionId, exerciseId: ex.originalExerciseId });
+        if (!res?.ok) throw new Error("unskip failed");
+      } catch {
+        // Rollback: undo kwam niet door → oefening blijft overgeslagen.
+        setSkipped((prev) => new Set(prev).add(ex.originalExerciseId));
+        toast.error(t("actionFailed"));
+      }
     });
   }
 
@@ -483,6 +551,12 @@ export function ActiveSession({
 
   const completionVisible = (allDone || showCompletion) && !dismissed;
 
+  // Zodra het afrondscherm verschijnt (knop "Afronden" of alles klaar): stop een
+  // eventueel lopende rusttimer zodat die niet doortikt op het eindscherm.
+  useEffect(() => {
+    if (completionVisible) timer.dismiss();
+  }, [completionVisible, timer.dismiss]);
+
   return (
     <Fullscreenable className="relative flex flex-1 flex-col">
       {/* Sticky voortgangsbalk */}
@@ -586,6 +660,7 @@ export function ActiveSession({
                       historicalBestOneRm={context.historicalBest[ex.exerciseId] ?? 0}
                       onChangeSet={(sn, field, val) => changeSet(ex.exerciseId, sn, field, val)}
                       onToggleSet={(sn) => toggleSet(ex, sn)}
+                      onRetrySet={(sn) => retrySet(ex, sn)}
                       onAddSet={() => addSet(ex.exerciseId)}
                       onRemoveSet={(sn) => removeSet(ex.exerciseId, sn)}
                       onNoteChange={(val) => setNotes((p) => ({ ...p, [ex.exerciseId]: val }))}

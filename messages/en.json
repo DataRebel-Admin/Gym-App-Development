@@ -196,6 +196,7 @@
       "coachNote": "Coach note",
       "chooseDay": "Choose your training day",
       "startTraining": "Start workout",
+      "starting": "Starting workout…",
       "downloadPdf": "Download as PDF",
       "muscleAnalysis": "Muscle analysis",
       "validityExpiringTitle": "Your schema expires soon",
@@ -296,7 +297,13 @@
       "cancelConfirmTitle": "Cancel workout?",
       "cancelConfirmBody": "Are you sure you want to cancel this workout? Unsaved data from this session will be lost.",
       "cancelConfirm": "Cancel workout",
-      "keepWorkout": "Keep workout"
+      "keepWorkout": "Keep workout",
+      "saveFailed": "Set not saved — check your connection.",
+      "notSaved": "Not saved",
+      "retrySave": "Retry",
+      "logFailed": "Result not saved — check your connection.",
+      "noteFailed": "Note not saved.",
+      "actionFailed": "Action failed — please try again."
     },
     "scan": {
       "metaTitle": "Scan",

@@ -8,6 +8,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getResolvedTheme } from "@/lib/theme";
 import { getBackgroundParallax } from "@/lib/background-motion";
 import { rootMetadata } from "@/lib/metadata";
+import { readableText } from "@/lib/color";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
@@ -70,7 +71,13 @@ export default async function RootLayout({
   // Whitelabel: injecteer de tenant-huisstijl als CSS custom properties zodat
   // `bg-accent`/`text-accent` (+ secondary/font) runtime per tenant kleuren.
   const vars: Record<string, string> = {};
-  if (tenant?.accentColor) vars["--tenant-accent"] = tenant.accentColor;
+  if (tenant?.accentColor) {
+    vars["--tenant-accent"] = tenant.accentColor;
+    // Leesbare tekstkleur ÓP het accent (wit of donkergrijs). Zonder dit bleef
+    // `--tenant-accent-foreground` op #fff staan → wit-op-licht bij een lichte
+    // tenant-huisstijl. Zelfde luminantie-logica als e-mails/QR (lib/color.ts).
+    vars["--tenant-accent-foreground"] = readableText(tenant.accentColor);
+  }
   if (tenant?.secondaryColor) vars["--tenant-secondary"] = tenant.secondaryColor;
   // Eigen lettertype overschrijft de default (Geist) alleen als de tenant 'm zet.
   if (tenant?.fontFamily) vars["fontFamily"] = tenant.fontFamily;

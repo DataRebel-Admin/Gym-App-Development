@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import { readableText } from "@/lib/color";
 
 /**
  * Genormaliseerde huisstijl voor e-mails. Elke uitgaande mail wordt met dit
@@ -56,25 +57,6 @@ function hex(value: string | null | undefined): string | null {
   if (!value) return null;
   const v = value.trim();
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v) ? v : null;
-}
-
-/** Relatieve luminantie → kies wit of donkergrijs voor maximale leesbaarheid. */
-export function readableText(bg: string): string {
-  const h = bg.replace("#", "");
-  const full =
-    h.length === 3
-      ? h
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : h;
-  const r = parseInt(full.slice(0, 2), 16) / 255;
-  const g = parseInt(full.slice(2, 4), 16) / 255;
-  const b = parseInt(full.slice(4, 6), 16) / 255;
-  const lin = (c: number) =>
-    c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  const luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return luminance > 0.55 ? "#111827" : "#ffffff";
 }
 
 /** Parse de Tenant.socials Json veilig naar een lijst van { label, url }. */
