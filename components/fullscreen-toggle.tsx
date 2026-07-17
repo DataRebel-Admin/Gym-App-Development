@@ -100,7 +100,7 @@ export function FullscreenToggle() {
       title={label}
       aria-pressed={active}
       className={cn(
-        "fixed left-4 z-[55] flex size-10 items-center justify-center rounded-xl border border-border bg-surface-1/80 text-neutral-600 shadow-sm backdrop-blur transition-colors hover:text-neutral-900 focus-ring",
+        "glass fixed left-4 z-[55] flex size-10 items-center justify-center rounded-xl border border-border text-neutral-600 shadow-sm transition-colors hover:text-neutral-900 focus-ring",
         inMember ? "bottom-24" : "bottom-6"
       )}
     >

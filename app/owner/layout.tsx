@@ -163,7 +163,10 @@ export default async function OwnerLayout({
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-40 border-b border-border bg-surface-1/75 backdrop-blur-xl">
+      {/* .glass i.p.v. een eigen alpha: content schuift hier écht onderdoor, dus
+          het glas blijft — maar de dekking is centraal geregeld (--glass) zodat
+          de bewegende aurora de navigatie niet doorkleurt. */}
+      <header className="glass sticky top-0 z-40 border-b border-border">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3 lg:gap-4">
             <Link

@@ -260,7 +260,7 @@ export function CatalogBulkGrid({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="fixed inset-x-0 bottom-4 z-40 mx-auto flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface-1/95 px-4 py-3 shadow-lg backdrop-blur-xl"
+            className="glass fixed inset-x-0 bottom-4 z-40 mx-auto flex w-fit max-w-[calc(100%-2rem)] flex-wrap items-center gap-3 rounded-2xl border border-border px-4 py-3 shadow-lg"
           >
             <span className="text-sm font-semibold text-neutral-900">
               {allMatching ? t("allResults", { total }) : t("selectedCount", { count: activeCount })}

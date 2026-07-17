@@ -116,7 +116,9 @@ export async function StaffDashboard({
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1/80 p-7 shadow-lg backdrop-blur-xl">
+      {/* Ondoorzichtig — zelfde reden als de owner-hero: achter dit paneel
+          zweeft alleen de aurora; de tint komt uit de eigen .bg-aura-laag. */}
+      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-7 shadow-lg">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
         <div className="relative">
           <p className="text-sm font-medium text-accent">

@@ -83,8 +83,10 @@ export default async function OwnerDashboard() {
 
   return (
     <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      {/* Premium hero-header */}
-      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1/80 p-7 shadow-lg backdrop-blur-xl">
+      {/* Premium hero-header. Ondoorzichtig: achter dit paneel zweeft alleen de
+          aurora, dus doorschijnendheid zou de kop enkel onrustig maken. De
+          tenant-tint komt van de eigen .bg-aura-laag hieronder. */}
+      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-7 shadow-lg">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div>

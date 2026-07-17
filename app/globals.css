@@ -74,7 +74,9 @@
 
   --ring: var(--accent-ring);
 
-  --glass: color-mix(in srgb, var(--surface-1) 70%, transparent);
+  /* Glas-vlak (sticky headers/overlays). Bewust bijna ondoorzichtig: hieronder
+     schuift zowel content als de bewegende aurora door. Zie .glass. */
+  --glass: color-mix(in srgb, var(--surface-1) 92%, transparent);
   --shimmer-tint: rgb(255 255 255 / 0.6);
 
   /* Premium app-achtergrond (licht).
@@ -148,7 +150,8 @@
   --shadow-lg: 0 18px 40px -10px rgb(0 0 0 / 0.65), 0 8px 16px -8px rgb(0 0 0 / 0.5);
   --shadow-accent: 0 10px 36px -8px color-mix(in srgb, var(--tenant-accent) 55%, transparent);
 
-  --glass: color-mix(in srgb, var(--surface-1) 62%, transparent);
+  /* Donker: de orbs lichten fel op, dus nóg iets minder doorlaten dan licht. */
+  --glass: color-mix(in srgb, var(--surface-1) 90%, transparent);
   --shimmer-tint: rgb(255 255 255 / 0.06);
 
   /* Premium app-achtergrond (donker).
@@ -463,7 +466,13 @@ body::after {
   }
 }
 
-/* Glas-effect (header/overlays): translucent surface + blur */
+/* Glas-effect (sticky header/zwevende overlays): translucent surface + blur.
+ *
+ * Alléén voor vlakken waar écht iets onderdoor schuift (content bij scrollen) —
+ * daar draagt het glas informatie. Een paneel dat enkel de aurora achter zich
+ * heeft, hoort ondoorzichtig te zijn (bg-surface-1 + .bg-aura voor de tint):
+ * doorschijnendheid levert daar niets op, terwijl de zwevende orbs het vlak
+ * langzaam van kleur laten wisselen en de tekst onrustig maken. */
 .glass {
   background: var(--glass);
   backdrop-filter: blur(12px) saturate(140%);
