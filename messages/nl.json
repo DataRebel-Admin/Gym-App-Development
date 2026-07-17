@@ -418,9 +418,18 @@
       "statusExtra": "Extra",
       "legendTarget": "Schema-doel",
       "summary": {
-        "good": { "title": "Goed bezig!", "hint": "Je haalt vrijwel je volledige schema-volume." },
-        "mid": { "title": "Aardig op weg", "hint": "Een paar spiergroepen blijven nog achter op je schema." },
-        "low": { "title": "Ruimte voor meer", "hint": "Je blijft achter op je schema-doelen. Pak de rustende spiergroepen op." }
+        "good": {
+          "title": "Goed bezig!",
+          "hint": "Je haalt vrijwel je volledige schema-volume."
+        },
+        "mid": {
+          "title": "Aardig op weg",
+          "hint": "Een paar spiergroepen blijven nog achter op je schema."
+        },
+        "low": {
+          "title": "Ruimte voor meer",
+          "hint": "Je blijft achter op je schema-doelen. Pak de rustende spiergroepen op."
+        }
       },
       "levels": {
         "1": "Weinig",
@@ -447,6 +456,20 @@
         "adductors": "Binnen-/buitenbeen",
         "calves": "Kuiten"
       }
+    },
+    "onboarding": {
+      "dialogLabel": "Welkom",
+      "welcome": "Welkom! 👋",
+      "welcomeWithGym": "Welkom bij {gym}! 👋",
+      "welcomeText": "Jouw persoonlijke trainingsapp. Sneller trainen, je voortgang zien en gemotiveerd blijven — alles op één plek.",
+      "scanTitle": "Scan & train",
+      "scanText": "Scan een machine voor uitleg, of start je schema en vink je sets af. Grote knoppen, zweethanden-proof.",
+      "progressTitle": "Zie je vooruitgang",
+      "progressText": "Persoonlijke records, streaks en grafieken houden je scherp. Elke training telt mee.",
+      "readyTitle": "Klaar om te knallen",
+      "readyText": "Stel jezelf een doel van een paar trainingen per week. Consistentie is alles — wij houden het bij.",
+      "skip": "Overslaan",
+      "start": "Aan de slag"
     }
   },
   "owner": {
@@ -782,85 +805,6 @@
   },
   "achievements": {
     "ui": {
-      "celebration": {
-        "close": "Sluiten",
-        "title": "Trofee behaald!",
-        "next": "Volgende ({current}/{total})",
-        "celebrate": "Vieren!",
-        "viewAll": "Bekijk al je trofeeën"
-      },
-      "card": {
-        "earned": "Behaald",
-        "earnedOn": "Behaald op {date}"
-      },
-      "coach": {
-        "noData": "Nog geen gegevens.",
-        "recentMilestones": "Recente mijlpalen",
-        "nearAchievement": "Bijna een achievement",
-        "longestStreaks": "Langste streaks",
-        "mostActive": "Meest actieve leden",
-        "stale": "Al even geen mijlpaal",
-        "days": "{count, plural, one {# dag} other {# dagen}}",
-        "sessions": "{count, plural, one {<b>#</b> training} other {<b>#</b> trainingen}}",
-        "daysAgo": "{count, plural, one {# dag geleden} other {# dagen geleden}}",
-        "noMilestone": "Nog geen mijlpaal"
-      },
-      "dashboard": {
-        "trophies": "Trofeeën",
-        "lastEarned": "Laatst behaald",
-        "total": "{count} totaal",
-        "none": "Nog geen trofeeën",
-        "startToEarn": "Start een training om te verdienen",
-        "nextMilestone": "Volgende mijlpaal"
-      },
-      "hide": {
-        "title": "Trofeeën tonen",
-        "description": "Toon je trofeeën, mijlpalen en Gym Passport in de app."
-      },
-      "profile": {
-        "title": "Trofeeën & mijlpalen",
-        "engagement": "Betrokkenheid →",
-        "earned": "Behaald",
-        "level": "Niveau",
-        "longestStreak": "Langste streak",
-        "bestTrophy": "Mooiste trofee",
-        "noTrophies": "Dit lid heeft nog geen trofeeën behaald."
-      },
-      "passport": {
-        "earned": "Behaald",
-        "toEarn": "Nog te behalen"
-      }
-    },
-    "level": {
-      "0": "Nieuwkomer",
-      "1": "Beginner",
-      "2": "Doorzetter",
-      "3": "Gevorderd",
-      "4": "Toegewijd",
-      "5": "Expert",
-      "6": "Meester",
-      "7": "Legende"
-    },
-    "rarity": {
-      "bronze": "Brons",
-      "silver": "Zilver",
-      "gold": "Goud",
-      "platinum": "Platinum",
-      "diamond": "Diamant",
-      "legendary": "Legendarisch"
-    },
-    "unit": {
-      "trainingen": "trainingen",
-      "dagen": "dagen",
-      "weken": "weken",
-      "kg": "kg",
-      "km": "km",
-      "uur": "uur",
-      "prs": "PR's",
-      "doelen": "doelen",
-      "metingen": "metingen"
-    },
-    "ui": {
       "card": {
         "earned": "Behaald",
         "earnedOn": "Behaald op {date}"
@@ -910,13 +854,60 @@
         "noMilestone": "Nog geen mijlpaal"
       }
     },
+    "level": {
+      "0": "Nieuwkomer",
+      "1": "Beginner",
+      "2": "Doorzetter",
+      "3": "Gevorderd",
+      "4": "Toegewijd",
+      "5": "Expert",
+      "6": "Meester",
+      "7": "Legende"
+    },
+    "rarity": {
+      "bronze": "Brons",
+      "silver": "Zilver",
+      "gold": "Goud",
+      "platinum": "Platinum",
+      "diamond": "Diamant",
+      "legendary": "Legendarisch"
+    },
+    "unit": {
+      "trainingen": "trainingen",
+      "dagen": "dagen",
+      "weken": "weken",
+      "kg": "kg",
+      "km": "km",
+      "uur": "uur",
+      "prs": "PR's",
+      "doelen": "doelen",
+      "metingen": "metingen"
+    },
     "category": {
-      "training": { "label": "Training", "description": "Mijlpalen voor het aantal voltooide trainingen." },
-      "consistency": { "label": "Consistentie", "description": "Beloningen voor regelmatig en volhoudend trainen." },
-      "strength": { "label": "Kracht", "description": "Volume, records en krachtmijlpalen." },
-      "cardio": { "label": "Cardio", "description": "Afstand, tijd en duurmijlpalen." },
-      "goals": { "label": "Doelen", "description": "Persoonlijke doelen en lichaamssamenstelling." },
-      "community": { "label": "Community", "description": "Je profiel, eerste stappen en betrokkenheid." }
+      "training": {
+        "label": "Training",
+        "description": "Mijlpalen voor het aantal voltooide trainingen."
+      },
+      "consistency": {
+        "label": "Consistentie",
+        "description": "Beloningen voor regelmatig en volhoudend trainen."
+      },
+      "strength": {
+        "label": "Kracht",
+        "description": "Volume, records en krachtmijlpalen."
+      },
+      "cardio": {
+        "label": "Cardio",
+        "description": "Afstand, tijd en duurmijlpalen."
+      },
+      "goals": {
+        "label": "Doelen",
+        "description": "Persoonlijke doelen en lichaamssamenstelling."
+      },
+      "community": {
+        "label": "Community",
+        "description": "Je profiel, eerste stappen en betrokkenheid."
+      }
     },
     "passport": {
       "memberSince": "Lid sinds",
@@ -936,37 +927,130 @@
       "emailMulti": "{description} (en nog {count} andere {count, plural, one {trofee} other {trofeeën}})."
     },
     "items": {
-      "training_first": { "title": "Eerste training", "description": "Je allereerste training voltooid. Het begin van je reis." },
-      "training_count_10": { "title": "10 trainingen", "description": "Tien trainingen op de teller — de gewoonte groeit." },
-      "training_count_50": { "title": "50 trainingen", "description": "Vijftig trainingen voltooid. Serieuze toewijding." },
-      "training_count_100": { "title": "100 trainingen", "description": "Honderd trainingen — je bent een vaste waarde." },
-      "training_count_250": { "title": "250 trainingen", "description": "Tweehonderdvijftig trainingen. Indrukwekkend volhouden." },
-      "training_count_500": { "title": "500 trainingen", "description": "Vijfhonderd trainingen. Een ware veteraan." },
-      "consistency_streak_3": { "title": "3 dagen op rij", "description": "Drie dagen achter elkaar getraind." },
-      "consistency_streak_7": { "title": "7 dagen op rij", "description": "Een volle week elke dag getraind." },
-      "consistency_weeks_8": { "title": "8 actieve weken", "description": "Acht weken lang getraind. De gewoonte zit erin." },
-      "consistency_member_365": { "title": "1 jaar actief", "description": "Een heel jaar lid van je sportschool." },
-      "consistency_weeks_26": { "title": "26 actieve weken", "description": "In een half jaar tijd 26 weken getraind. IJzeren discipline." },
-      "strength_first_pr": { "title": "Eerste PR", "description": "Je eerste persoonlijk record gezet." },
-      "strength_volume_100": { "title": "100 kg verplaatst", "description": "In totaal 100 kg verplaatst." },
-      "strength_volume_1000": { "title": "1.000 kg verplaatst", "description": "Duizend kilo totaal volume getild." },
-      "strength_volume_10000": { "title": "10.000 kg verplaatst", "description": "Tienduizend kilo totaal — dat telt op." },
-      "strength_volume_100000": { "title": "100.000 kg verplaatst", "description": "Honderdduizend kilo totaal volume." },
-      "strength_volume_1000000": { "title": "1.000.000 kg verplaatst", "description": "Een miljoen kilo verplaatst. Ongeëvenaard." },
-      "strength_squat_100": { "title": "100 kg squat", "description": "Je eerste squat met 100 kg." },
-      "strength_deadlift_100": { "title": "100 kg deadlift", "description": "Je eerste deadlift met 100 kg." },
-      "cardio_first_5k": { "title": "Eerste 5 km", "description": "Vijf kilometer in één sessie." },
-      "cardio_run_10k": { "title": "10 km", "description": "Tien kilometer in één sessie." },
-      "cardio_distance_100k": { "title": "100 km totaal", "description": "Honderd kilometer aan cardio bij elkaar." },
-      "cardio_time_10h": { "title": "10 uur cardio", "description": "Tien uur cardio in totaal." },
-      "cardio_marathon_training": { "title": "Marathontraining", "description": "Een lange duurloop van 30 km voltooid." },
-      "goals_first": { "title": "Eerste doel behaald", "description": "Je eerste persoonlijke doel bereikt." },
-      "goals_count_3": { "title": "3 doelen behaald", "description": "Drie persoonlijke doelen bereikt." },
-      "goals_bodyfat_improved": { "title": "Vetpercentage verbeterd", "description": "Je vetpercentage is aantoonbaar gedaald." },
-      "goals_muscle_gained": { "title": "Spiermassa gegroeid", "description": "Je spiermassa is aantoonbaar toegenomen." },
-      "goals_first_measurement": { "title": "Eerste lichaamsmeting", "description": "Je eerste lichaamsmeting voltooid." },
-      "community_profile_complete": { "title": "Profiel compleet", "description": "Je profiel volledig ingevuld." },
-      "community_first_schema_done": { "title": "Eerste schema afgerond", "description": "Je eerste trainingsschema volledig doorlopen." }
+      "training_first": {
+        "title": "Eerste training",
+        "description": "Je allereerste training voltooid. Het begin van je reis."
+      },
+      "training_count_10": {
+        "title": "10 trainingen",
+        "description": "Tien trainingen op de teller — de gewoonte groeit."
+      },
+      "training_count_50": {
+        "title": "50 trainingen",
+        "description": "Vijftig trainingen voltooid. Serieuze toewijding."
+      },
+      "training_count_100": {
+        "title": "100 trainingen",
+        "description": "Honderd trainingen — je bent een vaste waarde."
+      },
+      "training_count_250": {
+        "title": "250 trainingen",
+        "description": "Tweehonderdvijftig trainingen. Indrukwekkend volhouden."
+      },
+      "training_count_500": {
+        "title": "500 trainingen",
+        "description": "Vijfhonderd trainingen. Een ware veteraan."
+      },
+      "consistency_streak_3": {
+        "title": "3 dagen op rij",
+        "description": "Drie dagen achter elkaar getraind."
+      },
+      "consistency_streak_7": {
+        "title": "7 dagen op rij",
+        "description": "Een volle week elke dag getraind."
+      },
+      "consistency_weeks_8": {
+        "title": "8 actieve weken",
+        "description": "Acht weken lang getraind. De gewoonte zit erin."
+      },
+      "consistency_member_365": {
+        "title": "1 jaar actief",
+        "description": "Een heel jaar lid van je sportschool."
+      },
+      "consistency_weeks_26": {
+        "title": "26 actieve weken",
+        "description": "In een half jaar tijd 26 weken getraind. IJzeren discipline."
+      },
+      "strength_first_pr": {
+        "title": "Eerste PR",
+        "description": "Je eerste persoonlijk record gezet."
+      },
+      "strength_volume_100": {
+        "title": "100 kg verplaatst",
+        "description": "In totaal 100 kg verplaatst."
+      },
+      "strength_volume_1000": {
+        "title": "1.000 kg verplaatst",
+        "description": "Duizend kilo totaal volume getild."
+      },
+      "strength_volume_10000": {
+        "title": "10.000 kg verplaatst",
+        "description": "Tienduizend kilo totaal — dat telt op."
+      },
+      "strength_volume_100000": {
+        "title": "100.000 kg verplaatst",
+        "description": "Honderdduizend kilo totaal volume."
+      },
+      "strength_volume_1000000": {
+        "title": "1.000.000 kg verplaatst",
+        "description": "Een miljoen kilo verplaatst. Ongeëvenaard."
+      },
+      "strength_squat_100": {
+        "title": "100 kg squat",
+        "description": "Je eerste squat met 100 kg."
+      },
+      "strength_deadlift_100": {
+        "title": "100 kg deadlift",
+        "description": "Je eerste deadlift met 100 kg."
+      },
+      "cardio_first_5k": {
+        "title": "Eerste 5 km",
+        "description": "Vijf kilometer in één sessie."
+      },
+      "cardio_run_10k": {
+        "title": "10 km",
+        "description": "Tien kilometer in één sessie."
+      },
+      "cardio_distance_100k": {
+        "title": "100 km totaal",
+        "description": "Honderd kilometer aan cardio bij elkaar."
+      },
+      "cardio_time_10h": {
+        "title": "10 uur cardio",
+        "description": "Tien uur cardio in totaal."
+      },
+      "cardio_marathon_training": {
+        "title": "Marathontraining",
+        "description": "Een lange duurloop van 30 km voltooid."
+      },
+      "goals_first": {
+        "title": "Eerste doel behaald",
+        "description": "Je eerste persoonlijke doel bereikt."
+      },
+      "goals_count_3": {
+        "title": "3 doelen behaald",
+        "description": "Drie persoonlijke doelen bereikt."
+      },
+      "goals_bodyfat_improved": {
+        "title": "Vetpercentage verbeterd",
+        "description": "Je vetpercentage is aantoonbaar gedaald."
+      },
+      "goals_muscle_gained": {
+        "title": "Spiermassa gegroeid",
+        "description": "Je spiermassa is aantoonbaar toegenomen."
+      },
+      "goals_first_measurement": {
+        "title": "Eerste lichaamsmeting",
+        "description": "Je eerste lichaamsmeting voltooid."
+      },
+      "community_profile_complete": {
+        "title": "Profiel compleet",
+        "description": "Je profiel volledig ingevuld."
+      },
+      "community_first_schema_done": {
+        "title": "Eerste schema afgerond",
+        "description": "Je eerste trainingsschema volledig doorlopen."
+      }
     }
   },
   "pdf": {
@@ -1104,6 +1188,7 @@
     "search": "Zoeken",
     "loading": "Laden…",
     "confirm": "Bevestigen",
+    "confirmTitle": "Weet je het zeker?",
     "yes": "Ja",
     "no": "Nee",
     "open": "Openen",
@@ -1250,6 +1335,11 @@
       "results": "Resultaten",
       "popularPages": "Populaire pagina's",
       "noPageFound": "Geen pagina gevonden voor “{query}”."
+    },
+    "offline": {
+      "metaTitle": "Offline",
+      "title": "Je bent offline",
+      "body": "Er is momenteel geen internetverbinding. Zodra je weer online bent, kun je verdergaan met trainen."
     }
   },
   "auth": {
@@ -1268,6 +1358,25 @@
     "orWithEmail": "of met e-mail",
     "magicLink": "Magic link",
     "password": "Wachtwoord",
+    "passwordPolicy": {
+      "requirements": {
+        "length": "Minimaal {count} tekens",
+        "uppercase": "Minimaal één hoofdletter",
+        "lowercase": "Minimaal één kleine letter",
+        "digit": "Minimaal één cijfer",
+        "special": "Minimaal één speciaal teken"
+      },
+      "strengthLabel": "Sterkte: {label}",
+      "strength": {
+        "0": "Zeer zwak",
+        "1": "Zwak",
+        "2": "Redelijk",
+        "3": "Sterk",
+        "4": "Zeer sterk"
+      },
+      "show": "Wachtwoord tonen",
+      "hide": "Wachtwoord verbergen"
+    },
     "emailLabel": "E-mailadres",
     "emailPlaceholder": "jij@voorbeeld.nl",
     "sending": "Versturen…",
@@ -1321,6 +1430,35 @@
       "verify": "Verifiëren",
       "verifying": "Controleren…",
       "backToLogin": "Terug naar inloggen"
+    },
+    "invite": {
+      "metaTitle": "Account activeren",
+      "title": "Welkom! Activeer je account",
+      "titleFallback": "Account activeren",
+      "resent": "Er is een nieuwe activatielink naar je e-mail verstuurd.",
+      "roles": {
+        "TENANT_ADMIN": "beheerder",
+        "TENANT_STAFF": "medewerker",
+        "TENANT_MEMBER": "lid"
+      },
+      "intro": "Je bent uitgenodigd als {role} bij <gym>{gymName}</gym>. Stel een wachtwoord in om te beginnen.",
+      "introWithInviter": "Je bent uitgenodigd als {role} bij <gym>{gymName}</gym> door <inviter>{inviterName}</inviter>. Stel een wachtwoord in om te beginnen.",
+      "passwordLabel": "Kies een wachtwoord",
+      "passwordPlaceholder": "Minimaal {count} tekens",
+      "confirmLabel": "Bevestig wachtwoord",
+      "confirmPlaceholder": "Herhaal je wachtwoord",
+      "submit": "Account activeren",
+      "submitting": "Account activeren…",
+      "hint": "Hierna kun je inloggen met je wachtwoord of via een magic link.",
+      "expiredTitle": "Deze activatielink is verlopen",
+      "expiredBody": "Uit veiligheidsoverwegingen is je uitnodiging verlopen. Vraag hieronder een nieuwe aan — die sturen we naar hetzelfde e-mailadres.",
+      "resend": "Nieuwe activatielink aanvragen",
+      "resending": "Versturen…",
+      "acceptedTitle": "Je account is al geactiveerd",
+      "acceptedBody": "Deze activatielink is al gebruikt en kan niet opnieuw worden geopend. Log direct in om verder te gaan.",
+      "invalidTitle": "Uitnodiging ongeldig",
+      "invalidBody": "Deze uitnodiging bestaat niet of is niet langer geldig. Vraag de sportschool om een nieuwe uitnodiging.",
+      "toLogin": "Naar inloggen"
     }
   }
 }

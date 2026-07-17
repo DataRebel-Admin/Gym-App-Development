@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AnimatePresence, m } from "motion/react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 
 /**
@@ -21,6 +22,8 @@ export function Modal({
   children: React.ReactNode;
   className?: string;
 }) {
+  const t = useTranslations("common");
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -66,7 +69,7 @@ export function Modal({
                 <button
                   type="button"
                   onClick={onClose}
-                  aria-label="Sluiten"
+                  aria-label={t("close")}
                   className="rounded-lg p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
                 >
                   ✕

@@ -418,9 +418,18 @@
       "statusExtra": "Extra",
       "legendTarget": "Schema target",
       "summary": {
-        "good": { "title": "Great going!", "hint": "You are hitting almost your full schema volume." },
-        "mid": { "title": "Nicely on track", "hint": "A few muscle groups are still lagging behind your schema." },
-        "low": { "title": "Room for more", "hint": "You are behind on your schema targets. Pick up the resting muscle groups." }
+        "good": {
+          "title": "Great going!",
+          "hint": "You are hitting almost your full schema volume."
+        },
+        "mid": {
+          "title": "Nicely on track",
+          "hint": "A few muscle groups are still lagging behind your schema."
+        },
+        "low": {
+          "title": "Room for more",
+          "hint": "You are behind on your schema targets. Pick up the resting muscle groups."
+        }
       },
       "levels": {
         "1": "Low",
@@ -447,6 +456,20 @@
         "adductors": "Inner/outer thigh",
         "calves": "Calves"
       }
+    },
+    "onboarding": {
+      "dialogLabel": "Welcome",
+      "welcome": "Welcome! 👋",
+      "welcomeWithGym": "Welcome to {gym}! 👋",
+      "welcomeText": "Your personal training app. Train faster, see your progress and stay motivated — all in one place.",
+      "scanTitle": "Scan & train",
+      "scanText": "Scan a machine for instructions, or start your schedule and check off your sets. Big buttons, sweaty-hands-proof.",
+      "progressTitle": "See your progress",
+      "progressText": "Personal records, streaks and charts keep you sharp. Every workout counts.",
+      "readyTitle": "Ready to go",
+      "readyText": "Set yourself a goal of a few workouts a week. Consistency is everything — we'll keep track.",
+      "skip": "Skip",
+      "start": "Get started"
     }
   },
   "owner": {
@@ -782,85 +805,6 @@
   },
   "achievements": {
     "ui": {
-      "celebration": {
-        "close": "Close",
-        "title": "Trophy earned!",
-        "next": "Next ({current}/{total})",
-        "celebrate": "Celebrate!",
-        "viewAll": "View all your trophies"
-      },
-      "card": {
-        "earned": "Earned",
-        "earnedOn": "Earned on {date}"
-      },
-      "coach": {
-        "noData": "No data yet.",
-        "recentMilestones": "Recent milestones",
-        "nearAchievement": "Close to an achievement",
-        "longestStreaks": "Longest streaks",
-        "mostActive": "Most active members",
-        "stale": "No milestone in a while",
-        "days": "{count, plural, one {# day} other {# days}}",
-        "sessions": "{count, plural, one {<b>#</b> workout} other {<b>#</b> workouts}}",
-        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
-        "noMilestone": "No milestone yet"
-      },
-      "dashboard": {
-        "trophies": "Trophies",
-        "lastEarned": "Last earned",
-        "total": "{count} total",
-        "none": "No trophies yet",
-        "startToEarn": "Start a workout to earn some",
-        "nextMilestone": "Next milestone"
-      },
-      "hide": {
-        "title": "Show trophies",
-        "description": "Show your trophies, milestones and Gym Passport in the app."
-      },
-      "profile": {
-        "title": "Trophies & milestones",
-        "engagement": "Engagement →",
-        "earned": "Earned",
-        "level": "Level",
-        "longestStreak": "Longest streak",
-        "bestTrophy": "Best trophy",
-        "noTrophies": "This member hasn't earned any trophies yet."
-      },
-      "passport": {
-        "earned": "Earned",
-        "toEarn": "Not earned yet"
-      }
-    },
-    "level": {
-      "0": "Newcomer",
-      "1": "Beginner",
-      "2": "Persister",
-      "3": "Advanced",
-      "4": "Dedicated",
-      "5": "Expert",
-      "6": "Master",
-      "7": "Legend"
-    },
-    "rarity": {
-      "bronze": "Bronze",
-      "silver": "Silver",
-      "gold": "Gold",
-      "platinum": "Platinum",
-      "diamond": "Diamond",
-      "legendary": "Legendary"
-    },
-    "unit": {
-      "trainingen": "workouts",
-      "dagen": "days",
-      "weken": "weeks",
-      "kg": "kg",
-      "km": "km",
-      "uur": "hrs",
-      "prs": "PRs",
-      "doelen": "goals",
-      "metingen": "measurements"
-    },
-    "ui": {
       "card": {
         "earned": "Earned",
         "earnedOn": "Earned on {date}"
@@ -910,13 +854,60 @@
         "noMilestone": "No milestone yet"
       }
     },
+    "level": {
+      "0": "Newcomer",
+      "1": "Beginner",
+      "2": "Persister",
+      "3": "Advanced",
+      "4": "Dedicated",
+      "5": "Expert",
+      "6": "Master",
+      "7": "Legend"
+    },
+    "rarity": {
+      "bronze": "Bronze",
+      "silver": "Silver",
+      "gold": "Gold",
+      "platinum": "Platinum",
+      "diamond": "Diamond",
+      "legendary": "Legendary"
+    },
+    "unit": {
+      "trainingen": "workouts",
+      "dagen": "days",
+      "weken": "weeks",
+      "kg": "kg",
+      "km": "km",
+      "uur": "hrs",
+      "prs": "PRs",
+      "doelen": "goals",
+      "metingen": "measurements"
+    },
     "category": {
-      "training": { "label": "Training", "description": "Milestones for the number of completed workouts." },
-      "consistency": { "label": "Consistency", "description": "Rewards for training regularly and persistently." },
-      "strength": { "label": "Strength", "description": "Volume, records and strength milestones." },
-      "cardio": { "label": "Cardio", "description": "Distance, time and endurance milestones." },
-      "goals": { "label": "Goals", "description": "Personal goals and body composition." },
-      "community": { "label": "Community", "description": "Your profile, first steps and engagement." }
+      "training": {
+        "label": "Training",
+        "description": "Milestones for the number of completed workouts."
+      },
+      "consistency": {
+        "label": "Consistency",
+        "description": "Rewards for training regularly and persistently."
+      },
+      "strength": {
+        "label": "Strength",
+        "description": "Volume, records and strength milestones."
+      },
+      "cardio": {
+        "label": "Cardio",
+        "description": "Distance, time and endurance milestones."
+      },
+      "goals": {
+        "label": "Goals",
+        "description": "Personal goals and body composition."
+      },
+      "community": {
+        "label": "Community",
+        "description": "Your profile, first steps and engagement."
+      }
     },
     "passport": {
       "memberSince": "Member since",
@@ -936,37 +927,130 @@
       "emailMulti": "{description} (and {count} other {count, plural, one {trophy} other {trophies}})."
     },
     "items": {
-      "training_first": { "title": "First workout", "description": "You completed your very first workout. The start of your journey." },
-      "training_count_10": { "title": "10 workouts", "description": "Ten workouts on the board — the habit is growing." },
-      "training_count_50": { "title": "50 workouts", "description": "Fifty workouts done. Serious dedication." },
-      "training_count_100": { "title": "100 workouts", "description": "A hundred workouts — you're a regular now." },
-      "training_count_250": { "title": "250 workouts", "description": "Two hundred fifty workouts. Impressive perseverance." },
-      "training_count_500": { "title": "500 workouts", "description": "Five hundred workouts. A true veteran." },
-      "consistency_streak_3": { "title": "3 days in a row", "description": "Trained three days in a row." },
-      "consistency_streak_7": { "title": "7 days in a row", "description": "Trained every day for a full week." },
-      "consistency_weeks_8": { "title": "8 active weeks", "description": "Trained across eight weeks. The habit has taken hold." },
-      "consistency_member_365": { "title": "1 year active", "description": "A whole year as a member of your gym." },
-      "consistency_weeks_26": { "title": "26 active weeks", "description": "Trained 26 weeks within half a year. Iron discipline." },
-      "strength_first_pr": { "title": "First PR", "description": "You set your first personal record." },
-      "strength_volume_100": { "title": "100 kg moved", "description": "Moved 100 kg in total." },
-      "strength_volume_1000": { "title": "1,000 kg moved", "description": "Lifted a thousand kilos of total volume." },
-      "strength_volume_10000": { "title": "10,000 kg moved", "description": "Ten thousand kilos total — it adds up." },
-      "strength_volume_100000": { "title": "100,000 kg moved", "description": "A hundred thousand kilos of total volume." },
-      "strength_volume_1000000": { "title": "1,000,000 kg moved", "description": "A million kilos moved. Unmatched." },
-      "strength_squat_100": { "title": "100 kg squat", "description": "Your first squat with 100 kg." },
-      "strength_deadlift_100": { "title": "100 kg deadlift", "description": "Your first deadlift with 100 kg." },
-      "cardio_first_5k": { "title": "First 5 km", "description": "Five kilometers in one session." },
-      "cardio_run_10k": { "title": "10 km", "description": "Ten kilometers in one session." },
-      "cardio_distance_100k": { "title": "100 km total", "description": "A hundred kilometers of cardio combined." },
-      "cardio_time_10h": { "title": "10 hours cardio", "description": "Ten hours of cardio in total." },
-      "cardio_marathon_training": { "title": "Marathon training", "description": "Completed a long 30 km endurance run." },
-      "goals_first": { "title": "First goal reached", "description": "You reached your first personal goal." },
-      "goals_count_3": { "title": "3 goals reached", "description": "Reached three personal goals." },
-      "goals_bodyfat_improved": { "title": "Body fat improved", "description": "Your body fat percentage has measurably dropped." },
-      "goals_muscle_gained": { "title": "Muscle gained", "description": "Your muscle mass has measurably increased." },
-      "goals_first_measurement": { "title": "First body measurement", "description": "You completed your first body measurement." },
-      "community_profile_complete": { "title": "Profile complete", "description": "You filled in your profile completely." },
-      "community_first_schema_done": { "title": "First schedule completed", "description": "You completed your first training schedule in full." }
+      "training_first": {
+        "title": "First workout",
+        "description": "You completed your very first workout. The start of your journey."
+      },
+      "training_count_10": {
+        "title": "10 workouts",
+        "description": "Ten workouts on the board — the habit is growing."
+      },
+      "training_count_50": {
+        "title": "50 workouts",
+        "description": "Fifty workouts done. Serious dedication."
+      },
+      "training_count_100": {
+        "title": "100 workouts",
+        "description": "A hundred workouts — you're a regular now."
+      },
+      "training_count_250": {
+        "title": "250 workouts",
+        "description": "Two hundred fifty workouts. Impressive perseverance."
+      },
+      "training_count_500": {
+        "title": "500 workouts",
+        "description": "Five hundred workouts. A true veteran."
+      },
+      "consistency_streak_3": {
+        "title": "3 days in a row",
+        "description": "Trained three days in a row."
+      },
+      "consistency_streak_7": {
+        "title": "7 days in a row",
+        "description": "Trained every day for a full week."
+      },
+      "consistency_weeks_8": {
+        "title": "8 active weeks",
+        "description": "Trained across eight weeks. The habit has taken hold."
+      },
+      "consistency_member_365": {
+        "title": "1 year active",
+        "description": "A whole year as a member of your gym."
+      },
+      "consistency_weeks_26": {
+        "title": "26 active weeks",
+        "description": "Trained 26 weeks within half a year. Iron discipline."
+      },
+      "strength_first_pr": {
+        "title": "First PR",
+        "description": "You set your first personal record."
+      },
+      "strength_volume_100": {
+        "title": "100 kg moved",
+        "description": "Moved 100 kg in total."
+      },
+      "strength_volume_1000": {
+        "title": "1,000 kg moved",
+        "description": "Lifted a thousand kilos of total volume."
+      },
+      "strength_volume_10000": {
+        "title": "10,000 kg moved",
+        "description": "Ten thousand kilos total — it adds up."
+      },
+      "strength_volume_100000": {
+        "title": "100,000 kg moved",
+        "description": "A hundred thousand kilos of total volume."
+      },
+      "strength_volume_1000000": {
+        "title": "1,000,000 kg moved",
+        "description": "A million kilos moved. Unmatched."
+      },
+      "strength_squat_100": {
+        "title": "100 kg squat",
+        "description": "Your first squat with 100 kg."
+      },
+      "strength_deadlift_100": {
+        "title": "100 kg deadlift",
+        "description": "Your first deadlift with 100 kg."
+      },
+      "cardio_first_5k": {
+        "title": "First 5 km",
+        "description": "Five kilometers in one session."
+      },
+      "cardio_run_10k": {
+        "title": "10 km",
+        "description": "Ten kilometers in one session."
+      },
+      "cardio_distance_100k": {
+        "title": "100 km total",
+        "description": "A hundred kilometers of cardio combined."
+      },
+      "cardio_time_10h": {
+        "title": "10 hours cardio",
+        "description": "Ten hours of cardio in total."
+      },
+      "cardio_marathon_training": {
+        "title": "Marathon training",
+        "description": "Completed a long 30 km endurance run."
+      },
+      "goals_first": {
+        "title": "First goal reached",
+        "description": "You reached your first personal goal."
+      },
+      "goals_count_3": {
+        "title": "3 goals reached",
+        "description": "Reached three personal goals."
+      },
+      "goals_bodyfat_improved": {
+        "title": "Body fat improved",
+        "description": "Your body fat percentage has measurably dropped."
+      },
+      "goals_muscle_gained": {
+        "title": "Muscle gained",
+        "description": "Your muscle mass has measurably increased."
+      },
+      "goals_first_measurement": {
+        "title": "First body measurement",
+        "description": "You completed your first body measurement."
+      },
+      "community_profile_complete": {
+        "title": "Profile complete",
+        "description": "You filled in your profile completely."
+      },
+      "community_first_schema_done": {
+        "title": "First schedule completed",
+        "description": "You completed your first training schedule in full."
+      }
     }
   },
   "pdf": {
@@ -1104,6 +1188,7 @@
     "search": "Search",
     "loading": "Loading…",
     "confirm": "Confirm",
+    "confirmTitle": "Are you sure?",
     "yes": "Yes",
     "no": "No",
     "open": "Open",
@@ -1250,6 +1335,11 @@
       "results": "Results",
       "popularPages": "Popular pages",
       "noPageFound": "No page found for “{query}”."
+    },
+    "offline": {
+      "metaTitle": "Offline",
+      "title": "You're offline",
+      "body": "There's no internet connection right now. Once you're back online, you can continue training."
     }
   },
   "auth": {
@@ -1268,6 +1358,25 @@
     "orWithEmail": "or with email",
     "magicLink": "Magic link",
     "password": "Password",
+    "passwordPolicy": {
+      "requirements": {
+        "length": "At least {count} characters",
+        "uppercase": "At least one uppercase letter",
+        "lowercase": "At least one lowercase letter",
+        "digit": "At least one digit",
+        "special": "At least one special character"
+      },
+      "strengthLabel": "Strength: {label}",
+      "strength": {
+        "0": "Very weak",
+        "1": "Weak",
+        "2": "Fair",
+        "3": "Strong",
+        "4": "Very strong"
+      },
+      "show": "Show password",
+      "hide": "Hide password"
+    },
     "emailLabel": "Email address",
     "emailPlaceholder": "you@example.com",
     "sending": "Sending…",
@@ -1321,6 +1430,35 @@
       "verify": "Verify",
       "verifying": "Checking…",
       "backToLogin": "Back to login"
+    },
+    "invite": {
+      "metaTitle": "Activate account",
+      "title": "Welcome! Activate your account",
+      "titleFallback": "Activate account",
+      "resent": "A new activation link has been sent to your email address.",
+      "roles": {
+        "TENANT_ADMIN": "administrator",
+        "TENANT_STAFF": "staff member",
+        "TENANT_MEMBER": "member"
+      },
+      "intro": "You've been invited as {role} at <gym>{gymName}</gym>. Set a password to get started.",
+      "introWithInviter": "You've been invited as {role} at <gym>{gymName}</gym> by <inviter>{inviterName}</inviter>. Set a password to get started.",
+      "passwordLabel": "Choose a password",
+      "passwordPlaceholder": "At least {count} characters",
+      "confirmLabel": "Confirm password",
+      "confirmPlaceholder": "Repeat your password",
+      "submit": "Activate account",
+      "submitting": "Activating account…",
+      "hint": "After this you can log in with your password or via a magic link.",
+      "expiredTitle": "This activation link has expired",
+      "expiredBody": "For security reasons your invitation has expired. Request a new one below — we'll send it to the same email address.",
+      "resend": "Request a new activation link",
+      "resending": "Sending…",
+      "acceptedTitle": "Your account is already activated",
+      "acceptedBody": "This activation link has already been used and can't be opened again. Log in to continue.",
+      "invalidTitle": "Invitation invalid",
+      "invalidBody": "This invitation doesn't exist or is no longer valid. Ask the gym for a new invitation.",
+      "toLogin": "Go to login"
     }
   }
 }

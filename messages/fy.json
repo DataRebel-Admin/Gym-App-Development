@@ -71,7 +71,10 @@
       "validityExpiringDesc": "Noch {days, plural, one {# dei} other {# dagen}} jildich. Freegje dyn trainer om in nij skema.",
       "validityExpiredTitle": "Dyn skema is ferrûn",
       "validityExpiredDesc": "Tiid foar in nij skema — freegje dyn trainer.",
-      "requestNewSchema": "Nij skema oanfreegje"
+      "requestNewSchema": "Nij skema oanfreegje",
+      "chooseDay": "Kies dyn trainingsdei",
+      "autoStopTitle": "Workout automatysk stoppe",
+      "autoStopBody": "Dizze workout is automatysk stoppe omdat de sesje langer as 5 oer iepenstie."
     },
     "checklist": {
       "allDone": "Hielendal klear! 💪",
@@ -138,7 +141,32 @@
       "targetSummary": "doel: {summary}",
       "setLabel": "Set {number}",
       "markDone": "Markearje as klear",
-      "saveSet": "Set {number} bewarje"
+      "saveSet": "Set {number} bewarje",
+      "timersOn": "Rêsttimers oan",
+      "timersOff": "Rêsttimers út",
+      "timersOffSession": "Timers út foar dizze training",
+      "timersOffDefault": "Timers steane standert út",
+      "skip": "Oerslaan",
+      "skipped": "Oerslein",
+      "undo": "Ûngedien meitsje",
+      "skipConfirmTitle": "Oefening oerslaan?",
+      "skipConfirmBody": "Witst wis datst {name} oerslaan wolst? Do kinst dit letter ûngedien meitsje.",
+      "skipConfirm": "Oerslaan",
+      "keep": "Behâlde",
+      "chooseAlternative": "Alternatyf",
+      "substitutedFrom": "Ferfangt {name}",
+      "altTitle": "Kies in alternatyf",
+      "altLoading": "Alternativen sykje…",
+      "altHint": "Deselde spiergroep of type — bygelyks as it apparaat beset is.",
+      "altEmptyTitle": "Gjin alternativen fûn",
+      "altEmptyBody": "Wy koene gjin ferlykbere oefening fine. Freegje eventueel dyn trainer om in alternatyf.",
+      "altChoose": "Kies",
+      "altDisclaimer": "Twifelst? Freegje in trainer. Dit is gjin medysk advys.",
+      "cancelWorkout": "Workout annulearje",
+      "cancelConfirmTitle": "Workout annulearje?",
+      "cancelConfirmBody": "Witst wis datst dizze workout annulearje wolst? Net-bewarre gegevens fan dizze sesje geane ferlern.",
+      "cancelConfirm": "Workout annulearje",
+      "keepWorkout": "Workout behâlde"
     },
     "scan": {
       "metaTitle": "Scanne",
@@ -260,9 +288,18 @@
       "statusExtra": "Ekstra",
       "legendTarget": "Skema-doel",
       "summary": {
-        "good": { "title": "Goed dwaande!", "hint": "Do hellest sawat dyn folsleine skema-folume." },
-        "mid": { "title": "Aardich op wei", "hint": "In pear spiergroepen bliuwe noch efter op dyn skema." },
-        "low": { "title": "Romte foar mear", "hint": "Do bliuwst efter op dyn skema-doelen. Pak de rêstende spiergroepen op." }
+        "good": {
+          "title": "Goed dwaande!",
+          "hint": "Do hellest sawat dyn folsleine skema-folume."
+        },
+        "mid": {
+          "title": "Aardich op wei",
+          "hint": "In pear spiergroepen bliuwe noch efter op dyn skema."
+        },
+        "low": {
+          "title": "Romte foar mear",
+          "hint": "Do bliuwst efter op dyn skema-doelen. Pak de rêstende spiergroepen op."
+        }
       },
       "levels": {
         "1": "Min",
@@ -289,6 +326,20 @@
         "adductors": "Binnen-/bûtenskonk",
         "calves": "Kûten"
       }
+    },
+    "onboarding": {
+      "dialogLabel": "Wolkom",
+      "welcome": "Wolkom! 👋",
+      "welcomeWithGym": "Wolkom by {gym}! 👋",
+      "welcomeText": "Dyn persoanlike trainingsapp. Flugger traine, dyn foarútgong sjen en motivearre bliuwe — alles op ien plak.",
+      "scanTitle": "Scan & train",
+      "scanText": "Scan in masine foar útlis, of start dyn skema en finkje dyn sets ôf. Grutte knoppen, switthannen-proof.",
+      "progressTitle": "Sjoch dyn foarútgong",
+      "progressText": "Persoanlike records, streaks en grafiken hâlde dy skerp. Elke training telt mei.",
+      "readyTitle": "Klear om te knallen",
+      "readyText": "Stel dysels in doel fan in pear trainings yn 'e wike. Konsistinsje is alles — wy hâlde it by.",
+      "skip": "Oerslaan",
+      "start": "Oan 'e slach"
     }
   },
   "owner": {
@@ -703,12 +754,30 @@
       }
     },
     "category": {
-      "training": { "label": "Training", "description": "Mylpeallen foar it oantal foltôge trainingen." },
-      "consistency": { "label": "Konsistinsje", "description": "Beleannings foar regelmjittich en folhâldend trainen." },
-      "strength": { "label": "Krêft", "description": "Folume, records en krêftmylpeallen." },
-      "cardio": { "label": "Cardio", "description": "Ôfstân, tiid en dûrmylpeallen." },
-      "goals": { "label": "Doelen", "description": "Persoanlike doelen en lichemsgearstalling." },
-      "community": { "label": "Community", "description": "Dyn profyl, earste stappen en belutsenens." }
+      "training": {
+        "label": "Training",
+        "description": "Mylpeallen foar it oantal foltôge trainingen."
+      },
+      "consistency": {
+        "label": "Konsistinsje",
+        "description": "Beleannings foar regelmjittich en folhâldend trainen."
+      },
+      "strength": {
+        "label": "Krêft",
+        "description": "Folume, records en krêftmylpeallen."
+      },
+      "cardio": {
+        "label": "Cardio",
+        "description": "Ôfstân, tiid en dûrmylpeallen."
+      },
+      "goals": {
+        "label": "Doelen",
+        "description": "Persoanlike doelen en lichemsgearstalling."
+      },
+      "community": {
+        "label": "Community",
+        "description": "Dyn profyl, earste stappen en belutsenens."
+      }
     },
     "passport": {
       "memberSince": "Lid sûnt",
@@ -728,37 +797,130 @@
       "emailMulti": "{description} (en noch {count} oare {count, plural, one {trofee} other {trofeeën}})."
     },
     "items": {
-      "training_first": { "title": "Earste training", "description": "Dyn alderearste training dien. It begjin fan dyn reis." },
-      "training_count_10": { "title": "10 trainingen", "description": "Tsien trainingen op de teller — de gewoante groeit." },
-      "training_count_50": { "title": "50 trainingen", "description": "Fyftich trainingen dien. Serieuze tawijing." },
-      "training_count_100": { "title": "100 trainingen", "description": "Hûndert trainingen — do bist in fêste wearde." },
-      "training_count_250": { "title": "250 trainingen", "description": "Twahûndertfyftich trainingen. Yndrukwekkend trochsette." },
-      "training_count_500": { "title": "500 trainingen", "description": "Fiifhûndert trainingen. In wiere feteraan." },
-      "consistency_streak_3": { "title": "3 dagen op rige", "description": "Trije dagen efter elkoar traind." },
-      "consistency_streak_7": { "title": "7 dagen op rige", "description": "In folle wike elke dei traind." },
-      "consistency_weeks_8": { "title": "8 aktive wiken", "description": "Acht wiken lang traind. De gewoante sit deryn." },
-      "consistency_member_365": { "title": "1 jier aktyf", "description": "In hiel jier lid fan dyn sportskoalle." },
-      "consistency_weeks_26": { "title": "26 aktive wiken", "description": "Yn in heal jier tiid 26 wiken traind. Izeren dissipline." },
-      "strength_first_pr": { "title": "Earste PR", "description": "Dyn earste persoanlike record set." },
-      "strength_volume_100": { "title": "100 kg ferpleatst", "description": "Yn totaal 100 kg ferpleatst." },
-      "strength_volume_1000": { "title": "1.000 kg ferpleatst", "description": "Tûzen kilo totaal folume tild." },
-      "strength_volume_10000": { "title": "10.000 kg ferpleatst", "description": "Tsientûzen kilo totaal — dat rint op." },
-      "strength_volume_100000": { "title": "100.000 kg ferpleatst", "description": "Hûnderttûzen kilo totaal folume." },
-      "strength_volume_1000000": { "title": "1.000.000 kg ferpleatst", "description": "In miljoen kilo ferpleatst. Ûngeëvenearre." },
-      "strength_squat_100": { "title": "100 kg squat", "description": "Dyn earste squat mei 100 kg." },
-      "strength_deadlift_100": { "title": "100 kg deadlift", "description": "Dyn earste deadlift mei 100 kg." },
-      "cardio_first_5k": { "title": "Earste 5 km", "description": "Fiif kilometer yn ien sesje." },
-      "cardio_run_10k": { "title": "10 km", "description": "Tsien kilometer yn ien sesje." },
-      "cardio_distance_100k": { "title": "100 km totaal", "description": "Hûndert kilometer oan cardio byelkoar." },
-      "cardio_time_10h": { "title": "10 oere cardio", "description": "Tsien oere cardio yn totaal." },
-      "cardio_marathon_training": { "title": "Maratontraining", "description": "In lange dûrrin fan 30 km dien." },
-      "goals_first": { "title": "Earste doel helle", "description": "Dyn earste persoanlike doel berikt." },
-      "goals_count_3": { "title": "3 doelen helle", "description": "Trije persoanlike doelen berikt." },
-      "goals_bodyfat_improved": { "title": "Fetpersintaazje ferbettere", "description": "Dyn fetpersintaazje is oantoanber sakke." },
-      "goals_muscle_gained": { "title": "Spiermassa groeid", "description": "Dyn spiermassa is oantoanber tanommen." },
-      "goals_first_measurement": { "title": "Earste lichemsmjitting", "description": "Dyn earste lichemsmjitting dien." },
-      "community_profile_complete": { "title": "Profyl kompleet", "description": "Dyn profyl folslein ynfolle." },
-      "community_first_schema_done": { "title": "Earste skema ôfrûne", "description": "Dyn earste trainingsskema folslein trochrûn." }
+      "training_first": {
+        "title": "Earste training",
+        "description": "Dyn alderearste training dien. It begjin fan dyn reis."
+      },
+      "training_count_10": {
+        "title": "10 trainingen",
+        "description": "Tsien trainingen op de teller — de gewoante groeit."
+      },
+      "training_count_50": {
+        "title": "50 trainingen",
+        "description": "Fyftich trainingen dien. Serieuze tawijing."
+      },
+      "training_count_100": {
+        "title": "100 trainingen",
+        "description": "Hûndert trainingen — do bist in fêste wearde."
+      },
+      "training_count_250": {
+        "title": "250 trainingen",
+        "description": "Twahûndertfyftich trainingen. Yndrukwekkend trochsette."
+      },
+      "training_count_500": {
+        "title": "500 trainingen",
+        "description": "Fiifhûndert trainingen. In wiere feteraan."
+      },
+      "consistency_streak_3": {
+        "title": "3 dagen op rige",
+        "description": "Trije dagen efter elkoar traind."
+      },
+      "consistency_streak_7": {
+        "title": "7 dagen op rige",
+        "description": "In folle wike elke dei traind."
+      },
+      "consistency_weeks_8": {
+        "title": "8 aktive wiken",
+        "description": "Acht wiken lang traind. De gewoante sit deryn."
+      },
+      "consistency_member_365": {
+        "title": "1 jier aktyf",
+        "description": "In hiel jier lid fan dyn sportskoalle."
+      },
+      "consistency_weeks_26": {
+        "title": "26 aktive wiken",
+        "description": "Yn in heal jier tiid 26 wiken traind. Izeren dissipline."
+      },
+      "strength_first_pr": {
+        "title": "Earste PR",
+        "description": "Dyn earste persoanlike record set."
+      },
+      "strength_volume_100": {
+        "title": "100 kg ferpleatst",
+        "description": "Yn totaal 100 kg ferpleatst."
+      },
+      "strength_volume_1000": {
+        "title": "1.000 kg ferpleatst",
+        "description": "Tûzen kilo totaal folume tild."
+      },
+      "strength_volume_10000": {
+        "title": "10.000 kg ferpleatst",
+        "description": "Tsientûzen kilo totaal — dat rint op."
+      },
+      "strength_volume_100000": {
+        "title": "100.000 kg ferpleatst",
+        "description": "Hûnderttûzen kilo totaal folume."
+      },
+      "strength_volume_1000000": {
+        "title": "1.000.000 kg ferpleatst",
+        "description": "In miljoen kilo ferpleatst. Ûngeëvenearre."
+      },
+      "strength_squat_100": {
+        "title": "100 kg squat",
+        "description": "Dyn earste squat mei 100 kg."
+      },
+      "strength_deadlift_100": {
+        "title": "100 kg deadlift",
+        "description": "Dyn earste deadlift mei 100 kg."
+      },
+      "cardio_first_5k": {
+        "title": "Earste 5 km",
+        "description": "Fiif kilometer yn ien sesje."
+      },
+      "cardio_run_10k": {
+        "title": "10 km",
+        "description": "Tsien kilometer yn ien sesje."
+      },
+      "cardio_distance_100k": {
+        "title": "100 km totaal",
+        "description": "Hûndert kilometer oan cardio byelkoar."
+      },
+      "cardio_time_10h": {
+        "title": "10 oere cardio",
+        "description": "Tsien oere cardio yn totaal."
+      },
+      "cardio_marathon_training": {
+        "title": "Maratontraining",
+        "description": "In lange dûrrin fan 30 km dien."
+      },
+      "goals_first": {
+        "title": "Earste doel helle",
+        "description": "Dyn earste persoanlike doel berikt."
+      },
+      "goals_count_3": {
+        "title": "3 doelen helle",
+        "description": "Trije persoanlike doelen berikt."
+      },
+      "goals_bodyfat_improved": {
+        "title": "Fetpersintaazje ferbettere",
+        "description": "Dyn fetpersintaazje is oantoanber sakke."
+      },
+      "goals_muscle_gained": {
+        "title": "Spiermassa groeid",
+        "description": "Dyn spiermassa is oantoanber tanommen."
+      },
+      "goals_first_measurement": {
+        "title": "Earste lichemsmjitting",
+        "description": "Dyn earste lichemsmjitting dien."
+      },
+      "community_profile_complete": {
+        "title": "Profyl kompleet",
+        "description": "Dyn profyl folslein ynfolle."
+      },
+      "community_first_schema_done": {
+        "title": "Earste skema ôfrûne",
+        "description": "Dyn earste trainingsskema folslein trochrûn."
+      }
     }
   },
   "pdf": {
@@ -896,6 +1058,7 @@
     "search": "Sykje",
     "loading": "Lade…",
     "confirm": "Befêstigje",
+    "confirmTitle": "Witst it wis?",
     "yes": "Ja",
     "no": "Nee",
     "open": "Iepenje",
@@ -975,6 +1138,26 @@
       "current": "Hjoeddeistige taal",
       "changed": "Taal feroare",
       "switchLabel": "Taal wikselje"
+    },
+    "hub": {
+      "overview": "Oersjoch",
+      "groups": {
+        "account": "Account",
+        "prefs": "Foarkarren",
+        "security": "Befeiliging & privacy",
+        "admin": "Behear"
+      },
+      "subtitles": {
+        "profile": "Namme, foto, e-mailadres",
+        "goals": "Wêr'tst oan wurkest",
+        "language": "Taal fan de ynterface",
+        "notifications": "E-mail, yn-app en push",
+        "security": "Wachtwurd, 2FA, passkeys, sesjes",
+        "privacy": "Tastimmingen, eksport, fuortsmite",
+        "integrations": "Ferbûne accounts",
+        "activity": "Resinte account-aktiviteit",
+        "gym": "Sportskoalle-ynstellingen"
+      }
     }
   },
   "errors": {
@@ -1022,6 +1205,11 @@
       "results": "Resultaten",
       "popularPages": "Populêre siden",
       "noPageFound": "Gjin side fûn foar “{query}”."
+    },
+    "offline": {
+      "metaTitle": "Offline",
+      "title": "Do bist offline",
+      "body": "Der is op dit stuit gjin ynternetferbining. Sa gau ast wer online bist, kinst fierder mei trainen."
     }
   },
   "auth": {
@@ -1040,6 +1228,25 @@
     "orWithEmail": "of mei e-mail",
     "magicLink": "Magic link",
     "password": "Wachtwurd",
+    "passwordPolicy": {
+      "requirements": {
+        "length": "Op syn minst {count} tekens",
+        "uppercase": "Op syn minst ien haadletter",
+        "lowercase": "Op syn minst ien lytse letter",
+        "digit": "Op syn minst ien sifer",
+        "special": "Op syn minst ien spesjaal teken"
+      },
+      "strengthLabel": "Sterkte: {label}",
+      "strength": {
+        "0": "Tige swak",
+        "1": "Swak",
+        "2": "Ridlik",
+        "3": "Sterk",
+        "4": "Tige sterk"
+      },
+      "show": "Wachtwurd sjen litte",
+      "hide": "Wachtwurd ferbergje"
+    },
     "emailLabel": "E-mailadres",
     "emailPlaceholder": "dy@foarbyld.nl",
     "sending": "Ferstjoere…",
@@ -1093,6 +1300,165 @@
       "verify": "Ferifiearje",
       "verifying": "Kontrolearje…",
       "backToLogin": "Werom nei ynlogge"
+    },
+    "invite": {
+      "metaTitle": "Account aktivearje",
+      "title": "Wolkom! Aktivearje dyn account",
+      "titleFallback": "Account aktivearje",
+      "resent": "Der is in nije aktivearringslink nei dyn e-mailadres stjoerd.",
+      "roles": {
+        "TENANT_ADMIN": "behearder",
+        "TENANT_STAFF": "meiwurker",
+        "TENANT_MEMBER": "lid"
+      },
+      "intro": "Do bist útnûge as {role} by <gym>{gymName}</gym>. Stel in wachtwurd yn om te begjinnen.",
+      "introWithInviter": "Do bist útnûge as {role} by <gym>{gymName}</gym> troch <inviter>{inviterName}</inviter>. Stel in wachtwurd yn om te begjinnen.",
+      "passwordLabel": "Kies in wachtwurd",
+      "passwordPlaceholder": "Op syn minst {count} tekens",
+      "confirmLabel": "Befêstigje wachtwurd",
+      "confirmPlaceholder": "Werhelje dyn wachtwurd",
+      "submit": "Account aktivearje",
+      "submitting": "Account aktivearje…",
+      "hint": "Hjirnei kinst ynlogge mei dyn wachtwurd of fia in magic link.",
+      "expiredTitle": "Dizze aktivearringslink is ferrûn",
+      "expiredBody": "Út feilichheidsoerwagings is dyn útnûging ferrûn. Freegje hjirûnder in nije oan — dy stjoere wy nei itselde e-mailadres.",
+      "resend": "Nije aktivearringslink oanfreegje",
+      "resending": "Ferstjoere…",
+      "acceptedTitle": "Dyn account is al aktivearre",
+      "acceptedBody": "Dizze aktivearringslink is al brûkt en kin net opnij iepene wurde. Log direkt yn om fierder te gean.",
+      "invalidTitle": "Útnûging ûnjildich",
+      "invalidBody": "Dizze útnûging bestiet net of is net langer jildich. Freegje de sportskoalle om in nije útnûging.",
+      "toLogin": "Nei ynloggen"
+    }
+  },
+  "maintenance": {
+    "badge": {
+      "soon": "Ynkoarten"
+    },
+    "alert": {
+      "attention": "{count, plural, one {# masine freget} other {# masines freegje}} om oandacht",
+      "body": "Besjoch it ûnderhâldsoersjoch om apparatuer feilich en op tiid te ûnderhâlden.",
+      "view": "Besjoch →"
+    },
+    "status": {
+      "reactivate": "Wer aktivearje",
+      "inMaintenance": "Yn ûnderhâld",
+      "outOfService": "Bûten gebrûk"
+    },
+    "due": {
+      "overdue": "({days} d te let)",
+      "in": "(oer {days} d)"
+    },
+    "log": {
+      "title": "Ûnderhâld fêstlizze — {machine}",
+      "kind": "Soarte",
+      "date": "Datum",
+      "action": "Útfierde aksje *",
+      "actionPlaceholder": "bgl. Kabels kontrolearre en smard",
+      "note": "Opmerking",
+      "performedBy": "Útfierder (namme)",
+      "performedByPlaceholder": "bgl. eksterne monteur",
+      "cost": "Kosten (€, opsjoneel)",
+      "costPlaceholder": "0,00",
+      "nextInterval": "Folgjend ûnderhâld oer",
+      "nextIntervalNone": "Ûnferoare / gjin",
+      "nextIntervalHint": "De folgjende ûnderhâldsdatum wurdt fanôf de boppesteande datum berekkene.",
+      "cancel": "Annulearje",
+      "submit": "Ûnderhâld ôfronde"
+    },
+    "panel": {
+      "title": "Ûnderhâld",
+      "usageSinceLast": "Gebrûk sûnt lêste ûnderhâld",
+      "usageSince": "Gebrûk sûnt ûnderhâld: {count}",
+      "lastMaintenance": "Lêste ûnderhâld: {date}",
+      "next": "Folgjende: {date}",
+      "logButton": "Ûnderhâld fêstlizze",
+      "rulesTitle": "Ûnderhâldsregels",
+      "usageLimit": "Gebrûkslimyt",
+      "usageLimitPlaceholder": "bgl. 500",
+      "intervalDays": "Ynterval (dagen)",
+      "intervalDaysPlaceholder": "bgl. 90",
+      "saveRules": "Regels bewarje",
+      "saved": "Bewarre.",
+      "adjustCounter": "Gebrûksteller oanpasse",
+      "update": "Bywurkje",
+      "history": "Histoarje",
+      "noHistory": "Noch gjin ûnderhâld fêstlein.",
+      "counterWas": "teller stie op {count}"
+    },
+    "calendar": {
+      "title": "Ûnderhâldskalinder",
+      "prevMonth": "Foarige moanne",
+      "nextMonth": "Folgjende moanne",
+      "more": "+{count} mear",
+      "months": {
+        "0": "jannewaris",
+        "1": "febrewaris",
+        "2": "maart",
+        "3": "april",
+        "4": "maaie",
+        "5": "juny",
+        "6": "july",
+        "7": "augustus",
+        "8": "septimber",
+        "9": "oktober",
+        "10": "novimber",
+        "11": "desimber"
+      },
+      "weekdays": {
+        "0": "moa",
+        "1": "tii",
+        "2": "woa",
+        "3": "ton",
+        "4": "fre",
+        "5": "sne",
+        "6": "sni"
+      }
+    },
+    "policy": {
+      "title": "Standertregels per type",
+      "description": "Stel per masinetype in standert gebrûkslimyt en ûnderhâldsynterval yn.",
+      "type": "Type",
+      "usageLimit": "Gebrûkslimyt",
+      "usageLimitPlaceholder": "bgl. 500",
+      "intervalDays": "Ynterval (dagen)",
+      "intervalDaysPlaceholder": "bgl. 90",
+      "applyToExisting": "Besteande masines bywurkje",
+      "save": "Bewarje",
+      "saved": "Bewarre."
+    },
+    "dashboard": {
+      "cardDue": "Daliks oandacht",
+      "cardSoon": "Ynkoarten",
+      "cardInMaintenance": "Yn ûnderhâld",
+      "cardOutOfService": "Bûten gebrûk",
+      "searchPlaceholder": "Sykje op namme, searjenûmer of lokaasje…",
+      "filterAllStatuses": "Alle statussen",
+      "filterDue": "Ûnderhâld nedich",
+      "filterSoon": "Ynkoarten",
+      "filterActive": "Aktyf",
+      "filterInMaintenance": "Yn ûnderhâld",
+      "filterOutOfService": "Bûten gebrûk",
+      "filterAllTypes": "Alle types",
+      "filterAllLocations": "Alle lokaasjes",
+      "noMachines": "Gjin masines fûn foar dizze filters.",
+      "usageSince": "Gebrûk sûnt ûnderhâld",
+      "usageNoLimit": "Gebrûk: {count} (gjin limyt ynsteld)",
+      "last": "Lêste: {date}",
+      "next": "Folgjende: {date}",
+      "logButton": "Ûnderhâld fêstlizze",
+      "history": {
+        "title": "Ûnderhâldshistoarje",
+        "searchPlaceholder": "Sykje…",
+        "everyone": "Elkenien",
+        "empty": "Noch gjin ûnderhâld fêstlein.",
+        "colDate": "Datum",
+        "colMachine": "Masine",
+        "colKind": "Soarte",
+        "colAction": "Aksje",
+        "colPerformedBy": "Útfierder",
+        "colCost": "Kosten"
+      }
     }
   }
 }

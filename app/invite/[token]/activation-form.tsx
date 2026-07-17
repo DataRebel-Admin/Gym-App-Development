@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   activateAccount,
   requestNewActivationLink,
@@ -8,7 +9,7 @@ import {
 } from "./actions";
 import { Field, Input } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { checkPassword } from "@/lib/password-policy";
+import { checkPassword, MIN_PASSWORD_LENGTH } from "@/lib/password-policy";
 import { passwordStrength } from "@/lib/password-strength";
 import { cn } from "@/lib/cn";
 
@@ -21,6 +22,9 @@ const STRENGTH_COLORS = [
 ];
 
 export function ActivationForm({ token }: { token: string }) {
+  const t = useTranslations("auth.invite");
+  const tPw = useTranslations("auth.passwordPolicy");
+  const tReset = useTranslations("auth.reset");
   const [state, formAction, pending] = useActionState<ActivationState, FormData>(
     activateAccount,
     {}
@@ -38,7 +42,7 @@ export function ActivationForm({ token }: { token: string }) {
     <form action={formAction} className="flex w-full flex-col gap-4">
       <input type="hidden" name="token" value={token} />
 
-      <Field label="Kies een wachtwoord">
+      <Field label={t("passwordLabel")}>
         <div className="relative">
           <Input
             name="password"
@@ -49,7 +53,7 @@ export function ActivationForm({ token }: { token: string }) {
             autoComplete="new-password"
             autoFocus
             className="py-3 pr-11 text-base"
-            placeholder="Minimaal 12 tekens"
+            placeholder={t("passwordPlaceholder", { count: MIN_PASSWORD_LENGTH })}
           />
           <ShowToggle show={show} onToggle={() => setShow((s) => !s)} />
         </div>
@@ -72,7 +76,7 @@ export function ActivationForm({ token }: { token: string }) {
         </div>
         {password ? (
           <span className="text-xs font-medium text-neutral-500">
-            Sterkte: {strength.label}
+            {tPw("strengthLabel", { label: tPw(`strength.${strength.score}`) })}
           </span>
         ) : null}
       </div>
@@ -88,14 +92,14 @@ export function ActivationForm({ token }: { token: string }) {
             )}
           >
             {r.met ? <CheckIcon /> : <DotIcon />}
-            {r.label}
+            {tPw(`requirements.${r.id}`, { count: MIN_PASSWORD_LENGTH })}
           </li>
         ))}
       </ul>
 
       <Field
-        label="Bevestig wachtwoord"
-        error={mismatch ? "De wachtwoorden komen niet overeen" : state.error}
+        label={t("confirmLabel")}
+        error={mismatch ? tReset("mismatch") : state.error}
       >
         <div className="relative">
           <Input
@@ -106,7 +110,7 @@ export function ActivationForm({ token }: { token: string }) {
             required
             autoComplete="new-password"
             className="py-3 pr-11 text-base"
-            placeholder="Herhaal je wachtwoord"
+            placeholder={t("confirmPlaceholder")}
           />
           <ShowToggle show={show} onToggle={() => setShow((s) => !s)} />
         </div>
@@ -119,18 +123,17 @@ export function ActivationForm({ token }: { token: string }) {
         disabled={!canSubmit || pending}
         className="mt-1 w-full"
       >
-        {pending ? "Account activeren…" : "Account activeren"}
+        {pending ? t("submitting") : t("submit")}
       </Button>
 
-      <p className="text-center text-xs text-neutral-500">
-        Hierna kun je inloggen met je wachtwoord of via een magic link.
-      </p>
+      <p className="text-center text-xs text-neutral-500">{t("hint")}</p>
     </form>
   );
 }
 
 /** Verlopen-link: vraag een nieuwe activatiemail aan (gaat naar het uitgenodigde adres). */
 export function ResendForm({ token }: { token: string }) {
+  const t = useTranslations("auth.invite");
   const [state, formAction, pending] = useActionState<ActivationState, FormData>(
     requestNewActivationLink,
     {}
@@ -139,7 +142,7 @@ export function ResendForm({ token }: { token: string }) {
     <form action={formAction} className="flex w-full flex-col gap-3">
       <input type="hidden" name="token" value={token} />
       <Button type="submit" size="lg" loading={pending} className="w-full">
-        {pending ? "Versturen…" : "Nieuwe activatielink aanvragen"}
+        {pending ? t("resending") : t("resend")}
       </Button>
       {state.error ? (
         <p className="text-center text-xs text-red-600">{state.error}</p>
@@ -149,11 +152,12 @@ export function ResendForm({ token }: { token: string }) {
 }
 
 function ShowToggle({ show, onToggle }: { show: boolean; onToggle: () => void }) {
+  const tPw = useTranslations("auth.passwordPolicy");
   return (
     <button
       type="button"
       onClick={onToggle}
-      aria-label={show ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
+      aria-label={show ? tPw("hide") : tPw("show")}
       className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-neutral-400 transition-colors hover:text-neutral-600 focus-ring"
     >
       {show ? <EyeOffIcon /> : <EyeIcon />}

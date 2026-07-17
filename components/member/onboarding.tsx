@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
+import { useTranslations } from "next-intl";
 import { useTenant } from "@/components/tenant-provider";
 import { Dumbbell, QrCode, Trophy, Flame, Check } from "@/components/ui/icons";
 
@@ -34,6 +35,8 @@ type Step = {
  * en subtiele motion. Sluit netjes af; bij "overslaan" idem.
  */
 export function MemberOnboarding() {
+  const t = useTranslations("member.onboarding");
+  const tCommon = useTranslations("common");
   const tenant = useTenant();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -65,23 +68,23 @@ export function MemberOnboarding() {
   const steps: Step[] = [
     {
       icon: <Dumbbell className="size-9" />,
-      title: `Welkom${tenant?.name ? ` bij ${tenant.name}` : ""}! 👋`,
-      text: "Jouw persoonlijke trainingsapp. Sneller trainen, je voortgang zien en gemotiveerd blijven — alles op één plek.",
+      title: tenant?.name ? t("welcomeWithGym", { gym: tenant.name }) : t("welcome"),
+      text: t("welcomeText"),
     },
     {
       icon: <QrCode className="size-9" />,
-      title: "Scan & train",
-      text: "Scan een machine voor uitleg, of start je schema en vink je sets af. Grote knoppen, zweethanden-proof.",
+      title: t("scanTitle"),
+      text: t("scanText"),
     },
     {
       icon: <Trophy className="size-9" />,
-      title: "Zie je vooruitgang",
-      text: "Persoonlijke records, streaks en grafieken houden je scherp. Elke training telt mee.",
+      title: t("progressTitle"),
+      text: t("progressText"),
     },
     {
       icon: <Flame className="size-9" />,
-      title: "Klaar om te knallen",
-      text: "Stel jezelf een doel van een paar trainingen per week. Consistentie is alles — wij houden het bij.",
+      title: t("readyTitle"),
+      text: t("readyText"),
     },
   ];
 
@@ -98,7 +101,7 @@ export function MemberOnboarding() {
           className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
           role="dialog"
           aria-modal="true"
-          aria-label="Welkom"
+          aria-label={t("dialogLabel")}
         >
           <m.div
             initial={{ y: 60, opacity: 0 }}
@@ -156,10 +159,10 @@ export function MemberOnboarding() {
               >
                 {last ? (
                   <>
-                    <Check className="size-5" /> Aan de slag
+                    <Check className="size-5" /> {t("start")}
                   </>
                 ) : (
-                  "Volgende"
+                  tCommon("next")
                 )}
               </button>
               {!last ? (
@@ -168,7 +171,7 @@ export function MemberOnboarding() {
                   onClick={finish}
                   className="w-full py-1 text-center text-sm font-medium text-neutral-500 active:text-neutral-900"
                 >
-                  Overslaan
+                  {t("skip")}
                 </button>
               ) : null}
             </div>

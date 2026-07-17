@@ -1,16 +1,18 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { Reveal } from "@/components/motion/reveal";
 import { ActivationForm, ResendForm } from "./activation-form";
 
-export const metadata = { title: "Account activeren" };
+export async function generateMetadata() {
+  const t = await getTranslations("auth.invite");
+  return { title: t("metaTitle") };
+}
 
-const ROLE_LABEL: Record<string, string> = {
-  TENANT_ADMIN: "beheerder",
-  TENANT_STAFF: "medewerker",
-  TENANT_MEMBER: "lid",
-};
+const ROLE_KEYS = ["TENANT_ADMIN", "TENANT_STAFF", "TENANT_MEMBER"] as const;
+type RoleKey = (typeof ROLE_KEYS)[number];
+const isRoleKey = (v: string): v is RoleKey => ROLE_KEYS.includes(v as RoleKey);
 
 type Status = "ok" | "expired" | "accepted" | "invalid";
 
@@ -23,6 +25,11 @@ export default async function InviteActivationPage({
 }) {
   const { token } = await params;
   const { resent } = await searchParams;
+  // `auth.invite` voor deze pagina; `auth` los voor het hergebruik van `login`.
+  const [t, tAuth] = await Promise.all([
+    getTranslations("auth.invite"),
+    getTranslations("auth"),
+  ]);
 
   const invite = await prisma.invitation.findUnique({
     where: { token },
@@ -70,7 +77,7 @@ export default async function InviteActivationPage({
   const tenant = invite?.tenant ?? null;
   const name = tenant?.name ?? "GymRebel";
   const initial = name.charAt(0).toUpperCase();
-  const roleLabel = invite ? ROLE_LABEL[invite.role] ?? "lid" : "lid";
+  const roleLabel = t(`roles.${invite && isRoleKey(invite.role) ? invite.role : "TENANT_MEMBER"}`);
   const loginHref = tenant ? `/login?tenant=${tenant.slug}` : "/login";
   const accent = tenant?.accentColor ?? undefined;
 
@@ -106,7 +113,7 @@ export default async function InviteActivationPage({
                 {name}
               </p>
               <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">
-                {status === "ok" ? "Welkom! Activeer je account" : "Account activeren"}
+                {status === "ok" ? t("title") : t("titleFallback")}
               </h1>
             </div>
           </header>
@@ -116,54 +123,52 @@ export default async function InviteActivationPage({
               <>
                 {resent ? (
                   <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-center text-xs font-medium text-emerald-700">
-                    Er is een nieuwe activatielink naar je e-mail verstuurd.
+                    {t("resent")}
                   </p>
                 ) : null}
                 <p className="text-center text-sm text-neutral-600">
-                  Je bent uitgenodigd als {roleLabel} bij{" "}
-                  <span className="font-semibold text-neutral-900">{name}</span>
-                  {inviterName ? (
-                    <>
-                      {" "}
-                      door <span className="font-medium text-neutral-800">{inviterName}</span>
-                    </>
-                  ) : null}
-                  . Stel een wachtwoord in om te beginnen.
+                  {inviterName
+                    ? t.rich("introWithInviter", {
+                        role: roleLabel,
+                        gymName: name,
+                        inviterName,
+                        gym: (c) => (
+                          <span className="font-semibold text-neutral-900">{c}</span>
+                        ),
+                        inviter: (c) => (
+                          <span className="font-medium text-neutral-800">{c}</span>
+                        ),
+                      })
+                    : t.rich("intro", {
+                        role: roleLabel,
+                        gymName: name,
+                        gym: (c) => (
+                          <span className="font-semibold text-neutral-900">{c}</span>
+                        ),
+                      })}
                 </p>
                 <ActivationForm token={token} />
               </>
             ) : status === "expired" ? (
-              <StatePanel
-                icon="⌛"
-                title="Deze activatielink is verlopen"
-                body="Uit veiligheidsoverwegingen is je uitnodiging verlopen. Vraag hieronder een nieuwe aan — die sturen we naar hetzelfde e-mailadres."
-              >
+              <StatePanel icon="⌛" title={t("expiredTitle")} body={t("expiredBody")}>
                 <ResendForm token={token} />
               </StatePanel>
             ) : status === "accepted" ? (
-              <StatePanel
-                icon="✅"
-                title="Je account is al geactiveerd"
-                body="Deze activatielink is al gebruikt en kan niet opnieuw worden geopend. Log direct in om verder te gaan."
-              >
+              <StatePanel icon="✅" title={t("acceptedTitle")} body={t("acceptedBody")}>
                 <Link
                   href={loginHref}
                   className="flex w-full items-center justify-center rounded-xl bg-accent px-5 py-3 font-semibold text-accent-foreground transition-opacity hover:opacity-90 focus-ring"
                 >
-                  Inloggen
+                  {tAuth("login")}
                 </Link>
               </StatePanel>
             ) : (
-              <StatePanel
-                icon="⚠️"
-                title="Uitnodiging ongeldig"
-                body="Deze uitnodiging bestaat niet of is niet langer geldig. Vraag de sportschool om een nieuwe uitnodiging."
-              >
+              <StatePanel icon="⚠️" title={t("invalidTitle")} body={t("invalidBody")}>
                 <Link
                   href="/login"
                   className="flex w-full items-center justify-center rounded-xl border border-border-strong bg-surface-1 px-5 py-3 font-semibold text-neutral-900 transition-colors hover:bg-neutral-100 focus-ring"
                 >
-                  Naar inloggen
+                  {t("toLogin")}
                 </Link>
               </StatePanel>
             )}
