@@ -1,6 +1,7 @@
 import { getAccountUser } from "@/lib/account";
 import { prisma } from "@/lib/db";
 import { vapidPublicKey } from "@/lib/push";
+import { getBackgroundParallax } from "@/lib/background-motion";
 import { getHideQuotes, getHideAchievements, getAllowTrainerPhotos, getDisableSetTimers } from "@/lib/user-preferences";
 import { NotificationsForm } from "./notifications-form";
 import { PushToggle } from "./push-toggle";
@@ -8,6 +9,7 @@ import { AchievementHideToggle } from "@/components/achievements/hide-toggle";
 import { QuoteHideToggle } from "@/components/account/quote-toggle";
 import { PhotoPrivacyToggle } from "@/components/account/photo-privacy-toggle";
 import { TimerPreferenceToggle } from "@/components/account/timer-toggle";
+import { BackgroundParallaxToggle } from "@/components/account/background-toggle";
 
 export const metadata = { title: "Meldingen" };
 
@@ -30,6 +32,8 @@ export default async function NotificationsPage() {
   const quotesEnabled = details?.tenant?.quotesEnabled ?? false;
   const isMember = user.role === "TENANT_MEMBER";
   const prefs = user.preferences;
+  // Achtergrond-parallax geldt app-breed (elke rol) en staat in een cookie.
+  const parallaxEnabled = await getBackgroundParallax();
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,6 +42,7 @@ export default async function NotificationsPage() {
       {isMember ? <PhotoPrivacyToggle initialAllow={getAllowTrainerPhotos(prefs)} /> : null}
       {achievementsEnabled ? <AchievementHideToggle initialHidden={getHideAchievements(prefs)} /> : null}
       {quotesEnabled ? <QuoteHideToggle initialHidden={getHideQuotes(prefs)} /> : null}
+      <BackgroundParallaxToggle initialEnabled={parallaxEnabled} />
       <PushToggle vapidPublicKey={vapidPublicKey()} />
     </div>
   );

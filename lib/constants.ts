@@ -39,3 +39,8 @@ export const ACCOUNT_DELETION_GRACE_DAYS = 30;
  *  Niet-httpOnly zodat de client 'm ook kan lezen; 1 jaar geldig. Gesynchroniseerd
  *  met `User.locale` bij login en bij wisselen (zie lib/i18n). */
 export const LOCALE_COOKIE = "gymrebel-locale";
+
+/** Cookie ("on"/"off") waarin de voorkeur staat of de aurora-achtergrond op de
+ *  cursor reageert (muis-parallax). Per apparaat — net als het thema — zodat de
+ *  root-layout 'm no-flash en zonder DB-lees kan toepassen (lib/background-motion.ts). */
+export const BG_PARALLAX_COOKIE = "gymrebel-bg-parallax";

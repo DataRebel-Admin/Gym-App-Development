@@ -86,6 +86,7 @@ export {
   ArrowUpRight,
   Maximize,
   Minimize,
+  MousePointer2,
 } from "lucide-react";
 
 export type { LucideIcon } from "lucide-react";

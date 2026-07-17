@@ -6,6 +6,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import "./globals.css";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getResolvedTheme } from "@/lib/theme";
+import { getBackgroundParallax } from "@/lib/background-motion";
 import { rootMetadata } from "@/lib/metadata";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
@@ -48,9 +49,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [tenant, theme, locale, messages] = await Promise.all([
+  const [tenant, theme, parallax, locale, messages] = await Promise.all([
     getCurrentTenant(),
     getResolvedTheme(),
+    getBackgroundParallax(),
     getLocale(),
     getMessages(),
   ]);
@@ -82,6 +84,7 @@ export default async function RootLayout({
     <html
       lang={htmlLang}
       data-theme={theme}
+      data-bg-parallax={parallax ? "on" : "off"}
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" style={themeStyle}>

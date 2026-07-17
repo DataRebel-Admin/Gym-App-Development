@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Levende aurora-achtergrond: vier onafhankelijk zwevende, tenant-getinte orbs.
@@ -18,15 +18,37 @@ import { useEffect, useRef } from "react";
  * directe manipulatie (geen autonome animatie), dus die blijft óók werken onder
  * reduced-motion — alleen de autonome zweef stopt dan.
  *
+ * De gebruiker kan de muis-reactie uitzetten in de instellingen. Die voorkeur
+ * staat als `data-bg-parallax` op <html> (server-side gezet uit de cookie, zie
+ * lib/background-motion.ts); we lezen 'm hier en volgen latere wijzigingen live.
+ *
  * Eén keer gemount als eerste kind van <body> in de root-layout, achter alle
  * content (negatieve z-index).
  */
+function parallaxAllowed(): boolean {
+  if (typeof document === "undefined") return true;
+  return document.documentElement.dataset.bgParallax !== "off";
+}
+
 export function AppBackground() {
   const ref = useRef<HTMLDivElement>(null);
+  // Lazy init → bij het eerste render al de juiste stand (geen listener die
+  // meteen weer wordt opgeruimd). Beïnvloedt de markup niet, dus geen
+  // hydration-mismatch.
+  const [enabled, setEnabled] = useState(parallaxAllowed);
+
+  // De instellingen-toggle zet het attribuut direct op <html> (zelfde patroon als
+  // de ThemeToggle) → de achtergrond reageert meteen, zonder herladen.
+  useEffect(() => {
+    const html = document.documentElement;
+    const observer = new MutationObserver(() => setEnabled(parallaxAllowed()));
+    observer.observe(html, { attributes: true, attributeFilter: ["data-bg-parallax"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !enabled) return;
 
     // Alleen op een apparaat mét muis (desktop/laptop, ook hybride). We gebruiken
     // any-hover/any-pointer i.p.v. het PRIMAIRE pointer-type, zodat een laptop met
@@ -74,8 +96,13 @@ export function AppBackground() {
       window.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseleave", onLeave);
       if (raf) cancelAnimationFrame(raf);
+      // Zonder de inline vars valt .app-bg terug op --px/--py: 0 → de lagen
+      // glijden (via hun transition) rustig terug naar het midden. Zet je de
+      // voorkeur uit, dan blijft er dus geen scheve stand hangen.
+      el.style.removeProperty("--px");
+      el.style.removeProperty("--py");
     };
-  }, []);
+  }, [enabled]);
 
   return (
     <div className="app-bg" aria-hidden ref={ref}>
