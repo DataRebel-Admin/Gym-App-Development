@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { itemToInputValues } from "@/lib/exercise-params";
+import { pickGroupFields } from "@/lib/exercise-groups";
 import type { DayTemplateOption } from "@/components/schema-editor";
 
 /**
@@ -37,6 +38,8 @@ export async function getDayTemplateOptions(tenantId: string): Promise<DayTempla
         exerciseType: it.exercise.exerciseType,
         values: itemToInputValues(it, it.exercise.exerciseType),
         notes: it.notes ?? "",
+        memberNote: it.memberNote ?? "",
+        ...pickGroupFields(it),
       })),
     };
   });

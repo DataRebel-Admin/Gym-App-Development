@@ -11,6 +11,7 @@ import { SchemaAssignmentOverview } from "@/components/schema-assignment-overvie
 import { getAssignmentsForTemplate, toOverviewRows } from "@/lib/schema-assignments";
 import { getDayTemplateOptions } from "@/lib/day-templates";
 import { itemToInputValues } from "@/lib/exercise-params";
+import { pickGroupFields } from "@/lib/exercise-groups";
 import { getMasterSuggestions } from "@/lib/coach-insights";
 import { SchemaSuggestions } from "@/components/schema-suggestions";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,8 @@ export default async function TemplateEditPage({
       exerciseType: it.exercise.exerciseType,
       values: itemToInputValues(it, it.exercise.exerciseType),
       notes: it.notes ?? "",
+      memberNote: it.memberNote ?? "",
+      ...pickGroupFields(it),
     })),
   }));
 

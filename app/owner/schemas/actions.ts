@@ -11,7 +11,7 @@ import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
 import { notifyMemberSchemaReviewed } from "@/lib/member-schema-notify";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
-import { isGroupType, clampRounds, clampDropsetCount } from "@/lib/exercise-groups";
+import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { isTrainingGoal } from "@/lib/training-goals";
 import { parseBadges } from "@/lib/schema-badges";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
@@ -61,34 +61,6 @@ const daySchema = z.object({
 });
 const daysSchema = z.array(daySchema).max(14);
 
-type ItemInput = z.infer<typeof itemSchema>;
-
-/**
- * Normaliseer de groep-/dropset-velden van een editor-item naar DB-kolommen.
- * Een groep telt alleen mee als er zowel een `groupId` als een geldig `groupType`
- * is (anders losstaand). Grenzen worden server-side afgedwongen — de client wordt
- * nooit vertrouwd. Zie lib/exercise-groups.ts.
- */
-function groupColumnsFromItem(it: ItemInput) {
-  const validType = isGroupType(it.groupType) ? it.groupType : null;
-  const grouped = Boolean(it.groupId && validType);
-  return {
-    groupId: grouped ? (it.groupId ?? "").trim() || null : null,
-    groupType: grouped ? validType : null,
-    groupOrder: grouped ? it.groupOrder ?? 0 : 0,
-    groupRounds: grouped ? clampRounds(it.groupRounds ?? null) : null,
-    groupRestSeconds:
-      grouped && it.groupRestSeconds != null
-        ? Math.max(0, Math.min(3600, it.groupRestSeconds))
-        : null,
-    groupLabel: grouped ? it.groupLabel?.trim() || null : null,
-    groupTimeCapSeconds:
-      grouped && it.groupTimeCapSeconds != null
-        ? Math.max(0, Math.min(36000, it.groupTimeCapSeconds))
-        : null,
-    dropsetCount: clampDropsetCount(it.dropsetCount ?? null),
-  };
-}
 
 /** Valideer dat alle exerciseIds tot deze tenant horen. */
 async function assertExercisesInTenant(tenantId: string, ids: string[]) {
@@ -186,7 +158,7 @@ export async function saveSchema(
                 params: cols.params ?? undefined,
                 notes: it.notes?.trim() ? it.notes.trim() : null,
                 memberNote: it.memberNote?.trim() ? it.memberNote.trim() : null,
-                ...groupColumnsFromItem(it),
+                ...normalizeGroupColumns(it),
               };
             }),
           },

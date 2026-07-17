@@ -18,7 +18,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MemberSchemaMode, MemberSchemaStatus } from "@prisma/client";
-import type { EditorDay, EditorItem, AvailableExercise } from "@/components/schema-editor";
+import {
+  NO_GROUP,
+  serializeEditorDay,
+  type EditorDay,
+  type EditorItem,
+  type AvailableExercise,
+} from "@/components/schema-editor";
 import {
   saveMemberDraft,
   submitMemberSchema,
@@ -31,11 +37,18 @@ import {
   summaryFromInputValues,
 } from "@/lib/exercise-params";
 import {
+  groupItems,
+  groupPositionLabel,
+  groupSummary,
+  clampDropsetCount,
+  REST_PRESETS_SECONDS,
+} from "@/lib/exercise-groups";
+import {
   isExerciseAllowed,
   describeLimits,
   type FrameworkLimits,
 } from "@/lib/member-schema-constraints";
-import { Info, Star, Copy, Plus } from "@/components/ui/icons";
+import { Info, Star, Copy, Plus, TrendingDown } from "@/components/ui/icons";
 
 let dayCounter = 0;
 let itemCounter = 0;
@@ -147,12 +160,21 @@ function SourceBadge({ source }: { source: "standaard" | "eigen" }) {
   );
 }
 
+function restPresetLabel(sec: number): string {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s === 0 ? `${m}m` : `${m}m${s}`;
+}
+
 function ItemCard({
   item,
   source,
   limits,
   dayKeys,
   currentDayKey,
+  grouped,
+  position,
   onChange,
   onRemove,
   onDuplicate,
@@ -163,6 +185,8 @@ function ItemCard({
   limits: FrameworkLimits | null;
   dayKeys: { key: string; name: string }[];
   currentDayKey: string;
+  grouped: boolean;
+  position: number;
   onChange: (key: string, patch: Partial<EditorItem>) => void;
   onRemove: (key: string) => void;
   onDuplicate: (key: string) => void;
@@ -174,6 +198,7 @@ function ItemCard({
   const otherDays = dayKeys.filter((d) => d.key !== currentDayKey);
   const type = getExerciseType(item.exerciseType);
   const TypeIcon = type.icon;
+  const hasRestField = type.targetFields.some((f) => f.column === "restSeconds");
 
   function setValue(fieldId: string, v: string) {
     onChange(item.key, { values: { ...item.values, [fieldId]: v } });
@@ -183,9 +208,9 @@ function ItemCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex flex-col gap-2.5 rounded-2xl border border-border bg-surface-1 p-3 ${
+      className={`flex flex-col gap-2.5 rounded-2xl border bg-surface-1 p-3 ${
         isDragging ? "opacity-60" : ""
-      }`}
+      } ${grouped ? "border-l-4 border-l-violet-300 border-y-border border-r-border" : "border-border"}`}
     >
       <div className="flex items-center gap-2">
         <button
@@ -197,6 +222,11 @@ function ItemCard({
         >
           ⠿
         </button>
+        {grouped ? (
+          <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600">
+            {groupPositionLabel(position)}
+          </span>
+        ) : null}
         <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-semibold text-neutral-900">
           {source ? <SourceBadge source={source} /> : null}
           <span
@@ -204,6 +234,11 @@ function ItemCard({
           >
             <TypeIcon className="size-3" /> {type.label}
           </span>
+          {(item.dropsetCount ?? 0) >= 1 ? (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-600">
+              <TrendingDown className="size-3" /> ×{item.dropsetCount}
+            </span>
+          ) : null}
           <span className="truncate">{item.exerciseName}</span>
         </span>
       </div>
@@ -220,6 +255,30 @@ function ItemCard({
         ))}
       </div>
 
+      {hasRestField ? (
+        <div className="flex flex-wrap items-center gap-1.5 pl-6 text-[11px] text-neutral-500">
+          <span className="text-neutral-400">Rust:</span>
+          {REST_PRESETS_SECONDS.map((sec) => {
+            const active = (item.values.restSeconds ?? "") === String(sec);
+            return (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => setValue("restSeconds", String(sec))}
+                aria-pressed={active}
+                className={`rounded-full border px-2 py-0.5 font-medium ${
+                  active
+                    ? "border-transparent bg-accent-soft text-accent"
+                    : "border-border text-neutral-500 active:bg-surface-2"
+                }`}
+              >
+                {restPresetLabel(sec)}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       <input
         type="text"
         value={item.notes}
@@ -227,6 +286,28 @@ function ItemCard({
         placeholder="Opmerking (optioneel)…"
         className="w-full rounded-lg border border-border bg-transparent px-2.5 py-2 text-xs text-neutral-700 outline-none focus:border-accent"
       />
+
+      <label className="flex items-center gap-1.5 pl-6 text-[11px] text-neutral-500">
+        <input
+          type="checkbox"
+          checked={(item.dropsetCount ?? 0) >= 1}
+          onChange={(e) => onChange(item.key, { dropsetCount: e.target.checked ? 2 : null })}
+          className="size-3.5 accent-rose-500"
+        />
+        Dropset
+        {(item.dropsetCount ?? 0) >= 1 ? (
+          <input
+            type="number"
+            min={1}
+            max={10}
+            value={item.dropsetCount ?? 2}
+            onChange={(e) =>
+              onChange(item.key, { dropsetCount: clampDropsetCount(Number(e.target.value)) ?? 1 })
+            }
+            className="ml-1 w-12 rounded-md border border-border px-1.5 py-0.5 text-xs outline-none focus:border-accent"
+          />
+        ) : null}
+      </label>
 
       <div className="flex items-center gap-3 pl-6 text-xs text-neutral-500">
         <button type="button" onClick={() => onDuplicate(item.key)} className="hover:text-accent">
@@ -312,6 +393,23 @@ function DayCard({
   );
   const sourceById = useMemo(() => new Map(allowed.map((e) => [e.id, e.source])), [allowed]);
 
+  // Groep-metadata per item-key (voor accentrand + positie-badge + kop-samenvatting).
+  const groupPosById = useMemo(() => {
+    const map = new Map<string, { grouped: boolean; position: number; summary: string | null }>();
+    for (const g of groupItems(day.items)) {
+      const real = g.type != null && g.items.length >= 2;
+      const summary = real ? groupSummary(g) : null;
+      g.items.forEach((it, i) => {
+        map.set(it.key as string, {
+          grouped: real,
+          position: i,
+          summary: real && i === 0 ? summary : null,
+        });
+      });
+    }
+    return map;
+  }, [day.items]);
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -368,20 +466,29 @@ function DayCard({
       >
         <SortableContext items={day.items.map((i) => i.key)} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-2.5">
-            {day.items.map((it) => (
-              <ItemCard
-                key={it.key}
-                item={it}
-                source={sourceById.get(it.exerciseId)}
-                limits={limits}
-                dayKeys={dayKeys}
-                currentDayKey={day.key}
-                onChange={(k, p) => onItemChange(day.key, k, p)}
-                onRemove={(k) => onItemRemove(day.key, k)}
-                onDuplicate={(k) => onItemDuplicate(day.key, k)}
-                onCopyTo={(k, to) => onCopyTo(day.key, k, to)}
-              />
-            ))}
+            {day.items.map((it) => {
+              const info = groupPosById.get(it.key);
+              return (
+                <div key={it.key} className="flex flex-col gap-2.5">
+                  {info?.summary ? (
+                    <p className="pl-1 text-[11px] font-semibold text-violet-600">↳ {info.summary}</p>
+                  ) : null}
+                  <ItemCard
+                    item={it}
+                    source={sourceById.get(it.exerciseId)}
+                    limits={limits}
+                    dayKeys={dayKeys}
+                    currentDayKey={day.key}
+                    grouped={info?.grouped ?? false}
+                    position={info?.position ?? 0}
+                    onChange={(k, p) => onItemChange(day.key, k, p)}
+                    onRemove={(k) => onItemRemove(day.key, k)}
+                    onDuplicate={(k) => onItemDuplicate(day.key, k)}
+                    onCopyTo={(k, to) => onCopyTo(day.key, k, to)}
+                  />
+                </div>
+              );
+            })}
           </div>
         </SortableContext>
       </DndContext>
@@ -522,12 +629,7 @@ export function MemberSchemaEditor({
         days.map((d) => ({
           name: d.name.trim() || "Dag",
           notes: d.notes,
-          items: d.items.map((i) => ({
-            exerciseId: i.exerciseId,
-            exerciseType: i.exerciseType,
-            values: i.values,
-            notes: i.notes,
-          })),
+          items: serializeEditorDay(d.items),
         }))
       ),
     [days]
@@ -576,6 +678,8 @@ export function MemberSchemaEditor({
           exerciseType: ex.exerciseType,
           values: defaultInputValues(ex.exerciseType),
           notes: "",
+          memberNote: "",
+          ...NO_GROUP,
         },
       ],
     }));
@@ -603,7 +707,8 @@ export function MemberSchemaEditor({
       const src = d.items.find((i) => i.key === itemKey);
       if (!src) return d;
       const idx = d.items.findIndex((i) => i.key === itemKey);
-      const clone = { ...src, key: `i-${itemCounter++}`, values: { ...src.values } };
+      // Duplicaat is losstaand (geen groep-koppeling overnemen).
+      const clone = { ...src, key: `i-${itemCounter++}`, values: { ...src.values }, ...NO_GROUP };
       const next = [...d.items];
       next.splice(idx + 1, 0, clone);
       return { ...d, items: next };
@@ -613,7 +718,8 @@ export function MemberSchemaEditor({
     setDays((prev) => {
       const item = prev.find((d) => d.key === fromDayKey)?.items.find((i) => i.key === itemKey);
       if (!item) return prev;
-      const clone = { ...item, key: `i-${itemCounter++}`, values: { ...item.values } };
+      // Kopie naar andere dag is losstaand.
+      const clone = { ...item, key: `i-${itemCounter++}`, values: { ...item.values }, ...NO_GROUP };
       return prev.map((d) => (d.key === toDayKey ? { ...d, items: [...d.items, clone] } : d));
     });
   }

@@ -10,6 +10,7 @@ import { requireMember } from "@/lib/member";
 import { audit } from "@/lib/audit";
 import { withFavoriteIds } from "@/lib/user-preferences";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
+import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
 import {
   requireMemberSchemaEnabled,
@@ -39,6 +40,15 @@ const itemSchema = z.object({
   exerciseType: z.string().min(1),
   values: z.record(z.string(), z.string()).default({}),
   notes: z.string().trim().max(280).nullable().optional(),
+  // Groeperen (superset/giant/circuit/AMRAP) + dropset — pariteit met de owner-editor.
+  groupId: z.string().trim().max(64).nullable().optional(),
+  groupType: z.string().trim().max(20).nullable().optional(),
+  groupOrder: z.coerce.number().int().min(0).max(60).optional(),
+  groupRounds: z.coerce.number().int().min(1).max(50).nullable().optional(),
+  groupRestSeconds: z.coerce.number().int().min(0).max(3600).nullable().optional(),
+  groupLabel: z.string().trim().max(60).nullable().optional(),
+  groupTimeCapSeconds: z.coerce.number().int().min(0).max(36000).nullable().optional(),
+  dropsetCount: z.coerce.number().int().min(0).max(10).nullable().optional(),
 });
 const daySchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -142,6 +152,15 @@ export async function startMemberSchema(formData: FormData) {
                 tempo: it.tempo,
                 params: it.params ?? undefined,
                 notes: it.notes,
+                // memberNote bewust niet (coach-only); groep/dropset wél behouden.
+                groupId: it.groupId,
+                groupType: it.groupType,
+                groupOrder: it.groupOrder,
+                groupRounds: it.groupRounds,
+                groupRestSeconds: it.groupRestSeconds,
+                groupLabel: it.groupLabel,
+                groupTimeCapSeconds: it.groupTimeCapSeconds,
+                dropsetCount: it.dropsetCount,
               })),
             },
           },
@@ -310,6 +329,7 @@ async function persistDraft(
                 tempo: cols.tempo,
                 params: cols.params ?? undefined,
                 notes: it.notes?.trim() ? it.notes.trim() : null,
+                ...normalizeGroupColumns(it),
               };
             }),
           },

@@ -124,7 +124,52 @@ export type GroupableItem = Partial<GroupFields> & Record<string, unknown>;
 
 export const DEFAULT_GROUP_ROUNDS = 3;
 export const DEFAULT_GROUP_REST_SECONDS = 90;
+export const DEFAULT_AMRAP_SECONDS = 600; // 10 min
 export const MAX_GROUP_ROUNDS = 50;
+
+/** Snelle rust-presets (seconden) voor de editor-chips. */
+export const REST_PRESETS_SECONDS = [30, 60, 90, 120, 180] as const;
+
+/**
+ * Normaliseer ruwe (client-)groep-/dropset-invoer naar veilige DB-kolommen.
+ * Een groep telt alleen als er zowel een `groupId` als een geldig `groupType` is.
+ * Grenzen worden server-side afgedwongen — de client wordt nooit vertrouwd.
+ * Gedeeld door de owner- en member-save-actions.
+ */
+export function normalizeGroupColumns(it: Partial<GroupFields>): GroupFields {
+  const validType = isGroupType(it.groupType) ? it.groupType : null;
+  const grouped = Boolean(it.groupId && validType);
+  return {
+    groupId: grouped ? (it.groupId ?? "").trim() || null : null,
+    groupType: grouped ? validType : null,
+    groupOrder: grouped ? Math.max(0, Math.round(it.groupOrder ?? 0)) : 0,
+    groupRounds: grouped ? clampRounds(it.groupRounds ?? null) : null,
+    groupRestSeconds:
+      grouped && it.groupRestSeconds != null
+        ? Math.max(0, Math.min(3600, Math.round(it.groupRestSeconds)))
+        : null,
+    groupLabel: grouped ? (it.groupLabel ?? "").trim().slice(0, 60) || null : null,
+    groupTimeCapSeconds:
+      grouped && it.groupTimeCapSeconds != null
+        ? Math.max(0, Math.min(36000, Math.round(it.groupTimeCapSeconds)))
+        : null,
+    dropsetCount: clampDropsetCount(it.dropsetCount ?? null),
+  };
+}
+
+/** Kies de groep-/dropset-velden uit een item-rij (met veilige defaults). */
+export function pickGroupFields(item: Partial<GroupFields>): GroupFields {
+  return {
+    groupId: item.groupId ?? null,
+    groupType: item.groupType ?? null,
+    groupOrder: item.groupOrder ?? 0,
+    groupRounds: item.groupRounds ?? null,
+    groupRestSeconds: item.groupRestSeconds ?? null,
+    groupLabel: item.groupLabel ?? null,
+    groupTimeCapSeconds: item.groupTimeCapSeconds ?? null,
+    dropsetCount: item.dropsetCount ?? null,
+  };
+}
 
 /** Sanitize/clamp een groeprondes-waarde. */
 export function clampRounds(v: number | null | undefined): number | null {

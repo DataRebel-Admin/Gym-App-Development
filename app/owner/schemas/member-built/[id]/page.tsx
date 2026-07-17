@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/staff";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
 import { Badge } from "@/components/ui/badge";
 import { itemToInputValues } from "@/lib/exercise-params";
+import { pickGroupFields } from "@/lib/exercise-groups";
 import { getDayTemplateOptions } from "@/lib/day-templates";
 import { MEMBER_STATUS_META } from "@/lib/member-schema-status";
 import { REQUEST_GOAL_LABELS } from "@/lib/schema-requests";
@@ -77,6 +78,8 @@ export default async function MemberBuiltReviewDetail({
       exerciseType: it.exercise.exerciseType,
       values: itemToInputValues(it, it.exercise.exerciseType),
       notes: it.notes ?? "",
+      memberNote: it.memberNote ?? "",
+      ...pickGroupFields(it),
     })),
   }));
 
@@ -170,6 +173,7 @@ export default async function MemberBuiltReviewDetail({
           initialValidityWeeks={assignment.template.validityWeeks}
           initialGoal={assignment.template.goal}
           initialBadges={assignment.template.badges}
+          showMemberNote
           initialDays={initialDays}
           availableExercises={exercises}
           dayTemplates={dayTemplates}

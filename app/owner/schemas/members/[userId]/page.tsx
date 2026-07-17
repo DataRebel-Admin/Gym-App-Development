@@ -19,6 +19,7 @@ import {
 import { getAssignmentsForMember } from "@/lib/schema-assignments";
 import { getDayTemplateOptions } from "@/lib/day-templates";
 import { itemToInputValues } from "@/lib/exercise-params";
+import { pickGroupFields } from "@/lib/exercise-groups";
 import { ASSIGNMENT_STATUS_META, computeValidity, fmtDate, fmtDateTime, isActiveNow } from "@/lib/schema-status";
 import {
   assignFromTemplate,
@@ -348,6 +349,7 @@ export default async function MemberSchemaPage({
               initialValidityWeeks={primaryTemplate.validityWeeks}
               initialGoal={primaryTemplate.goal}
               initialBadges={primaryTemplate.badges}
+              showMemberNote
               initialDays={primaryTemplate.days.map<EditorDay>((d) => ({
                 key: d.id,
                 name: d.name,
@@ -359,6 +361,8 @@ export default async function MemberSchemaPage({
                   exerciseType: it.exercise.exerciseType,
                   values: itemToInputValues(it, it.exercise.exerciseType),
                   notes: it.notes ?? "",
+                  memberNote: it.memberNote ?? "",
+                  ...pickGroupFields(it),
                 })),
               }))}
               availableExercises={exercises}

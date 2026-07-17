@@ -10,6 +10,7 @@ import {
 } from "@/lib/member-schema";
 import { isEditableMemberStatus } from "@/lib/member-schema-status";
 import { itemToInputValues } from "@/lib/exercise-params";
+import { pickGroupFields } from "@/lib/exercise-groups";
 import { getFavoriteIds } from "@/lib/user-preferences";
 import { MemberSchemaEditor } from "@/components/member/member-schema-editor";
 import type { EditorDay } from "@/components/schema-editor";
@@ -51,6 +52,8 @@ export default async function MemberSchemaBuilderEditPage({
       exerciseType: it.exercise.exerciseType,
       values: itemToInputValues(it, it.exercise.exerciseType),
       notes: it.notes ?? "",
+      memberNote: it.memberNote ?? "",
+      ...pickGroupFields(it),
     })),
   }));
 
