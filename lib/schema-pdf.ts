@@ -11,6 +11,13 @@ import {
 import QRCode from "qrcode";
 import { formatDate } from "@/lib/i18n/format";
 import type { AppLocale } from "@/lib/i18n/config";
+import { targetSummaryFromItem } from "@/lib/exercise-params";
+import {
+  groupItems,
+  groupPositionLabel,
+  groupSummary,
+  type GroupFields,
+} from "@/lib/exercise-groups";
 
 /**
  * Alle statische PDF-teksten, vooraf vertaald door de aanroeper (route-handler
@@ -87,6 +94,56 @@ export type SchemaPdfItem = {
 };
 
 export type SchemaPdfDay = { name: string; items: SchemaPdfItem[] };
+
+/** Bron-item (Prisma-rij) voor de gedeelde PDF-item-builder. */
+type PdfSourceItem = {
+  sets: number;
+  reps: number;
+  restSeconds: number;
+  weightKg: number | null;
+  tempo: string | null;
+  params: unknown;
+  notes: string | null;
+  memberNote: string | null;
+  exercise: { name: string; exerciseType: string; machine: { name: string } | null };
+} & GroupFields;
+
+/**
+ * Zet schema-items om naar PDF-rijen mét groepering (superset/circuit/AMRAP),
+ * dropset-markering en per-lid notitie. Gedeeld door de member- en owner-PDF-
+ * routes zodat beide identiek renderen. Groep-positie (A/B/…) staat vóór de naam;
+ * de groep-samenvatting + persoonlijke notitie vallen in de notitie-kolom.
+ */
+export function buildPdfItems(items: PdfSourceItem[]): SchemaPdfItem[] {
+  const out: SchemaPdfItem[] = [];
+  for (const g of groupItems(items)) {
+    const real = g.type != null && g.items.length >= 2;
+    const summary = real ? groupSummary(g) : null;
+    g.items.forEach((it, i) => {
+      const type = it.exercise.exerciseType;
+      const pos = real ? `${groupPositionLabel(i)}) ` : "";
+      const dropset = (it.dropsetCount ?? 0) >= 1 ? ` - dropset x${it.dropsetCount}` : "";
+      const noteParts = [
+        real && i === 0 ? summary : null,
+        it.notes?.trim() || null,
+        it.memberNote?.trim() ? `Voor jou: ${it.memberNote.trim()}` : null,
+      ].filter((v): v is string => Boolean(v));
+      out.push({
+        exercise: `${pos}${it.exercise.name}${dropset}`,
+        machine: it.exercise.machine?.name ?? null,
+        sets: it.sets,
+        reps: it.reps,
+        weightKg: it.weightKg,
+        restSeconds: it.restSeconds,
+        tempo: it.tempo,
+        exerciseType: type,
+        summary: targetSummaryFromItem(it, type),
+        notes: noteParts.length > 0 ? noteParts.join(" · ") : null,
+      });
+    });
+  }
+  return out;
+}
 
 export type SchemaPdfData = {
   tenantName: string;

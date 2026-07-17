@@ -4,7 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { Info } from "@/components/ui/icons";
+import { Info, TrendingDown } from "@/components/ui/icons";
+import {
+  groupItems,
+  groupPositionLabel,
+  groupSummary,
+  type GroupFields,
+} from "@/lib/exercise-groups";
 
 export type ChecklistItem = {
   id: string;
@@ -16,8 +22,10 @@ export type ChecklistItem = {
   summary: string;
   typeLabel: string;
   notes: string | null;
+  /** Per-lid coach-boodschap (alleen dit lid ziet dit). */
+  memberNote: string | null;
   thumbUrl: string | null;
-};
+} & GroupFields;
 
 export type ChecklistDay = { name: string; notes: string | null; items: ChecklistItem[] };
 
@@ -41,6 +49,87 @@ export function SchemaChecklist({
   const allItems = groups.flatMap((g) => g.items);
   const completed = allItems.filter((i) => done[i.id]).length;
   const pct = allItems.length > 0 ? Math.round((completed / allItems.length) * 100) : 0;
+
+  /** Eén oefening-rij. `groupPos` ≥ 0 = binnen een superset/circuit (A/B/C-badge). */
+  function renderRow(it: ChecklistItem, groupPos: number) {
+    const isDone = Boolean(done[it.id]);
+    const grouped = groupPos >= 0;
+    return (
+      <li
+        key={it.id}
+        className={`flex items-center rounded-xl border transition-colors ${
+          isDone ? "border-border bg-neutral-100" : "border-border bg-surface-1"
+        } ${grouped ? "border-l-4 border-l-violet-300" : ""}`}
+      >
+        <button
+          type="button"
+          onClick={() => toggle(it.id)}
+          className="flex flex-1 items-center gap-3 rounded-l-xl px-4 py-3 text-left"
+        >
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+              isDone ? "border-accent bg-accent text-accent-foreground" : "border-neutral-300"
+            }`}
+            aria-hidden
+          >
+            {isDone ? "✓" : ""}
+          </span>
+          {grouped ? (
+            <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600">
+              {groupPositionLabel(groupPos)}
+            </span>
+          ) : null}
+          {it.thumbUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={it.thumbUrl}
+              alt=""
+              aria-hidden
+              className={`h-10 w-10 shrink-0 rounded-lg object-cover ${isDone ? "opacity-40" : ""}`}
+            />
+          ) : null}
+          <span className="flex-1">
+            <span
+              className={`block font-medium ${
+                isDone ? "text-neutral-400 line-through" : "text-neutral-900"
+              }`}
+            >
+              {it.exerciseName}
+              {(it.dropsetCount ?? 0) >= 1 ? (
+                <span className="ml-1 inline-flex items-center gap-0.5 align-middle text-[11px] font-semibold text-rose-500">
+                  <TrendingDown className="size-3" />×{it.dropsetCount}
+                </span>
+              ) : null}
+            </span>
+            <span className="block text-sm text-neutral-500">
+              <span className="font-medium text-neutral-600">{it.typeLabel}</span>
+              {it.summary && it.summary !== "—" ? ` · ${it.summary}` : ""}
+              {it.machineName ? ` · ${it.machineName}` : ""}
+            </span>
+            {it.notes ? (
+              <span className={`mt-0.5 block text-xs ${isDone ? "text-neutral-400" : "text-neutral-500"}`}>
+                {it.notes}
+              </span>
+            ) : null}
+            {it.memberNote ? (
+              <span className={`mt-0.5 block text-xs font-medium ${isDone ? "text-neutral-400" : "text-accent"}`}>
+                ✎ {it.memberNote}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        <Link
+          href={`/member/history/exercise/${it.exerciseId}`}
+          aria-label={`${t("explain")}: ${it.exerciseName}`}
+          title={t("explain")}
+          className="flex shrink-0 flex-col items-center gap-0.5 self-stretch justify-center border-l border-border px-3 text-neutral-400 transition-colors active:bg-surface-2 hover:text-accent"
+        >
+          <Info className="size-5" />
+          <span className="text-[10px] font-medium">{t("explain")}</span>
+        </Link>
+      </li>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -74,79 +163,20 @@ export function SchemaChecklist({
             </p>
           ) : null}
           <ul className="flex flex-col gap-2">
-        {group.items.map((it) => {
-          const isDone = Boolean(done[it.id]);
-          return (
-            <li
-              key={it.id}
-              className={`flex items-center rounded-xl border transition-colors ${
-                isDone ? "border-border bg-neutral-100" : "border-border bg-surface-1"
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => toggle(it.id)}
-                className="flex flex-1 items-center gap-3 rounded-l-xl px-4 py-3 text-left"
-              >
-                <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                    isDone
-                      ? "border-accent bg-accent text-accent-foreground"
-                      : "border-neutral-300"
-                  }`}
-                  aria-hidden
-                >
-                  {isDone ? "✓" : ""}
-                </span>
-                {it.thumbUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={it.thumbUrl}
-                    alt=""
-                    aria-hidden
-                    className={`h-10 w-10 shrink-0 rounded-lg object-cover ${
-                      isDone ? "opacity-40" : ""
-                    }`}
-                  />
-                ) : null}
-                <span className="flex-1">
-                  <span
-                    className={`block font-medium ${
-                      isDone
-                        ? "text-neutral-400 line-through"
-                        : "text-neutral-900"
-                    }`}
-                  >
-                    {it.exerciseName}
-                  </span>
-                  <span className="block text-sm text-neutral-500">
-                    <span className="font-medium text-neutral-600">{it.typeLabel}</span>
-                    {it.summary && it.summary !== "—" ? ` · ${it.summary}` : ""}
-                    {it.machineName ? ` · ${it.machineName}` : ""}
-                  </span>
-                  {it.notes ? (
-                    <span
-                      className={`mt-0.5 block text-xs ${
-                        isDone ? "text-neutral-400" : "text-accent"
-                      }`}
-                    >
-                      {it.notes}
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-              <Link
-                href={`/member/history/exercise/${it.exerciseId}`}
-                aria-label={`${t("explain")}: ${it.exerciseName}`}
-                title={t("explain")}
-                className="flex shrink-0 flex-col items-center gap-0.5 self-stretch justify-center border-l border-border px-3 text-neutral-400 transition-colors active:bg-surface-2 hover:text-accent"
-              >
-                <Info className="size-5" />
-                <span className="text-[10px] font-medium">{t("explain")}</span>
-              </Link>
-            </li>
-          );
-        })}
+            {groupItems(group.items).map((g, ggi) => {
+              const real = g.type != null && g.items.length >= 2;
+              const rows = g.items.map((it, pos) => renderRow(it, real ? pos : -1));
+              if (!real || !g.type) return rows;
+              const GIcon = g.type.icon;
+              return (
+                <li key={`g-${ggi}`} className="rounded-xl border border-violet-200 bg-violet-50/40 p-2">
+                  <p className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold text-violet-600">
+                    <GIcon className="size-3.5" /> {groupSummary(g)}
+                  </p>
+                  <ul className="flex flex-col gap-2">{rows}</ul>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ))}

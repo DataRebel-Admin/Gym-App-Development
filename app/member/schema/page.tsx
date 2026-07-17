@@ -19,6 +19,7 @@ import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { exerciseTypeLabel } from "@/lib/exercise-types";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { pickGroupFields } from "@/lib/exercise-groups";
 import { computeValidity, trainerDisplayName } from "@/lib/schema-status";
 
 type ItemWithRel = {
@@ -31,6 +32,15 @@ type ItemWithRel = {
   tempo: string | null;
   params: unknown;
   notes: string | null;
+  memberNote: string | null;
+  groupId: string | null;
+  groupType: string | null;
+  groupOrder: number;
+  groupRounds: number | null;
+  groupRestSeconds: number | null;
+  groupLabel: string | null;
+  groupTimeCapSeconds: number | null;
+  dropsetCount: number | null;
   exercise: {
     name: string;
     exerciseType: string;
@@ -49,7 +59,9 @@ function toChecklistItem(it: ItemWithRel): ChecklistItem {
     summary: targetSummaryFromItem(it, type),
     typeLabel: exerciseTypeLabel(type),
     notes: it.notes,
+    memberNote: it.memberNote,
     thumbUrl: it.exercise.catalog?.imageUrl ?? it.exercise.catalog?.gifUrl ?? null,
+    ...pickGroupFields(it),
   };
 }
 

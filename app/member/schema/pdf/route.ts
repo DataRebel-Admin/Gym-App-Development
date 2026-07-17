@@ -3,8 +3,7 @@ import { headers } from "next/headers";
 import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getCurrentTenant } from "@/lib/tenant";
-import { buildSchemaPdf, pdfLabels, type SchemaPdfDay } from "@/lib/schema-pdf";
-import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { buildSchemaPdf, buildPdfItems, pdfLabels, type SchemaPdfDay } from "@/lib/schema-pdf";
 import { formatDate } from "@/lib/i18n/format";
 import type { AppLocale } from "@/lib/i18n/config";
 import { audit } from "@/lib/audit";
@@ -21,18 +20,7 @@ export async function GET() {
 
   const days: SchemaPdfDay[] = tpl.days.map((d) => ({
     name: d.name,
-    items: d.items.map((it) => ({
-      exercise: it.exercise.name,
-      machine: it.exercise.machine?.name ?? null,
-      sets: it.sets,
-      reps: it.reps,
-      weightKg: it.weightKg,
-      restSeconds: it.restSeconds,
-      tempo: it.tempo,
-      exerciseType: it.exercise.exerciseType,
-      summary: targetSummaryFromItem(it, it.exercise.exerciseType),
-      notes: it.notes,
-    })),
+    items: buildPdfItems(d.items),
   }));
 
   const h = await headers();
