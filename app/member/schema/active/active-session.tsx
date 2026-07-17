@@ -12,8 +12,15 @@ import { useRestTimer, FloatingTimer } from "./rest-timer";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X } from "@/components/ui/icons";
+import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X, TrendingDown } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
+import {
+  groupItems,
+  groupPositionLabel,
+  groupSummary,
+  DEFAULT_GROUP_REST_SECONDS,
+  type GroupTypeDef,
+} from "@/lib/exercise-groups";
 
 /**
  * Server-actions die de actieve sessie muteren, geïnjecteerd door de pagina die
@@ -97,6 +104,18 @@ export type ActiveExercise = {
   targetSummary: string;
   restSeconds: number;
   note: string | null;
+  /** Per-lid coach-boodschap (alleen dit lid ziet dit). */
+  memberNote: string | null;
+  /** Aantal dropset-drops (0/null = geen dropset). */
+  dropsetCount: number | null;
+  /** Groeperen: gedeelde groep-sleutel (superset/giant/circuit/AMRAP). */
+  groupId: string | null;
+  groupType: string | null;
+  groupOrder: number;
+  groupRounds: number | null;
+  groupRestSeconds: number | null;
+  groupLabel: string | null;
+  groupTimeCapSeconds: number | null;
   entries: SetEntry[];
   previous: PreviousPerformance | null;
 };
@@ -342,10 +361,8 @@ export function ActiveSession({
     });
     saveSetValue(ex, setNumber, reps, kg);
 
-    // Timers uit voor deze sessie → geen auto-rusttimer, geen trilling/geluid.
-    if (!timersEnabled) return;
-    if (timer.vibrateOn) void haptic("light", 15);
-    timer.startRest(ex.restSeconds > 0 ? ex.restSeconds : DEFAULT_REST);
+    // Rust automatisch starten (respecteert de sessie-toggle + groep-semantiek).
+    startRestFor(ex, ex.restSeconds > 0 ? ex.restSeconds : DEFAULT_REST);
   }
 
   /** Opnieuw opslaan na een mislukte set — leest de huidige (evt. bijgestelde) waarden. */
@@ -467,6 +484,53 @@ export function ActiveSession({
     () => exList.filter((ex) => !skipped.has(ex.originalExerciseId)),
     [exList, skipped]
   );
+
+  // Groep-metadata (superset/giant/circuit/AMRAP) per originele oefening-id.
+  // Bepaalt de visuele groepering én de rust-semantiek (0 binnen de groep,
+  // `restAfter` ná de laatste oefening van een ronde).
+  type GroupMeta = {
+    grouped: boolean;
+    isStart: boolean;
+    isEnd: boolean;
+    position: number;
+    type: GroupTypeDef | null;
+    restAfter: number;
+    summary: string | null;
+  };
+  const groupMeta = useMemo(() => {
+    const map = new Map<string, GroupMeta>();
+    for (const g of groupItems(exList)) {
+      const real = g.type != null && g.items.length >= 2;
+      const summary = real ? groupSummary(g) : null;
+      g.items.forEach((it, i) => {
+        map.set(it.originalExerciseId, {
+          grouped: real,
+          isStart: real && i === 0,
+          isEnd: real && i === g.items.length - 1,
+          position: i,
+          type: real ? g.type : null,
+          restAfter: g.restSeconds ?? DEFAULT_GROUP_REST_SECONDS,
+          summary: real && i === 0 ? summary : null,
+        });
+      });
+    }
+    return map;
+  }, [exList]);
+
+  /**
+   * Start de rusttimer met de juiste duur voor deze oefening. Binnen een groep
+   * (superset/circuit) vuurt de timer NIET tussen de oefeningen — pas ná de
+   * laatste oefening van de ronde, met de groep-rust. Respecteert de sessie-toggle.
+   */
+  function startRestFor(ex: ActiveExercise, fallback: number) {
+    if (!timersEnabled) return;
+    const gm = groupMeta.get(ex.originalExerciseId);
+    if (gm?.grouped && !gm.isEnd) return; // geen rust binnen de groep
+    const rest = gm?.grouped ? gm.restAfter || fallback : fallback;
+    if (rest <= 0) return;
+    if (timer.vibrateOn) void haptic("light", 15);
+    timer.startRest(rest);
+  }
 
   const stats = useMemo(() => {
     let completedSets = 0;
@@ -615,12 +679,22 @@ export function ActiveSession({
         {exList.map((ex, i) => {
           const showDay = Boolean(ex.dayName) && ex.dayName !== exList[i - 1]?.dayName;
           const isSkipped = skipped.has(ex.originalExerciseId);
+          const gm = groupMeta.get(ex.originalExerciseId);
+          const GroupIcon = gm?.type?.icon;
           return (
             <div key={ex.originalExerciseId} className="flex flex-col gap-2">
               {showDay ? (
                 <p className="px-1 text-xs font-semibold uppercase tracking-wide text-accent">
                   {ex.dayName}
                 </p>
+              ) : null}
+
+              {gm?.isStart && gm.summary && GroupIcon ? (
+                <div className="flex items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700">
+                  <GroupIcon className="size-4 shrink-0" />
+                  <span>{gm.summary}</span>
+                  <span className="ml-auto font-normal text-violet-500">{t("supersetHint")}</span>
+                </div>
               ) : null}
 
               {isSkipped ? (
@@ -644,6 +718,24 @@ export function ActiveSession({
                 </div>
               ) : (
                 <>
+                  {gm?.grouped ? (
+                    <p className="flex items-center gap-1.5 px-1 text-[11px] font-semibold text-violet-600">
+                      <span className="inline-flex size-4 items-center justify-center rounded-full bg-violet-100 text-[9px] font-bold">
+                        {groupPositionLabel(gm.position)}
+                      </span>
+                      {gm.type ? gm.type.label : ""}
+                    </p>
+                  ) : null}
+                  {ex.memberNote ? (
+                    <p className="rounded-lg bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent">
+                      ✎ {ex.memberNote}
+                    </p>
+                  ) : null}
+                  {(ex.dropsetCount ?? 0) >= 1 ? (
+                    <p className="flex items-center gap-1.5 px-1 text-[11px] font-medium text-rose-500">
+                      <TrendingDown className="size-3.5" /> {t("dropsetHint", { count: ex.dropsetCount ?? 0 })}
+                    </p>
+                  ) : null}
                   {ex.substitutedFrom ? (
                     <p className="flex items-center gap-1.5 px-1 text-[11px] font-medium text-neutral-400">
                       <Repeat className="size-3 text-accent" />
@@ -675,9 +767,7 @@ export function ActiveSession({
                       onDoneChange={(done) =>
                         setDynamicDone((p) => ({ ...p, [ex.exerciseId]: done }))
                       }
-                      onSetDone={(rest) => {
-                        if (timersEnabled) timer.startRest(rest > 0 ? rest : DEFAULT_REST);
-                      }}
+                      onSetDone={(rest) => startRestFor(ex, rest > 0 ? rest : DEFAULT_REST)}
                     />
                   )}
 
@@ -698,6 +788,12 @@ export function ActiveSession({
                       <SkipForward className="size-3.5" /> {t("skip")}
                     </button>
                   </div>
+
+                  {gm?.isEnd ? (
+                    <p className="px-1 text-[11px] font-medium text-violet-500">
+                      {t("groupRestAfter", { seconds: gm.restAfter })}
+                    </p>
+                  ) : null}
                 </>
               )}
             </div>
