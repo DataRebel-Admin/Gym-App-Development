@@ -27,6 +27,18 @@ export type ItemSnapshot = {
   tempo: string | null;
   params: ParamBag;
   notes: string | null;
+  // --- Groeperen (superset/giant/circuit/AMRAP) + dropset ---
+  // Coach-eigendom → wél meegesynct vanuit de master (bundel-veld "group"/"dropset").
+  // `memberNote` staat bewust NIET in de snapshot: die is per-lid/persoonlijk en
+  // wordt nooit gesynct of als personalisatie gedetecteerd.
+  groupId: string | null;
+  groupType: string | null;
+  groupOrder: number;
+  groupRounds: number | null;
+  groupRestSeconds: number | null;
+  groupLabel: string | null;
+  groupTimeCapSeconds: number | null;
+  dropsetCount: number | null;
 };
 
 export type DaySnapshot = {
@@ -41,8 +53,19 @@ export type SchemaSnapshot = {
 };
 
 /** Velden die per oefening kunnen wijzigen (waarde-overrides). `params` dekt alle
- *  type-specifieke doelvelden (tijd/afstand/zone/…) als één geheel. */
-export type ItemField = "sets" | "reps" | "weightKg" | "restSeconds" | "tempo" | "params" | "notes";
+ *  type-specifieke doelvelden (tijd/afstand/zone/…) als één geheel; `group` dekt
+ *  alle groeperings-instellingen (type/rondes/rust-ná-groep/label/timecap) als
+ *  één geheel; `dropset` is het dropset-aantal. */
+export type ItemField =
+  | "sets"
+  | "reps"
+  | "weightKg"
+  | "restSeconds"
+  | "tempo"
+  | "params"
+  | "notes"
+  | "group"
+  | "dropset";
 export const ITEM_FIELDS: ItemField[] = [
   "sets",
   "reps",
@@ -51,6 +74,8 @@ export const ITEM_FIELDS: ItemField[] = [
   "tempo",
   "params",
   "notes",
+  "group",
+  "dropset",
 ];
 
 export type DiffEntry = {
@@ -111,39 +136,87 @@ function stableParams(p: ParamBag): string {
   );
 }
 
+/** Groep-bundel als één vergelijkbare string (voor het logische veld "group"). */
+function stableGroup(it: ItemSnapshot): string {
+  if (!it.groupId || !it.groupType) return ""; // losstaand item
+  return JSON.stringify([
+    it.groupId,
+    it.groupType,
+    it.groupOrder,
+    it.groupRounds ?? null,
+    it.groupRestSeconds ?? null,
+    (it.groupLabel ?? "").trim(),
+    it.groupTimeCapSeconds ?? null,
+  ]);
+}
+
+/** Item-vorm met optionele groep-velden voor de normalisatie. */
+type RawGroupFields = {
+  groupId?: string | null;
+  groupType?: string | null;
+  groupOrder?: number | null;
+  groupRounds?: number | null;
+  groupRestSeconds?: number | null;
+  groupLabel?: string | null;
+  groupTimeCapSeconds?: number | null;
+  dropsetCount?: number | null;
+};
+
+/** De groep/dropset-subset van een ItemSnapshot. */
+type GroupSnapshotFields = Pick<
+  ItemSnapshot,
+  | "groupId"
+  | "groupType"
+  | "groupOrder"
+  | "groupRounds"
+  | "groupRestSeconds"
+  | "groupLabel"
+  | "groupTimeCapSeconds"
+  | "dropsetCount"
+>;
+
+function normGroup(it: RawGroupFields): GroupSnapshotFields {
+  const gid = it.groupId ?? null;
+  const gtype = emptyToNull(it.groupType ?? null);
+  const grouped = Boolean(gid && gtype);
+  return {
+    groupId: grouped ? gid : null,
+    groupType: grouped ? gtype : null,
+    groupOrder: grouped ? Number(it.groupOrder ?? 0) : 0,
+    groupRounds: it.groupRounds == null ? null : Number(it.groupRounds),
+    groupRestSeconds: it.groupRestSeconds == null ? null : Number(it.groupRestSeconds),
+    groupLabel: emptyToNull(it.groupLabel ?? null),
+    groupTimeCapSeconds: it.groupTimeCapSeconds == null ? null : Number(it.groupTimeCapSeconds),
+    dropsetCount:
+      it.dropsetCount == null || Number(it.dropsetCount) < 1 ? null : Number(it.dropsetCount),
+  };
+}
+
 /** Genormaliseerde snapshot van een template-achtige structuur (Prisma of editor). */
+type RawSnapItem = {
+  exerciseId: string;
+  order?: number;
+  sets: number;
+  reps: number;
+  restSeconds: number;
+  weightKg?: number | null;
+  tempo?: string | null;
+  params?: unknown;
+  notes?: string | null;
+} & RawGroupFields;
+
 export function snapshotOf(template: {
   coachNote?: string | null;
   days?: {
     name: string;
     notes?: string | null;
     order?: number;
-    items: {
-      exerciseId: string;
-      order?: number;
-      sets: number;
-      reps: number;
-      restSeconds: number;
-      weightKg?: number | null;
-      tempo?: string | null;
-      params?: unknown;
-      notes?: string | null;
-    }[];
+    items: RawSnapItem[];
   }[];
   /** Platte items zonder dag (legacy/fallback). */
-  items?: {
-    exerciseId: string;
-    order?: number;
-    sets: number;
-    reps: number;
-    restSeconds: number;
-    weightKg?: number | null;
-    tempo?: string | null;
-    params?: unknown;
-    notes?: string | null;
-  }[];
+  items?: RawSnapItem[];
 }): SchemaSnapshot {
-  const normItem = (it: NonNullable<typeof template.items>[number]): ItemSnapshot => ({
+  const normItem = (it: RawSnapItem): ItemSnapshot => ({
     exerciseId: it.exerciseId,
     sets: it.sets,
     reps: it.reps,
@@ -152,6 +225,7 @@ export function snapshotOf(template: {
     tempo: emptyToNull(it.tempo),
     params: normParams(it.params),
     notes: emptyToNull(it.notes),
+    ...normGroup(it),
   });
 
   let days: DaySnapshot[];
@@ -198,6 +272,7 @@ export function asSnapshot(value: unknown): SchemaSnapshot | null {
             tempo: emptyToNull(it?.tempo ?? null),
             params: normParams(it?.params),
             notes: emptyToNull(it?.notes ?? null),
+            ...normGroup(it as RawGroupFields),
           }))
         : [],
     })),
@@ -211,6 +286,10 @@ function changedFields(a: ItemSnapshot, b: ItemSnapshot): ItemField[] {
   for (const f of ITEM_FIELDS) {
     if (f === "params") {
       if (stableParams(a.params) !== stableParams(b.params)) out.push(f);
+    } else if (f === "group") {
+      if (stableGroup(a) !== stableGroup(b)) out.push(f);
+    } else if (f === "dropset") {
+      if ((a.dropsetCount ?? null) !== (b.dropsetCount ?? null)) out.push(f);
     } else if (a[f] !== b[f]) {
       out.push(f);
     }
@@ -434,6 +513,18 @@ export function copyItemField(target: ItemSnapshot, source: ItemSnapshot, f: Ite
       break;
     case "notes":
       target.notes = source.notes;
+      break;
+    case "group":
+      target.groupId = source.groupId;
+      target.groupType = source.groupType;
+      target.groupOrder = source.groupOrder;
+      target.groupRounds = source.groupRounds;
+      target.groupRestSeconds = source.groupRestSeconds;
+      target.groupLabel = source.groupLabel;
+      target.groupTimeCapSeconds = source.groupTimeCapSeconds;
+      break;
+    case "dropset":
+      target.dropsetCount = source.dropsetCount;
       break;
   }
 }

@@ -19,9 +19,14 @@ const FIELD_LABEL: Record<ItemField, string> = {
   tempo: "tempo",
   params: "doelwaarden",
   notes: "notitie",
+  group: "groepering",
+  dropset: "dropset",
 };
 
-function fmtVal(f: ItemField, v: ItemSnapshot[ItemField]): string {
+/** Directe waarde-velden (niet de bundels params/group/dropset). */
+type ValueField = Exclude<ItemField, "params" | "group" | "dropset">;
+
+function fmtVal(f: ValueField, v: ItemSnapshot[ValueField]): string {
   if (v === null || v === undefined || v === "") return "—";
   if (f === "weightKg") return `${v} kg`;
   if (f === "restSeconds") return `${v}s`;
@@ -49,11 +54,12 @@ function exName(names: Record<string, string>, id: string): string {
 export function describeEntry(e: DiffEntry, names: Record<string, string>): string {
   switch (e.kind) {
     case "changed": {
-      const parts = (e.fields ?? []).map((f) =>
-        f === "params"
-          ? "doelwaarden bijgewerkt"
-          : `${FIELD_LABEL[f]} ${fmtVal(f, e.before?.[f] ?? null)} → ${fmtVal(f, e.after?.[f] ?? null)}`
-      );
+      const bundled = new Set<ItemField>(["params", "group", "dropset"]);
+      const parts = (e.fields ?? []).map((f) => {
+        if (bundled.has(f)) return `${FIELD_LABEL[f]} bijgewerkt`;
+        const vf = f as ValueField;
+        return `${FIELD_LABEL[vf]} ${fmtVal(vf, e.before?.[vf] ?? null)} → ${fmtVal(vf, e.after?.[vf] ?? null)}`;
+      });
       return `${exName(names, e.exerciseId)}: ${parts.join(", ")}`;
     }
     case "replaced":

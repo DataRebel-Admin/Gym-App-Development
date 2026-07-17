@@ -11,6 +11,7 @@ import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
 import { notifyMemberSchemaReviewed } from "@/lib/member-schema-notify";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
+import { isGroupType, clampRounds, clampDropsetCount } from "@/lib/exercise-groups";
 import { isTrainingGoal } from "@/lib/training-goals";
 import { parseBadges } from "@/lib/schema-badges";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
@@ -40,6 +41,18 @@ const itemSchema = z.object({
   exerciseType: z.string().min(1),
   values: z.record(z.string(), z.string()).default({}),
   notes: z.string().trim().max(280).nullable().optional(),
+  // Per-lid coach-boodschap (alleen op lid-schema's; op library-templates leeg).
+  memberNote: z.string().trim().max(500).nullable().optional(),
+  // Groeperen (superset/giant/circuit/AMRAP) — velden zijn per groepslid gelijk.
+  groupId: z.string().trim().max(64).nullable().optional(),
+  groupType: z.string().trim().max(20).nullable().optional(),
+  groupOrder: z.coerce.number().int().min(0).max(60).optional(),
+  groupRounds: z.coerce.number().int().min(1).max(50).nullable().optional(),
+  groupRestSeconds: z.coerce.number().int().min(0).max(3600).nullable().optional(),
+  groupLabel: z.string().trim().max(60).nullable().optional(),
+  groupTimeCapSeconds: z.coerce.number().int().min(0).max(36000).nullable().optional(),
+  // Dropset (zelfde oefening, gewicht direct omlaag) — aantal drops.
+  dropsetCount: z.coerce.number().int().min(0).max(10).nullable().optional(),
 });
 const daySchema = z.object({
   name: z.string().trim().min(1).max(60),
@@ -47,6 +60,35 @@ const daySchema = z.object({
   items: z.array(itemSchema).max(50),
 });
 const daysSchema = z.array(daySchema).max(14);
+
+type ItemInput = z.infer<typeof itemSchema>;
+
+/**
+ * Normaliseer de groep-/dropset-velden van een editor-item naar DB-kolommen.
+ * Een groep telt alleen mee als er zowel een `groupId` als een geldig `groupType`
+ * is (anders losstaand). Grenzen worden server-side afgedwongen — de client wordt
+ * nooit vertrouwd. Zie lib/exercise-groups.ts.
+ */
+function groupColumnsFromItem(it: ItemInput) {
+  const validType = isGroupType(it.groupType) ? it.groupType : null;
+  const grouped = Boolean(it.groupId && validType);
+  return {
+    groupId: grouped ? (it.groupId ?? "").trim() || null : null,
+    groupType: grouped ? validType : null,
+    groupOrder: grouped ? it.groupOrder ?? 0 : 0,
+    groupRounds: grouped ? clampRounds(it.groupRounds ?? null) : null,
+    groupRestSeconds:
+      grouped && it.groupRestSeconds != null
+        ? Math.max(0, Math.min(3600, it.groupRestSeconds))
+        : null,
+    groupLabel: grouped ? it.groupLabel?.trim() || null : null,
+    groupTimeCapSeconds:
+      grouped && it.groupTimeCapSeconds != null
+        ? Math.max(0, Math.min(36000, it.groupTimeCapSeconds))
+        : null,
+    dropsetCount: clampDropsetCount(it.dropsetCount ?? null),
+  };
+}
 
 /** Valideer dat alle exerciseIds tot deze tenant horen. */
 async function assertExercisesInTenant(tenantId: string, ids: string[]) {
@@ -143,6 +185,8 @@ export async function saveSchema(
                 tempo: cols.tempo,
                 params: cols.params ?? undefined,
                 notes: it.notes?.trim() ? it.notes.trim() : null,
+                memberNote: it.memberNote?.trim() ? it.memberNote.trim() : null,
+                ...groupColumnsFromItem(it),
               };
             }),
           },
@@ -233,9 +277,32 @@ type SourceTemplate = {
       tempo: string | null;
       params: Prisma.JsonValue | null;
       notes: string | null;
+      memberNote: string | null;
+      groupId: string | null;
+      groupType: string | null;
+      groupOrder: number;
+      groupRounds: number | null;
+      groupRestSeconds: number | null;
+      groupLabel: string | null;
+      groupTimeCapSeconds: number | null;
+      dropsetCount: number | null;
     }[];
   }[];
 };
+
+/** Kopieer de groep-/dropset-kolommen 1-op-1 (voor klonen/dupliceren). */
+function copyGroupColumns(it: SourceTemplate["days"][number]["items"][number]) {
+  return {
+    groupId: it.groupId,
+    groupType: it.groupType,
+    groupOrder: it.groupOrder,
+    groupRounds: it.groupRounds,
+    groupRestSeconds: it.groupRestSeconds,
+    groupLabel: it.groupLabel,
+    groupTimeCapSeconds: it.groupTimeCapSeconds,
+    dropsetCount: it.dropsetCount,
+  };
+}
 
 const sourceInclude = {
   days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } },
@@ -305,6 +372,8 @@ async function cloneToAssignment(
             tempo: it.tempo,
             params: it.params ?? undefined,
             notes: it.notes,
+            // memberNote bewust NIET meegekloond uit de master — per lid vers.
+            ...copyGroupColumns(it),
           })),
         },
       },
@@ -603,6 +672,8 @@ export async function duplicateTemplate(formData: FormData) {
               tempo: it.tempo,
               params: it.params ?? undefined,
               notes: it.notes,
+              memberNote: it.memberNote,
+              ...copyGroupColumns(it),
             })),
           },
         },
@@ -853,9 +924,35 @@ function itemDataFromFields(
       case "notes":
         data.notes = after.notes;
         break;
+      case "group":
+        data.groupId = after.groupId;
+        data.groupType = after.groupType;
+        data.groupOrder = after.groupOrder;
+        data.groupRounds = after.groupRounds;
+        data.groupRestSeconds = after.groupRestSeconds;
+        data.groupLabel = after.groupLabel;
+        data.groupTimeCapSeconds = after.groupTimeCapSeconds;
+        break;
+      case "dropset":
+        data.dropsetCount = after.dropsetCount;
+        break;
     }
   }
   return data;
+}
+
+/** Groep/dropset-kolommen uit een master-snapshot (voor added/replaced sync). */
+function groupColumnsFromSnapshot(s: ItemSnapshot) {
+  return {
+    groupId: s.groupId,
+    groupType: s.groupType,
+    groupOrder: s.groupOrder,
+    groupRounds: s.groupRounds,
+    groupRestSeconds: s.groupRestSeconds,
+    groupLabel: s.groupLabel,
+    groupTimeCapSeconds: s.groupTimeCapSeconds,
+    dropsetCount: s.dropsetCount,
+  };
 }
 
 /**
@@ -898,6 +995,7 @@ async function applyMasterEntry(
         tempo: e.after.tempo,
         params: e.after.params ?? undefined,
         notes: e.after.notes,
+        ...groupColumnsFromSnapshot(e.after),
       },
     });
     return;
@@ -930,6 +1028,7 @@ async function applyMasterEntry(
         tempo: e.after.tempo,
         params: e.after.params ?? undefined,
         notes: e.after.notes,
+        ...groupColumnsFromSnapshot(e.after),
       },
     });
   } else if (e.kind === "removed") {
