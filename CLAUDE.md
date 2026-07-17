@@ -467,6 +467,45 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
 - **Tests**: `tests/session-overrides.test.ts` (`node:test` via tsx, `npm test` — geen nieuwe
   dep). i18n-keys onder `member.active`/`member.schema` (nl+en; fy valt terug op nl).
 
+### Groeperen (supersets/giant/circuit/AMRAP), dropsets & per-lid notitie
+
+Feilloze schema-authoring: een coach groepeert oefeningen (superset, giant/ultra set,
+circuit, AMRAP), markeert dropsets, stelt rust vooraf in (presets) en schrijft per
+oefening een **per-lid** boodschap. Migratie `20260717120000_schema_exercise_groups`
+(**nog toepassen op de DB**: `npx prisma migrate deploy`/`dev`) — alle velden additief +
+nullable op `WorkoutExerciseItem`, dus geen RLS-wijziging.
+
+- **Datamodel (vlak op het item, géén apart groep-model)** — de hele codebase leest items
+  als platte lijst (actieve sessie/PDF/3-weg-diff/klonen). Een "groep" = opeenvolgende items
+  met dezelfde `groupId`. Velden: `groupId`/`groupType` (String, uitbreidbaar zoals
+  `exerciseType`)/`groupOrder`/`groupRounds`/`groupRestSeconds`/`groupLabel`/
+  `groupTimeCapSeconds` (AMRAP) + `dropsetCount`. Groep-niveau-instellingen worden door de
+  editor **consistent op elk groepslid** geschreven (single writer). `memberNote` = per-lid
+  coach-boodschap: alleen op lid-schema's, lid-gericht, **nooit** meegesynct vanuit de master.
+- **Pure kern `lib/exercise-groups.ts`** (géén `server-only`, ook client — idioom
+  `exercise-types.ts`): registry `GROUP_TYPES` + `groupItems()` (adjacency-groepering),
+  `groupSummary`/`groupPositionLabel`, `normalizeGroupColumns` (autoritatieve server-clamp,
+  gedeeld door owner- én member-save), `pickGroupFields`, `REST_PRESETS_SECONDS`. Tests
+  `tests/exercise-groups.test.ts`.
+- **Editor** (`components/schema-editor.tsx`): multi-select → "Groepeer als …"; groep-kop
+  (type/rondes/rust-ná-groep/label/AMRAP-timecap) + A/B/C-badges + ontgroeperen; dropset-toggle,
+  rust-preset-chips + "rust → alle in dag"; `memberNote`-veld via prop `showMemberNote` (aan op
+  lid-schema-pagina's). `serializeEditorDay` normaliseert (groepen < 2 leden self-healen naar
+  losstaand) — gedeeld met de mobiele lid-builder (`member-schema-editor.tsx`, pariteit:
+  dropset + rust-presets + groep-weergave).
+- **Downstream**: `schema-diff.ts` draagt groep/dropset als bundel-velden `"group"`/`"dropset"`
+  (3-weg-sync); `memberNote` valt er bewust buiten. Klonen/dupliceren nemen groep/dropset mee
+  (`cloneToAssignment` laat `memberNote` weg — per lid vers). Member-checklist
+  (`schema-checklist.tsx`) + PDF (`lib/schema-pdf.ts` `buildPdfItems`, gedeeld door beide
+  PDF-routes) tonen groepen/dropset/`memberNote`.
+- **Actieve sessie** (`active-session.tsx` + `lib/active-session-view.ts`): doorlopende lijst
+  met groep-kop + A/B/C-badge; **rust-semantiek** via `startRestFor` — géén rusttimer binnen een
+  superset/circuit, wél `groupRestSeconds` ná de laatste oefening van de ronde. Dropset-hint +
+  `memberNote` (✎) getoond. i18n `member.active.supersetHint/dropsetHint/groupRestAfter` (nl/en/fy).
+- **Bewust (nog) niet**: een volledige ronde-voor-ronde superset-wizard (A1,B1,rust,A2,…) — de
+  tracking blijft continuous-scroll met duidelijke groep-uitleg + rust-timing. Dropset-logging
+  is hint/markering (geen aparte per-drop sub-entries).
+
 ### Spier-heatmap & -analyse (lid)
 
 Een lid ziet op **`/member/muscles`** welke spiergroepen zijn schema traint (body-
