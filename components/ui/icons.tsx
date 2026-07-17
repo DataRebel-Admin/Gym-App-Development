@@ -46,6 +46,7 @@ export {
   Pause,
   RotateCcw,
   Repeat,
+  Layers,
   SkipForward,
   Volume2,
   VolumeX,

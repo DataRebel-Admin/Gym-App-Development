@@ -1085,11 +1085,32 @@ model WorkoutExerciseItem {
   restSeconds Int    @default(60)
   weightKg    Float? // streefgewicht (optioneel)
   tempo       String? // tempo-cadans, bv. "3-1-1" (optioneel)
-  notes       String? // opmerking bij de oefening (optioneel)
+  notes       String? // algemene opmerking bij de oefening (zichtbaar voor elk lid)
+  // Per-lid coach-boodschap bij deze oefening — alleen zinvol op een aan één lid
+  // toegewezen (niet-library) template. Wordt NIET meegesynct vanuit de master
+  // (persoonlijk, zie lib/schema-diff.ts) en is enkel lid-gericht/lid-zichtbaar.
+  memberNote  String? @db.Text
   // Type-specifieke doel-parameters (tijd/afstand/intensiteit/…). Velden die op
   // een kolom mappen (sets/reps/restSeconds/weightKg/tempo) blijven daar; de rest
   // leeft hier. Zie lib/exercise-params.ts (itemColumnsFromParams).
   params      Json?
+
+  // --- Groeperen (superset / giant set / circuit / AMRAP) ---
+  // Opeenvolgende items met dezelfde `groupId` vormen één groep. NULL = losstaand.
+  // Vlak op het item gehouden (géén apart model) omdat de hele codebase items als
+  // platte lijst leest; zie lib/exercise-groups.ts. Groep-niveau-instellingen
+  // (rounds/rust-ná-groep/label/timecap) worden consistent op elk groepslid
+  // geschreven door de editor (single writer).
+  groupId             String? // gedeelde groep-sleutel (cuid uit de editor)
+  groupType           String? // "superset" | "giant" | "circuit" | "amrap"
+  groupOrder          Int     @default(0) // positie binnen de groep (A/B/C…)
+  groupRounds         Int? // aantal rondes door de groep (circuit/AMRAP/superset)
+  groupRestSeconds    Int? // rust ná één ronde van de groep (binnen groep = 0)
+  groupLabel          String? // optioneel label ("Superset A", "Finisher")
+  groupTimeCapSeconds Int? // AMRAP-tijdslimiet in seconden
+  // Dropset: zelfde oefening, gewicht direct omlaag zonder rust. NULL/0 = geen
+  // dropset; N = aantal opeenvolgende drops die het lid logt.
+  dropsetCount        Int?
 
   tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
