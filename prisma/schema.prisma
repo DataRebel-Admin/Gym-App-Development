@@ -506,6 +506,18 @@ model AiUsage {
 
 // --- Groepslessen / rooster (prompt 12) ---
 
+// Levenscyclus van een les-aanmelding. Uitschrijven is een status-overgang
+// (ENROLLED → CANCELLED), géén hard delete — de rij blijft bestaan voor
+// aanwezigheids-/no-show-analytics. Capaciteit telt alleen ENROLLED + ATTENDED
+// (lib/class-attendance.ts). ATTENDED/NO_SHOW worden ná de les gezet: door
+// staff (aanwezigheidspaneel) of automatisch (no-show-cron, 12u na endsAt).
+enum EnrollmentStatus {
+  ENROLLED
+  CANCELLED
+  ATTENDED
+  NO_SHOW
+}
+
 model GroupClass {
   id              String   @id @default(cuid())
   tenantId        String
@@ -547,6 +559,14 @@ model ClassEnrollment {
   userId     String
   enrolledAt DateTime @default(now())
 
+  // Aanwezigheid/no-show (zie enum-commentaar hierboven). Her-inschrijven na
+  // uitschrijven = update CANCELLED → ENROLLED op dezelfde rij (uniek per
+  // sessie+lid blijft). `markedById` = wie de aanwezigheid markeerde (geen FK —
+  // attributie, zoals WorkoutSession.conductedById; null = automatisch/cron).
+  status          EnrollmentStatus @default(ENROLLED)
+  statusChangedAt DateTime?
+  markedById      String?
+
   tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -555,6 +575,7 @@ model ClassEnrollment {
   @@unique([sessionId, userId])
   @@index([tenantId])
   @@index([userId])
+  @@index([sessionId, status])
 }
 
 model User {

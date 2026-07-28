@@ -1,6 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
+import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
 
 const DAY_MS = 86_400_000;
 
@@ -159,7 +160,10 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
     select: {
       startsAt: true,
       groupClass: { select: { name: true, maxParticipants: true } },
-      _count: { select: { enrollments: true } },
+      // Capaciteit telt alleen actieve statussen (lib/class-attendance.ts).
+      _count: {
+        select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
+      },
     },
   });
   const classOccupancy: ClassOccupancy[] = upcoming.map((c) => ({

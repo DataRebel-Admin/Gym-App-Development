@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { areClassesEnabled } from "@/lib/classes";
+import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
 
@@ -29,7 +30,10 @@ export default async function RoosterPage() {
       take: 25,
       include: {
         groupClass: { select: { name: true, maxParticipants: true } },
-        _count: { select: { enrollments: true } },
+        // Capaciteit telt alleen actieve statussen (lib/class-attendance.ts).
+        _count: {
+          select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
+        },
       },
     }),
   ]);

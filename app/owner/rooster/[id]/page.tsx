@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requirePermission } from "@/lib/staff";
 import { areClassesEnabled } from "@/lib/classes";
+import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { AddSessionForm } from "../class-forms";
 import { deleteClass, deleteSession } from "../actions";
@@ -39,7 +40,12 @@ export default async function ClassDetailPage({
     include: {
       sessions: {
         orderBy: { startsAt: "asc" },
-        include: { _count: { select: { enrollments: true } } },
+        // Capaciteit telt alleen actieve statussen (lib/class-attendance.ts).
+        include: {
+          _count: {
+            select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
+          },
+        },
       },
     },
   });

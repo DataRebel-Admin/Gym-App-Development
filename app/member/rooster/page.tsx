@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { requireMember } from "@/lib/member";
 import { areClassesEnabled } from "@/lib/classes";
 import { prisma } from "@/lib/db";
+import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -124,8 +125,11 @@ export default async function MemberRoosterPage() {
     take: 40,
     include: {
       groupClass: { select: { name: true, instructorName: true, maxParticipants: true } },
-      _count: { select: { enrollments: true } },
-      enrollments: { where: { userId: member.id }, select: { id: true } },
+      // Capaciteit telt alleen actieve statussen (afgemeld/no-show bezet geen plek).
+      _count: {
+        select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
+      },
+      enrollments: { where: { userId: member.id, status: "ENROLLED" }, select: { id: true } },
     },
   });
 

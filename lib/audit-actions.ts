@@ -15,6 +15,7 @@ export type AuditCategory =
   | "machines"
   | "measurements"
   | "engagement"
+  | "schedule"
   | "tenant"
   | "email"
   | "support"
@@ -48,6 +49,7 @@ export const CATEGORY_META: Record<
   machines: { label: "Machines", icon: "⚙️", tone: "neutral" },
   measurements: { label: "Metingen", icon: "📏", tone: "accent" },
   engagement: { label: "Betrokkenheid", icon: "🏆", tone: "success" },
+  schedule: { label: "Rooster", icon: "📅", tone: "accent" },
   tenant: { label: "Tenant", icon: "🏢", tone: "neutral" },
   email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
   support: { label: "Support", icon: "🛟", tone: "accent" },
@@ -78,6 +80,8 @@ export function categoryFromAction(action: string): AuditCategory {
     case "milestone":
     case "passport":
       return "engagement";
+    case "class":
+      return "schedule";
     case "auth":
       return "auth";
     case "email":
@@ -294,6 +298,18 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "members", label: "PT-sessie geannuleerd", icon: "✖️", tone: "warning",
     sentence: ({ actor, meta }) =>
       `${actor} annuleerde een training voor ${s(meta, "member") ?? "een lid"}`,
+  },
+
+  // --- Rooster / lessen (aanwezigheid) ---
+  "class.attendance.mark": {
+    category: "schedule", label: "Aanwezigheid gemarkeerd", icon: "✅", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} markeerde ${s(meta, "member") ?? "een deelnemer"} als ${s(meta, "status") === "NO_SHOW" ? "no-show" : "aanwezig"} bij '${s(meta, "class") ?? "een les"}'`,
+  },
+  "class.attendance.noshow": {
+    category: "schedule", label: "No-shows gemarkeerd (automatisch)", icon: "👻", tone: "warning",
+    sentence: ({ meta }) =>
+      `${s(meta, "count") ?? "0"} aanmelding(en) automatisch als no-show gemarkeerd`,
   },
   "schema.pdf.export": {
     category: "schemas", label: "PDF geëxporteerd", icon: "📄", tone: "neutral",
