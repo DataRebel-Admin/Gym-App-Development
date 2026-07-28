@@ -982,6 +982,10 @@
         "title": "500 trainingen",
         "description": "Vijfhonderd trainingen. Een ware veteraan."
       },
+      "training_home_base": {
+        "title": "Thuisbasis",
+        "description": "25 trainingen op één en dezelfde vestiging."
+      },
       "consistency_streak_3": {
         "title": "3 dagen op rij",
         "description": "Drie dagen achter elkaar getraind."

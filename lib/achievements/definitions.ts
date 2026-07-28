@@ -30,6 +30,7 @@ import {
   type LucideIcon,
 } from "@/components/ui/icons";
 import type { Rarity } from "@/lib/achievements/rarity";
+import type { AchievementScope } from "@/lib/achievements/scope";
 
 /** Categorieën — bepalen de secties op de Trofeeën-pagina. */
 export type AchievementCategory =
@@ -117,7 +118,20 @@ export type AchievementDef = {
   hidden?: boolean;
   /** Verschijnt ook als stempel in het Gym Passport. */
   passport?: boolean;
+  /**
+   * Trofee-scope (zie lib/achievements/scope.ts). Weggelaten = ORGANIZATION
+   * (volledige historie, eenmalig per lidmaatschap). LOCATION telt per
+   * vestiging en is per vestiging opnieuw behaalbaar; GLOBAL is platform-
+   * gedefinieerd en locatie-agnostisch (telt als ORGANIZATION — cross-
+   * organisatie-identiteit bestaat bewust niet).
+   */
+  scope?: AchievementScope;
 };
+
+/** Effectieve scope van een definitie (default ORGANIZATION). */
+export function scopeOf(def: AchievementDef): AchievementScope {
+  return def.scope ?? "ORGANIZATION";
+}
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   // --- Training (aantal voltooide trainingen) ---
@@ -127,6 +141,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "training.count_100", category: "training", rarity: "gold", title: "100 trainingen", description: "Honderd trainingen — je bent een vaste waarde.", icon: Award, metric: "totalWorkouts", threshold: 100, unit: "trainingen", passport: true },
   { key: "training.count_250", category: "training", rarity: "platinum", title: "250 trainingen", description: "Tweehonderdvijftig trainingen. Indrukwekkend volhouden.", icon: Crown, metric: "totalWorkouts", threshold: 250, unit: "trainingen" },
   { key: "training.count_500", category: "training", rarity: "diamond", title: "500 trainingen", description: "Vijfhonderd trainingen. Een ware veteraan.", icon: Gem, metric: "totalWorkouts", threshold: 500, unit: "trainingen", passport: true },
+  // LOCATION-scope: telt alleen trainingen op één vestiging en is per vestiging
+  // opnieuw behaalbaar (zie lib/achievements/scope.ts).
+  { key: "training.home_base", category: "training", rarity: "silver", title: "Thuisbasis", description: "25 trainingen op één en dezelfde vestiging.", icon: Star, metric: "totalWorkouts", threshold: 25, unit: "trainingen", scope: "LOCATION" },
 
   // --- Consistentie (korte dag-streaks + getrainde weken + lidmaatschap) ---
   // NB: dag-streaks tellen aaneengesloten kalenderdagen. Omdat sporters rustdagen
@@ -166,7 +183,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // --- Community (profiel + eerste stappen) ---
   // NB: "eerste meting" hoort bij de categorie Doelen (goals.first_measurement) —
   // hier bewust géén duplicaat van diezelfde metric/drempel.
-  { key: "community.profile_complete", category: "community", rarity: "bronze", title: "Profiel compleet", description: "Je profiel volledig ingevuld.", icon: CheckCircle2, metric: "profileComplete", threshold: 1, passport: true },
+  { key: "community.profile_complete", category: "community", rarity: "bronze", title: "Profiel compleet", description: "Je profiel volledig ingevuld.", icon: CheckCircle2, metric: "profileComplete", threshold: 1, passport: true, scope: "GLOBAL" },
   { key: "community.first_schema_done", category: "community", rarity: "bronze", title: "Eerste schema afgerond", description: "Je eerste trainingsschema volledig doorlopen.", icon: Star, metric: "schemasCompleted", threshold: 1, passport: true },
 ];
 

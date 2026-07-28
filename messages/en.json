@@ -982,6 +982,10 @@
         "title": "500 workouts",
         "description": "Five hundred workouts. A true veteran."
       },
+      "training_home_base": {
+        "title": "Home base",
+        "description": "25 workouts at one and the same location."
+      },
       "consistency_streak_3": {
         "title": "3 days in a row",
         "description": "Trained three days in a row."

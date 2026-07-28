@@ -7,12 +7,15 @@ import {
   CATEGORY_META,
   CATEGORY_ORDER,
   progressOf,
+  scopeOf,
   type AchievementCategory,
   type AchievementDef,
 } from "@/lib/achievements/definitions";
+import { locationScopeKeyFor } from "@/lib/achievements/scope";
 import { rarityMeta, type Rarity, RARITY_META } from "@/lib/achievements/rarity";
 import { getAchievementTranslator, type AchievementTranslator } from "@/lib/achievements/i18n";
-import { computeMemberMetrics, type MemberMetrics } from "@/lib/achievements/metrics";
+import { computeMemberMetrics, computeMetrics, type MemberMetrics } from "@/lib/achievements/metrics";
+import { loadMemberSessions, type MemberSessionRow } from "@/lib/member-stats";
 import { notifyAchievementsEarned } from "@/lib/achievements/notify";
 import { getHideAchievements } from "@/lib/user-preferences";
 
@@ -31,11 +34,15 @@ async function requestOrigin(): Promise<string> {
 
 /**
  * Evalueer alle achievements voor een lid en ken nieuw behaalde toe. Idempotent:
- * de `@@unique([tenantId, userId, key])`-constraint + `skipDuplicates` voorkomen
- * dubbele toekenning, óók bij gelijktijdige evaluaties. Best-effort — een fout
- * mag de onderliggende actie (training afronden, meting toevoegen) nooit breken.
+ * de `@@unique([tenantId, userId, key, locationScopeKey])`-constraint +
+ * `skipDuplicates` voorkomen dubbele toekenning, óók bij gelijktijdige
+ * evaluaties. ORGANIZATION/GLOBAL-definities tellen over de volledige historie
+ * (locationScopeKey ""); LOCATION-definities worden per vestiging-met-activiteit
+ * geëvalueerd en zijn per vestiging behaalbaar. Best-effort — een fout mag de
+ * onderliggende actie (training afronden, meting toevoegen) nooit breken.
  *
- * @returns de nieuw toegekende definities (voor celebration/UI).
+ * @returns de nieuw toegekende definities (voor celebration/UI; een LOCATION-def
+ * kan meermaals voorkomen — één per vestiging waar hij zojuist behaald is).
  */
 export async function evaluateAndAward(
   memberId: string,
@@ -53,28 +60,74 @@ export async function evaluateAndAward(
       computeMemberMetrics(memberId, tenantId),
       prisma.earnedAchievement.findMany({
         where: { tenantId, userId: memberId },
-        select: { key: true },
+        select: { key: true, locationScopeKey: true },
       }),
     ]);
-    const earnedKeys = new Set(earnedRows.map((r) => r.key));
+    // Behaald per scope-eenheid: "<key>|<locationScopeKey>" ("" = org/global).
+    const earnedUnits = new Set(earnedRows.map((r) => `${r.key}|${r.locationScopeKey}`));
+
+    const orgDefs = ACHIEVEMENTS.filter((d) => scopeOf(d) !== "LOCATION");
+    const locationDefs = ACHIEVEMENTS.filter((d) => scopeOf(d) === "LOCATION");
 
     const newly: AchievementDef[] = [];
-    for (const def of ACHIEVEMENTS) {
-      if (earnedKeys.has(def.key)) continue;
-      const value = metrics[def.metric] ?? 0;
-      if (value >= def.threshold) newly.push(def);
-    }
-    if (newly.length === 0) return [];
+    const rows: {
+      key: string;
+      category: string;
+      rarity: string;
+      value: number;
+      locationId: string | null;
+      locationScopeKey: string;
+    }[] = [];
 
-    await prisma.earnedAchievement.createMany({
-      data: newly.map((def) => ({
-        tenantId,
-        userId: memberId,
+    for (const def of orgDefs) {
+      if (earnedUnits.has(`${def.key}|`)) continue;
+      const value = metrics[def.metric] ?? 0;
+      if (value < def.threshold) continue;
+      newly.push(def);
+      rows.push({
         key: def.key,
         category: def.category,
         rarity: def.rarity,
-        value: metrics[def.metric] ?? 0,
-      })),
+        value,
+        locationId: null,
+        locationScopeKey: locationScopeKeyFor(scopeOf(def)),
+      });
+    }
+
+    // LOCATION-scope: per vestiging waar het lid afgeronde sessies heeft.
+    if (locationDefs.length > 0) {
+      const locationGroups = await prisma.workoutSession.groupBy({
+        by: ["locationId"],
+        where: { tenantId, userId: memberId, endedAt: { not: null } },
+      });
+      for (const g of locationGroups) {
+        const pending = locationDefs.filter(
+          (def) => !earnedUnits.has(`${def.key}|${g.locationId}`)
+        );
+        if (pending.length === 0) continue;
+        const locMetrics = await computeMemberMetrics(memberId, tenantId, {
+          locationId: g.locationId,
+        });
+        for (const def of pending) {
+          const value = locMetrics[def.metric] ?? 0;
+          if (value < def.threshold) continue;
+          newly.push(def);
+          rows.push({
+            key: def.key,
+            category: def.category,
+            rarity: def.rarity,
+            value,
+            locationId: g.locationId,
+            locationScopeKey: locationScopeKeyFor("LOCATION", g.locationId),
+          });
+        }
+      }
+    }
+
+    if (newly.length === 0) return [];
+
+    await prisma.earnedAchievement.createMany({
+      data: rows.map((r) => ({ tenantId, userId: memberId, ...r })),
       skipDuplicates: true,
     });
 
@@ -204,14 +257,48 @@ export async function getAchievementsView(
       select: { key: true, earnedAt: true },
     }),
   ]);
-  const earnedAt = new Map(earnedRows.map((r) => [r.key, r.earnedAt]));
+  // Meerdere rijen per key mogelijk (LOCATION-scope: één per vestiging) —
+  // "behaald" zodra minstens één vestiging 'm heeft; de vroegste datum telt.
+  const earnedAt = new Map<string, Date>();
+  for (const r of earnedRows) {
+    const prev = earnedAt.get(r.key);
+    if (!prev || r.earnedAt < prev) earnedAt.set(r.key, r.earnedAt);
+  }
   const tr = await getAchievementTranslator();
+
+  // LOCATION-defs tonen voortgang op de béste vestiging (org-brede metrics
+  // zouden "100% maar vergrendeld" tonen bij spreiding over vestigingen).
+  // Afgeleid uit de al-gecachete sessierijen — geen extra queries.
+  const locationDefs = ACHIEVEMENTS.filter((d) => scopeOf(d) === "LOCATION");
+  const locationCurrent = new Map<string, number>();
+  if (locationDefs.length > 0) {
+    const sessions = (await loadMemberSessions(memberId, tenantId)).filter(
+      (s) => s.endedAt != null
+    );
+    const byLocation = new Map<string, MemberSessionRow[]>();
+    for (const s of sessions) {
+      const arr = byLocation.get(s.locationId);
+      if (arr) arr.push(s);
+      else byLocation.set(s.locationId, [s]);
+    }
+    const perLocationMetrics = [...byLocation.values()].map((rows) =>
+      computeMetrics(rows, null, [], [], 0)
+    );
+    for (const def of locationDefs) {
+      const max = perLocationMetrics.reduce((m, lm) => Math.max(m, lm[def.metric] ?? 0), 0);
+      locationCurrent.set(def.key, max);
+    }
+  }
 
   const items: AchievementItem[] = [];
   for (const def of ACHIEVEMENTS) {
     const earnedDate = earnedAt.get(def.key) ?? null;
     if (def.hidden && earnedDate == null) continue;
-    items.push(buildAchievementItem(def, metrics[def.metric] ?? 0, earnedDate, tr));
+    const current =
+      scopeOf(def) === "LOCATION"
+        ? locationCurrent.get(def.key) ?? 0
+        : metrics[def.metric] ?? 0;
+    items.push(buildAchievementItem(def, current, earnedDate, tr));
   }
 
   const byCategory = CATEGORY_ORDER.map((category) => {
@@ -277,6 +364,9 @@ export function nextUpFromMetrics(
   const items: AchievementItem[] = [];
   for (const def of ACHIEVEMENTS) {
     if (def.hidden || earnedKeys.has(def.key)) continue; // alleen zichtbare, nog-vergrendelde
+    // LOCATION-defs vergen per-vestiging-metrics — het bulk-pad rekent org-breed
+    // en zou de voortgang overschatten; bewust overgeslagen in "bijna behaald".
+    if (scopeOf(def) === "LOCATION") continue;
     const item = buildAchievementItem(def, metrics[def.metric] ?? 0, null, tr);
     if (item.progress > 0 && item.progress < 1) items.push(item);
   }

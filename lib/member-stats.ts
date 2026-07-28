@@ -77,6 +77,7 @@ export type MemberSessionRow = {
   id: string;
   startedAt: Date;
   endedAt: Date | null;
+  locationId: string;
   performanceEntries: {
     reps: number;
     weightKg: number;
@@ -110,6 +111,7 @@ export const loadMemberSessions = cache(
         id: true,
         startedAt: true,
         endedAt: true,
+        locationId: true,
         performanceEntries: {
           select: {
             reps: true,

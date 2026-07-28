@@ -76,8 +76,10 @@ type MetricsMeasurementInput = { bodyFatPct: number | null; muscleMassKg: number
  * Zuivere metric-berekening: dezelfde math voor één lid ([[computeMemberMetrics]]) en
  * voor een batch ([[computeMemberMetricsBulk]]). `sessions` moet **alleen afgeronde**
  * sessies bevatten (callers filteren vooraf). Géén I/O — puur in-memory.
+ * Geëxporteerd zodat de achievements-view per-vestiging sessie-metrics kan
+ * afleiden uit de al-gecachete sessierijen (zonder extra queries).
  */
-function computeMetrics(
+export function computeMetrics(
   sessions: readonly MetricsSessionInput[],
   user: MetricsUserInput,
   goals: readonly { achieved: boolean }[],
@@ -174,7 +176,8 @@ const USER_METRICS_SELECT = {
 
 export async function computeMemberMetrics(
   memberId: string,
-  tenantId: string
+  tenantId: string,
+  opts: { locationId?: string } = {}
 ): Promise<MemberMetrics> {
   const [sessions, user, goals, measurements, archivedSchemas] = await Promise.all([
     // Gedeelde, per-request gecachete historie-loader (zie lib/member-stats.ts):
@@ -192,8 +195,15 @@ export async function computeMemberMetrics(
     prisma.assignedWorkout.count({ where: { tenantId, userId: memberId, status: "ARCHIVED" } }),
   ]);
 
+  // Vestiging-scope (LOCATION-trofeeën): alleen de sessie-metrics versmallen tot
+  // die vestiging. Niet-sessie-metrics (doelen/metingen/profiel/lidmaatschap)
+  // blijven org-breed — LOCATION-definities horen op sessie-metrics te drempelen.
+  const scoped = opts.locationId
+    ? sessions.filter((s) => s.locationId === opts.locationId)
+    : sessions;
+
   return computeMetrics(
-    sessions.filter((s) => s.endedAt != null),
+    scoped.filter((s) => s.endedAt != null),
     user,
     goals,
     measurements,
