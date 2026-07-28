@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { requirePermission } from "@/lib/staff";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { audit } from "@/lib/audit";
 import { createInvitation } from "@/lib/invitation";
 import { notifyInApp } from "@/lib/notifications";
@@ -146,7 +147,16 @@ export async function addMember(
   if (existing) return { error: "Dit e-mailadres bestaat al in deze sportschool" };
 
   const user = await prisma.user.create({
-    data: { tenantId: owner.tenantId, email, name: name || null, role, active: true },
+    data: {
+      tenantId: owner.tenantId,
+      email,
+      name: name || null,
+      role,
+      active: true,
+      // Thuisvestiging: de actieve vestiging van de admin (device-cookie),
+      // anders de default-vestiging (zie lib/location-resolve.ts).
+      homeLocationId: await resolveActiveLocationId(owner.tenantId),
+    },
   });
   await audit("user.create", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: user.id, metadata: { email, role } });
 

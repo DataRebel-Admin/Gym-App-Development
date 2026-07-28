@@ -51,6 +51,8 @@ export async function audit(
   opts: {
     actor: { id?: string | null; email?: string | null; role?: Role | null };
     tenantId?: string | null;
+    /** Vestiging waarop de actie betrekking had (geen FK — forensisch, zoals tenantId). */
+    locationId?: string | null;
     targetType?: string;
     targetId?: string;
     status?: AuditStatus;
@@ -77,6 +79,7 @@ export async function audit(
         actorEmail: opts.actor.email ?? null,
         actorRole: opts.actor.role ?? null,
         tenantId: opts.tenantId ?? null,
+        locationId: opts.locationId ?? null,
         targetType: opts.targetType,
         targetId: opts.targetId,
         oldValue: opts.oldValue,

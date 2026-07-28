@@ -11,6 +11,7 @@ import { hashPassword } from "@/lib/security";
 import { passwordMeetsPolicy } from "@/lib/password-policy";
 import { mintLoginChallenge } from "@/lib/login-challenge";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
+import { getDefaultLocationId } from "@/lib/locations";
 import { createInvitation } from "@/lib/invitation";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { welcomeMessage } from "@/lib/email/messages";
@@ -103,6 +104,8 @@ export async function activateAccount(
         active: true,
         passwordHash,
         emailVerified: new Date(),
+        // Thuisvestiging: default-vestiging; de owner kan 'm daarna wijzigen.
+        homeLocationId: await getDefaultLocationId(invite.tenantId),
       },
       select: { name: true },
     });

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { audit } from "@/lib/audit";
 import { createInvitation } from "@/lib/invitation";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { importRowSchema, type ImportRowInput } from "@/lib/member-import";
 
 async function origin(): Promise<string> {
@@ -61,6 +62,10 @@ export async function importMembersChunk(rows: ImportRowInput[]): Promise<ChunkR
     existingMembers.map((u) => u.memberNumber).filter((m): m is string => Boolean(m))
   );
 
+  // Thuisvestiging voor de hele batch: de actieve vestiging van de admin
+  // (device-cookie), anders de default-vestiging.
+  const importHomeLocationId = await resolveActiveLocationId(owner.tenantId);
+
   const seenEmail = new Set<string>();
   const seenMember = new Set<string>();
   const data: Prisma.UserCreateManyInput[] = [];
@@ -83,6 +88,7 @@ export async function importMembersChunk(rows: ImportRowInput[]): Promise<ChunkR
     const name = `${r.firstName} ${r.lastName}`.trim();
     data.push({
       tenantId: owner.tenantId,
+      homeLocationId: importHomeLocationId,
       email: r.email,
       name: name || null,
       firstName: r.firstName,

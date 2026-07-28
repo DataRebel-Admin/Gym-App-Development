@@ -44,3 +44,11 @@ export const LOCALE_COOKIE = "gymrebel-locale";
  *  cursor reageert (muis-parallax). Per apparaat — net als het thema — zodat de
  *  root-layout 'm no-flash en zonder DB-lees kan toepassen (lib/background-motion.ts). */
 export const BG_PARALLAX_COOKIE = "gymrebel-bg-parallax";
+
+/** Cookie met de per-device gekozen actieve vestiging (Location-id). Onderdeel
+ *  van de sessie-locatie-resolutie: expliciete keuze → deze cookie →
+ *  User.homeLocationId → default-vestiging (zie lib/location-resolve.ts).
+ *  Server-side gevalideerd tegen de actieve vestigingen van de tenant —
+ *  een verlopen/vreemde waarde wordt genegeerd. 1 jaar geldig (patroon
+ *  AUTH_TENANT_COOKIE). */
+export const LOCATION_COOKIE = "gymrebel-location";

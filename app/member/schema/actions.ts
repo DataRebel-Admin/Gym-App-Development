@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireMember } from "@/lib/member";
-import { getDefaultLocationId } from "@/lib/locations";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { isMood } from "@/lib/workout-moods";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import {
@@ -65,7 +65,14 @@ export async function markActiveSchemaSeen(): Promise<void> {
 export async function startSession(formData?: FormData) {
   const member = await requireMember();
   const requestedDayId = formData ? String(formData.get("dayId") ?? "") : "";
-  const locationId = await getDefaultLocationId(member.tenantId);
+  // Vestiging: device-cookie (switcher) → thuisvestiging → default (D8).
+  const me = await prisma.user.findFirst({
+    where: { id: member.id, tenantId: member.tenantId },
+    select: { homeLocationId: true },
+  });
+  const locationId = await resolveActiveLocationId(member.tenantId, {
+    homeLocationId: me?.homeLocationId,
+  });
   const sessionId = await startOrResumeSession(
     { tenantId: member.tenantId, userId: member.id },
     { locationId, requestedDayId }

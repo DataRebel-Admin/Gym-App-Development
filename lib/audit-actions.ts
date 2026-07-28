@@ -300,6 +300,12 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
       `${actor} annuleerde een training voor ${s(meta, "member") ?? "een lid"}`,
   },
 
+  "user.location.switch": {
+    category: "members", label: "Actieve vestiging gewisseld", icon: "📍", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} koos vestiging '${s(meta, "name") ?? "?"}' als actieve vestiging op dit apparaat`,
+  },
+
   // --- Rooster / lessen (aanwezigheid) ---
   "class.attendance.mark": {
     category: "schedule", label: "Aanwezigheid gemarkeerd", icon: "✅", tone: "success",

@@ -195,6 +195,7 @@
       "assignedBy": "Assigned by {trainer}",
       "coachNote": "Coach note",
       "chooseDay": "Choose your training day",
+      "trainingLocation": "Location",
       "startTraining": "Start workout",
       "starting": "Starting workout…",
       "downloadPdf": "Download as PDF",

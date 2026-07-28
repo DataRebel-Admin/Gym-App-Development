@@ -16,6 +16,9 @@ import {
 import { startSession } from "./actions";
 import { StartSessionButton } from "./start-session-button";
 import { MarkSchemaSeen } from "@/components/member/mark-schema-seen";
+import { LocationSwitcher } from "@/components/member/location-switcher";
+import { getTenantLocations } from "@/lib/locations";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { exerciseTypeLabel } from "@/lib/exercise-types";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
@@ -77,7 +80,7 @@ export default async function MemberSchemaPage() {
   // lid hier terugkomt na de app lang gesloten te hebben gehad.
   await enforceSessionTimeout(member.tenantId, member.id);
 
-  const [assignment, t, memberSchemaMode, autoStopped] = await Promise.all([
+  const [assignment, t, memberSchemaMode, autoStopped, locations, me] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getTranslations("member.schema"),
     getMemberSchemaMode(member.tenantId),
@@ -91,7 +94,17 @@ export default async function MemberSchemaPage() {
       orderBy: { autoStoppedAt: "desc" },
       select: { id: true },
     }),
+    getTenantLocations(member.tenantId),
+    prisma.user.findFirst({
+      where: { id: member.id, tenantId: member.tenantId },
+      select: { homeLocationId: true },
+    }),
   ]);
+  // Actieve vestiging (device-cookie → thuisvestiging → default) — de sessie
+  // start hierop; bij multi-vestiging toont de switcher de keuze.
+  const activeLocationId = await resolveActiveLocationId(member.tenantId, {
+    homeLocationId: me?.homeLocationId,
+  });
   const canBuild = memberSchemaMode !== "DISABLED";
   const schema = assignment?.template;
 
@@ -274,6 +287,12 @@ export default async function MemberSchemaPage() {
       ) : (
         <SchemaChecklist items={flatItems} />
       )}
+
+      <LocationSwitcher
+        locations={locations.map((l) => ({ id: l.id, name: l.name }))}
+        activeId={activeLocationId}
+        label={t("trainingLocation")}
+      />
 
       {multiDay ? (
         <div className="mt-2 flex flex-col gap-2">

@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { resolveTrainedMember } from "@/lib/trainer-session";
-import { getDefaultLocationId } from "@/lib/locations";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { isMood } from "@/lib/workout-moods";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import {
@@ -44,9 +45,15 @@ const runPath = (userId: string) => `/owner/schemas/members/${userId}/run`;
 export async function startTrainerSession(userId: string, formData: FormData) {
   const { trainer, member } = await resolveTrainedMember(userId);
   const requestedDayId = String(formData.get("dayId") ?? "");
-  // Sessie-locatie = waar de trainer fysiek staat (fase 5 vervangt de default
-  // door de per-device locatie-resolutie, zie lib/location-resolve.ts).
-  const locationId = await getDefaultLocationId(member.tenantId);
+  // Sessie-locatie = waar de TRAINER fysiek staat: diens device-cookie →
+  // diens thuisvestiging → default (zie lib/location-resolve.ts).
+  const trainerRow = await prisma.user.findFirst({
+    where: { id: trainer.id, tenantId: trainer.tenantId },
+    select: { homeLocationId: true },
+  });
+  const locationId = await resolveActiveLocationId(member.tenantId, {
+    homeLocationId: trainerRow?.homeLocationId,
+  });
   const sessionId = await startOrResumeSession(
     { tenantId: member.tenantId, userId: member.id },
     { locationId, requestedDayId, conductedById: trainer.id }
