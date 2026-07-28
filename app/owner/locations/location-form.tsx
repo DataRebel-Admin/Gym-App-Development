@@ -15,7 +15,19 @@ export type LocationFormData = {
   contactPhone: string | null;
   contactEmail: string | null;
   timezone: string;
+  openingHours: Record<string, string> | null;
 };
+
+// Zelfde dag-sleutels als de tenant-openingstijden (app/account/tenant).
+const DAYS: { key: string; label: string }[] = [
+  { key: "mon", label: "Maandag" },
+  { key: "tue", label: "Dinsdag" },
+  { key: "wed", label: "Woensdag" },
+  { key: "thu", label: "Donderdag" },
+  { key: "fri", label: "Vrijdag" },
+  { key: "sat", label: "Zaterdag" },
+  { key: "sun", label: "Zondag" },
+];
 
 const inputClass =
   "rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-accent";
@@ -92,6 +104,27 @@ export function LocationForm({ location }: { location?: LocationFormData }) {
           />
         </label>
       </div>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm font-semibold text-neutral-900">Openingstijden</legend>
+        <p className="text-xs text-neutral-500">
+          Per vestiging; alles leeg laten = het lid ziet de organisatie-openingstijden.
+        </p>
+        {DAYS.map((d) => (
+          <div key={d.key} className="grid grid-cols-[110px_1fr] items-center gap-3">
+            <label className="text-sm text-neutral-600" htmlFor={`hours_${d.key}`}>
+              {d.label}
+            </label>
+            <input
+              id={`hours_${d.key}`}
+              name={`hours_${d.key}`}
+              defaultValue={location?.openingHours?.[d.key] ?? ""}
+              className={inputClass}
+              placeholder="bv. 06:00–22:00 of Gesloten"
+            />
+          </div>
+        ))}
+      </fieldset>
 
       <label className="flex flex-col gap-1 text-sm text-neutral-700">
         Tijdzone

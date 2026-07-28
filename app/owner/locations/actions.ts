@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -13,6 +14,19 @@ import { firstValidationError } from "@/lib/validation-message";
 // admin-superset; requireOwner dekt dat af — een medewerker komt hier nooit).
 
 export type LocationFormState = { error?: string };
+
+// Zelfde dag-sleutels + verzamel-idioom als de tenant-openingstijden
+// (app/account/actions.ts): inputs heten `hours_<dag>`, lege dagen vallen weg.
+const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+function collectHours(formData: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of DAY_KEYS) {
+    const v = String(formData.get(`hours_${k}`) ?? "").trim();
+    if (v) out[k] = v;
+  }
+  return out;
+}
 
 const locationSchema = z.object({
   id: z.string().optional(),
@@ -55,6 +69,10 @@ export async function saveLocation(
   if (!parsed.success) return { error: await firstValidationError(parsed.error) };
   const d = parsed.data;
 
+  // Openingstijden per vestiging: alle dagen leeg = openingstijden wissen
+  // (het lid ziet dan de organisatie-tijden als vangnet, zie /member/gym).
+  const hours = collectHours(formData);
+
   const data = {
     name: d.name,
     slug: d.slug || null,
@@ -65,6 +83,7 @@ export async function saveLocation(
     contactPhone: d.contactPhone || null,
     contactEmail: d.contactEmail || null,
     timezone: d.timezone,
+    openingHours: Object.keys(hours).length ? hours : Prisma.DbNull,
   };
 
   let locationId = d.id ?? null;

@@ -9,6 +9,10 @@ import { setDefaultLocation, setLocationArchived, setStaffLocationAccess } from 
 
 export const metadata = { title: "Vestiging" };
 
+function asRecord(v: unknown): Record<string, string> | null {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, string>) : null;
+}
+
 /**
  * Vestiging-detail (admin-only): gegevens bewerken, default/archief-beheer en
  * de medewerker-toegangsmatrix. LET OP: de koppeling is RESTRICTIEF — een
@@ -36,6 +40,7 @@ export default async function LocationDetailPage({
         contactPhone: true,
         contactEmail: true,
         timezone: true,
+        openingHours: true,
         isDefault: true,
         archivedAt: true,
       },
@@ -92,7 +97,7 @@ export default async function LocationDetailPage({
         />
       </div>
 
-      <LocationForm location={location} />
+      <LocationForm location={{ ...location, openingHours: asRecord(location.openingHours) }} />
 
       <section className="flex max-w-2xl flex-col gap-3">
         <h2 className="text-lg font-semibold text-neutral-900">Medewerker-toegang</h2>

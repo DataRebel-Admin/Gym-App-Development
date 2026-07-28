@@ -775,8 +775,10 @@ facturatie-/juridisch adres; `Location` draagt het vestigingsadres + `openingHou
 - **Tests**: `tests/location-scope.test.ts` (spec b+c), `tests/location-metrics.test.ts`
   (spec a + TZ + retentie + no-shows), `tests/achievement-scope.test.ts` (spec d),
   `tests/class-attendance.test.ts`.
-- **Bewust (nog) niet**: openingstijden-editor op de vestiging-form (default-vestiging
-  erfde ze van de tenant); vestiging-chips op `/owner/staff` (beheer loopt via de matrix op
+- Openingstijden zijn **per vestiging** bewerkbaar op de vestiging-form (zelfde
+  `hours_<dag>`-idioom als de tenant-form; alles leeg = vestiging-tijden gewist → het lid
+  ziet de organisatie-tijden als vangnet op `/member/gym`).
+- **Bewust (nog) niet**: vestiging-chips op `/owner/staff` (beheer loopt via de matrix op
   het vestiging-detail); een default-vestiging-filter op het member-rooster.
 
 ### Slim onderhoudsbeheer voor machines
