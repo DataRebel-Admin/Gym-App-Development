@@ -1,21 +1,15 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { ChevronRight, Check, Plus } from "@/components/ui/icons";
-import { useToast } from "@/components/ui/toast";
 import { getExerciseType, type ParamField } from "@/lib/exercise-types";
-import {
-  defaultLogInputValues,
-  entryToLogInputValues,
-  type InputValues,
-} from "@/lib/exercise-params";
-import type { ActiveExercise, SessionActions } from "./active-session";
+import type { ActiveExercise, DynRow } from "./active-session";
 
-/** Eén log-veld (mobile-first) voor de live training. */
-function LogField({
+/** Eén log-veld (mobile-first) voor de live training.
+ *  Ook gebruikt door de geleide groep-flow (`group-guided-block.tsx`). */
+export function LogField({
   field,
   value,
   onChange,
@@ -68,101 +62,38 @@ function LogField({
   );
 }
 
-type Row = { values: InputValues; saved: boolean; failed?: boolean };
-
 /**
  * Type-bewuste oefeningkaart voor alle niet-kracht-types tijdens een training.
  * `single`-types (cardio/duur/mobiliteit/stretch/circuit/HIIT/overig) loggen één
  * resultaat; `sets`-types (isometrisch/core) loggen per set. De velden komen uit
  * de registry (logFields) — de sporter ziet alleen wat relevant is.
+ *
+ * Controlled: de rijen leven in `ActiveSession` (net als de kracht-set-state)
+ * zodat de lijst- én de geleide groep-weergave dezelfde data delen; opslaan en
+ * foutafhandeling gebeuren in de parent.
  */
 export function DynamicExerciseBlock({
   exercise,
-  sessionId,
-  saveLog,
-  onDoneChange,
-  onSetDone,
+  rows,
+  onChangeValue,
+  onSaveRow,
+  onAddRow,
 }: {
   exercise: ActiveExercise;
-  sessionId: string;
-  saveLog: SessionActions["saveLog"];
-  onDoneChange: (done: boolean) => void;
-  onSetDone: (restSeconds: number) => void;
+  rows: DynRow[];
+  onChangeValue: (rowIndex: number, fieldId: string, value: string) => void;
+  onSaveRow: (rowIndex: number) => void;
+  onAddRow: () => void;
 }) {
   const t = useTranslations("member.active");
-  const toast = useToast();
   const type = getExerciseType(exercise.exerciseType);
   const TypeIcon = type.icon;
-  const [, startTransition] = useTransition();
-
-  const initialRows = useMemo<Row[]>(() => {
-    const count = type.logModel === "single" ? 1 : Math.max(exercise.sets, 1);
-    return Array.from({ length: count }, (_, i) => {
-      const entry = exercise.entries.find((e) => e.setNumber === i + 1);
-      return entry
-        ? { values: entryToLogInputValues(entry, exercise.exerciseType), saved: true }
-        : { values: defaultLogInputValues(exercise.exerciseType), saved: false };
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const [rows, setRows] = useState<Row[]>(initialRows);
-
-  function reportDone(next: Row[]) {
-    onDoneChange(next.length > 0 && next.every((r) => r.saved));
-  }
-
-  function setValue(idx: number, fieldId: string, v: string) {
-    setRows((prev) => {
-      const next = prev.slice();
-      next[idx] = { values: { ...next[idx].values, [fieldId]: v }, saved: false };
-      reportDone(next);
-      return next;
-    });
-  }
-
-  function saveRow(idx: number) {
-    const row = rows[idx];
-    setRows((prev) => {
-      const next = prev.slice();
-      next[idx] = { ...next[idx], saved: true, failed: false };
-      reportDone(next);
-      return next;
-    });
-    // Catch verplicht: een gooiende transitie sloopt anders de hele sessie-UI.
-    startTransition(async () => {
-      try {
-        const res = await saveLog({
-          sessionId,
-          exerciseId: exercise.exerciseId,
-          setNumber: idx + 1,
-          values: row.values,
-        });
-        if (!res?.ok) throw new Error("log save failed");
-      } catch {
-        setRows((prev) => {
-          const next = prev.slice();
-          next[idx] = { ...next[idx], saved: false, failed: true };
-          reportDone(next);
-          return next;
-        });
-        toast.error(t("logFailed"));
-      }
-    });
-    if (exercise.restSeconds > 0) onSetDone(exercise.restSeconds);
-  }
-
-  function addRow() {
-    setRows((prev) => {
-      const next = [...prev, { values: defaultLogInputValues(exercise.exerciseType), saved: false }];
-      reportDone(next);
-      return next;
-    });
-  }
 
   const isSingle = type.logModel === "single";
+  // In een groep krijgt ook een `single`-type meerdere rijen (één per ronde).
+  const showSetLabels = !isSingle || rows.length > 1;
   const doneCount = rows.filter((r) => r.saved).length;
-  const allDone = doneCount === rows.length;
+  const allDone = rows.length > 0 && doneCount === rows.length;
 
   return (
     <div
@@ -217,7 +148,7 @@ export function DynamicExerciseBlock({
           >
             {row.failed ? (
               <p className="mb-2 text-xs font-medium text-red-600">{t("notSaved")}</p>
-            ) : !isSingle ? (
+            ) : showSetLabels ? (
               <p className="mb-2 text-xs font-semibold text-neutral-500">{t("setLabel", { number: idx + 1 })}</p>
             ) : null}
             <div className="flex flex-wrap items-end gap-2.5">
@@ -226,12 +157,12 @@ export function DynamicExerciseBlock({
                   key={field.id}
                   field={field}
                   value={row.values[field.id] ?? ""}
-                  onChange={(v) => setValue(idx, field.id, v)}
+                  onChange={(v) => onChangeValue(idx, field.id, v)}
                 />
               ))}
               <button
                 type="button"
-                onClick={() => saveRow(idx)}
+                onClick={() => onSaveRow(idx)}
                 aria-pressed={row.saved}
                 className={cn(
                   "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 text-xl font-bold transition-colors active:scale-90",
@@ -239,7 +170,7 @@ export function DynamicExerciseBlock({
                     ? "border-accent bg-accent text-accent-foreground"
                     : "border-neutral-300 text-neutral-300"
                 )}
-                aria-label={isSingle ? t("markDone") : t("saveSet", { number: idx + 1 })}
+                aria-label={isSingle && rows.length === 1 ? t("markDone") : t("saveSet", { number: idx + 1 })}
               >
                 <Check className="size-5" />
               </button>
@@ -248,10 +179,10 @@ export function DynamicExerciseBlock({
         ))}
       </div>
 
-      {!isSingle && rows.length < 20 ? (
+      {showSetLabels && rows.length < 20 ? (
         <button
           type="button"
-          onClick={addRow}
+          onClick={onAddRow}
           className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
         >
           <Plus className="size-4" /> {t("addSet")}

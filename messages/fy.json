@@ -176,7 +176,28 @@
       "retrySave": "Opnij",
       "logFailed": "Resultaat net bewarre — kontrolearje dyn ferbining.",
       "noteFailed": "Notysje net bewarre.",
-      "actionFailed": "Aksje mislearre — probearje opnij."
+      "actionFailed": "Aksje mislearre — probearje opnij.",
+      "guided": {
+        "viewGuided": "Begelaat",
+        "viewList": "List",
+        "roundOf": "Ronde {round} fan {total}",
+        "roundLabel": "Ronde {round}",
+        "roundsDone": "{count, plural, one {# ronde} other {# rondes}} foltôge",
+        "targetReps": "Doel: {reps} werh.",
+        "next": "Hjirnei: {name}",
+        "thenRest": "Hjirnei {seconds}s rêst → ronde {round}",
+        "nextExercise": "Klear → folgjende",
+        "finishRound": "Ronde ôfrûnje",
+        "finishGroup": "Groep ôfrûnje",
+        "passSet": "Trochskowe sûnder te loggen",
+        "allDone": "Groep ôfrûne — sterk dien!",
+        "allSkipped": "Alle oefeningen yn dizze groep binne oerslein.",
+        "amrapStart": "Start timer",
+        "amrapLeft": "oer",
+        "amrapTimeUp": "Tiid om!",
+        "amrapFinish": "AMRAP ôfrûnje",
+        "amrapResume": "Dochs noch in ronde"
+      }
     },
     "scan": {
       "metaTitle": "Scanne",

@@ -7,20 +7,30 @@ import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import { haptic } from "@/lib/haptics";
 import { ExerciseBlock } from "./exercise-block";
 import { DynamicExerciseBlock } from "./dynamic-exercise-block";
+import { GroupGuidedBlock } from "./group-guided-block";
 import { CompletionScreen } from "./completion-screen";
 import { useRestTimer, FloatingTimer } from "./rest-timer";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X, TrendingDown } from "@/components/ui/icons";
+import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X, TrendingDown, Play } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import {
   groupItems,
   groupPositionLabel,
   groupSummary,
+  isRealGroup,
   DEFAULT_GROUP_REST_SECONDS,
   type GroupTypeDef,
+  type ItemGroup,
 } from "@/lib/exercise-groups";
+import { effectiveGuidedRounds } from "@/lib/guided-group";
+import { getExerciseType } from "@/lib/exercise-types";
+import {
+  defaultLogInputValues,
+  entryToLogInputValues,
+  type InputValues,
+} from "@/lib/exercise-params";
 
 /**
  * Server-actions die de actieve sessie muteren, geïnjecteerd door de pagina die
@@ -75,6 +85,11 @@ export type SetValue = {
   saving: boolean;
   failed?: boolean;
 };
+
+/** Lokale staat van één type-bewust logresultaat (niet-kracht). Leeft — net als
+ *  de kracht-set-state — in `ActiveSession`, zodat de lijstweergave en de
+ *  geleide groep-flow dezelfde data delen. */
+export type DynRow = { values: InputValues; saved: boolean; failed?: boolean };
 
 type SetEntry = { setNumber: number; reps: number; weightKg: number; params?: unknown };
 export type PreviousPerformance = {
@@ -147,6 +162,11 @@ function sessionTimerKey(sessionId: string) {
   return `gymrebel-session-timers-${sessionId}`;
 }
 
+/** localStorage-sleutel voor de groepen die in lijst- i.p.v. geleide weergave staan. */
+function guidedViewKey(sessionId: string) {
+  return `gymrebel-session-listview-${sessionId}`;
+}
+
 function fmtClock(totalSec: number) {
   const mm = Math.floor(totalSec / 60);
   const ss = totalSec % 60;
@@ -161,16 +181,47 @@ function emptySets(len: number): SetValue[] {
   return Array.from({ length: Math.max(len, 1) }, emptySet);
 }
 
+function freshDynRows(typeKey: string, count: number): DynRow[] {
+  return Array.from({ length: Math.max(count, 1) }, () => ({
+    values: defaultLogInputValues(typeKey),
+    saved: false,
+  }));
+}
+
+/** "Klaar"-status van een niet-kracht-oefening: alle rijen opgeslagen. */
+function dynExerciseDone(rows: DynRow[] | undefined): boolean {
+  return Boolean(rows && rows.length > 0 && rows.every((r) => r.saved));
+}
+
+/**
+ * Rondetal per originele oefening-id voor échte groepen: in een geleide groep
+ * telt het rondetal als set-aantal, zodat lijst- en geleide weergave dezelfde
+ * rijen tonen (ronde r = setnummer r).
+ */
+function guidedRoundsByOriginal(exercises: ActiveExercise[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const g of groupItems(exercises)) {
+    if (!isRealGroup(g)) continue;
+    const rounds = effectiveGuidedRounds(g, g.items.map((i) => Math.max(i.sets, 1)));
+    for (const it of g.items) map.set(it.originalExerciseId, rounds);
+  }
+  return map;
+}
+
 /**
  * Orkestreert de actieve training als één doorlopende lijst: alle oefeningen
  * onder elkaar (continuous scroll), per oefening de sets met grote steppers,
  * een "vorige keer"-regel en de mogelijkheid extra sets toe te voegen. Sticky
  * voortgangsbalk, meelopende rusttimer en afrond-scherm blijven behouden.
  *
- * Flexibiliteit tijdens de training (nieuw): rust-/set-timers per sessie aan/uit,
+ * Flexibiliteit tijdens de training: rust-/set-timers per sessie aan/uit,
  * een oefening overslaan en een alternatief kiezen als het apparaat bezet is.
  * Alle timeracties lopen via één timer (`timer.dismiss()`) zodat er niets blijft
  * doorlopen na skippen/vervangen/afronden.
+ *
+ * Échte groepen (superset/giant/circuit/AMRAP) renderen standaard als geleide
+ * ronde-voor-ronde wizard (`GroupGuidedBlock`, A1 → B1 → rust → A2 → …) over
+ * dezélfde set-/log-state — per groep omschakelbaar naar de lijstweergave.
  */
 export function ActiveSession({
   sessionId,
@@ -227,15 +278,39 @@ export function ActiveSession({
     if (!enabled) timer.dismiss();
   }
 
-  // Set-state alleen voor kracht-oefeningen (klassiek reps×kg-pad). Niet-kracht-
-  // types beheren hun eigen state in DynamicExerciseBlock en rapporteren "klaar"
-  // via dynamicDone.
+  // Weergave per échte groep: standaard GELEID (ronde-voor-ronde wizard); wie
+  // liever de doorlopende lijst ziet, zet dat per groep om (persist per sessie).
+  const [listViewGroups, setListViewGroups] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(guidedViewKey(sessionId));
+      if (raw) setListViewGroups(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* genegeerd */
+    }
+  }, [sessionId]);
+
+  function setGroupGuided(groupId: string, guided: boolean) {
+    const next = new Set(listViewGroups);
+    if (guided) next.delete(groupId);
+    else next.add(groupId);
+    setListViewGroups(next);
+    try {
+      window.localStorage.setItem(guidedViewKey(sessionId), JSON.stringify([...next]));
+    } catch {
+      /* genegeerd */
+    }
+  }
+
+  // Set-state alleen voor kracht-oefeningen (klassiek reps×kg-pad). In een
+  // échte groep telt het rondetal als set-aantal (geleide flow: ronde r = set r).
   const [setState, setSetState] = useState<Record<string, SetValue[]>>(() => {
+    const rounds = guidedRoundsByOriginal(exercises);
     const init: Record<string, SetValue[]> = {};
     for (const ex of exercises) {
       if (!isStrength(ex)) continue;
       const maxEntry = ex.entries.reduce((mx, e) => Math.max(mx, e.setNumber), 0);
-      const len = Math.max(ex.sets, maxEntry, 1);
+      const len = Math.max(rounds.get(ex.originalExerciseId) ?? ex.sets, maxEntry, 1);
       init[ex.exerciseId] = Array.from({ length: len }, (_, i) => {
         const entry = ex.entries.find((e) => e.setNumber === i + 1);
         return {
@@ -249,13 +324,27 @@ export function ActiveSession({
     return init;
   });
 
-  // "Klaar"-status van niet-kracht-oefeningen (gerapporteerd door de dynamische
-  // blokken). Init: klaar als er al een logregel bestaat.
-  const [dynamicDone, setDynamicDone] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
+  // Log-rijen van niet-kracht-oefeningen — hier gelift (i.p.v. lokaal in
+  // DynamicExerciseBlock) zodat de geleide groep-flow dezelfde data deelt.
+  // "Klaar" is afgeleid: alle rijen opgeslagen (dynExerciseDone).
+  const [dynRows, setDynRows] = useState<Record<string, DynRow[]>>(() => {
+    const rounds = guidedRoundsByOriginal(exercises);
+    const init: Record<string, DynRow[]> = {};
     for (const ex of exercises) {
       if (isStrength(ex)) continue;
-      init[ex.exerciseId] = ex.entries.length > 0;
+      const single = getExerciseType(ex.exerciseType).logModel === "single";
+      const maxEntry = ex.entries.reduce((mx, e) => Math.max(mx, e.setNumber), 0);
+      const len = Math.max(
+        rounds.get(ex.originalExerciseId) ?? (single ? 1 : Math.max(ex.sets, 1)),
+        maxEntry,
+        1
+      );
+      init[ex.exerciseId] = Array.from({ length: len }, (_, i) => {
+        const entry = ex.entries.find((e) => e.setNumber === i + 1);
+        return entry
+          ? { values: entryToLogInputValues(entry, ex.exerciseType), saved: true }
+          : { values: defaultLogInputValues(ex.exerciseType), saved: false };
+      });
     }
     return init;
   });
@@ -276,10 +365,72 @@ export function ActiveSession({
 
   function patchSet(exerciseId: string, idx: number, patch: Partial<SetValue>) {
     setSetState((prev) => {
-      const arr = prev[exerciseId]?.slice();
-      if (!arr) return prev;
+      const arr = (prev[exerciseId] ?? []).slice();
+      // Verleng zo nodig (AMRAP-rondes voorbij de geplande capaciteit).
+      while (arr.length <= idx) arr.push(emptySet());
       arr[idx] = { ...arr[idx], ...patch };
       return { ...prev, [exerciseId]: arr };
+    });
+  }
+
+  function patchDynRow(ex: ActiveExercise, rowIndex: number, patch: Partial<DynRow>) {
+    setDynRows((prev) => {
+      const arr = (prev[ex.exerciseId] ?? []).slice();
+      while (arr.length <= rowIndex) {
+        arr.push({ values: defaultLogInputValues(ex.exerciseType), saved: false });
+      }
+      arr[rowIndex] = { ...arr[rowIndex], ...patch };
+      return { ...prev, [ex.exerciseId]: arr };
+    });
+  }
+
+  function changeDynValue(ex: ActiveExercise, rowIndex: number, fieldId: string, value: string) {
+    setDynRows((prev) => {
+      const arr = (prev[ex.exerciseId] ?? []).slice();
+      while (arr.length <= rowIndex) {
+        arr.push({ values: defaultLogInputValues(ex.exerciseType), saved: false });
+      }
+      arr[rowIndex] = { values: { ...arr[rowIndex].values, [fieldId]: value }, saved: false };
+      return { ...prev, [ex.exerciseId]: arr };
+    });
+  }
+
+  /**
+   * Sla één type-bewust logresultaat op (niet-kracht). Optimistisch met harde
+   * foutafhandeling (zie saveSetValue). `rest: false` → de geleide groep-flow
+   * regelt de rust zelf (geen timer tussen oefeningen binnen een ronde).
+   */
+  function saveDynRow(ex: ActiveExercise, rowIndex: number, opts?: { rest?: boolean }) {
+    const row = dynRows[ex.exerciseId]?.[rowIndex] ?? {
+      values: defaultLogInputValues(ex.exerciseType),
+      saved: false,
+    };
+    patchDynRow(ex, rowIndex, { saved: true, failed: false });
+    startTransition(async () => {
+      try {
+        const res = await actions.saveLog({
+          sessionId,
+          exerciseId: ex.exerciseId,
+          setNumber: rowIndex + 1,
+          values: row.values,
+        });
+        if (!res?.ok) throw new Error("log save failed");
+      } catch {
+        patchDynRow(ex, rowIndex, { saved: false, failed: true });
+        toast.error(t("logFailed"));
+      }
+    });
+    if (opts?.rest !== false && ex.restSeconds > 0) startRestFor(ex, ex.restSeconds);
+  }
+
+  function addDynRow(ex: ActiveExercise) {
+    setDynRows((prev) => {
+      const arr = prev[ex.exerciseId] ?? [];
+      if (arr.length >= 20) return prev;
+      return {
+        ...prev,
+        [ex.exerciseId]: [...arr, { values: defaultLogInputValues(ex.exerciseType), saved: false }],
+      };
     });
   }
 
@@ -335,16 +486,14 @@ export function ActiveSession({
     });
   }
 
-  function toggleSet(ex: ActiveExercise, setNumber: number) {
+  /**
+   * Markeer + sla een kracht-set op met slimme fallbacks (ingevuld > vorige
+   * keer > doel). Zonder rusttimer — de aanroeper bepaalt de rust-semantiek
+   * (lijstweergave via toggleSet, geleide groep-flow via de wizard zelf).
+   */
+  function completeStrengthSet(ex: ActiveExercise, setNumber: number) {
     const idx = setNumber - 1;
-    const cur = setState[ex.exerciseId][idx];
-    const nextDone = !cur.done;
-
-    if (!nextDone) {
-      patchSet(ex.exerciseId, idx, { done: false, failed: false });
-      return;
-    }
-
+    const cur = setState[ex.exerciseId]?.[idx] ?? emptySet();
     const prevSet = ex.previous?.sets.find((s) => s.setNumber === setNumber);
     const reps = Number(cur.reps || prevSet?.reps || ex.targetReps || 0);
     const fallbackKg =
@@ -360,6 +509,16 @@ export function ActiveSession({
       kg: cur.kg || (fallbackKg ? String(fallbackKg) : ""),
     });
     saveSetValue(ex, setNumber, reps, kg);
+  }
+
+  function toggleSet(ex: ActiveExercise, setNumber: number) {
+    const cur = setState[ex.exerciseId]?.[setNumber - 1];
+    if (cur?.done) {
+      patchSet(ex.exerciseId, setNumber - 1, { done: false, failed: false });
+      return;
+    }
+
+    completeStrengthSet(ex, setNumber);
 
     // Rust automatisch starten (respecteert de sessie-toggle + groep-semantiek).
     startRestFor(ex, ex.restSeconds > 0 ? ex.restSeconds : DEFAULT_REST);
@@ -452,19 +611,21 @@ export function ActiveSession({
       )
     );
 
-    // Keyed state omzetten van oude → nieuwe id.
+    // Keyed state omzetten van oude → nieuwe id (zelfde aantal rijen, log fris).
     if (isStrength(ex)) {
       setSetState((prev) => {
         const next = { ...prev };
+        const len = next[oldId]?.length ?? ex.sets;
         delete next[oldId];
-        next[newId] = emptySets(ex.sets);
+        next[newId] = emptySets(len);
         return next;
       });
     } else {
-      setDynamicDone((prev) => {
+      setDynRows((prev) => {
         const next = { ...prev };
+        const len = next[oldId]?.length ?? Math.max(ex.sets, 1);
         delete next[oldId];
-        next[newId] = false;
+        next[newId] = freshDynRows(ex.exerciseType, len);
         return next;
       });
     }
@@ -517,19 +678,58 @@ export function ActiveSession({
     return map;
   }, [exList]);
 
+  // Render-volgorde: échte groepen in geleide weergave worden één blok (wizard);
+  // al het andere blijft de doorlopende lijst. Dag-koppen blijven kloppen.
+  type RenderEntry =
+    | { kind: "guided"; key: string; group: ItemGroup<ActiveExercise>; showDay: boolean; dayName: string | null }
+    | { kind: "item"; key: string; ex: ActiveExercise; showDay: boolean; dayName: string | null };
+  const renderEntries = useMemo(() => {
+    const out: RenderEntry[] = [];
+    let prevDay: string | null = null;
+    for (const g of groupItems(exList)) {
+      if (isRealGroup(g) && g.groupId && !listViewGroups.has(g.groupId)) {
+        const dayName = g.items[0].dayName;
+        out.push({
+          kind: "guided",
+          key: `guided-${g.groupId}-${g.items[0].originalExerciseId}`,
+          group: g,
+          showDay: Boolean(dayName) && dayName !== prevDay,
+          dayName,
+        });
+        prevDay = g.items[g.items.length - 1].dayName;
+      } else {
+        for (const ex of g.items) {
+          out.push({
+            kind: "item",
+            key: ex.originalExerciseId,
+            ex,
+            showDay: Boolean(ex.dayName) && ex.dayName !== prevDay,
+            dayName: ex.dayName,
+          });
+          prevDay = ex.dayName;
+        }
+      }
+    }
+    return out;
+  }, [exList, listViewGroups]);
+
+  /** Start expliciet een rustperiode (o.a. de geleide groep-flow ná een ronde).
+   *  Respecteert de sessie-timer-toggle. */
+  function requestRest(seconds: number) {
+    if (!timersEnabled || seconds <= 0) return;
+    if (timer.vibrateOn) void haptic("light", 15);
+    timer.startRest(seconds);
+  }
+
   /**
    * Start de rusttimer met de juiste duur voor deze oefening. Binnen een groep
    * (superset/circuit) vuurt de timer NIET tussen de oefeningen — pas ná de
    * laatste oefening van de ronde, met de groep-rust. Respecteert de sessie-toggle.
    */
   function startRestFor(ex: ActiveExercise, fallback: number) {
-    if (!timersEnabled) return;
     const gm = groupMeta.get(ex.originalExerciseId);
     if (gm?.grouped && !gm.isEnd) return; // geen rust binnen de groep
-    const rest = gm?.grouped ? gm.restAfter || fallback : fallback;
-    if (rest <= 0) return;
-    if (timer.vibrateOn) void haptic("light", 15);
-    timer.startRest(rest);
+    requestRest(gm?.grouped ? gm.restAfter || fallback : fallback);
   }
 
   const stats = useMemo(() => {
@@ -545,7 +745,7 @@ export function ActiveSession({
     for (const ex of activeExercises) {
       if (!isStrength(ex)) {
         totalSets += 1;
-        if (dynamicDone[ex.exerciseId]) {
+        if (dynExerciseDone(dynRows[ex.exerciseId])) {
           completedSets += 1;
           completedExercises += 1;
           estRestSec += ex.restSeconds || 0;
@@ -596,7 +796,7 @@ export function ActiveSession({
       estRemainingSec,
       newRecords,
     };
-  }, [activeExercises, setState, dynamicDone, context.historicalBest]);
+  }, [activeExercises, setState, dynRows, context.historicalBest]);
 
   const activeCount = activeExercises.length;
   const pct = stats.totalSets > 0 ? Math.round((stats.completedSets / stats.totalSets) * 100) : 0;
@@ -676,13 +876,42 @@ export function ActiveSession({
 
       {/* Doorlopende oefeningenlijst */}
       <div className="flex flex-1 flex-col gap-5 px-4 pb-44 pt-5">
-        {exList.map((ex, i) => {
-          const showDay = Boolean(ex.dayName) && ex.dayName !== exList[i - 1]?.dayName;
+        {renderEntries.map((entry) => {
+          if (entry.kind === "guided") {
+            return (
+              <div key={entry.key} className="flex flex-col gap-2">
+                {entry.showDay ? (
+                  <p className="px-1 text-xs font-semibold uppercase tracking-wide text-accent">
+                    {entry.dayName}
+                  </p>
+                ) : null}
+                <GroupGuidedBlock
+                  group={entry.group}
+                  sets={setState}
+                  dynRows={dynRows}
+                  skipped={skipped}
+                  onChangeStrength={(gx, sn, field, val) => changeSet(gx.exerciseId, sn, field, val)}
+                  onCompleteStrength={completeStrengthSet}
+                  onRetryStrength={retrySet}
+                  onChangeDyn={changeDynValue}
+                  onSaveDyn={(gx, idx) => saveDynRow(gx, idx, { rest: false })}
+                  onRequestRest={requestRest}
+                  onShowList={() => setGroupGuided(entry.group.groupId as string, false)}
+                  onSkip={setSkipFor}
+                  onAlt={setAltFor}
+                  onUndoSkip={undoSkip}
+                />
+              </div>
+            );
+          }
+
+          const ex = entry.ex;
+          const showDay = entry.showDay;
           const isSkipped = skipped.has(ex.originalExerciseId);
           const gm = groupMeta.get(ex.originalExerciseId);
           const GroupIcon = gm?.type?.icon;
           return (
-            <div key={ex.originalExerciseId} className="flex flex-col gap-2">
+            <div key={entry.key} className="flex flex-col gap-2">
               {showDay ? (
                 <p className="px-1 text-xs font-semibold uppercase tracking-wide text-accent">
                   {ex.dayName}
@@ -692,9 +921,20 @@ export function ActiveSession({
               {gm?.isStart && gm.summary && GroupIcon ? (
                 <div className="flex items-center gap-2 rounded-xl bg-violet-50 px-3 py-2 text-xs font-semibold text-violet-700">
                   <GroupIcon className="size-4 shrink-0" />
-                  <span>{gm.summary}</span>
-                  <span className="ml-auto font-normal text-violet-500">{t("supersetHint")}</span>
+                  <span className="min-w-0 flex-1 truncate">{gm.summary}</span>
+                  {ex.groupId ? (
+                    <button
+                      type="button"
+                      onClick={() => setGroupGuided(ex.groupId as string, true)}
+                      className="flex shrink-0 items-center gap-1 rounded-lg bg-white/80 px-2 py-1 text-[11px] font-bold text-violet-700 active:scale-95"
+                    >
+                      <Play className="size-3" /> {t("guided.viewGuided")}
+                    </button>
+                  ) : null}
                 </div>
+              ) : null}
+              {gm?.isStart && gm.summary ? (
+                <p className="px-1 text-[11px] font-medium text-violet-500">{t("supersetHint")}</p>
               ) : null}
 
               {isSkipped ? (
@@ -762,12 +1002,10 @@ export function ActiveSession({
                     <DynamicExerciseBlock
                       key={ex.exerciseId}
                       exercise={ex}
-                      sessionId={sessionId}
-                      saveLog={actions.saveLog}
-                      onDoneChange={(done) =>
-                        setDynamicDone((p) => ({ ...p, [ex.exerciseId]: done }))
-                      }
-                      onSetDone={(rest) => startRestFor(ex, rest > 0 ? rest : DEFAULT_REST)}
+                      rows={dynRows[ex.exerciseId] ?? []}
+                      onChangeValue={(idx, fieldId, v) => changeDynValue(ex, idx, fieldId, v)}
+                      onSaveRow={(idx) => saveDynRow(ex, idx)}
+                      onAddRow={() => addDynRow(ex)}
                     />
                   )}
 

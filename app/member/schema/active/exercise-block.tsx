@@ -14,8 +14,9 @@ function fmtSet(s: { reps: number; weightKg: number }): string {
   return s.weightKg > 0 ? `${s.weightKg} kg × ${s.reps}` : `${s.reps}×`;
 }
 
-/** Grote, zweethanden-proof stepper voor gewicht/herhalingen tijdens de workout. */
-function BigStepper({
+/** Grote, zweethanden-proof stepper voor gewicht/herhalingen tijdens de workout.
+ *  Ook gebruikt door de geleide groep-flow (`group-guided-block.tsx`). */
+export function BigStepper({
   value,
   unit,
   step,

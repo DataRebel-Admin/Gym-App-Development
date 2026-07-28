@@ -306,7 +306,28 @@
       "retrySave": "Opnieuw",
       "logFailed": "Resultaat niet opgeslagen — controleer je verbinding.",
       "noteFailed": "Notitie niet opgeslagen.",
-      "actionFailed": "Actie mislukt — probeer opnieuw."
+      "actionFailed": "Actie mislukt — probeer opnieuw.",
+      "guided": {
+        "viewGuided": "Geleid",
+        "viewList": "Lijst",
+        "roundOf": "Ronde {round} van {total}",
+        "roundLabel": "Ronde {round}",
+        "roundsDone": "{count, plural, one {# ronde} other {# rondes}} voltooid",
+        "targetReps": "Doel: {reps} herh.",
+        "next": "Hierna: {name}",
+        "thenRest": "Hierna {seconds}s rust → ronde {round}",
+        "nextExercise": "Klaar → volgende",
+        "finishRound": "Ronde afronden",
+        "finishGroup": "Groep afronden",
+        "passSet": "Doorschuiven zonder te loggen",
+        "allDone": "Groep afgerond — sterk gedaan!",
+        "allSkipped": "Alle oefeningen in deze groep zijn overgeslagen.",
+        "amrapStart": "Start timer",
+        "amrapLeft": "resterend",
+        "amrapTimeUp": "Tijd om!",
+        "amrapFinish": "AMRAP afronden",
+        "amrapResume": "Toch nog een ronde"
+      }
     },
     "scan": {
       "metaTitle": "Scannen",

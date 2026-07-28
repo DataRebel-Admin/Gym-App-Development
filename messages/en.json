@@ -306,7 +306,28 @@
       "retrySave": "Retry",
       "logFailed": "Result not saved — check your connection.",
       "noteFailed": "Note not saved.",
-      "actionFailed": "Action failed — please try again."
+      "actionFailed": "Action failed — please try again.",
+      "guided": {
+        "viewGuided": "Guided",
+        "viewList": "List",
+        "roundOf": "Round {round} of {total}",
+        "roundLabel": "Round {round}",
+        "roundsDone": "{count, plural, one {# round} other {# rounds}} completed",
+        "targetReps": "Target: {reps} reps",
+        "next": "Up next: {name}",
+        "thenRest": "Next: {seconds}s rest → round {round}",
+        "nextExercise": "Done → next",
+        "finishRound": "Finish round",
+        "finishGroup": "Finish group",
+        "passSet": "Move on without logging",
+        "allDone": "Group complete — strong work!",
+        "allSkipped": "All exercises in this group have been skipped.",
+        "amrapStart": "Start timer",
+        "amrapLeft": "remaining",
+        "amrapTimeUp": "Time's up!",
+        "amrapFinish": "Finish AMRAP",
+        "amrapResume": "One more round"
+      }
     },
     "scan": {
       "metaTitle": "Scan",

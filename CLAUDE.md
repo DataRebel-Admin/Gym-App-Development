@@ -472,8 +472,8 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
 Feilloze schema-authoring: een coach groepeert oefeningen (superset, giant/ultra set,
 circuit, AMRAP), markeert dropsets, stelt rust vooraf in (presets) en schrijft per
 oefening een **per-lid** boodschap. Migratie `20260717120000_schema_exercise_groups`
-(**nog toepassen op de DB**: `npx prisma migrate deploy`/`dev`) — alle velden additief +
-nullable op `WorkoutExerciseItem`, dus geen RLS-wijziging.
+(toegepast) — alle velden additief + nullable op `WorkoutExerciseItem`, dus geen
+RLS-wijziging.
 
 - **Datamodel (vlak op het item, géén apart groep-model)** — de hele codebase leest items
   als platte lijst (actieve sessie/PDF/3-weg-diff/klonen). Een "groep" = opeenvolgende items
@@ -502,9 +502,23 @@ nullable op `WorkoutExerciseItem`, dus geen RLS-wijziging.
   met groep-kop + A/B/C-badge; **rust-semantiek** via `startRestFor` — géén rusttimer binnen een
   superset/circuit, wél `groupRestSeconds` ná de laatste oefening van de ronde. Dropset-hint +
   `memberNote` (✎) getoond. i18n `member.active.supersetHint/dropsetHint/groupRestAfter` (nl/en/fy).
-- **Bewust (nog) niet**: een volledige ronde-voor-ronde superset-wizard (A1,B1,rust,A2,…) — de
-  tracking blijft continuous-scroll met duidelijke groep-uitleg + rust-timing. Dropset-logging
-  is hint/markering (geen aparte per-drop sub-entries).
+- **Geleide groep-flow (superset-wizard)**: échte groepen renderen in de actieve sessie
+  standaard als **ronde-voor-ronde wizard** (`group-guided-block.tsx`): A1 → B1 → groepsrust →
+  A2 → …, met ronde-voortgang, A/B/C-stappen, grote invoer (BigStepper/LogFields), "hierna"-hint
+  en per groep een **Geleid ↔ Lijst**-toggle (persist in localStorage per sessie). AMRAP is
+  open-ended met een lokale tijdslimiet-klok + rondeteller ("AMRAP afronden" door het lid).
+  **Architectuur**: de wizard is puur een andere *weergave* over dezélfde state — de positie is
+  volledig **afgeleid** uit opgeslagen sets (pure kern **`lib/guided-group.ts`**:
+  `deriveGuidedPosition`/`effectiveGuidedRounds` (rondes = setnummers, cap 20 = log-limiet)/
+  `isRoundComplete`; tests `tests/guided-group.test.ts`), dus weergave-wissel/reload verliest
+  nooit data. Daarvoor is de niet-kracht-log-state **gelift** naar `ActiveSession` (`DynRow`,
+  `DynamicExerciseBlock` is nu controlled; "klaar" = afgeleid `dynExerciseDone`). In een échte
+  groep telt het **rondetal als set-aantal** (init van set-/log-rijen). Rust: wizard vuurt
+  `requestRest(groupRest)` alléén ná de laatste oefening van een ronde (niet na de laatste
+  ronde); binnen de ronde nooit. Overslaan/alternatief/undo werken vanuit de wizard (zelfde
+  modals); mislukte opslagen elders in de groep blijven zichtbaar met retry. i18n
+  `member.active.guided.*` (nl/en/fy).
+- **Bewust (nog) niet**: dropset-logging is hint/markering (geen aparte per-drop sub-entries).
 
 ### Spier-heatmap & -analyse (lid)
 
