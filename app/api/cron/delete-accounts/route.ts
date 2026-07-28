@@ -11,9 +11,17 @@ import { ACCOUNT_DELETION_GRACE_DAYS } from "@/lib/constants";
  * automatisch, geen admin-tussenstap.
  *
  * `prisma.user.delete` cascadeert alle eigen data (sessies/prestaties/metingen/
- * doelen/passkeys/…); historische records met de gebruiker als *actor*
- * (onderhoud, apparaat-scans) worden ge-SetNull i.p.v. verwijderd. Het (FK-loze,
- * forensische) AuditLog blijft bestaan — inclusief deze verwijder-registratie.
+ * doelen/passkeys/vestiging-koppelingen/…); historische records met de gebruiker
+ * als *actor* (onderhoud, apparaat-scans) worden ge-SetNull i.p.v. verwijderd.
+ * Het (FK-loze, forensische) AuditLog blijft bestaan — inclusief deze
+ * verwijder-registratie.
+ *
+ * Vestigingen (geverifieerd na de Organisatie→Vestigingen-migratie): de
+ * Restrict-FK's op locationId blokkeren alléén het verwijderen van een
+ * Location, nooit deze user-delete — sessies/aanmeldingen cascaden gewoon via
+ * de gebruiker. StaffLocationAccess.userId = Cascade; ClassEnrollment.markedById
+ * en EarnedAchievement.locationId zijn FK-loos; User.homeLocationId staat op de
+ * te verwijderen rij zelf.
  *
  * Beveiliging: Bearer CRON_SECRET (fail-closed in productie). Draait dagelijks
  * (zie vercel.json). Best-effort per gebruiker: een fout blokkeert de rest niet.

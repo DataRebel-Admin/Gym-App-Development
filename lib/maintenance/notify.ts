@@ -19,10 +19,13 @@ import type { EmailBranding } from "@/lib/email/branding";
 type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
 // Meldingen over machine-onderhoud naar de tenant-gebruikers die het onderhoud
-// beheren (permissie `maintenance:manage`). Spiegel van lib/schema-notify.ts:
-// respecteert de persoonlijke voorkeuren (categorie "maintenance") over álle
-// kanalen (in-app / push / e-mail) en faalt nooit hard. "Bijna/nu nodig" is
-// idempotent via de markers op Machine; actie-events (uitgevoerd/status) niet.
+// beheren (permissie `maintenance:manage`) én toegang hebben tot de VESTIGING
+// van de machine: admins altijd, medewerkers alleen via hun
+// StaffLocationAccess-koppeling (deny-by-default — zie lib/location-scope.ts).
+// Spiegel van lib/schema-notify.ts: respecteert de persoonlijke voorkeuren
+// (categorie "maintenance") over álle kanalen (in-app / push / e-mail) en faalt
+// nooit hard. "Bijna/nu nodig" is idempotent via de markers op Machine;
+// actie-events (uitgevoerd/status) niet.
 
 type Recipient = {
   id: string;
@@ -30,6 +33,9 @@ type Recipient = {
   name: string | null;
   notificationPrefs: unknown;
   locale: Locale | null;
+  /** Admin ziet alle vestigingen; staff alleen de gekoppelde. */
+  isAdmin: boolean;
+  locationIds: Set<string>;
 };
 
 function defaultOrigin(): string {
@@ -54,6 +60,7 @@ async function getRecipients(tenantId: string): Promise<Recipient[]> {
       permissions: true,
       notificationPrefs: true,
       locale: true,
+      staffLocationAccess: { select: { locationId: true } },
     },
   });
   return users
@@ -69,7 +76,14 @@ async function getRecipients(tenantId: string): Promise<Recipient[]> {
       name: u.name,
       notificationPrefs: u.notificationPrefs,
       locale: u.locale,
+      isAdmin: u.role === "TENANT_ADMIN",
+      locationIds: new Set(u.staffLocationAccess.map((a) => a.locationId)),
     }));
+}
+
+/** Ontvangers voor een machine op déze vestiging (admins + gekoppelde staff). */
+function recipientsForLocation(recipients: Recipient[], locationId: string): Recipient[] {
+  return recipients.filter((r) => r.isAdmin || r.locationIds.has(locationId));
 }
 
 type Delivery = { title: string; body: string; detail?: string | null };
@@ -214,13 +228,14 @@ export async function notifyMaintenanceThresholds(opts: {
           ? { maintenanceDueNotifiedAt: null }
           : { maintenanceWarnNotifiedAt: null }),
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, locationId: true },
     });
 
     for (const m of machines) {
       const reached = await deliverToAll({
         tenantId,
-        recipients,
+        // Alleen wie de vestiging van dít apparaat mag zien.
+        recipients: recipientsForLocation(recipients, m.locationId),
         branding,
         origin,
         machineName: m.name,
@@ -296,11 +311,16 @@ export async function notifyMaintenanceEvent(opts: {
   try {
     // Onderhoudsmodule uit (Superadmin-flag) → geen meldingen.
     if (!(await isFeatureEnabled(opts.tenantId, "maintenance"))) return;
-    const [all, branding] = await Promise.all([
+    const [all, branding, machine] = await Promise.all([
       getRecipients(opts.tenantId),
       loadTenantBranding(opts.tenantId),
+      prisma.machine.findFirst({
+        where: { id: opts.machineId, tenantId: opts.tenantId },
+        select: { locationId: true },
+      }),
     ]);
-    const recipients = all.filter((r) => r.id !== opts.excludeUserId);
+    const scoped = machine ? recipientsForLocation(all, machine.locationId) : all;
+    const recipients = scoped.filter((r) => r.id !== opts.excludeUserId);
     if (recipients.length === 0) return;
     const copy = EVENT_COPY[opts.event];
     await deliverToAll({
