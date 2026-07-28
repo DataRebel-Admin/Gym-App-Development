@@ -174,6 +174,8 @@ model Tenant {
   // standaard-quotes uit lib/workout-quotes.ts.
   customQuotes Json?
   // --- Zakelijke gegevens (tenant-instellingen, owner) ---
+  // NB: dit is het facturatie-/juridische adres van de ORGANISATIE. Het
+  // vestigingsadres (waar leden trainen, openingstijden) staat op `Location`.
   contactEmail String?
   contactPhone String?
   addressLine  String?
@@ -219,6 +221,73 @@ model Tenant {
   maintenancePolicies MaintenancePolicy[]
   featureFlags        FeatureFlag[]
   machineScans        MachineScan[]
+  locations           Location[]
+  staffLocationAccess StaffLocationAccess[]
+}
+
+// --- Organisatie → Vestigingen ---
+// `Tenant` = de organisatie (keten); `Location` = één fysieke vestiging. Elke
+// organisatie heeft er minstens één (de migratie maakt per bestaande tenant een
+// "Hoofdvestiging", `isDefault = true`) — geen speciaal geval voor één vestiging.
+// Elke activiteit (WorkoutSession/ClassSession/MachineScan/MaintenanceRecord)
+// draagt een verplichte `locationId`; `tenantId` blijft óók op elke rij (RLS +
+// bestaande filters). Verplichte FK's zijn `onDelete: Restrict`: een vestiging
+// met historie kan alleen gearchiveerd worden, nooit hard verwijderd.
+model Location {
+  id           String    @id @default(cuid())
+  tenantId     String
+  name         String
+  slug         String? // optioneel, voor nette URLs/filters
+  // Vestigingsadres & contact (het facturatie-/juridisch adres staat op Tenant).
+  addressLine  String?
+  postalCode   String?
+  city         String?
+  country      String?
+  contactPhone String?
+  contactEmail String?
+  openingHours Json? // { mon: "06:00-22:00", ... }
+  timezone     String    @default("Europe/Amsterdam") // IANA — dag/uur-bucketing per vestiging
+  isDefault    Boolean   @default(false) // precies één per tenant (server-side afgedwongen)
+  archivedAt   DateTime? // soft-archive; default-vestiging nooit archiveerbaar
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  homeUsers          User[]                @relation("UserHomeLocation")
+  staffAccess        StaffLocationAccess[]
+  machines           Machine[]
+  machineScans       MachineScan[]
+  maintenanceRecords MaintenanceRecord[]
+  workoutSessions    WorkoutSession[]
+  classSessions      ClassSession[]
+  measurements       Measurement[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, slug])
+  @@index([tenantId, archivedAt])
+}
+
+// Expliciete koppeling medewerker ↔ vestiging (patroon CoachAssignment), maar
+// LET OP het semantische verschil: de coach-koppeling is een additieve lens
+// ("Mijn leden"), deze koppeling is een RESTRICTIE. Een TENANT_STAFF ziet
+// uitsluitend de gekoppelde vestigingen; géén koppelingen = níéts zichtbaar
+// (fail-closed). TENANT_ADMIN/SUPERADMIN hebben impliciet alle vestigingen.
+// Zie lib/location-scope.ts (accessibleLocations).
+model StaffLocationAccess {
+  id           String   @id @default(cuid())
+  tenantId     String
+  userId       String // TENANT_STAFF (of TENANT_ADMIN, informatief — admin ziet toch alles)
+  locationId   String
+  assignedById String? // wie de koppeling maakte
+  createdAt    DateTime @default(now())
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User     @relation("StaffLocationUser", fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, locationId])
+  @@index([tenantId, locationId])
+  @@index([tenantId, userId])
 }
 
 /**
@@ -301,6 +370,7 @@ model Measurement {
   id           String            @id @default(cuid())
   tenantId     String
   userId       String // het lid
+  locationId   String? // vestiging waar de meting is gedaan (nullable: historie/device-sync)
   recordedById String? // trainer/owner die de meting invoerde
   measuredAt   DateTime
   notes        String?
@@ -335,9 +405,10 @@ model Measurement {
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
-  tenant Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user   User               @relation("MemberMeasurements", fields: [userId], references: [id], onDelete: Cascade)
-  photos MeasurementPhoto[]
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User               @relation("MemberMeasurements", fields: [userId], references: [id], onDelete: Cascade)
+  location Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  photos   MeasurementPhoto[]
 
   @@index([tenantId])
   @@index([userId, measuredAt])
@@ -382,29 +453,37 @@ model MemberGoal {
 // Eén behaalde trofee/achievement/mijlpaal door een lid. De definities zijn
 // code-gestuurd (lib/achievements/definitions.ts) — hier bewaren we alleen wélke
 // (`key`) en wanneer (`earnedAt`) behaald is. Tenant-scoped business-data (RLS,
-// zie prisma/sql/rls.sql). `@@unique([tenantId, userId, key])` garandeert dat een
-// achievement precies één keer wordt toegekend (geen dubbele toekenning).
+// zie prisma/sql/rls.sql).
+//
+// Trofee-scope: ORGANIZATION/GLOBAL-trofeeën zijn eenmalig per lidmaatschap
+// (`locationScopeKey = ""`); LOCATION-trofeeën zijn per vestiging behaalbaar
+// (`locationScopeKey = locationId`). De unieke sleutel
+// `[tenantId, userId, key, locationScopeKey]` garandeert precies-één-toekenning
+// per scope-eenheid en houdt `createMany({ skipDuplicates })` werkend.
+// `locationId` is puur weergave/herkomst (geen FK — zoals conductedById).
 //
 // `category`/`rarity` zijn gedenormaliseerd zodat overzichten (mooiste trofee,
 // filters) niet elke keer de registry hoeven te joinen. `value` bewaart de
 // metricwaarde op het moment van behalen; `celebratedAt` markeert of de
 // celebration-overlay/melding al getoond is (null = nog vieren).
 model EarnedAchievement {
-  id           String    @id @default(cuid())
-  tenantId     String
-  userId       String
-  key          String // definitie-key uit lib/achievements/definitions.ts
-  category     String
-  rarity       String
-  value        Float? // metricwaarde op moment van behalen (bv. 100 trainingen)
-  earnedAt     DateTime  @default(now())
-  celebratedAt DateTime? // celebration getoond? null = nog vieren
-  createdAt    DateTime  @default(now())
+  id               String    @id @default(cuid())
+  tenantId         String
+  userId           String
+  key              String // definitie-key uit lib/achievements/definitions.ts
+  category         String
+  rarity           String
+  value            Float? // metricwaarde op moment van behalen (bv. 100 trainingen)
+  locationId       String? // vestiging waarop een LOCATION-trofee betrekking heeft (geen FK)
+  locationScopeKey String    @default("") // "" = org/global; locationId bij LOCATION-scope
+  earnedAt         DateTime  @default(now())
+  celebratedAt     DateTime? // celebration getoond? null = nog vieren
+  createdAt        DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, userId, key])
+  @@unique([tenantId, userId, key, locationScopeKey])
   @@index([tenantId, userId])
   @@index([tenantId, category])
   @@index([tenantId, earnedAt])
@@ -443,18 +522,21 @@ model GroupClass {
 }
 
 model ClassSession {
-  id       String   @id @default(cuid())
-  tenantId String
-  classId  String
-  startsAt DateTime
-  endsAt   DateTime
-  location String?
+  id         String   @id @default(cuid())
+  tenantId   String
+  classId    String
+  locationId String // vestiging waar de les plaatsvindt (de les-definitie is org-niveau)
+  startsAt   DateTime
+  endsAt     DateTime
+  location   String? // zaal/ruimte bínnen de vestiging (vrije tekst, bv. "Zaal 1")
 
-  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  groupClass  GroupClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
-  enrollments ClassEnrollment[]
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupClass    GroupClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
+  venueLocation Location          @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  enrollments   ClassEnrollment[]
 
   @@index([tenantId, startsAt])
+  @@index([tenantId, locationId, startsAt])
   @@index([classId])
 }
 
@@ -492,6 +574,10 @@ model User {
   birthDate     DateTime? // geboortedatum (o.a. via bulk-import)
   gender        Gender? // geslacht (o.a. via bulk-import)
   memberNumber  String? // sportschool-lidnummer (uniek per tenant; o.a. via bulk-import)
+  // Thuisvestiging van het lid/medewerker. Het lidmaatschap zelf hangt aan de
+  // ORGANISATIE (deze User-rij ís het lidmaatschap: tenantId + role + active);
+  // een lid traint bij élke vestiging van de keten zonder tweede lidmaatschap.
+  homeLocationId String?
   timezone      String? // IANA, bv. "Europe/Amsterdam"
   locale        Locale? // persoonlijke taal (override op tenant.locale)
   preferences   Json? // persoonlijke voorkeuren (thema, dichtheid, datum/tijd-notatie, …)
@@ -523,6 +609,8 @@ model User {
   createdAt     DateTime  @default(now())
 
   tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  homeLocation     Location?         @relation("UserHomeLocation", fields: [homeLocationId], references: [id], onDelete: SetNull)
+  staffLocationAccess StaffLocationAccess[] @relation("StaffLocationUser") // vestigingen waartoe deze medewerker toegang heeft
   assignedWorkouts AssignedWorkout[]
   sessions         WorkoutSession[]
   classEnrollments ClassEnrollment[]
@@ -580,6 +668,7 @@ model AuditLog {
   actorEmail String?
   actorRole  Role?
   tenantId   String?
+  locationId String? // vestiging waarop de actie betrekking had (geen FK — forensisch)
   action     String // bv. "tenant.create", "branding.update", "user.role.change"
   category   String? // afgeleid van de action-prefix (user/schema/exercise/tenant/auth)
   status     AuditStatus @default(SUCCESS)
@@ -739,6 +828,7 @@ model Authenticator {
 model Machine {
   id             String      @id @default(cuid())
   tenantId       String
+  locationId     String // vestiging waar het apparaat staat
   name           String
   type           MachineType @default(OVERIG)
   description    String?
@@ -753,7 +843,7 @@ model Machine {
   lastScannedAt DateTime? // laatste scanmoment
 
   // --- Inventaris (onderhoudsbeheer) ---
-  location     String? // locatie binnen de sportschool (bv. "Zone A", "1e verdieping")
+  location     String? // zone bínnen de vestiging (bv. "Zone A", "1e verdieping") — de vestiging zelf is locationId
   serialNumber String? // serie- of intern inventarisnummer
   purchaseDate DateTime? // aankoopdatum
 
@@ -769,30 +859,35 @@ model Machine {
   maintenanceWarnNotifiedAt DateTime?
 
   tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  venueLocation      Location            @relation(fields: [locationId], references: [id], onDelete: Restrict)
   exercises          Exercise[]
   maintenanceRecords MaintenanceRecord[]
   scans              MachineScan[]
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, locationId])
 }
 
 // Eén rij per QR-scan (publieke /m/[qrToken]-view). Tenant-scoped + RLS. Voedt de
 // trends (scans deze week, populairste apparaten) naast de teller op Machine.
 model MachineScan {
-  id        String   @id @default(cuid())
-  tenantId  String
-  machineId String
-  scannedAt DateTime @default(now())
-  userId    String? // ingelogd lid indien bekend; NULL = anonieme scan
+  id         String   @id @default(cuid())
+  tenantId   String
+  machineId  String
+  locationId String // snapshot van Machine.locationId op scanmoment (historisch juist bij verhuizing)
+  scannedAt  DateTime @default(now())
+  userId     String? // ingelogd lid indien bekend; NULL = anonieme scan
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  machine  Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([machineId, scannedAt])
   @@index([tenantId, scannedAt])
+  @@index([tenantId, locationId, scannedAt])
 }
 
 // Volledige onderhoudshistorie: één rij per uitgevoerd onderhoudsmoment.
@@ -801,6 +896,7 @@ model MaintenanceRecord {
   id              String          @id @default(cuid())
   tenantId        String
   machineId       String
+  locationId      String // snapshot van Machine.locationId op onderhoudsmoment
   kind            MaintenanceKind @default(SERVICE)
   performedAt     DateTime        @default(now())
   action          String // uitgevoerde actie (bv. "Kabels vervangen")
@@ -812,13 +908,15 @@ model MaintenanceRecord {
   nextMaintenanceAt DateTime? // volgende geplande datum die toen is gezet
   createdAt       DateTime        @default(now())
 
-  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  machine     Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  performedBy User?   @relation("MaintenancePerformer", fields: [performedById], references: [id], onDelete: SetNull)
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  machine     Machine  @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  location    Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  performedBy User?    @relation("MaintenancePerformer", fields: [performedById], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([machineId])
   @@index([tenantId, performedAt])
+  @@index([tenantId, locationId])
 }
 
 // Standaard onderhoudsregels per machinetype (tenant-scoped + RLS). Voedt de
@@ -1216,11 +1314,15 @@ model NativePushToken {
 }
 
 model WorkoutSession {
-  id        String    @id @default(cuid())
-  tenantId  String
-  userId    String
-  startedAt DateTime  @default(now())
-  endedAt   DateTime?
+  id         String    @id @default(cuid())
+  tenantId   String
+  userId     String
+  // Vestiging waar de sessie plaatsvindt. Resolutie: expliciete keuze → device-
+  // cookie → User.homeLocationId → default-vestiging (lib/location-resolve.ts).
+  // PerformanceEntry erft de vestiging via deze sessie (bewust niet gedenormaliseerd).
+  locationId String
+  startedAt  DateTime  @default(now())
+  endedAt    DateTime?
   // Trainingsbeleving (Workout Mood) — mood-key uit lib/workout-moods.ts.
   // NULL = het lid heeft (nog) geen beleving gekozen. One-tap na afronden.
   mood      String?
@@ -1252,16 +1354,19 @@ model WorkoutSession {
 
   tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location           Location           @relation(fields: [locationId], references: [id], onDelete: Restrict)
   performanceEntries PerformanceEntry[]
 
   // Hoogste-churn tabel: per-lid queries filteren op (tenantId, userId) + sorteren
   // op startedAt (member-stats/metrics/history/timeout); owner-dashboards op
-  // (tenantId, startedAt). De losse userId-index blijft voor de GDPR-export
-  // (app/account/export) die alléén op userId filtert. De losse tenantId-index is
-  // overbodig — beide composieten leiden met tenantId.
+  // (tenantId, startedAt) en per vestiging op (tenantId, locationId, startedAt).
+  // De losse userId-index blijft voor de GDPR-export (app/account/export) die
+  // alléén op userId filtert. De losse tenantId-index is overbodig — de
+  // composieten leiden met tenantId.
   @@index([userId])
   @@index([tenantId, userId, startedAt])
   @@index([tenantId, startedAt])
+  @@index([tenantId, locationId, startedAt])
 }
 
 model PerformanceEntry {

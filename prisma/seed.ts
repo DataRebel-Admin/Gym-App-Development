@@ -65,6 +65,20 @@ type TenantContactSpec = {
   socials?: Record<string, string>;
 };
 
+/** Vestiging van de organisatie. Zonder spec krijgt een tenant één
+ *  "Hoofdvestiging" (isDefault) die de tenant-contactgegevens spiegelt —
+ *  zelfde invariant als de migratie-backfill. */
+type LocationSpec = {
+  name: string;
+  isDefault?: boolean;
+  addressLine?: string;
+  postalCode?: string;
+  city?: string;
+  country?: string;
+  timezone?: string;
+  openingHours?: Record<string, string>;
+};
+
 type TenantSpec = {
   slug: string;
   name: string;
@@ -72,10 +86,14 @@ type TenantSpec = {
   locale: Locale;
   aiEnabled?: boolean;
   contact?: TenantContactSpec;
+  locations?: LocationSpec[];
   owner: { email: string; name: string };
-  staff?: { email: string; name: string }[];
-  members: { email: string; name: string }[];
-  machines: { name: string; type: MachineType; description: string }[];
+  // `locations` = vestigingen waaraan de medewerker gekoppeld wordt
+  // (StaffLocationAccess, restrictief). Weggelaten = alle vestigingen.
+  staff?: { email: string; name: string; locations?: string[] }[];
+  members: { email: string; name: string; homeLocation?: string }[];
+  // `venue` = vestiging-naam waar het apparaat staat (default: hoofdvestiging).
+  machines: { name: string; type: MachineType; description: string; venue?: string }[];
   exercises: ExerciseSpec[];
   templates: TemplateSpec[];
   dayTemplates?: DayTemplateSpec[];
@@ -205,21 +223,98 @@ async function seedTenant(spec: TenantSpec) {
   await prisma.workoutTemplate.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.exercise.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.machine.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.staffLocationAccess.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.user.deleteMany({ where: { tenantId: tenant.id } });
+  // Vestigingen als laatste (Restrict-FK's vanuit machines/sessies zijn dan weg).
+  await prisma.location.deleteMany({ where: { tenantId: tenant.id } });
+
+  // Vestigingen. Zonder expliciete spec één "Hoofdvestiging" die de tenant-
+  // contactgegevens spiegelt (zelfde invariant als de migratie-backfill).
+  const locationSpecs: LocationSpec[] =
+    spec.locations && spec.locations.length > 0
+      ? spec.locations
+      : [
+          {
+            name: "Hoofdvestiging",
+            isDefault: true,
+            addressLine: spec.contact?.addressLine,
+            postalCode: spec.contact?.postalCode,
+            city: spec.contact?.city,
+            country: spec.contact?.country,
+            openingHours: spec.contact?.openingHours,
+          },
+        ];
+  const locations = [] as { id: string; name: string; isDefault: boolean }[];
+  for (const l of locationSpecs) {
+    const row = await prisma.location.create({
+      data: {
+        tenantId: tenant.id,
+        name: l.name,
+        addressLine: l.addressLine ?? null,
+        postalCode: l.postalCode ?? null,
+        city: l.city ?? null,
+        country: l.country ?? null,
+        contactPhone: spec.contact?.contactPhone ?? null,
+        contactEmail: spec.contact?.contactEmail ?? null,
+        openingHours: l.openingHours ?? spec.contact?.openingHours ?? undefined,
+        timezone: l.timezone ?? "Europe/Amsterdam",
+        isDefault: l.isDefault ?? false,
+      },
+    });
+    locations.push({ id: row.id, name: row.name, isDefault: row.isDefault });
+  }
+  const defaultLocation = locations.find((l) => l.isDefault) ?? locations[0];
+  const locationByName = new Map(locations.map((l) => [l.name, l]));
+  const locationIdFor = (name?: string) =>
+    (name ? locationByName.get(name)?.id : undefined) ?? defaultLocation.id;
 
   // Gebruikers. Elk demo-account krijgt het demo-wachtwoord (geactiveerd) zodat
-  // zowel wachtwoord- als magic-link-login werkt.
+  // zowel wachtwoord- als magic-link-login werkt. Iedereen krijgt een
+  // thuisvestiging; medewerkers ook expliciete vestiging-toegang (restrictief).
   await prisma.user.create({
-    data: { tenantId: tenant.id, role: Role.TENANT_ADMIN, passwordHash: DEMO_PASSWORD_HASH, emailVerified: new Date(), ...spec.owner },
+    data: {
+      tenantId: tenant.id,
+      role: Role.TENANT_ADMIN,
+      passwordHash: DEMO_PASSWORD_HASH,
+      emailVerified: new Date(),
+      homeLocationId: defaultLocation.id,
+      ...spec.owner,
+    },
   });
-  await Promise.all(
-    (spec.staff ?? []).map((s) =>
-      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_STAFF, passwordHash: DEMO_PASSWORD_HASH, emailVerified: new Date(), ...s } })
-    )
-  );
+  for (const s of spec.staff ?? []) {
+    const accessNames = s.locations ?? locations.map((l) => l.name);
+    const staffUser = await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        role: Role.TENANT_STAFF,
+        passwordHash: DEMO_PASSWORD_HASH,
+        emailVerified: new Date(),
+        homeLocationId: locationIdFor(accessNames[0]),
+        email: s.email,
+        name: s.name,
+      },
+    });
+    await prisma.staffLocationAccess.createMany({
+      data: accessNames.map((n) => ({
+        tenantId: tenant.id,
+        userId: staffUser.id,
+        locationId: locationIdFor(n),
+      })),
+    });
+  }
   await Promise.all(
     spec.members.map((m) =>
-      prisma.user.create({ data: { tenantId: tenant.id, role: Role.TENANT_MEMBER, passwordHash: DEMO_PASSWORD_HASH, emailVerified: new Date(), ...m } })
+      prisma.user.create({
+        data: {
+          tenantId: tenant.id,
+          role: Role.TENANT_MEMBER,
+          passwordHash: DEMO_PASSWORD_HASH,
+          emailVerified: new Date(),
+          homeLocationId: locationIdFor(m.homeLocation),
+          email: m.email,
+          name: m.name,
+        },
+      })
     )
   );
 
@@ -238,6 +333,7 @@ async function seedTenant(spec: TenantSpec) {
       return prisma.machine.create({
         data: {
           tenantId: tenant.id,
+          locationId: locationIdFor(m.venue),
           name: m.name,
           type: m.type,
           description: m.description,
@@ -267,6 +363,7 @@ async function seedTenant(spec: TenantSpec) {
         {
           tenantId: tenant.id,
           machineId: machines[0].id,
+          locationId: machines[0].locationId,
           kind: "SERVICE",
           performedAt: ago(100),
           action: "Kabels gecontroleerd en gesmeerd",
@@ -279,6 +376,7 @@ async function seedTenant(spec: TenantSpec) {
         {
           tenantId: tenant.id,
           machineId: machines[0].id,
+          locationId: machines[0].locationId,
           kind: "REPAIR",
           performedAt: ago(40),
           action: "Linkerkabel vervangen",
@@ -290,6 +388,7 @@ async function seedTenant(spec: TenantSpec) {
         {
           tenantId: tenant.id,
           machineId: machines[Math.min(1, machines.length - 1)].id,
+          locationId: machines[Math.min(1, machines.length - 1)].locationId,
           kind: "INSPECTION",
           performedAt: ago(45),
           action: "Jaarlijkse veiligheidsinspectie",
@@ -299,6 +398,7 @@ async function seedTenant(spec: TenantSpec) {
         {
           tenantId: tenant.id,
           machineId: machines[Math.min(2, machines.length - 1)].id,
+          locationId: machines[Math.min(2, machines.length - 1)].locationId,
           kind: "SAFETY_CHECK",
           performedAt: ago(15),
           action: "Veiligheidscontrole na melding",
@@ -386,9 +486,10 @@ async function seedTenant(spec: TenantSpec) {
   }
 
   console.log(
-    `✓ ${spec.name} (${spec.slug}): 1 owner, ${spec.members.length} members, ` +
-      `${machines.length} machines, ${exercises.length} oefeningen, ` +
-      `${spec.templates.length} schema's, ${(spec.dayTemplates ?? []).length} dag-templates.`
+    `✓ ${spec.name} (${spec.slug}): ${locations.length} vestiging(en), 1 owner, ` +
+      `${spec.members.length} members, ${machines.length} machines, ` +
+      `${exercises.length} oefeningen, ${spec.templates.length} schema's, ` +
+      `${(spec.dayTemplates ?? []).length} dag-templates.`
   );
 }
 
@@ -404,6 +505,9 @@ function pickRandom<T>(arr: T[], n: number): T[] {
 /**
  * Genereer trainingsactiviteit (WorkoutSessions + PerformanceEntries) over de
  * laatste `days` dagen, zodat het owner-dashboard zinvolle cijfers toont.
+ * Bij een multi-vestiging-tenant traint een lid ~70% op de thuisvestiging en
+ * ~30% op een andere — dat demonstreert de niet-optelbare "actieve leden"-
+ * telling (lid telt per vestiging mee, maar 1× voor de organisatie).
  */
 async function seedActivity(
   slug: string,
@@ -416,7 +520,12 @@ async function seedActivity(
   const exercises = await prisma.exercise.findMany({
     where: { tenantId: tenant.id },
   });
-  if (members.length === 0 || exercises.length === 0) return;
+  const locations = await prisma.location.findMany({
+    where: { tenantId: tenant.id },
+    select: { id: true, isDefault: true },
+  });
+  if (members.length === 0 || exercises.length === 0 || locations.length === 0) return;
+  const fallbackLocationId = (locations.find((l) => l.isDefault) ?? locations[0]).id;
 
   const now = new Date();
   let sessions = 0;
@@ -437,8 +546,15 @@ async function seedActivity(
       );
       const endedAt = new Date(startedAt.getTime() + (30 + Math.random() * 40) * 60000);
 
+      const homeId = member.homeLocationId ?? fallbackLocationId;
+      const elsewhere = locations.filter((l) => l.id !== homeId);
+      const locationId =
+        elsewhere.length > 0 && Math.random() < 0.3
+          ? elsewhere[Math.floor(Math.random() * elsewhere.length)].id
+          : homeId;
+
       const session = await prisma.workoutSession.create({
-        data: { tenantId: tenant.id, userId: member.id, startedAt, endedAt },
+        data: { tenantId: tenant.id, userId: member.id, locationId, startedAt, endedAt },
       });
       sessions++;
 
@@ -584,12 +700,20 @@ function futureDate(daysAhead: number, hour: number): Date {
   return d;
 }
 
-/** Groepslessen + sessies; vult één les vol om de capaciteit te demonstreren. */
+/** Groepslessen + sessies; vult één les vol om de capaciteit te demonstreren.
+ *  Sessies zijn over de vestigingen verdeeld (les-definitie is org-niveau). */
 async function seedRooster(slug: string) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { slug } });
   const lisa = await prisma.user.findFirst({
     where: { tenantId: tenant.id, email: "lisa@gymrebel.nl", role: "TENANT_MEMBER" },
   });
+  const locations = await prisma.location.findMany({
+    where: { tenantId: tenant.id },
+    orderBy: { isDefault: "desc" },
+    select: { id: true },
+  });
+  const primary = locations[0].id;
+  const secondary = locations[1]?.id ?? primary;
 
   // Spinning — max 1, en meteen vol (Lisa aangemeld) om "vol" te tonen.
   const spinning = await prisma.groupClass.create({
@@ -602,6 +726,7 @@ async function seedRooster(slug: string) {
         create: [
           {
             tenantId: tenant.id,
+            locationId: primary,
             startsAt: futureDate(1, 18),
             endsAt: futureDate(1, 19),
             location: "Zaal 1",
@@ -621,7 +746,7 @@ async function seedRooster(slug: string) {
     });
   }
 
-  // Yoga — ruime capaciteit, twee sessies.
+  // Yoga — ruime capaciteit, twee sessies (één per vestiging).
   await prisma.groupClass.create({
     data: {
       tenantId: tenant.id,
@@ -630,8 +755,8 @@ async function seedRooster(slug: string) {
       maxParticipants: 12,
       sessions: {
         create: [
-          { tenantId: tenant.id, startsAt: futureDate(2, 9), endsAt: futureDate(2, 10), location: "Studio" },
-          { tenantId: tenant.id, startsAt: futureDate(4, 19), endsAt: futureDate(4, 20), location: "Studio" },
+          { tenantId: tenant.id, locationId: primary, startsAt: futureDate(2, 9), endsAt: futureDate(2, 10), location: "Studio" },
+          { tenantId: tenant.id, locationId: secondary, startsAt: futureDate(4, 19), endsAt: futureDate(4, 20), location: "Studio" },
         ],
       },
     },
@@ -934,19 +1059,48 @@ async function main() {
       // Geen demo-socials: lege placeholders zouden naar niet-bestaande accounts
       // linken. Een echte sportschool vult deze zelf via /owner/settings.
     },
+    // Twee vestigingen — demonstreert de Organisatie → Vestigingen-hiërarchie,
+    // de restrictieve staff-koppeling (Coen alleen Centrum) en de niet-optelbare
+    // "actieve leden"-telling (leden trainen op beide vestigingen).
+    locations: [
+      {
+        name: "Leeuwarden Centrum",
+        isDefault: true,
+        addressLine: "Krachtstraat 12",
+        postalCode: "8911 AB",
+        city: "Leeuwarden",
+        country: "Nederland",
+      },
+      {
+        name: "Leeuwarden Zuid",
+        addressLine: "Zuiderplein 5",
+        postalCode: "8932 GH",
+        city: "Leeuwarden",
+        country: "Nederland",
+        openingHours: {
+          mon: "07:00 - 22:00",
+          tue: "07:00 - 22:00",
+          wed: "07:00 - 22:00",
+          thu: "07:00 - 22:00",
+          fri: "07:00 - 21:00",
+          sat: "09:00 - 18:00",
+          sun: "09:00 - 17:00",
+        },
+      },
+    ],
     owner: { email: "keimpe@gymrebel.nl", name: "Keimpe Krachtpatser" },
-    staff: [{ email: "coach@gymrebel.nl", name: "Coen Coach" }],
+    staff: [{ email: "coach@gymrebel.nl", name: "Coen Coach", locations: ["Leeuwarden Centrum"] }],
     members: [
-      { email: "duco@gymrebel.nl", name: "Duco Dumbbell" },
-      { email: "lisa@gymrebel.nl", name: "Lisa Lifter" },
-      { email: "tom@gymrebel.nl", name: "Tom Trainer" },
+      { email: "duco@gymrebel.nl", name: "Duco Dumbbell", homeLocation: "Leeuwarden Centrum" },
+      { email: "lisa@gymrebel.nl", name: "Lisa Lifter", homeLocation: "Leeuwarden Zuid" },
+      { email: "tom@gymrebel.nl", name: "Tom Trainer", homeLocation: "Leeuwarden Centrum" },
     ],
     machines: [
-      { name: "Loopband", type: MachineType.CARDIO, description: "Hardlopen en wandelen op snelheid." },
-      { name: "Crosstrainer", type: MachineType.CARDIO, description: "Low-impact cardio voor het hele lichaam." },
-      { name: "Beenpers", type: MachineType.KRACHT, description: "Krachttraining voor de benen." },
-      { name: "Lat pulldown", type: MachineType.KRACHT, description: "Trekoefening voor de rug." },
-      { name: "Halterbank", type: MachineType.VRIJE_GEWICHTEN, description: "Verstelbare bank voor halteroefeningen." },
+      { name: "Loopband", type: MachineType.CARDIO, description: "Hardlopen en wandelen op snelheid.", venue: "Leeuwarden Centrum" },
+      { name: "Crosstrainer", type: MachineType.CARDIO, description: "Low-impact cardio voor het hele lichaam.", venue: "Leeuwarden Zuid" },
+      { name: "Beenpers", type: MachineType.KRACHT, description: "Krachttraining voor de benen.", venue: "Leeuwarden Centrum" },
+      { name: "Lat pulldown", type: MachineType.KRACHT, description: "Trekoefening voor de rug.", venue: "Leeuwarden Zuid" },
+      { name: "Halterbank", type: MachineType.VRIJE_GEWICHTEN, description: "Verstelbare bank voor halteroefeningen.", venue: "Leeuwarden Centrum" },
     ],
     exercises: [
       { name: "Hardlopen", targetMuscle: "Cardio", machine: "Loopband", exerciseType: "cardio" },

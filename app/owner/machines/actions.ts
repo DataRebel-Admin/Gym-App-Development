@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
+import { getDefaultLocationId } from "@/lib/locations";
 import { uploadMachineImage } from "@/lib/blob";
 import { MACHINE_TYPES } from "@/lib/machine";
 import { audit } from "@/lib/audit";
@@ -115,6 +116,8 @@ export async function saveMachine(
     const created = await prisma.machine.create({
       data: {
         tenantId: owner.tenantId,
+        // Vestiging van het apparaat (fase 7 voegt een expliciete select toe).
+        locationId: await getDefaultLocationId(owner.tenantId),
         name: data.name,
         type: data.type,
         description: data.description ?? null,

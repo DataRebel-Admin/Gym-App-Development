@@ -41,11 +41,14 @@ async function loadOpenSession(ctx: SessionSubject, sessionId: string) {
  * echt bij het toegewezen schema hoort. Is er al een open sessie, dan hervatten we
  * die (één workout tegelijk). `conductedById` markeert een trainer-gedraaide
  * sessie; bij hervatten wordt een nog-lege conductor best-effort alsnog gezet.
+ * `locationId` = de vestiging waar getraind wordt (resolutie door de aanroeper,
+ * zie lib/location-resolve.ts); alleen relevant bij het aanmaken — een hervatte
+ * sessie behoudt zijn oorspronkelijke vestiging.
  * Retourneert de sessie-id, of `null` als het lid geen actief schema heeft.
  */
 export async function startOrResumeSession(
   ctx: SessionSubject,
-  opts: { requestedDayId?: string | null; conductedById?: string | null } = {}
+  opts: { locationId: string; requestedDayId?: string | null; conductedById?: string | null }
 ): Promise<string | null> {
   const assignment = await getAssignedSchema(ctx.userId, ctx.tenantId);
   if (!assignment) return null;
@@ -82,6 +85,7 @@ export async function startOrResumeSession(
     data: {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
+      locationId: opts.locationId,
       dayId,
       conductedById: opts.conductedById ?? null,
     },

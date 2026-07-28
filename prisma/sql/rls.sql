@@ -47,7 +47,9 @@ DECLARE
     'MaintenanceRecord',
     'MaintenancePolicy',
     'FeatureFlag',
-    'MachineScan'
+    'MachineScan',
+    'Location',
+    'StaffLocationAccess'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

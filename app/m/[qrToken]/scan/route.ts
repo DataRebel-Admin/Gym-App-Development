@@ -17,7 +17,7 @@ export async function POST(
 
     const machine = await prisma.machine.findFirst({
       where: { qrToken, tenantId: tenant.id },
-      select: { id: true },
+      select: { id: true, locationId: true },
     });
     if (!machine) return new NextResponse(null, { status: 204 });
 
@@ -34,7 +34,9 @@ export async function POST(
         data: { scanCount: { increment: 1 }, lastScannedAt: new Date() },
       }),
       prisma.machineScan.create({
-        data: { tenantId: tenant.id, machineId: machine.id, userId },
+        // Vestiging = die van de machine (snapshot) — nooit van de gebruiker;
+        // anonieme scans blijven zo gewoon werken.
+        data: { tenantId: tenant.id, machineId: machine.id, locationId: machine.locationId, userId },
       }),
     ]);
   } catch {

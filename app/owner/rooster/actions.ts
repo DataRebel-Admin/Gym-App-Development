@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { getDefaultLocationId } from "@/lib/locations";
 import { areClassesEnabled } from "@/lib/classes";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
@@ -94,10 +95,14 @@ export async function addSession(
   });
   if (!groupClass) return { error: "Les niet gevonden" };
 
+  // Vestiging van de les (fase 7 voegt een expliciete vestiging-select toe).
+  const locationId = await getDefaultLocationId(owner.tenantId);
+
   await prisma.classSession.create({
     data: {
       tenantId: owner.tenantId,
       classId: groupClass.id,
+      locationId,
       startsAt: parsed.data.startsAt,
       endsAt: parsed.data.endsAt,
       location: parsed.data.location ?? null,

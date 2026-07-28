@@ -31,6 +31,7 @@ async function loadMachine(id: string, tenantId: string) {
       id: true,
       name: true,
       status: true,
+      locationId: true,
       usageCount: true,
       usageThreshold: true,
       maintenanceIntervalDays: true,
@@ -146,6 +147,7 @@ export async function logMaintenance(
       data: {
         tenantId: user.tenantId,
         machineId: machine.id,
+        locationId: machine.locationId, // snapshot van de vestiging op onderhoudsmoment
         kind: d.kind,
         performedAt,
         action: d.action,

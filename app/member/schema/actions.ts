@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireMember } from "@/lib/member";
+import { getDefaultLocationId } from "@/lib/locations";
 import { isMood } from "@/lib/workout-moods";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import {
@@ -64,9 +65,10 @@ export async function markActiveSchemaSeen(): Promise<void> {
 export async function startSession(formData?: FormData) {
   const member = await requireMember();
   const requestedDayId = formData ? String(formData.get("dayId") ?? "") : "";
+  const locationId = await getDefaultLocationId(member.tenantId);
   const sessionId = await startOrResumeSession(
     { tenantId: member.tenantId, userId: member.id },
-    { requestedDayId }
+    { locationId, requestedDayId }
   );
   if (!sessionId) redirect("/member/schema");
   redirect("/member/schema/active");
