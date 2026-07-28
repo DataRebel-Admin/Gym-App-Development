@@ -3,9 +3,11 @@ import { getTranslations } from "next-intl/server";
 import { useTranslations } from "next-intl";
 import { requireMember } from "@/lib/member";
 import { areClassesEnabled } from "@/lib/classes";
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
-import { isMultiLocation } from "@/lib/locations";
+import { getTenantLocations } from "@/lib/locations";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,6 +23,7 @@ type SessionCard = {
   id: string;
   startsAt: Date;
   endsAt: Date;
+  locationId: string;
   /** Vestiging-naam (alleen gezet bij een multi-vestiging-organisatie). */
   venueName: string | null;
   location: string | null;
@@ -117,33 +120,60 @@ function ClassCard({ s }: { s: SessionCard }) {
   );
 }
 
-export default async function MemberRoosterPage() {
+export default async function MemberRoosterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ loc?: string }>;
+}) {
   const member = await requireMember();
   if (!(await areClassesEnabled(member.tenantId))) notFound();
   const t = await getTranslations("member.rooster");
+  const { loc } = await searchParams;
 
-  const sessions = await prisma.classSession.findMany({
-    where: { tenantId: member.tenantId, startsAt: { gte: new Date() } },
-    orderBy: { startsAt: "asc" },
-    take: 40,
-    include: {
-      groupClass: { select: { name: true, instructorName: true, maxParticipants: true } },
-      venueLocation: { select: { name: true } },
-      // Capaciteit telt alleen actieve statussen (afgemeld/no-show bezet geen plek).
-      _count: {
-        select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
+  const [sessions, locations, me] = await Promise.all([
+    prisma.classSession.findMany({
+      where: { tenantId: member.tenantId, startsAt: { gte: new Date() } },
+      orderBy: { startsAt: "asc" },
+      take: 40,
+      include: {
+        groupClass: { select: { name: true, instructorName: true, maxParticipants: true } },
+        venueLocation: { select: { name: true } },
+        // Capaciteit telt alleen actieve statussen (afgemeld/no-show bezet geen plek).
+        _count: {
+          select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
+        },
+        enrollments: { where: { userId: member.id, status: "ENROLLED" }, select: { id: true } },
       },
-      enrollments: { where: { userId: member.id, status: "ENROLLED" }, select: { id: true } },
-    },
-  });
+    }),
+    getTenantLocations(member.tenantId),
+    prisma.user.findFirst({
+      where: { id: member.id, tenantId: member.tenantId },
+      select: { homeLocationId: true },
+    }),
+  ]);
 
-  // Vestiging-badge alleen tonen bij een multi-vestiging-organisatie.
-  const multiLocation = await isMultiLocation(member.tenantId);
+  // Vestiging-badge + filter alleen bij een multi-vestiging-organisatie.
+  const multiLocation = locations.length > 1;
+
+  // Standaard gefilterd op de eigen (actieve/thuis)vestiging; `?loc=all` toont
+  // alles, `?loc=<id>` een specifieke vestiging. "Mijn lessen" blijft bewust
+  // ongefilterd — eigen aanmeldingen zie je altijd, waar ze ook zijn.
+  const validIds = new Set(locations.map((l) => l.id));
+  const selectedLocationId = !multiLocation
+    ? null
+    : loc === "all"
+      ? null
+      : loc && validIds.has(loc)
+        ? loc
+        : await resolveActiveLocationId(member.tenantId, {
+            homeLocationId: me?.homeLocationId,
+          });
 
   const cards: SessionCard[] = sessions.map((s) => ({
     id: s.id,
     startsAt: s.startsAt,
     endsAt: s.endsAt,
+    locationId: s.locationId,
     venueName: multiLocation ? s.venueLocation.name : null,
     location: s.location,
     className: s.groupClass.name,
@@ -155,6 +185,14 @@ export default async function MemberRoosterPage() {
     max: s.groupClass.maxParticipants,
   }));
   const mine = cards.filter((s) => s.enrolled);
+  const upcoming = selectedLocationId
+    ? cards.filter((s) => s.locationId === selectedLocationId)
+    : cards;
+
+  const filterTab = (active: boolean) =>
+    active
+      ? "shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-accent-foreground"
+      : "shrink-0 rounded-full border border-border bg-surface-1 px-3.5 py-1.5 text-xs font-medium text-neutral-600 active:bg-surface-2";
 
   return (
     <Reveal stagger className="flex flex-1 flex-col gap-6 px-5 py-8">
@@ -182,7 +220,25 @@ export default async function MemberRoosterPage() {
         <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
           {t("upcoming")}
         </h2>
-        {cards.length === 0 ? (
+
+        {multiLocation ? (
+          <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
+            <Link href="/member/rooster?loc=all" className={filterTab(selectedLocationId === null)}>
+              {t("allLocations")}
+            </Link>
+            {locations.map((l) => (
+              <Link
+                key={l.id}
+                href={`/member/rooster?loc=${l.id}`}
+                className={filterTab(selectedLocationId === l.id)}
+              >
+                {l.name}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+
+        {upcoming.length === 0 ? (
           <EmptyState
             icon={<CalendarDays className="size-7 text-accent" />}
             title={t("emptyTitle")}
@@ -190,7 +246,7 @@ export default async function MemberRoosterPage() {
           />
         ) : (
           <div className="flex flex-col gap-2.5">
-            {cards.map((s) => (
+            {upcoming.map((s) => (
               <ClassCard key={s.id} s={s} />
             ))}
           </div>

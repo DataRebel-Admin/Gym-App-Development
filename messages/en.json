@@ -417,6 +417,7 @@
       "enroll": "Sign up",
       "myClasses": "My classes",
       "upcoming": "Upcoming classes",
+      "allLocations": "All locations",
       "emptyTitle": "No classes scheduled yet",
       "emptyDesc": "There are no group classes in the schedule right now. Check back later or ask your gym about availability."
     },
@@ -802,6 +803,10 @@
       "removeTitle": "Remove staff member?",
       "removeMessage": "Are you sure you want to permanently remove {name}?",
       "rights": "Permissions",
+      "locationsTitle": "Locations",
+      "locationLink": "Link to this location",
+      "locationUnlink": "Unlink from this location",
+      "noLocationAccess": "Not linked to any location yet — this staff member sees no location data.",
       "statusGEACTIVEERD": "Activated",
       "statusVERZONDEN": "Sent",
       "statusVERLOPEN": "Expired",

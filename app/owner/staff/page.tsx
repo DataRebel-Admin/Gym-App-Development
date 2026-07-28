@@ -27,6 +27,8 @@ import {
   resendMemberInviteById,
   revokeMemberInvite,
 } from "@/app/owner/members/actions";
+import { setStaffLocationAccess } from "@/app/owner/locations/actions";
+import { getTenantLocations } from "@/lib/locations";
 import { setStaffPermissions } from "./actions";
 
 export async function generateMetadata() {
@@ -48,7 +50,7 @@ export default async function OwnerStaffPage() {
   const owner = await requireOwner();
   const t = await getTranslations("owner.staff");
 
-  const [staff, pendingInvites] = await Promise.all([
+  const [staff, pendingInvites, locations] = await Promise.all([
     prisma.user.findMany({
       where: { tenantId: owner.tenantId, role: "TENANT_STAFF" },
       orderBy: { name: "asc" },
@@ -59,9 +61,11 @@ export default async function OwnerStaffPage() {
         active: true,
         emailVerified: true,
         permissions: true,
+        staffLocationAccess: { select: { locationId: true } },
       },
     }),
     listPendingInvitations({ tenantId: owner.tenantId }),
+    getTenantLocations(owner.tenantId),
   ]);
 
   const staffInvites = pendingInvites.filter((i) => i.role === "TENANT_STAFF");
@@ -162,6 +166,40 @@ export default async function OwnerStaffPage() {
                       message={t("removeMessage", { name: s.name ?? s.email })}
                     />
                   </div>
+                </div>
+
+                {/* Vestiging-toegang (RESTRICTIEF, fail-closed): klik een chip om
+                    te (ont)koppelen — zonder koppelingen ziet de medewerker níéts. */}
+                <div>
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                    {t("locationsTitle")}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {locations.map((l) => {
+                      const linked = s.staffLocationAccess.some((a) => a.locationId === l.id);
+                      return (
+                        <form key={l.id} action={setStaffLocationAccess}>
+                          <input type="hidden" name="userId" value={s.id} />
+                          <input type="hidden" name="locationId" value={l.id} />
+                          <input type="hidden" name="grant" value={linked ? "0" : "1"} />
+                          <button
+                            type="submit"
+                            title={linked ? t("locationUnlink") : t("locationLink")}
+                            className={
+                              linked
+                                ? "rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground hover:opacity-90"
+                                : "rounded-full border border-border px-3 py-1 text-xs font-medium text-neutral-500 hover:bg-surface-2"
+                            }
+                          >
+                            {linked ? `${l.name} ✓` : `${l.name} +`}
+                          </button>
+                        </form>
+                      );
+                    })}
+                  </div>
+                  {s.staffLocationAccess.length === 0 ? (
+                    <p className="mt-1.5 text-xs text-amber-700">{t("noLocationAccess")}</p>
+                  ) : null}
                 </div>
 
                 <div>

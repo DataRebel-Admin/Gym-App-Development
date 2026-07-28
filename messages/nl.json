@@ -417,6 +417,7 @@
       "enroll": "Aanmelden",
       "myClasses": "Mijn lessen",
       "upcoming": "Komende lessen",
+      "allLocations": "Alle vestigingen",
       "emptyTitle": "Nog geen lessen gepland",
       "emptyDesc": "Er staan op dit moment geen groepslessen in het rooster. Kom later terug of vraag je sportschool naar het aanbod."
     },
@@ -802,6 +803,10 @@
       "removeTitle": "Medewerker verwijderen?",
       "removeMessage": "Weet je zeker dat je {name} definitief wilt verwijderen?",
       "rights": "Rechten",
+      "locationsTitle": "Vestigingen",
+      "locationLink": "Koppel aan deze vestiging",
+      "locationUnlink": "Ontkoppel van deze vestiging",
+      "noLocationAccess": "Nog aan geen enkele vestiging gekoppeld — deze medewerker ziet geen vestigingsdata.",
       "statusGEACTIVEERD": "Geactiveerd",
       "statusVERZONDEN": "Verzonden",
       "statusVERLOPEN": "Verlopen",

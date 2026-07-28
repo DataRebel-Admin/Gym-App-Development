@@ -778,8 +778,12 @@ facturatie-/juridisch adres; `Location` draagt het vestigingsadres + `openingHou
 - Openingstijden zijn **per vestiging** bewerkbaar op de vestiging-form (zelfde
   `hours_<dag>`-idioom als de tenant-form; alles leeg = vestiging-tijden gewist → het lid
   ziet de organisatie-tijden als vangnet op `/member/gym`).
-- **Bewust (nog) niet**: vestiging-chips op `/owner/staff` (beheer loopt via de matrix op
-  het vestiging-detail); een default-vestiging-filter op het member-rooster.
+- Staff-vestiging-koppelingen zijn op twee plekken beheerbaar: de matrix op het
+  vestiging-detail én **chips per medewerker op `/owner/staff`** (zelfde action
+  `setStaffLocationAccess`; waarschuwing bij nul koppelingen — fail-closed).
+- Het member-rooster filtert bij multi-vestiging **standaard op de eigen
+  (actieve/thuis)vestiging** (`?loc=all` / `?loc=<id>` via filter-chips); "Mijn lessen"
+  blijft bewust ongefilterd zodat eigen aanmeldingen elders altijd zichtbaar zijn.
 
 ### Slim onderhoudsbeheer voor machines
 
