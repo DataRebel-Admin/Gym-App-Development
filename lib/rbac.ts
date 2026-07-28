@@ -12,6 +12,7 @@ export type Permission =
   | "user:manage" // leden toevoegen/bewerken/verwijderen/(de)activeren
   | "role:assign" // rollen + medewerker-rechten wijzigen
   | "audit:read" // audit log inzien
+  | "locations:manage" // vestigingen beheren + staff-vestiging-koppelingen (admin-only)
   // --- Tenant-feature (toewijsbaar aan een medewerker) ---
   | "schemas:manage" // trainingsschema's maken/bewerken/toewijzen
   | "members:view" // leden bekijken/zoeken/profiel/historie
@@ -22,6 +23,7 @@ export type Permission =
   | "exercises:manage" // eigen oefeningen beheren
   | "maintenance:manage" // machine-onderhoud beheren (regels, uitvoeren, status)
   | "machines:qr-export" // QR-codes van apparaten bulk-exporteren (standaard uit)
+  | "analytics:view" // vestigingsanalytics inzien, gescoped op gekoppelde vestigingen (standaard uit)
   | "members:import" // leden importeren (standaard uit)
   | "reports:export" // rapportages exporteren (standaard uit)
   | "mailings:send"; // mailings versturen (standaard uit)
@@ -41,6 +43,7 @@ export const STAFF_CONFIGURABLE_PERMISSIONS = [
   "exercises:manage",
   "maintenance:manage",
   "machines:qr-export",
+  "analytics:view",
   "members:import",
   "reports:export",
   "mailings:send",
@@ -62,6 +65,7 @@ const TENANT_ADMIN_PERMISSIONS: Permission[] = [
   "user:manage",
   "role:assign",
   "audit:read",
+  "locations:manage",
   ...STAFF_CONFIGURABLE_PERMISSIONS,
 ];
 
@@ -204,6 +208,18 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         label: "QR-codes exporteren",
         description:
           "QR-codes van apparaten in bulk downloaden als printbare PDF of losse bestanden (standaard uit).",
+      },
+    ],
+  },
+  {
+    key: "analytics",
+    label: "Analytics",
+    permissions: [
+      {
+        permission: "analytics:view",
+        label: "Vestigingsanalytics inzien",
+        description:
+          "Statistieken van de gekoppelde vestiging(en) inzien; organisatie-totalen blijven eigenaar-only (standaard uit).",
       },
     ],
   },
