@@ -18,6 +18,7 @@ const machineSchema = z.object({
   id: z.string().optional(),
   name: z.string().trim().min(1, "nameRequired"),
   type: z.enum(MACHINE_TYPES),
+  locationId: z.string().min(1).optional(),
   description: z.string().trim().optional(),
   instructionsMd: z.string().optional(),
   videoUrl: z
@@ -50,6 +51,7 @@ export async function saveMachine(
     id: formData.get("id") || undefined,
     name: formData.get("name"),
     type: formData.get("type"),
+    locationId: formData.get("locationId") || undefined,
     description: formData.get("description") || undefined,
     instructionsMd: formData.get("instructionsMd") || undefined,
     videoUrl: formData.get("videoUrl") || "",
@@ -63,6 +65,16 @@ export async function saveMachine(
   }
   const data = parsed.data;
   const purchaseDate = data.purchaseDate ? new Date(data.purchaseDate) : null;
+
+  // Vestiging: gevalideerd binnen de eigen tenant (actief); onbekend/ontbrekend
+  // → default-vestiging. Nooit client-input blind vertrouwen.
+  const requestedLocation = data.locationId
+    ? await prisma.location.findFirst({
+        where: { id: data.locationId, tenantId: owner.tenantId, archivedAt: null },
+        select: { id: true },
+      })
+    : null;
+  const locationId = requestedLocation?.id ?? (await getDefaultLocationId(owner.tenantId));
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: owner.tenantId },
@@ -85,6 +97,7 @@ export async function saveMachine(
       data: {
         name: data.name,
         type: data.type,
+        locationId,
         description: data.description ?? null,
         instructionsMd: data.instructionsMd ?? null,
         videoUrl: data.videoUrl || null,
@@ -116,8 +129,7 @@ export async function saveMachine(
     const created = await prisma.machine.create({
       data: {
         tenantId: owner.tenantId,
-        // Vestiging van het apparaat (fase 7 voegt een expliciete select toe).
-        locationId: await getDefaultLocationId(owner.tenantId),
+        locationId,
         name: data.name,
         type: data.type,
         description: data.description ?? null,

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requireOwner } from "@/lib/owner";
+import { getTenantLocations } from "@/lib/locations";
 import { blobConfigured } from "@/lib/blob";
 import { machinePublicUrl } from "@/lib/machine";
 import { MachineForm } from "../machine-form";
@@ -72,6 +73,9 @@ export default async function MachineDetailPage({
   // Onderhoudsmodule uit (Superadmin-flag) → geen onderhoudspaneel/historie.
   const maintenanceEnabled = await isFeatureEnabled(owner.tenantId, "maintenance");
 
+  // Vestigingen voor de vestiging-select in het formulier.
+  const locations = await getTenantLocations(owner.tenantId);
+
   const maintenanceRecords = maintenanceEnabled
     ? await prisma.maintenanceRecord.findMany({
     where: { machineId: machine.id, tenantId: owner.tenantId },
@@ -125,6 +129,8 @@ export default async function MachineDetailPage({
 
       <MachineForm
         blobEnabled={blobConfigured()}
+        locations={locations.map((l) => ({ id: l.id, name: l.name }))}
+        defaultLocationId={machine.locationId}
         machine={{
           id: machine.id,
           name: machine.name,
@@ -133,6 +139,7 @@ export default async function MachineDetailPage({
           instructionsMd: machine.instructionsMd,
           videoUrl: machine.videoUrl,
           imageUrl: machine.imageUrl,
+          locationId: machine.locationId,
           location: machine.location,
           serialNumber: machine.serialNumber,
           purchaseDate: machine.purchaseDate

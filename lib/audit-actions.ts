@@ -300,6 +300,37 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
       `${actor} annuleerde een training voor ${s(meta, "member") ?? "een lid"}`,
   },
 
+  // --- Vestigingen ---
+  "location.create": {
+    category: "tenant", label: "Vestiging aangemaakt", icon: "📍", tone: "success",
+    sentence: ({ actor, meta }) => `${actor} heeft vestiging '${s(meta, "name") ?? ""}' aangemaakt`.trim(),
+  },
+  "location.update": {
+    category: "tenant", label: "Vestiging bijgewerkt", icon: "✏️", tone: "accent",
+    sentence: ({ actor, meta }) => `${actor} heeft vestiging '${s(meta, "name") ?? ""}' bijgewerkt`.trim(),
+  },
+  "location.archive": {
+    category: "tenant", label: "Vestiging gearchiveerd", icon: "📦", tone: "warning",
+    sentence: ({ actor, meta }) => `${actor} heeft vestiging '${s(meta, "name") ?? ""}' gearchiveerd`.trim(),
+  },
+  "location.unarchive": {
+    category: "tenant", label: "Vestiging heropend", icon: "♻️", tone: "accent",
+    sentence: ({ actor, meta }) => `${actor} heeft vestiging '${s(meta, "name") ?? ""}' heropend`.trim(),
+  },
+  "location.default.change": {
+    category: "tenant", label: "Hoofdvestiging gewijzigd", icon: "⭐", tone: "accent",
+    sentence: ({ actor, meta }) => `${actor} maakte '${s(meta, "name") ?? ""}' de hoofdvestiging`.trim(),
+  },
+  "staff.location.assign": {
+    category: "members", label: "Vestiging-toegang gegeven", icon: "🔓", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} gaf ${s(meta, "staff") ?? "een medewerker"} toegang tot vestiging '${s(meta, "name") ?? ""}'`,
+  },
+  "staff.location.unassign": {
+    category: "members", label: "Vestiging-toegang ingetrokken", icon: "🔒", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} trok de toegang van ${s(meta, "staff") ?? "een medewerker"} tot vestiging '${s(meta, "name") ?? ""}' in`,
+  },
   "user.location.switch": {
     category: "members", label: "Actieve vestiging gewisseld", icon: "📍", tone: "neutral",
     sentence: ({ actor, meta }) =>

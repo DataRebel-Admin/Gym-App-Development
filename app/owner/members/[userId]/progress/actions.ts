@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { GoalMetric, MeasurementSource, PhotoPose, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { audit } from "@/lib/audit";
 import { uploadProgressPhoto } from "@/lib/blob";
 import { METRICS, GOAL_METRIC_KEY, GOAL_METRIC_LABEL, isMetricEnabled, type MetricKey } from "@/lib/measurement-meta";
@@ -114,6 +115,8 @@ export async function createMeasurement(
       tenantId: owner.tenantId,
       userId,
       recordedById: owner.id,
+      // Vestiging van de vastlegger (device-cookie → default) — herkomst-info.
+      locationId: await resolveActiveLocationId(owner.tenantId),
       measuredAt: basics.measuredAt,
       source: basics.source,
       notes: basics.notes,

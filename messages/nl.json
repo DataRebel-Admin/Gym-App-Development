@@ -380,7 +380,8 @@
     },
     "gym": {
       "metaTitle": "Sportschool",
-      "title": "Sportschool"
+      "title": "Sportschool",
+      "otherLocations": "Andere vestigingen"
     },
     "requests": {
       "metaTitle": "Schema aanvragen",

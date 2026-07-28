@@ -52,7 +52,16 @@ export function NewClassForm() {
   );
 }
 
-export function AddSessionForm({ classId }: { classId: string }) {
+export function AddSessionForm({
+  classId,
+  locations,
+  defaultLocationId,
+}: {
+  classId: string;
+  /** Actieve vestigingen — de les-sessie vindt op precies één vestiging plaats. */
+  locations: { id: string; name: string }[];
+  defaultLocationId: string;
+}) {
   const t = useTranslations("owner.rooster");
   const [state, formAction, pending] = useActionState<SessionFormState, FormData>(
     addSession,
@@ -69,6 +78,20 @@ export function AddSessionForm({ classId }: { classId: string }) {
         {t("formEnd")}
         <input name="endsAt" type="datetime-local" required className={inputClass} />
       </label>
+      {locations.length > 1 ? (
+        <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          Vestiging
+          <select name="locationId" defaultValue={defaultLocationId} className={inputClass}>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <input type="hidden" name="locationId" value={defaultLocationId} />
+      )}
       <label className="flex flex-col gap-1 text-sm text-neutral-700">
         {t("formLocation")}
         <input name="location" placeholder={t("optional")} className={inputClass} />

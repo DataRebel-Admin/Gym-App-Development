@@ -6,7 +6,9 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { getDefaultLocationId } from "@/lib/locations";
+import { requireLocationAccess } from "@/lib/location-access";
 import { areClassesEnabled } from "@/lib/classes";
+import { audit } from "@/lib/audit";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
 
@@ -65,6 +67,8 @@ const sessionSchema = z
     classId: z.string().min(1),
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
+    locationId: z.string().min(1).optional(),
+    // Zaal/ruimte bínnen de vestiging (vrije tekst) — de vestiging is locationId.
     location: z.string().trim().optional(),
   })
   .refine((d) => d.endsAt > d.startsAt, {
@@ -83,6 +87,7 @@ export async function addSession(
     classId: formData.get("classId"),
     startsAt: formData.get("startsAt"),
     endsAt: formData.get("endsAt"),
+    locationId: formData.get("locationId") || undefined,
     location: formData.get("location") || undefined,
   });
   if (!parsed.success) {
@@ -95,8 +100,14 @@ export async function addSession(
   });
   if (!groupClass) return { error: "Les niet gevonden" };
 
-  // Vestiging van de les (fase 7 voegt een expliciete vestiging-select toe).
-  const locationId = await getDefaultLocationId(owner.tenantId);
+  // Vestiging: gevalideerd binnen de eigen tenant (actief); anders default.
+  const requestedLocation = parsed.data.locationId
+    ? await prisma.location.findFirst({
+        where: { id: parsed.data.locationId, tenantId: owner.tenantId, archivedAt: null },
+        select: { id: true },
+      })
+    : null;
+  const locationId = requestedLocation?.id ?? (await getDefaultLocationId(owner.tenantId));
 
   await prisma.classSession.create({
     data: {
@@ -124,6 +135,55 @@ export async function addSession(
 
   revalidatePath(`/owner/rooster/${groupClass.id}`);
   return {};
+}
+
+/**
+ * Markeer aanwezigheid van een deelnemer (staff, ná de les): ATTENDED, NO_SHOW
+ * of terug naar ENROLLED (correctie). CANCELLED blijft onaangeroerd (afgemeld
+ * is afgemeld). Vereist schedule:manage + toegang tot de vestiging van de sessie.
+ */
+export async function markAttendance(formData: FormData) {
+  const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
+  const enrollmentId = String(formData.get("enrollmentId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  if (status !== "ATTENDED" && status !== "NO_SHOW" && status !== "ENROLLED") return;
+
+  const enrollment = await prisma.classEnrollment.findFirst({
+    where: { id: enrollmentId, tenantId: owner.tenantId },
+    select: {
+      id: true,
+      status: true,
+      user: { select: { name: true, email: true } },
+      session: {
+        select: {
+          classId: true,
+          locationId: true,
+          groupClass: { select: { name: true } },
+        },
+      },
+    },
+  });
+  if (!enrollment || enrollment.status === "CANCELLED") return;
+  await requireLocationAccess(owner, enrollment.session.locationId);
+
+  await prisma.classEnrollment.update({
+    where: { id: enrollment.id },
+    data: { status, statusChangedAt: new Date(), markedById: owner.id },
+  });
+  await audit("class.attendance.mark", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    locationId: enrollment.session.locationId,
+    targetType: "ClassEnrollment",
+    targetId: enrollment.id,
+    metadata: {
+      member: enrollment.user.name ?? enrollment.user.email,
+      class: enrollment.session.groupClass.name,
+      status,
+    },
+  });
+  revalidatePath(`/owner/rooster/${enrollment.session.classId}`);
 }
 
 export async function deleteSession(formData: FormData) {

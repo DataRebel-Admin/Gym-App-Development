@@ -380,7 +380,8 @@
     },
     "gym": {
       "metaTitle": "Gym",
-      "title": "Gym"
+      "title": "Gym",
+      "otherLocations": "Other locations"
     },
     "requests": {
       "metaTitle": "Request plan",

@@ -13,6 +13,7 @@ export type MachineFormData = {
   instructionsMd: string | null;
   videoUrl: string | null;
   imageUrl: string | null;
+  locationId: string;
   location: string | null;
   serialNumber: string | null;
   purchaseDate: string | null; // yyyy-mm-dd
@@ -23,9 +24,14 @@ const inputClass =
 
 export function MachineForm({
   machine,
+  locations,
+  defaultLocationId,
   blobEnabled,
 }: {
   machine?: MachineFormData;
+  /** Actieve vestigingen van de tenant (het apparaat staat er precies op één). */
+  locations: { id: string; name: string }[];
+  defaultLocationId: string;
   blobEnabled: boolean;
 }) {
   const [state, formAction, pending] = useActionState<MachineFormState, FormData>(
@@ -64,8 +70,26 @@ export function MachineForm({
       </label>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {locations.length > 1 ? (
+          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+            Vestiging *
+            <select
+              name="locationId"
+              defaultValue={machine?.locationId ?? defaultLocationId}
+              className={inputClass}
+            >
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <input type="hidden" name="locationId" value={defaultLocationId} />
+        )}
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Locatie
+          Zone (binnen de vestiging)
           <input
             name="location"
             defaultValue={machine?.location ?? ""}

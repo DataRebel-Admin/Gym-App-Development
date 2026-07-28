@@ -5,6 +5,7 @@ import { requireMember } from "@/lib/member";
 import { areClassesEnabled } from "@/lib/classes";
 import { prisma } from "@/lib/db";
 import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
+import { isMultiLocation } from "@/lib/locations";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -20,6 +21,8 @@ type SessionCard = {
   id: string;
   startsAt: Date;
   endsAt: Date;
+  /** Vestiging-naam (alleen gezet bij een multi-vestiging-organisatie). */
+  venueName: string | null;
   location: string | null;
   className: string;
   instructorName: string | null;
@@ -71,10 +74,10 @@ function ClassCard({ s }: { s: SessionCard }) {
           <Clock className="size-4 text-accent" />
           {formatTimeRange(s.startsAt, s.endsAt)}
         </span>
-        {s.location ? (
+        {s.venueName || s.location ? (
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="size-4 text-accent" />
-            {s.location}
+            {[s.venueName, s.location].filter(Boolean).join(" · ")}
           </span>
         ) : null}
       </div>
@@ -125,6 +128,7 @@ export default async function MemberRoosterPage() {
     take: 40,
     include: {
       groupClass: { select: { name: true, instructorName: true, maxParticipants: true } },
+      venueLocation: { select: { name: true } },
       // Capaciteit telt alleen actieve statussen (afgemeld/no-show bezet geen plek).
       _count: {
         select: { enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } } },
@@ -133,10 +137,14 @@ export default async function MemberRoosterPage() {
     },
   });
 
+  // Vestiging-badge alleen tonen bij een multi-vestiging-organisatie.
+  const multiLocation = await isMultiLocation(member.tenantId);
+
   const cards: SessionCard[] = sessions.map((s) => ({
     id: s.id,
     startsAt: s.startsAt,
     endsAt: s.endsAt,
+    venueName: multiLocation ? s.venueLocation.name : null,
     location: s.location,
     className: s.groupClass.name,
     instructorName: s.groupClass.instructorName,
