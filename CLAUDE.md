@@ -136,10 +136,13 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   niet-bypass rol (fitpower=4, ironhouse=2, onbekend=0). Voor échte DB-enforcement in
   productie: aparte app-rol zonder BYPASSRLS + `FORCE ROW LEVEL SECURITY` (zie rls.sql).
   Vandaag is isolatie primair applicatie-side (expliciete `tenantId` + tenant-scoped client).
-- **Seed heeft 2 tenants**: `fitpower` (oranje, NL, rijk) en `ironhouse` (blauw, EN, compact).
-  `sven@fitpower.nl` bestaat in beide tenants (demonstreert e-mail uniek per tenant).
-  De seed genereert ook **trainingsactiviteit** (sessies + prestaties, laatste ~12 weken)
-  zodat het owner-dashboard cijfers heeft.
+- **Seed heeft 2 tenants**: `gymrebel` (oranje, NL, rijk — voorheen `fitpower`; oudere
+  verwijzingen hieronder naar "fitpower" lees je als `gymrebel`) en `ironhouse` (blauw, EN,
+  compact). `duco@gymrebel.nl` bestaat in beide tenants (demonstreert e-mail uniek per
+  tenant). `gymrebel` heeft **2 vestigingen** (Leeuwarden Centrum default + Leeuwarden
+  Zuid — demonstreert de niet-optelbare actieve-leden-telling; ~30% van de sessies op de
+  niet-thuisvestiging), `ironhouse` 1. De seed genereert ook **trainingsactiviteit**
+  (sessies + prestaties, laatste ~12 weken) zodat het owner-dashboard cijfers heeft.
 
 ### Fase 2 (owner-functionaliteit, prompts 05–07)
 
@@ -695,6 +698,86 @@ Vierde rol **`TENANT_STAFF`** (Sportschoolmedewerker/coach): tenant-gebonden coa
   zichzelf). Eigenaar-toewijzing (elke coach kiezen) blijft via `assignCoach`/`unassignCoach`.
 - **"Eigen planning"** op het dashboard toont tenant-brede lessen (geen trainer-FK,
   `GroupClass.instructorName` is vrije tekst).
+
+### Organisatie → Vestigingen (Location) + per-vestiging analytics
+
+Expliciete hiërarchie **Organisatie → Vestiging**: `Tenant` = de organisatie/keten
+(modelnaam bewust behouden — ~1700 filter-sites, JWT-claim en RLS hangen eraan;
+tenant-resolutie is zuiver org-niveau en bleef onaangeraakt), nieuw model **`Location`**
+= fysieke vestiging. Elke tenant heeft er minstens één (migratie `20260728120000_locations`
+maakte per tenant een "Hoofdvestiging", `isDefault=true`, adres gekopieerd van Tenant) —
+géén speciaal geval voor single-location. Tenant-adresvelden blijven als
+facturatie-/juridisch adres; `Location` draagt het vestigingsadres + `openingHours` +
+**`timezone`** (IANA, default Europe/Amsterdam). `Machine.location`/`ClassSession.location`
+(vrije tekst) blijven de **zone/zaal bínnen** de vestiging.
+
+- **Lidmaatschap = de per-tenant `User`-rij** (org-niveau: tenantId + role + active/
+  archivedAt) + `homeLocationId` (thuisvestiging). Een lid traint bij élke vestiging van
+  de keten zonder tweede lidmaatschap; twee ketens = twee User-rijen, volledig gescheiden.
+- **Verplichte `locationId`** (ON DELETE RESTRICT → vestiging met historie alleen
+  archiveerbaar) op `Machine`, `WorkoutSession`, `ClassSession`, `MachineScan` (snapshot
+  van de machine-vestiging op scanmoment) en `MaintenanceRecord` (idem). Nullable:
+  `User.homeLocationId`, `Measurement`, `AuditLog` (geen FK — forensisch),
+  `EarnedAchievement` (geen FK — weergave). Bewust géén locationId: `GroupClass`
+  (les-definitie is org-niveau; de sessie kiest), `PerformanceEntry`/`ClassEnrollment`
+  (erven via de sessie), `MaintenancePolicy` (org-brede type-defaults) en `AiUsage`
+  (metering, geen vestigingsactiviteit). **Checklist nieuwe activiteitstabel**:
+  locationId + tenantId, tabel in `prisma/sql/rls.sql`, scope-helpers gebruiken,
+  analytics-index `(tenantId, locationId, tijdstip)`.
+- **Sessie-locatie-resolutie** (`lib/location-resolve.ts`, één pad): expliciete keuze →
+  device-cookie `gymrebel-location` (action `setActiveLocation`, switcher
+  `components/member/location-switcher.tsx` op `/member/schema`, alleen zichtbaar bij
+  multi-vestiging) → `User.homeLocationId` → default-vestiging. Trainer-sessie = vestiging
+  van de **trainer**; machine-scan = vestiging van de **machine** (anonieme scans blijven
+  werken). `lib/locations.ts`: `getTenantLocations` (per-request cache),
+  `getDefaultLocationId`, `isMultiLocation`.
+- **Toegang is een RESTRICTIE** (anders dan de additieve coach-lens): `StaffLocationAccess`
+  (patroon CoachAssignment) koppelt medewerker↔vestiging; **zonder koppelingen ziet staff
+  níéts** (fail-closed; migratie koppelde bestaande staff aan de default-vestiging).
+  TENANT_ADMIN/SUPERADMIN = impliciet alle vestigingen. Pure kern
+  **`lib/location-scope.ts`**: `LocationScope` (`org`|`locations`), `accessibleLocations`,
+  `locationScopeWhere`/`sessionLocationWhere` (dragen ALTIJD tenantId), `canRollUp`
+  (org-totaal is admin-only), `assertLocationAccess`, `scopeCacheKey`. Server-laag
+  `lib/location-access.ts` (`getLocationScope`, `requireLocationAccess`). Rollen: geen
+  nieuwe enum — "vestigingsmanager" = TENANT_STAFF + koppeling(en) + permissie
+  **`analytics:view`** (staff-configureerbaar, default uit); **`locations:manage`** is
+  admin-only (beheer op `/owner/locations`: CRUD, precies-één-default, archiveren,
+  toegangsmatrix).
+- **CACHE-KEY-REGEL (lek-risico)**: élke `unstable_cache` met een scope-parameter MOET
+  `scopeCacheKey(scope)` in de keyParts hebben — anders deelt een vestigingsmanager tot
+  300s de cache met de eigenaar (er zijn geen revalidateTag-call-sites om dat te purgen).
+- **Telregels — gedeeld, nooit ad hoc** (`lib/metrics/definitions.ts`, puur + getest):
+  **bezoek** = trainingssessie óf ATTENDED-les-deelname; **actieve leden org** = distinct
+  lidmaatschappen, **per vestiging** = distinct-actief-aldáár → vestigingstotalen tellen
+  bewust NIET op tot het org-totaal (UI toont verplicht de `NonAdditiveNote`); **bezoeken**
+  wél optelbaar; **retentie** = aandeel van maand M dat in M+1 terugkeert; dag/uur-bucketing
+  ALTIJD in de vestiging-tijdzone (`hourPartsInTz`, nooit servertijd);
+  `ACTIVE_MEMBER_WHERE` = dé actief-lid-definitie (role+active+archivedAt) — overal
+  hergebruiken. Server-querylaag `lib/metrics/queries.ts` (`getLocationComparison`:
+  per-vestiging-rijen + org-totalen alleen bij `canRollUp`); UI op `/owner/insights`
+  (guard `analytics:view`, vestiging-tabs, vergelijking + bezetting-heatmap + machinetabel)
+  + dashboard-widget `location-comparison` (multi-vestiging, admin).
+- **Aanwezigheid/no-shows**: `enum EnrollmentStatus` op `ClassEnrollment`
+  (ENROLLED/CANCELLED/ATTENDED/NO_SHOW; migratie `20260728130000_class_attendance`,
+  historie gebackfilled naar ATTENDED). Uitschrijven = status CANCELLED (géén hard delete;
+  her-inschrijven = zelfde rij terug naar ENROLLED); **capaciteit telt alleen
+  ENROLLED+ATTENDED** (`lib/class-attendance.ts` — élke tel-site gebruikt dit). Staff
+  markeert aanwezigheid op het les-detail (`markAttendance`, schedule:manage +
+  requireLocationAccess); cron `class-attendance` zet ENROLLED → NO_SHOW 12u na `endsAt`.
+- **Trofee-scopes** (`lib/achievements/scope.ts`): `AchievementDef.scope` =
+  `ORGANIZATION` (default, eenmalig per lidmaatschap) | `LOCATION` (telt per vestiging,
+  per vestiging behaalbaar) | `GLOBAL` (platform-gedefinieerd, locatie-agnostisch bínnen
+  de org — cross-org-identiteit bestaat bewust niet). Unieke sleutel
+  `EarnedAchievement @@unique([tenantId,userId,key,locationScopeKey])`
+  (`""` = org/global, locationId bij LOCATION) houdt `createMany(skipDuplicates)` werkend.
+- **Meldingen**: onderhoudsmeldingen gaan alleen naar beheerders mét toegang tot de
+  vestiging van de machine (`lib/maintenance/notify.ts`, deny-by-default).
+- **Tests**: `tests/location-scope.test.ts` (spec b+c), `tests/location-metrics.test.ts`
+  (spec a + TZ + retentie + no-shows), `tests/achievement-scope.test.ts` (spec d),
+  `tests/class-attendance.test.ts`.
+- **Bewust (nog) niet**: openingstijden-editor op de vestiging-form (default-vestiging
+  erfde ze van de tenant); vestiging-chips op `/owner/staff` (beheer loopt via de matrix op
+  het vestiging-detail); een default-vestiging-filter op het member-rooster.
 
 ### Slim onderhoudsbeheer voor machines
 
