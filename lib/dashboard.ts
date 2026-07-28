@@ -8,6 +8,7 @@ import { z } from "zod";
  */
 export const WIDGET_IDS = [
   "kpis",
+  "location-comparison",
   "week-chart",
   "weekday-chart",
   "popular-exercises",
@@ -32,6 +33,9 @@ export const WIDGET_META: Record<
   { title: string; span: 1 | 2 }
 > = {
   kpis: { title: "Kerncijfers", span: 2 },
+  // Alleen zinvol (en gerenderd) bij een multi-vestiging-organisatie; de layout
+  // self-healt — bestaande gebruikers krijgen 'm automatisch zichtbaar erbij.
+  "location-comparison": { title: "Vestigingen", span: 2 },
   "week-chart": { title: "Groei — sessies per week", span: 2 },
   "weekday-chart": { title: "Sessies per weekdag", span: 1 },
   "popular-exercises": { title: "Populaire oefeningen", span: 1 },

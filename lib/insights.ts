@@ -2,6 +2,12 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
 import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
+import {
+  locationScopeWhere,
+  scopeCacheKey,
+  type LocationScope,
+} from "@/lib/location-scope";
+import { ACTIVE_MEMBER_WHERE, hourPartsInTz } from "@/lib/metrics/definitions";
 
 const DAY_MS = 86_400_000;
 
@@ -16,16 +22,22 @@ function daysAgo(n: number): Date {
 
 const WEEKDAY_LABELS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
 
+/** Sessie-relatiefilter voor entry-queries: vestiging-scope via de sessie. */
+function sessionScopeFilter(scope: LocationScope): { locationId?: { in: string[] } } {
+  return scope.kind === "locations" ? { locationId: { in: scope.ids } } : {};
+}
+
 /** Aantal sessies per machine (op basis van distinct sessies) sinds `since`. */
 async function machineSessionCounts(
   tenantId: string,
+  scope: LocationScope,
   since: Date
 ): Promise<Map<string, Set<string>>> {
   const entries = await prisma.performanceEntry.findMany({
     where: {
       tenantId,
       exercise: { machineId: { not: null } },
-      session: { startedAt: { gte: since } },
+      session: { ...sessionScopeFilter(scope), startedAt: { gte: since } },
     },
     select: { sessionId: true, exercise: { select: { machineId: true } } },
   });
@@ -77,28 +89,44 @@ function trendPct(current: number, previous: number): number | null {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-async function computeDashboard(tenantId: string): Promise<DashboardStats> {
+async function computeDashboard(
+  tenantId: string,
+  scope: LocationScope
+): Promise<DashboardStats> {
+  // Scope-fragmenten: tabellen mét eigen locationId (sessies/machines/lessen)
+  // filteren direct; entry-queries via de sessie-relatie (sessionScopeFilter).
+  const scoped = locationScopeWhere(tenantId, scope);
+
   const machines = await prisma.machine.findMany({
-    where: { tenantId },
+    where: scoped,
     select: { id: true, name: true },
   });
   const nameById = new Map(machines.map((m) => [m.id, m.name]));
 
-  // Actieve leden vandaag.
+  // Actieve leden vandaag: DISTINCT leden (gedeelde definitie — een lid met twee
+  // sessies telt één keer; binnen een vestiging-scope: distinct actief aldáár).
   const activeRows = await prisma.workoutSession.findMany({
-    where: { tenantId, startedAt: { gte: startOfToday() } },
+    where: { ...scoped, startedAt: { gte: startOfToday() } },
     distinct: ["userId"],
     select: { userId: true },
   });
 
-  // KPI's: ledenaantal, sessies deze week, recente activiteit.
+  // KPI's: ledenaantal, sessies deze week, recente activiteit. Ledenaantal =
+  // dé actief-lid-definitie (lib/metrics/definitions.ts — mét archivedAt-check);
+  // binnen een vestiging-scope tellen leden met die thuisvestiging.
   const [memberCount, sessionsThisWeek, recentSessions] = await Promise.all([
-    prisma.user.count({ where: { tenantId, role: "TENANT_MEMBER", active: true } }),
+    prisma.user.count({
+      where: {
+        tenantId,
+        ...ACTIVE_MEMBER_WHERE,
+        ...(scope.kind === "locations" ? { homeLocationId: { in: scope.ids } } : {}),
+      },
+    }),
     prisma.workoutSession.count({
-      where: { tenantId, startedAt: { gte: daysAgo(7) } },
+      where: { ...scoped, startedAt: { gte: daysAgo(7) } },
     }),
     prisma.workoutSession.findMany({
-      where: { tenantId },
+      where: scoped,
       orderBy: { startedAt: "desc" },
       take: 6,
       select: {
@@ -117,27 +145,33 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
     exercises: s._count.performanceEntries,
   }));
 
-  // Nieuwe aanmeldingen (leden) + groeitrend.
+  // Nieuwe aanmeldingen (leden) + groeitrend (vestiging-scope: thuisvestiging).
+  const signupScope =
+    scope.kind === "locations" ? { homeLocationId: { in: scope.ids } } : {};
   const [signupsNow, signupsPrev, sessionsPrevWeek] = await Promise.all([
     prisma.user.count({
-      where: { tenantId, role: "TENANT_MEMBER", createdAt: { gte: daysAgo(30) } },
+      where: { tenantId, role: "TENANT_MEMBER", ...signupScope, createdAt: { gte: daysAgo(30) } },
     }),
     prisma.user.count({
       where: {
         tenantId,
         role: "TENANT_MEMBER",
+        ...signupScope,
         createdAt: { gte: daysAgo(60), lt: daysAgo(30) },
       },
     }),
     prisma.workoutSession.count({
-      where: { tenantId, startedAt: { gte: daysAgo(14), lt: daysAgo(7) } },
+      where: { ...scoped, startedAt: { gte: daysAgo(14), lt: daysAgo(7) } },
     }),
   ]);
 
   // Populaire oefeningen (op basis van prestatie-entries, laatste 30 dagen).
   const exerciseGroups = await prisma.performanceEntry.groupBy({
     by: ["exerciseId"],
-    where: { tenantId, session: { startedAt: { gte: daysAgo(30) } } },
+    where: {
+      tenantId,
+      session: { ...sessionScopeFilter(scope), startedAt: { gte: daysAgo(30) } },
+    },
     _count: { exerciseId: true },
     orderBy: { _count: { exerciseId: "desc" } },
     take: 5,
@@ -154,7 +188,7 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
 
   // Bezetting van komende lessen.
   const upcoming = await prisma.classSession.findMany({
-    where: { tenantId, startsAt: { gte: new Date() } },
+    where: { ...scoped, startsAt: { gte: new Date() } },
     orderBy: { startsAt: "asc" },
     take: 5,
     select: {
@@ -174,27 +208,36 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
   }));
 
   // Top 5 deze week.
-  const weekCounts = await machineSessionCounts(tenantId, daysAgo(7));
+  const weekCounts = await machineSessionCounts(tenantId, scope, daysAgo(7));
   const topMachines = [...weekCounts.entries()]
     .map(([id, set]) => ({ name: nameById.get(id) ?? "?", sessions: set.size }))
     .sort((a, b) => b.sessions - a.sessions)
     .slice(0, 5);
 
   // Bottom 3 deze maand (incl. machines met 0 gebruik).
-  const monthCounts = await machineSessionCounts(tenantId, daysAgo(30));
+  const monthCounts = await machineSessionCounts(tenantId, scope, daysAgo(30));
   const bottomMachines = machines
     .map((m) => ({ name: m.name, sessions: monthCounts.get(m.id)?.size ?? 0 }))
     .sort((a, b) => a.sessions - b.sessions)
     .slice(0, 3);
 
-  // Sessies per weekdag (laatste 30 dagen).
-  const sessions30 = await prisma.workoutSession.findMany({
-    where: { tenantId, startedAt: { gte: daysAgo(30) } },
-    select: { startedAt: true },
-  });
+  // Sessies per weekdag (laatste 30 dagen) — gebucket in de tijdzone van de
+  // VESTIGING van de sessie (niet de servertijd; zie lib/metrics/definitions.ts).
+  const [sessions30, tzLocations] = await Promise.all([
+    prisma.workoutSession.findMany({
+      where: { ...scoped, startedAt: { gte: daysAgo(30) } },
+      select: { startedAt: true, locationId: true },
+    }),
+    prisma.location.findMany({
+      where: { tenantId },
+      select: { id: true, timezone: true },
+    }),
+  ]);
+  const tzByLocation = new Map(tzLocations.map((l) => [l.id, l.timezone]));
   const weekdayCounts = new Array(7).fill(0);
   for (const s of sessions30) {
-    weekdayCounts[(s.startedAt.getDay() + 6) % 7]++; // maandag = 0
+    const tz = tzByLocation.get(s.locationId) ?? "Europe/Amsterdam";
+    weekdayCounts[hourPartsInTz(s.startedAt, tz).weekday]++;
   }
   const perWeekday = WEEKDAY_LABELS.map((day, i) => ({
     day,
@@ -203,7 +246,7 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
 
   // Sessies per week (laatste 12 weken).
   const sessions84 = await prisma.workoutSession.findMany({
-    where: { tenantId, startedAt: { gte: daysAgo(84) } },
+    where: { ...scoped, startedAt: { gte: daysAgo(84) } },
     select: { startedAt: true },
   });
   const weeks = 12;
@@ -235,10 +278,18 @@ async function computeDashboard(tenantId: string): Promise<DashboardStats> {
   };
 }
 
-export function getDashboardStats(tenantId: string): Promise<DashboardStats> {
-  return unstable_cache(() => computeDashboard(tenantId), ["owner-dashboard", tenantId], {
-    revalidate: 300,
-  })();
+export function getDashboardStats(
+  tenantId: string,
+  scope: LocationScope
+): Promise<DashboardStats> {
+  // LET OP: `scopeCacheKey` MOET in de keyParts — zonder deelt een
+  // vestigingsmanager de cache met de eigenaar en lekt er tot 300s lang
+  // verkeerd-gescopede data (zie lib/location-scope.ts).
+  return unstable_cache(
+    () => computeDashboard(tenantId, scope),
+    ["owner-dashboard", tenantId, scopeCacheKey(scope)],
+    { revalidate: 300 }
+  )();
 }
 
 export type MachineInsightRow = {
@@ -250,10 +301,11 @@ export type MachineInsightRow = {
 
 async function computeInsights(
   tenantId: string,
-  periodDays: number
+  periodDays: number,
+  scope: LocationScope
 ): Promise<MachineInsightRow[]> {
   const machines = await prisma.machine.findMany({
-    where: { tenantId },
+    where: locationScopeWhere(tenantId, scope),
     select: { id: true, name: true },
   });
 
@@ -264,7 +316,7 @@ async function computeInsights(
     where: {
       tenantId,
       exercise: { machineId: { not: null } },
-      session: { startedAt: { gte: prevStart } },
+      session: { ...sessionScopeFilter(scope), startedAt: { gte: prevStart } },
     },
     select: {
       sessionId: true,
@@ -304,11 +356,13 @@ async function computeInsights(
 
 export function getMachineInsights(
   tenantId: string,
-  periodDays: number
+  periodDays: number,
+  scope: LocationScope
 ): Promise<MachineInsightRow[]> {
+  // Scope verplicht in de keyParts (zie getDashboardStats).
   return unstable_cache(
-    () => computeInsights(tenantId, periodDays),
-    ["owner-insights", tenantId, String(periodDays)],
+    () => computeInsights(tenantId, periodDays, scope),
+    ["owner-insights", tenantId, String(periodDays), scopeCacheKey(scope)],
     { revalidate: 300 }
   )();
 }

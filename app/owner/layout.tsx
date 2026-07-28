@@ -82,7 +82,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
       label: t("analysis"),
       iconPath: ICON_INSIGHTS,
       items: [
-        { href: "/owner/insights", label: t("insights"), iconPath: ICON_INSIGHTS, description: t("insightsDesc"), adminOnly: true },
+        { href: "/owner/insights", label: t("insights"), iconPath: ICON_INSIGHTS, description: t("insightsDesc"), permission: "analytics:view" },
         { href: "/owner/audit", label: t("audit"), iconPath: ICON_AUDIT, description: t("auditDesc"), adminOnly: true },
         { href: "/owner/changelog", label: t("changelog"), iconPath: ICON_CHANGELOG, description: t("changelogDesc"), adminOnly: true },
       ],

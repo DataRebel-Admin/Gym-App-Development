@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { Permission } from "@/lib/rbac";
+import { getLocationScope } from "@/lib/location-access";
+import { locationScopeWhere } from "@/lib/location-scope";
 import { listCoachMembers } from "@/lib/coach-assignments";
 import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
 import { isFeatureEnabled } from "@/lib/features/service";
@@ -72,8 +74,21 @@ export async function StaffDashboard({
   const canSchedule = permissions.has("schedule:manage") && classesOn;
   const canMaintenance = permissions.has("maintenance:manage") && maintenanceOn;
 
-  const [activeToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements, maintenanceAttention] = await Promise.all([
-    prisma.workoutSession.count({ where: { tenantId, startedAt: { gte: today } } }),
+  // Vestiging-scope: een medewerker ziet uitsluitend gekoppelde vestigingen
+  // (restrictief, fail-closed — zie lib/location-scope.ts).
+  const scope = await getLocationScope({ id: coachId, role: "TENANT_STAFF", tenantId });
+  const scoped = locationScopeWhere(tenantId, scope);
+
+  const [activeMembersToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements, maintenanceAttention] = await Promise.all([
+    // DISTINCT leden (niet sessies!) die vandaag trainden binnen de scope —
+    // dezelfde definitie als het owner-dashboard (lib/insights.ts activeToday).
+    prisma.workoutSession
+      .findMany({
+        where: { ...scoped, startedAt: { gte: today } },
+        distinct: ["userId"],
+        select: { userId: true },
+      })
+      .then((rows) => rows.length),
     canSchemas
       ? prisma.schemaRequest.count({ where: { tenantId, status: "NEW" } })
       : Promise.resolve(0),
@@ -82,7 +97,7 @@ export async function StaffDashboard({
       : Promise.resolve(0),
     canSchedule
       ? prisma.classSession.findMany({
-          where: { tenantId, startsAt: { gte: now } },
+          where: { ...scoped, startsAt: { gte: now } },
           orderBy: { startsAt: "asc" },
           take: 5,
           select: {
@@ -128,8 +143,8 @@ export async function StaffDashboard({
             Welkom terug{firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {activeToday > 0
-              ? `${activeToday} ${activeToday === 1 ? "lid heeft" : "leden hebben"} vandaag al getraind.`
+            {activeMembersToday > 0
+              ? `${activeMembersToday} ${activeMembersToday === 1 ? "lid heeft" : "leden hebben"} vandaag al getraind.`
               : "Nog geen trainingen vandaag — tijd om je leden te activeren."}
           </p>
         </div>
@@ -138,7 +153,7 @@ export async function StaffDashboard({
       {canMaintenance ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <StatCard label="Leden actief vandaag" value={activeToday} />
+        <StatCard label="Leden actief vandaag" value={activeMembersToday} />
         {canMembers ? (
           <StatCard label="Mijn leden" value={myMembers.length} href="/owner/members?mine=1" />
         ) : null}

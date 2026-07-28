@@ -137,7 +137,9 @@ export async function getAdminDashboard(): Promise<AdminDashboardData> {
     }),
     prisma.user.groupBy({
       by: ["tenantId"],
-      where: { role: "TENANT_MEMBER", archivedAt: null },
+      // Dé actief-lid-definitie (lib/metrics/definitions.ts ACTIVE_MEMBER_WHERE):
+      // active + niet-gearchiveerd — voorheen ontbrak de `active`-check hier.
+      where: { role: "TENANT_MEMBER", active: true, archivedAt: null },
       _count: true,
     }),
     prisma.user.groupBy({

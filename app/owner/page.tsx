@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { StaffDashboard } from "@/components/dashboard/staff-dashboard";
 import { getDashboardStats } from "@/lib/insights";
+import { getLocationComparison } from "@/lib/metrics/queries";
+import { LocationComparisonTable } from "@/components/insights/location-comparison";
+import { isMultiLocation } from "@/lib/locations";
 import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
@@ -52,7 +55,8 @@ export default async function OwnerDashboard() {
   // Onderhoudsmodule uit (Superadmin-flag) → geen alert en géén lazy evaluatie.
   const maintenanceEnabled = await isFeatureEnabled(owner.tenantId, "maintenance");
   const [stats, dbUser, recentLogs, maintenanceAttention] = await Promise.all([
-    getDashboardStats(owner.tenantId),
+    // Admin = org-scope (het rol-gebaseerde dashboard voor staff zit hierboven).
+    getDashboardStats(owner.tenantId, { kind: "org" }),
     prisma.user.findUnique({
       where: { id: owner.id },
       select: { dashboardLayout: true },
@@ -66,10 +70,18 @@ export default async function OwnerDashboard() {
   const layout = normalizeLayout(dbUser?.dashboardLayout);
   const recentActivity = serializeAuditRows(recentLogs);
 
+  // Vestigingsvergelijking-widget: alleen bij een multi-vestiging-organisatie
+  // (admin = org-scope; de rollup + het niet-optelbaar-label zitten in de tabel).
+  const multiLocation = await isMultiLocation(owner.tenantId);
+  const comparison = multiLocation
+    ? await getLocationComparison(owner.tenantId, { kind: "org" })
+    : null;
+
   // Server-gerenderde inhoud per widget; de client-grid regelt volgorde,
   // zichtbaarheid en animatie (zie components/dashboard/widget-grid.tsx).
   const nodes: Partial<Record<WidgetId, ReactNode>> = {
     kpis: <KpiRow stats={stats} />,
+    ...(comparison ? { "location-comparison": <LocationComparisonTable data={comparison} /> } : {}),
     "week-chart": <WeekChart stats={stats} />,
     "weekday-chart": <WeekdayChart stats={stats} />,
     "popular-exercises": <PopularExercises stats={stats} />,
