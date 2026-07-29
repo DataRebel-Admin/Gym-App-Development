@@ -25,23 +25,25 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
   const [state, setState] = useState<State>("loading");
 
   useEffect(() => {
-    if (!vapidPublicKey) {
-      setState("unsupported");
-      return;
-    }
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setState("unsupported");
-      return;
-    }
-    if (Notification.permission === "denied") {
-      setState("denied");
-      return;
-    }
-    navigator.serviceWorker
-      .getRegistration()
-      .then((reg) => reg?.pushManager.getSubscription())
-      .then((sub) => setState(sub ? "on" : "off"))
-      .catch(() => setState("off"));
+    let cancelled = false;
+    const determine = async (): Promise<State> => {
+      if (!vapidPublicKey) return "unsupported";
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
+      if (Notification.permission === "denied") return "denied";
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        const sub = await reg?.pushManager.getSubscription();
+        return sub ? "on" : "off";
+      } catch {
+        return "off";
+      }
+    };
+    void determine().then((next) => {
+      if (!cancelled) setState(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [vapidPublicKey]);
 
   async function enable() {

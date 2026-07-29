@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
 import { reopenOnboarding } from "@/components/member/onboarding";
+import { useHydrated } from "@/lib/hooks/use-client-value";
 import type { UserTenant } from "@/lib/tenants";
 
 /**
@@ -34,12 +35,10 @@ export function MemberDrawer({
   showAchievements?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
+  const mounted = useHydrated();
   const display = name ?? email ?? "Sporter";
   const initial = display.charAt(0).toUpperCase();
-
-  // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
-  useEffect(() => setMounted(true), []);
 
   // Scroll vergrendelen + Escape sluit het paneel.
   useEffect(() => {

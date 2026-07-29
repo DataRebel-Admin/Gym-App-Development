@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toggleFeature, type ToggleFeatureState } from "@/app/admin/features/actions";
+import { toggleFeature } from "@/app/admin/features/actions";
 import type { FeatureFlagRow } from "@/lib/features/service";
 
 const dateFmt = new Intl.DateTimeFormat("nl-NL", {
@@ -32,17 +32,23 @@ function LastChanged({ row }: { row: FeatureFlagRow }) {
 }
 
 function FeatureCard({ tenantId, row }: { tenantId: string; row: FeatureFlagRow }) {
-  const [state, formAction, pending] = useActionState<ToggleFeatureState, FormData>(
-    toggleFeature,
-    {}
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const target = !row.enabled;
 
-  // Sluit de bevestigingsmodal zodra de wijziging is opgeslagen.
-  useEffect(() => {
-    if (state.ok) setOpen(false);
-  }, [state.ok]);
+  // Directe action-aanroep zodat we de modal in dezelfde flow kunnen sluiten.
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const res = await toggleFeature({}, formData);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setError(null);
+        setOpen(false);
+      }
+    });
+  }
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5 sm:flex-row sm:items-start sm:justify-between">
@@ -61,9 +67,7 @@ function FeatureCard({ tenantId, row }: { tenantId: string; row: FeatureFlagRow 
           <div className="mt-2">
             <LastChanged row={row} />
           </div>
-          {state.error ? (
-            <p className="mt-2 text-xs text-red-600">{state.error}</p>
-          ) : null}
+          {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
         </div>
       </div>
 
@@ -96,7 +100,7 @@ function FeatureCard({ tenantId, row }: { tenantId: string; row: FeatureFlagRow 
             ? `De module wordt beschikbaar voor deze sportschool. Menu-items en functionaliteit verschijnen direct.`
             : `De module verdwijnt volledig uit de sportschool: geen menu-items, geen pagina's en geen meldingen. Bestaande gegevens blijven behouden en komen terug zodra je 'm weer inschakelt.`}
         </p>
-        <form action={formAction} className="mt-5 flex justify-end gap-2">
+        <form action={submit} className="mt-5 flex justify-end gap-2">
           <input type="hidden" name="tenantId" value={tenantId} />
           <input type="hidden" name="key" value={row.key} />
           <input type="hidden" name="enabled" value={String(target)} />

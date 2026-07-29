@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
 
+import { useClientValue } from "./use-client-value";
+
 /**
  * Herbruikbare wrapper rond de browser Fullscreen API. Werkt cross-browser
  * (standaard + `webkit`-prefix voor oudere Safari) en houdt de status
@@ -43,15 +45,14 @@ export function useFullscreen(
   ref: RefObject<HTMLElement | null> | null
 ): UseFullscreen {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSupported, setIsSupported] = useState(false);
+  const isSupported = useClientValue(
+    () =>
+      Boolean(document.fullscreenEnabled) ||
+      typeof (document as FsDocument).webkitExitFullscreen === "function",
+    false
+  );
 
   useEffect(() => {
-    const doc = document as FsDocument;
-    const supported =
-      Boolean(document.fullscreenEnabled) ||
-      typeof doc.webkitExitFullscreen === "function";
-    setIsSupported(supported);
-
     const sync = () => {
       const el = ref?.current ?? null;
       setIsFullscreen(el != null && currentFullscreenElement() === el);

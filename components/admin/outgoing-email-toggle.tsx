@@ -1,27 +1,30 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
-import {
-  updateOutgoingEmail,
-  type OutgoingEmailState,
-} from "@/app/admin/settings/actions";
+import { updateOutgoingEmail } from "@/app/admin/settings/actions";
 
 /**
  * Superadmin-schakelaar: alle uitgaande transactionele e-mail platform-breed
  * aan/uit. Uit = er gaat geen echte mail de deur uit (wel gelogd in de console).
  */
 export function OutgoingEmailToggle({ enabled }: { enabled: boolean }) {
-  const [state, formAction, pending] = useActionState<OutgoingEmailState, FormData>(
-    updateOutgoingEmail,
-    {}
-  );
-
-  // Optimistische lokale weergave; server bevestigt de nieuwe stand.
+  // Lokale weergave; de server bevestigt de nieuwe stand in de action-flow.
   const [on, setOn] = useState(enabled);
-  useEffect(() => {
-    if (state.ok && typeof state.enabled === "boolean") setOn(state.enabled);
-  }, [state.ok, state.enabled]);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const res = await updateOutgoingEmail({}, formData);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setError(null);
+        if (typeof res.enabled === "boolean") setOn(res.enabled);
+      }
+    });
+  }
 
   const target = !on;
 
@@ -39,12 +42,10 @@ export function OutgoingEmailToggle({ enabled }: { enabled: boolean }) {
             ? "Transactionele e-mails (uitnodigingen, magic links, schema-meldingen …) worden echt verstuurd."
             : "Alle uitgaande e-mail staat uit. Berichten worden alleen naar de server-console gelogd, niet verzonden."}
         </p>
-        {state.error ? (
-          <p className="mt-2 text-xs text-red-600">{state.error}</p>
-        ) : null}
+        {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
       </div>
 
-      <form action={formAction} className="shrink-0 sm:pt-1">
+      <form action={submit} className="shrink-0 sm:pt-1">
         <input type="hidden" name="enabled" value={target ? "on" : "off"} />
         <button
           type="submit"

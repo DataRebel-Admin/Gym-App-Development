@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import type { Locale } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";

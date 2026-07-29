@@ -31,6 +31,7 @@ import {
   entryToLogInputValues,
   type InputValues,
 } from "@/lib/exercise-params";
+import { useLocalStorageItem } from "@/lib/hooks/use-client-value";
 
 /**
  * Server-actions die de actieve sessie muteren, geïnjecteerd door de pagina die
@@ -254,21 +255,16 @@ export function ActiveSession({
     () => new Set(exercises.filter((e) => e.skipped).map((e) => e.originalExerciseId))
   );
 
-  // Rust-/set-timers voor déze sessie. Init uit de globale voorkeur; een per-sessie
-  // override in localStorage wint (gehydrateerd na mount, zoals de rest-timer-settings).
-  const [timersEnabled, setTimersEnabledState] = useState(timersDefaultOn);
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(sessionTimerKey(sessionId));
-      if (raw === "on") setTimersEnabledState(true);
-      else if (raw === "off") setTimersEnabledState(false);
-    } catch {
-      /* genegeerd */
-    }
-  }, [sessionId]);
+  // Rust-/set-timers voor déze sessie. Globale voorkeur als basis; een per-sessie
+  // override in localStorage wint, en een verse toggle wint van beide.
+  const storedTimerPref = useLocalStorageItem(sessionTimerKey(sessionId));
+  const [timersOverride, setTimersOverride] = useState<boolean | null>(null);
+  const timersEnabled =
+    timersOverride ??
+    (storedTimerPref === "on" ? true : storedTimerPref === "off" ? false : timersDefaultOn);
 
   function setTimers(enabled: boolean) {
-    setTimersEnabledState(enabled);
+    setTimersOverride(enabled);
     try {
       window.localStorage.setItem(sessionTimerKey(sessionId), enabled ? "on" : "off");
     } catch {
@@ -280,21 +276,23 @@ export function ActiveSession({
 
   // Weergave per échte groep: standaard GELEID (ronde-voor-ronde wizard); wie
   // liever de doorlopende lijst ziet, zet dat per groep om (persist per sessie).
-  const [listViewGroups, setListViewGroups] = useState<Set<string>>(new Set());
-  useEffect(() => {
+  const storedListView = useLocalStorageItem(guidedViewKey(sessionId));
+  const [listViewOverride, setListViewOverride] = useState<Set<string> | null>(null);
+  const listViewGroups = useMemo(() => {
+    if (listViewOverride) return listViewOverride;
+    if (!storedListView) return new Set<string>();
     try {
-      const raw = window.localStorage.getItem(guidedViewKey(sessionId));
-      if (raw) setListViewGroups(new Set(JSON.parse(raw) as string[]));
+      return new Set(JSON.parse(storedListView) as string[]);
     } catch {
-      /* genegeerd */
+      return new Set<string>();
     }
-  }, [sessionId]);
+  }, [listViewOverride, storedListView]);
 
   function setGroupGuided(groupId: string, guided: boolean) {
     const next = new Set(listViewGroups);
     if (guided) next.delete(groupId);
     else next.add(groupId);
-    setListViewGroups(next);
+    setListViewOverride(next);
     try {
       window.localStorage.setItem(guidedViewKey(sessionId), JSON.stringify([...next]));
     } catch {
@@ -817,9 +815,10 @@ export function ActiveSession({
 
   // Zodra het afrondscherm verschijnt (knop "Afronden" of alles klaar): stop een
   // eventueel lopende rusttimer zodat die niet doortikt op het eindscherm.
+  const dismissTimer = timer.dismiss;
   useEffect(() => {
-    if (completionVisible) timer.dismiss();
-  }, [completionVisible, timer.dismiss]);
+    if (completionVisible) dismissTimer();
+  }, [completionVisible, dismissTimer]);
 
   return (
     <Fullscreenable className="relative flex flex-1 flex-col">
@@ -1181,30 +1180,33 @@ function AlternativesModal({
   onChosen: (ex: ActiveExercise, alt: AlternativeSuggestion) => void;
 }) {
   const t = useTranslations("member.active");
-  const [loading, setLoading] = useState(false);
-  const [alternatives, setAlternatives] = useState<AlternativeSuggestion[]>([]);
+  // Geladen alternatieven, gelabeld met de oefening waarvoor ze gelden —
+  // laden/legen bij een wissel is daarmee afgeleid (geen reset-setState nodig).
+  const [loaded, setLoaded] = useState<{ forId: string; items: AlternativeSuggestion[] } | null>(
+    null
+  );
   const [choosing, setChoosing] = useState<string | null>(null);
 
   useEffect(() => {
     if (!exercise) return;
     let cancelled = false;
-    setLoading(true);
-    setAlternatives([]);
-    getAlternatives({ exerciseId: exercise.exerciseId, excludeIds })
+    const forId = exercise.exerciseId;
+    getAlternatives({ exerciseId: forId, excludeIds })
       .then((res) => {
-        if (!cancelled) setAlternatives(res.ok ? res.alternatives : []);
+        if (!cancelled) setLoaded({ forId, items: res.ok ? res.alternatives : [] });
       })
       .catch(() => {
-        if (!cancelled) setAlternatives([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoaded({ forId, items: [] });
       });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exercise?.exerciseId]);
+
+  const alternatives =
+    exercise && loaded?.forId === exercise.exerciseId ? loaded.items : [];
+  const loading = exercise !== null && loaded?.forId !== exercise.exerciseId;
 
   function choose(alt: AlternativeSuggestion) {
     if (!exercise) return;

@@ -23,10 +23,12 @@ export function QrScanner() {
   const t = useTranslations("member.scan");
   const [error, setError] = useState<string | null>(null);
 
-  // Houd de nieuwste vertaal-functie in een ref zodat het effect niet
+  // Houd de nieuwste vertaal-functie in een ref zodat het camera-effect niet
   // opnieuw hoeft te draaien (en de camera niet onnodig herstart).
   const tRef = useRef(t);
-  tRef.current = t;
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
 
   useEffect(() => {
     let scanner: Html5Qrcode | null = null;
@@ -109,7 +111,6 @@ export function QrScanner() {
       window.removeEventListener("pagehide", onPageHide);
       void stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   return (

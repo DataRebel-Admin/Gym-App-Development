@@ -12,6 +12,7 @@ import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut, Settings, X, Check, ChevronRight, LifeBuoy } from "@/components/ui/icons";
 import type { OwnerNavEntry } from "@/components/nav/owner-nav";
+import { useHydrated } from "@/lib/hooks/use-client-value";
 import type { UserTenant } from "@/lib/tenants";
 import {
   ContactSupportModal,
@@ -55,14 +56,13 @@ export function SideNavDrawer({
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
+  const mounted = useHydrated();
   const [supportOpen, setSupportOpen] = useState(false);
   const pathname = usePathname();
 
   const display = profile.name ?? profile.email ?? "Beheerder";
   const initial = display.charAt(0).toUpperCase();
-
-  useEffect(() => setMounted(true), []);
 
   // Scroll vergrendelen + Escape sluit.
   useEffect(() => {

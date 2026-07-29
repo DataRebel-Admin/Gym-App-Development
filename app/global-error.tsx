@@ -71,6 +71,9 @@ export default function GlobalError({
               >
                 Probeer opnieuw
               </button>
+              {/* Bewust een kale <a>: global-error vervangt de root-layout, dus
+                  de router-context voor <Link> is hier niet gegarandeerd. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a
                 href="/"
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border-strong bg-surface-1 px-6 text-base font-semibold text-neutral-900"

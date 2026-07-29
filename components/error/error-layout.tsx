@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,7 +9,14 @@ import { buttonClasses } from "@/components/ui/button-classes";
 import { ChevronLeft, RotateCcw, LayoutDashboard, LogOut } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { ERROR_PRESETS, type ErrorCode, type ErrorNav } from "@/lib/errors";
+import { useClientValue } from "@/lib/hooks/use-client-value";
 import { ErrorIllustration } from "./error-illustration";
+
+/** `?tenant=slug` uit de huidige URL (dev-tenantcontext); leeg op de server. */
+function readTenantQuery(): string {
+  const t = new URLSearchParams(window.location.search).get("tenant");
+  return t ? `?tenant=${encodeURIComponent(t)}` : "";
+}
 
 const stagger = {
   hidden: {},
@@ -53,11 +59,7 @@ export function ErrorLayout({
     nav.role === "SUPERADMIN" ? t("dashboardAdmin") : t("dashboardMine");
 
   // Behoud tenantcontext in dev (?tenant=slug); no-op in productie (subdomein).
-  const [tenantQuery, setTenantQuery] = useState("");
-  useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("tenant");
-    setTenantQuery(t ? `?tenant=${encodeURIComponent(t)}` : "");
-  }, []);
+  const tenantQuery = useClientValue(readTenantQuery, "");
   const withTenant = (href: string) => `${href}${tenantQuery}`;
 
   // Primaire actie: 5xx → opnieuw proberen; ingelogd → dashboard; anders inloggen.

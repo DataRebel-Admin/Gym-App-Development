@@ -37,6 +37,9 @@ export default async function OfflinePage() {
         <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>
         <p className="mx-auto max-w-sm text-sm text-neutral-500">{t("body")}</p>
       </div>
+      {/* Bewust een kale <a>: deze pagina wordt offline uit de SW-cache geserveerd
+          en moet een échte navigatie doen — <Link>-JS is er dan mogelijk niet. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
       <a
         href="/"
         className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:opacity-90"

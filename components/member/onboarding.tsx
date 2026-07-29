@@ -5,6 +5,7 @@ import { AnimatePresence, m } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useTenant } from "@/components/tenant-provider";
 import { Dumbbell, QrCode, Trophy, Flame, Check } from "@/components/ui/icons";
+import { useClientValue } from "@/lib/hooks/use-client-value";
 
 const STORAGE_KEY = "gymrebel-member-onboarding";
 
@@ -38,19 +39,24 @@ export function MemberOnboarding() {
   const t = useTranslations("member.onboarding");
   const tCommon = useTranslations("common");
   const tenant = useTenant();
-  const [open, setOpen] = useState(false);
+  // Eénmalig tonen: de localStorage-vlag bepaalt de startstand (server: dicht;
+  // localStorage niet beschikbaar → ook dicht). Daarna wint de lokale override.
+  const seen = useClientValue(() => {
+    try {
+      return Boolean(window.localStorage.getItem(STORAGE_KEY));
+    } catch {
+      return true;
+    }
+  }, true);
+  const [override, setOverride] = useState<boolean | null>(null);
+  const open = override ?? !seen;
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    try {
-      if (!window.localStorage.getItem(STORAGE_KEY)) setOpen(true);
-    } catch {
-      /* localStorage niet beschikbaar — toon niets */
-    }
     // Handmatig heropenen (member-drawer → "Rondleiding opnieuw bekijken").
     const onReopen = () => {
       setStep(0);
-      setOpen(true);
+      setOverride(true);
     };
     window.addEventListener(OPEN_ONBOARDING_EVENT, onReopen);
     return () => window.removeEventListener(OPEN_ONBOARDING_EVENT, onReopen);
@@ -62,7 +68,7 @@ export function MemberOnboarding() {
     } catch {
       /* genegeerd */
     }
-    setOpen(false);
+    setOverride(false);
   }
 
   const steps: Step[] = [

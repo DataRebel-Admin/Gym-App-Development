@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import { startPasskeyLogin, finishPasskeyLogin } from "./passkey-actions";
+import { useClientValue } from "@/lib/hooks/use-client-value";
 
 /**
  * "Log in met toegangssleutel" — biometrische login (Face ID / Touch ID /
@@ -11,13 +12,9 @@ import { startPasskeyLogin, finishPasskeyLogin } from "./passkey-actions";
  * Verschijnt alleen als de browser WebAuthn ondersteunt.
  */
 export function PasskeyLoginButton() {
-  const [supported, setSupported] = useState(false);
+  const supported = useClientValue(browserSupportsWebAuthn, false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setSupported(browserSupportsWebAuthn());
-  }, []);
 
   if (!supported) return null;
 

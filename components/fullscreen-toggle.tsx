@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Maximize, Minimize } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useClientValue } from "@/lib/hooks/use-client-value";
 
 const STORAGE_KEY = "gymrebel-fullscreen";
 
@@ -34,20 +35,19 @@ function writePref(on: boolean) {
  */
 export function FullscreenToggle() {
   const pathname = usePathname();
-  const [supported, setSupported] = useState(false);
+  const supported = useClientValue(() => Boolean(document.fullscreenEnabled), false);
   const [active, setActive] = useState(false);
   const persistedOnce = useRef(false);
 
-  // Ondersteuning detecteren + de knop-staat synchroon houden met het document
-  // (dekt ook `Esc` en de native browser-uitgang).
+  // De knop-staat synchroon houden met het document (dekt ook `Esc` en de
+  // native browser-uitgang).
   useEffect(() => {
-    if (typeof document === "undefined" || !document.fullscreenEnabled) return;
-    setSupported(true);
+    if (!supported) return;
     const sync = () => setActive(Boolean(document.fullscreenElement));
     sync();
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
-  }, []);
+  }, [supported]);
 
   // Voorkeur opslaan zodra de échte staat verandert. De eerste run (mount)
   // slaan we over zodat we een opgeslagen "1" niet meteen overschrijven met "0".

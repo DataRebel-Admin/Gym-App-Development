@@ -13,6 +13,13 @@ import {
   isHighConfidence,
   type DashRole,
 } from "@/lib/errors";
+import { useClientValue } from "@/lib/hooks/use-client-value";
+
+/** `?tenant=slug` uit de huidige URL (dev-tenantcontext); leeg op de server. */
+function readTenantQuery(): string {
+  const t = new URLSearchParams(window.location.search).get("tenant");
+  return t ? `?tenant=${encodeURIComponent(t)}` : "";
+}
 
 const AUTO_REDIRECT_SECONDS = 4;
 
@@ -27,11 +34,7 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
   const router = useRouter();
   const t = useTranslations("errors.suggestions");
 
-  const [tenantQuery, setTenantQuery] = useState("");
-  useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("tenant");
-    setTenantQuery(t ? `?tenant=${encodeURIComponent(t)}` : "");
-  }, []);
+  const tenantQuery = useClientValue(readTenantQuery, "");
   const withTenant = (href: string) => `${href}${tenantQuery}`;
 
   const suggestions = useMemo(

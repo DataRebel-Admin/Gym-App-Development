@@ -70,30 +70,38 @@ export function CustomExerciseForm({
   const [type, setType] = useState<string>(exercise?.exerciseType ?? DEFAULT_EXERCISE_TYPE);
   // Bestaande (opgeslagen) afbeeldingen — individueel te verwijderen.
   const [keptImages, setKeptImages] = useState<string[]>(exercise?.imageUrls ?? []);
-  // Nieuw gekozen bestanden — met voorvertoning en individueel te verwijderen.
-  const [newFiles, setNewFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  // Nieuw gekozen bestanden — met voorvertoning (object-URL aangemaakt bij het
+  // kiezen, gerevoked bij verwijderen/unmount) en individueel te verwijderen.
+  const [newImages, setNewImages] = useState<{ file: File; url: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Houd object-URL-previews in sync met de gekozen bestanden.
-  useEffect(() => {
-    const urls = newFiles.map((f) => URL.createObjectURL(f));
-    setPreviews(urls);
-    return () => urls.forEach((u) => URL.revokeObjectURL(u));
-  }, [newFiles]);
 
   // Synchroniseer de gecureerde bestandenset terug naar het <input type=file>,
   // zodat precies deze bestanden meegestuurd worden bij submit.
   useEffect(() => {
     if (!fileInputRef.current) return;
     const dt = new DataTransfer();
-    for (const f of newFiles) dt.items.add(f);
+    for (const img of newImages) dt.items.add(img.file);
     fileInputRef.current.files = dt.files;
-  }, [newFiles]);
+  }, [newImages]);
+
+  // Bij unmount alle nog openstaande object-URL's vrijgeven.
+  const newImagesRef = useRef(newImages);
+  useEffect(() => {
+    newImagesRef.current = newImages;
+  }, [newImages]);
+  useEffect(
+    () => () => newImagesRef.current.forEach((img) => URL.revokeObjectURL(img.url)),
+    []
+  );
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(e.target.files ?? []);
-    if (picked.length > 0) setNewFiles((prev) => [...prev, ...picked]);
+    if (picked.length > 0) {
+      setNewImages((prev) => [
+        ...prev,
+        ...picked.map((file) => ({ file, url: URL.createObjectURL(file) })),
+      ]);
+    }
   }
 
   return (
@@ -243,7 +251,7 @@ export function CustomExerciseForm({
 
         <div className="flex flex-col gap-2 text-sm text-neutral-700">
           <span className="font-medium">Afbeeldingen</span>
-          {keptImages.length > 0 || previews.length > 0 ? (
+          {keptImages.length > 0 || newImages.length > 0 ? (
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {keptImages.map((url) => (
                 <ImageThumb
@@ -252,14 +260,15 @@ export function CustomExerciseForm({
                   onRemove={() => setKeptImages((p) => p.filter((u) => u !== url))}
                 />
               ))}
-              {previews.map((url, i) => (
+              {newImages.map((img) => (
                 <ImageThumb
-                  key={url}
-                  src={url}
+                  key={img.url}
+                  src={img.url}
                   badge="nieuw"
-                  onRemove={() =>
-                    setNewFiles((p) => p.filter((_, idx) => idx !== i))
-                  }
+                  onRemove={() => {
+                    URL.revokeObjectURL(img.url);
+                    setNewImages((p) => p.filter((x) => x.url !== img.url));
+                  }}
                 />
               ))}
             </div>

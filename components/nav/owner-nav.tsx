@@ -71,19 +71,21 @@ export function OwnerNav({
   rootHref: string;
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState<string | null>(null);
+  // Het open paneel onthoudt bij welk pad het geopend werd: navigeren maakt de
+  // afgeleide `open` vanzelf null (sluiten bij navigatie zonder effect).
+  const [openedAt, setOpenedAt] = useState<{ key: string; path: string } | null>(null);
+  const open = openedAt && openedAt.path === pathname ? openedAt.key : null;
+  const setOpen = (key: string | null) =>
+    setOpenedAt(key ? { key, path: pathname } : null);
   const navRef = useRef<HTMLElement>(null);
-
-  // Sluit bij navigatie.
-  useEffect(() => setOpen(null), [pathname]);
 
   // Sluit bij klik buiten de nav of Escape.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpen(null);
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenedAt(null);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenedAt(null);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {

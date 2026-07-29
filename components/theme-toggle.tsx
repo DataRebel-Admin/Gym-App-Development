@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { Sun, Moon } from "lucide-react";
+import { useClientValue } from "@/lib/hooks/use-client-value";
 
 const COOKIE = "gymrebel-theme";
 
@@ -16,15 +17,16 @@ function readTheme(): "light" | "dark" {
  * de server de voorkeur de volgende keer no-flash kan toepassen.
  */
 export function ThemeToggle({ className }: { className?: string }) {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
-
-  useEffect(() => setTheme(readTheme()), []);
+  // Initieel uit <html data-theme> (server-side gezet); daarna wint de toggle.
+  const initialTheme = useClientValue(readTheme, "dark");
+  const [override, setOverride] = useState<"light" | "dark" | null>(null);
+  const theme = override ?? initialTheme;
 
   function toggle() {
     const next = theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     document.cookie = `${COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-    setTheme(next);
+    setOverride(next);
   }
 
   const isDark = theme === "dark";

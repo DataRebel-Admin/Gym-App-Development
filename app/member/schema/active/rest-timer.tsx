@@ -84,18 +84,16 @@ export function useRestTimer(): RestTimer {
   const [running, setRunning] = useState(false);
   const [visible, setVisible] = useState(false);
   const [finished, setFinished] = useState(false);
-  const [settings, setSettings] = useState<Settings>({
-    soundOn: true,
-    vibrateOn: true,
-  });
+  // Lazy init is SSR-veilig (loadSettings heeft een window-guard) en de timer-UI
+  // is bij hydratie nog niet zichtbaar — geen mismatch-risico.
+  const [settings, setSettings] = useState<Settings>(loadSettings);
 
   // Geaccumuleerde seconden (bij pauze) + starttijdstip van de lopende periode.
   const baseRef = useRef(0);
   const startTsRef = useRef(0);
-  // Re-render-tik terwijl de timer loopt.
-  const [, force] = useState(0);
-
-  useEffect(() => setSettings(loadSettings()), []);
+  // Verstreken tijd voor weergave — bijgewerkt door de interval-tik (250ms),
+  // zodat de render geen refs/klok hoeft te lezen.
+  const [displayElapsed, setDisplayElapsed] = useState(0);
 
   const persist = useCallback((next: Settings) => {
     setSettings(next);
@@ -106,13 +104,9 @@ export function useRestTimer(): RestTimer {
     }
   }, []);
 
-  const currentElapsed = useCallback(() => {
-    const live = running ? (Date.now() - startTsRef.current) / 1000 : 0;
-    return baseRef.current + live;
-  }, [running]);
-
   const finish = useCallback(() => {
     baseRef.current = duration;
+    setDisplayElapsed(duration);
     setRunning(false);
     setFinished(true);
     if (settings.soundOn) playBeep();
@@ -122,11 +116,9 @@ export function useRestTimer(): RestTimer {
   useEffect(() => {
     if (!running) return;
     const id = window.setInterval(() => {
-      force((n) => n + 1);
-      if (kind === "countdown") {
-        const el = baseRef.current + (Date.now() - startTsRef.current) / 1000;
-        if (el >= duration) finish();
-      }
+      const el = baseRef.current + (Date.now() - startTsRef.current) / 1000;
+      setDisplayElapsed(el);
+      if (kind === "countdown" && el >= duration) finish();
     }, 250);
     return () => window.clearInterval(id);
   }, [running, kind, duration, finish]);
@@ -137,6 +129,7 @@ export function useRestTimer(): RestTimer {
     setDuration(seconds);
     baseRef.current = 0;
     startTsRef.current = Date.now();
+    setDisplayElapsed(0);
     setFinished(false);
     setRunning(true);
     setVisible(true);
@@ -147,6 +140,7 @@ export function useRestTimer(): RestTimer {
     setDuration(0);
     baseRef.current = 0;
     startTsRef.current = Date.now();
+    setDisplayElapsed(0);
     setFinished(false);
     setRunning(true);
     setVisible(true);
@@ -184,11 +178,12 @@ export function useRestTimer(): RestTimer {
     setVisible(false);
     setFinished(false);
     baseRef.current = 0;
+    setDisplayElapsed(0);
   }, []);
 
-  const elapsed = Math.floor(currentElapsed());
+  const elapsed = Math.floor(displayElapsed);
   const remaining =
-    kind === "countdown" ? Math.max(0, Math.ceil(duration - currentElapsed())) : 0;
+    kind === "countdown" ? Math.max(0, Math.ceil(duration - displayElapsed)) : 0;
 
   return {
     visible,

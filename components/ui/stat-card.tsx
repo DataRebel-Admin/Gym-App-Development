@@ -51,15 +51,13 @@ export function StatCard({
   const measureRef = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const reduced = useReducedMotion();
-  const [display, setDisplay] = useState(reduced ? value : 0);
+  const [display, setDisplay] = useState(0);
   const [fontPx, setFontPx] = useState(() => initialFontPx(value));
+  // Bij reduced motion tellen we niet: toon direct de eindwaarde.
+  const shown = reduced ? value : display;
 
   useEffect(() => {
-    if (!inView) return;
-    if (reduced) {
-      setDisplay(value);
-      return;
-    }
+    if (!inView || reduced) return;
     const controls = animate(0, value, {
       duration: 0.9,
       ease: [0.16, 1, 0.3, 1],
@@ -120,7 +118,7 @@ export function StatCard({
           className="block font-display font-bold leading-none tabular-nums text-neutral-900"
           style={{ fontSize: fontPx }}
         >
-          {display.toLocaleString("nl-NL")}
+          {shown.toLocaleString("nl-NL")}
         </span>
         {/* Verborgen referentie op vaste grootte — enkel om de eindbreedte te meten. */}
         <span

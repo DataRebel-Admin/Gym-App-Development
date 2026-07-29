@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { Plus } from "@/components/ui/icons";
 import { POSE_LABEL } from "@/lib/measurement-meta";
-import { addProgressPhotos, type PhotoUploadState } from "@/app/member/progress/actions";
+import { addProgressPhotos } from "@/app/member/progress/actions";
 
 const POSES = ["FRONT", "SIDE", "BACK"] as const;
 
@@ -49,17 +49,22 @@ function PhotoInput({ pose }: { pose: (typeof POSES)[number] }) {
 export function MemberPhotoUpload() {
   const { success } = useToast();
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<PhotoUploadState, FormData>(
-    addProgressPhotos,
-    {}
-  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (state.ok) {
-      success("Foto's toegevoegd");
-      setOpen(false);
-    }
-  }, [state.ok, success]);
+  // Directe action-aanroep zodat toast + inklappen in dezelfde flow gebeuren.
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const res = await addProgressPhotos({}, formData);
+      if (res.ok) {
+        success("Foto's toegevoegd");
+        setError(null);
+        setOpen(false);
+      } else {
+        setError(res.error ?? null);
+      }
+    });
+  }
 
   if (!open) {
     return (
@@ -75,7 +80,7 @@ export function MemberPhotoUpload() {
 
   return (
     <form
-      action={formAction}
+      action={submit}
       className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-4 shadow-sm"
     >
       <div className="flex items-center justify-between gap-2">
@@ -110,7 +115,7 @@ export function MemberPhotoUpload() {
         Account &rsaquo; Meldingen &amp; privacy.
       </p>
 
-      {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <Button type="submit" size="lg" loading={pending}>
         Foto&apos;s opslaan

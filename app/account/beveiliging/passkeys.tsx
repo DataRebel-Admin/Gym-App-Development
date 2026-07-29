@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
 import {
@@ -10,6 +10,7 @@ import {
 } from "../passkey-actions";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { cn } from "@/lib/cn";
+import { useClientValue } from "@/lib/hooks/use-client-value";
 
 export type PasskeyRow = {
   id: string;
@@ -22,14 +23,10 @@ const DT = new Intl.DateTimeFormat("nl-NL", { day: "numeric", month: "short", ye
 
 export function Passkeys({ passkeys }: { passkeys: PasskeyRow[] }) {
   const router = useRouter();
-  const [supported, setSupported] = useState(true);
+  const supported = useClientValue(browserSupportsWebAuthn, true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setSupported(browserSupportsWebAuthn());
-  }, []);
 
   async function add() {
     setError(null);

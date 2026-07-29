@@ -361,7 +361,6 @@ function DayCard({
   onItemDuplicate,
   onCopyTo,
   onCopyPrevious,
-  maxReached,
 }: {
   day: EditorDay;
   index: number;
@@ -381,7 +380,6 @@ function DayCard({
   onItemDuplicate: (dayKey: string, itemKey: string) => void;
   onCopyTo: (fromDayKey: string, itemKey: string, toDayKey: string) => void;
   onCopyPrevious: (dayKey: string) => void;
-  maxReached: boolean;
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [query, setQuery] = useState("");
@@ -837,7 +835,6 @@ export function MemberSchemaEditor({
             onItemDuplicate={duplicateItem}
             onCopyTo={copyItemToDay}
             onCopyPrevious={copyPreviousDay}
-            maxReached={maxReached}
           />
         ))}
       </div>
