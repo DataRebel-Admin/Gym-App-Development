@@ -1287,6 +1287,85 @@
       }
     }
   },
+  "defects": {
+    "title": "Apparaatdefekt melde",
+    "metaTitle": "Defekt melde",
+    "intro": "Sjochst datst in apparaat stikken is of nuver docht? Jou it troch — de trainers sjogge it fuortendaliks.",
+    "button": "Defekt melde",
+    "submit": "Ferstjoere",
+    "cancel": "Annulearje",
+    "close": "Slute",
+    "form": {
+      "machine": "Hokker apparaat?",
+      "machinePick": "Kies in apparaat…",
+      "machineLoading": "Apparaten lade…",
+      "machineOther": "Stiet der net by",
+      "machineOtherLabel": "Omskriuw it apparaat",
+      "machineOtherPlaceholder": "Bygelyks roeitrainer by it rút",
+      "symptom": "Wat is der oan de hân?",
+      "description": "Taljochting",
+      "descriptionHint": "Opsjoneel",
+      "descriptionPlaceholder": "Koarte taljochting, bygelyks wêr'tst it fernimst",
+      "photos": "Foto's",
+      "photosHint": "Opsjoneel, maks 2. Soargje derfoar dat der gjin oare leden werkenber yn byld steane.",
+      "photoRemove": "Foto fuortsmite",
+      "safety": "Kinst it apparaat noch feilich brûke?",
+      "safetyYes": "Ja, giet prima",
+      "safetyNo": "Nee, gefaarlik",
+      "unsafeNote": "It apparaat wurdt fuortendaliks op 'bûten gebrûk' set en de trainers krije daliks berjocht.",
+      "anonymous": "Anonym melde (dyn namme wurdt net bewarre)"
+    },
+    "symptoms": {
+      "noise": "Makket nuver lûd",
+      "pin": "Pin of gewichtspin stikken of kwyt",
+      "cable": "Kabel of riem skansearre",
+      "stuck": "Sit fêst of rint stroef",
+      "electronics": "Skerm of elektroanika docht it net",
+      "loose": "Underdiel los of ûntbrekt",
+      "upholstery": "Sitting of beklaaiïng skansearre",
+      "other": "Oars"
+    },
+    "duplicate": {
+      "title": "Dit is al meld",
+      "body": "{count, plural, =0 {Der leit al in iepen melding foar dit apparaat mei itselde probleem.} one {Der leit al in iepen melding — # lid sjocht dit ek.} other {Der leit al in iepen melding — # leden sjogge dit ek.}}",
+      "confirm": "Ik sjoch dit ek",
+      "mine": "Do hast dit al meld of befêstige.",
+      "reportAnyway": "Dochs apart melde"
+    },
+    "success": {
+      "reported": "Trochjûn oan de sportskoalle. Tank foar it melden!",
+      "confirmed": "Notearre — tank foar dyn befêstiging!"
+    },
+    "errors": {
+      "generic": "Ferstjoeren is net slagge. Besykje it nochris.",
+      "rateLimited": "Do hast hjoed it maksimum oantal meldingen berikt. Besykje it moarn nochris."
+    },
+    "status": {
+      "OPEN": "Iepen",
+      "ACKNOWLEDGED": "Sjoen",
+      "IN_REPAIR": "Yn reparaasje",
+      "RESOLVED": "Oplost",
+      "REJECTED": "Ofwiisd"
+    },
+    "severity": {
+      "MINOR": "Lyts",
+      "MAJOR": "Net brûkber",
+      "UNSAFE": "Gefaarlik"
+    },
+    "list": {
+      "title": "Defekt melde",
+      "subtitle": "Meld in stikken apparaat en folgje dyn eardere meldingen.",
+      "mine": "Myn meldingen",
+      "empty": "Noch gjin meldingen. Sjochst wat stikken? Meld it hjirboppe.",
+      "unknownMachine": "Unbekend apparaat"
+    },
+    "banner": {
+      "outOfService": "Dit apparaat is bûten gebrûk",
+      "outOfServiceBody": "Der is in probleem meld. Brûk it apparaat net oant it frijjûn is.",
+      "warning": "Tink derom: der is in defekt meld",
+      "warningBody": "It apparaat is noch brûkber, mar der leit in iepen melding."
+    }
+  },
   "report": {
     "title": "Probleem melde",
     "intro": "Meld in probleem of idee oer de app oan it ûntwikkelteam. Dit giet net oer apparatuer yn de sportskoalle.",

@@ -277,6 +277,39 @@ export async function confirmDefect(defectId: string): Promise<DefectConfirmStat
   return { ok: true };
 }
 
+export type ReportableMachine = {
+  id: string;
+  name: string;
+  type: string;
+  locationName: string | null;
+};
+
+/**
+ * Apparaten voor de picker in de meldstroom ("algemene knop"). Alle apparaten
+ * van de organisatie; bij multi-vestiging met vestigingsnaam erbij.
+ */
+export async function getReportableMachines(): Promise<ReportableMachine[]> {
+  const user = await requireMember();
+  await requireFeature(user.tenantId, "defects");
+  const machines = await prisma.machine.findMany({
+    where: { tenantId: user.tenantId },
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      venueLocation: { select: { name: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+  const multi = new Set(machines.map((m) => m.venueLocation.name)).size > 1;
+  return machines.map((m) => ({
+    id: m.id,
+    name: m.name,
+    type: m.type,
+    locationName: multi ? m.venueLocation.name : null,
+  }));
+}
+
 export type OpenDefectSummary = {
   id: string;
   symptom: string;

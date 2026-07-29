@@ -9,6 +9,8 @@ import { machineTypeLabel } from "@/lib/machine";
 import { Badge } from "@/components/ui/badge";
 import { Dumbbell, Plus, ChevronRight } from "@/components/ui/icons";
 import { TrackScan } from "@/components/machine/track-scan";
+import { ReportDefectButton } from "@/components/defects/report-defect-modal";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { addMachineToSchema } from "./actions";
 
 export async function generateMetadata({
@@ -72,6 +74,9 @@ export default async function MachinePublicPage({
     });
     canAdd = Boolean(active);
   }
+
+  // Defect melden: alleen voor ingelogde leden, gegate op de feature-flag.
+  const canReportDefect = isMember && (await isFeatureEnabled(tenant.id, "defects"));
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6 sm:max-w-lg">
@@ -194,6 +199,13 @@ export default async function MachinePublicPage({
               <Plus className="size-5" /> Voeg toe aan mijn schema
             </button>
           </form>
+        ) : null}
+
+        {/* Defect melden aan de sportschool (apparaat voorgevuld → ≤3 taps). */}
+        {canReportDefect ? (
+          <ReportDefectButton
+            machine={{ id: machine.id, name: machine.name, type: machine.type }}
+          />
         ) : null}
 
         {/* Verplichte veiligheidsmelding — ALTIJD zichtbaar. */}

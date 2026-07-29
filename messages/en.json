@@ -1417,6 +1417,85 @@
       "switchLabel": "Switch language"
     }
   },
+  "defects": {
+    "title": "Report equipment defect",
+    "metaTitle": "Report defect",
+    "intro": "Spotted broken or misbehaving equipment? Let us know — the trainers will see it right away.",
+    "button": "Report defect",
+    "submit": "Send",
+    "cancel": "Cancel",
+    "close": "Close",
+    "form": {
+      "machine": "Which machine?",
+      "machinePick": "Pick a machine…",
+      "machineLoading": "Loading machines…",
+      "machineOther": "Not in the list",
+      "machineOtherLabel": "Describe the machine",
+      "machineOtherPlaceholder": "E.g. rowing machine by the window",
+      "symptom": "What's wrong?",
+      "description": "Details",
+      "descriptionHint": "Optional",
+      "descriptionPlaceholder": "Short note, e.g. where you notice it",
+      "photos": "Photos",
+      "photosHint": "Optional, max 2. Please make sure no other members are recognizable in the picture.",
+      "photoRemove": "Remove photo",
+      "safety": "Can you still use the machine safely?",
+      "safetyYes": "Yes, it's fine",
+      "safetyNo": "No, dangerous",
+      "unsafeNote": "The machine will immediately be marked out of service and the trainers will be notified right away.",
+      "anonymous": "Report anonymously (your name is not stored)"
+    },
+    "symptoms": {
+      "noise": "Makes a strange noise",
+      "pin": "Pin or weight pin broken or missing",
+      "cable": "Cable or belt damaged",
+      "stuck": "Stuck or moves stiffly",
+      "electronics": "Screen or electronics not working",
+      "loose": "Part loose or missing",
+      "upholstery": "Seat or upholstery damaged",
+      "other": "Other"
+    },
+    "duplicate": {
+      "title": "This has already been reported",
+      "body": "{count, plural, =0 {There's already an open report for this machine with the same issue.} one {There's already an open report — # member sees this too.} other {There's already an open report — # members see this too.}}",
+      "confirm": "I see this too",
+      "mine": "You already reported or confirmed this.",
+      "reportAnyway": "Report separately anyway"
+    },
+    "success": {
+      "reported": "Passed on to the gym. Thanks for reporting!",
+      "confirmed": "Noted — thanks for confirming!"
+    },
+    "errors": {
+      "generic": "Sending failed. Please try again.",
+      "rateLimited": "You've reached today's maximum number of reports. Please try again tomorrow."
+    },
+    "status": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Seen",
+      "IN_REPAIR": "In repair",
+      "RESOLVED": "Resolved",
+      "REJECTED": "Rejected"
+    },
+    "severity": {
+      "MINOR": "Minor",
+      "MAJOR": "Unusable",
+      "UNSAFE": "Dangerous"
+    },
+    "list": {
+      "title": "Report a defect",
+      "subtitle": "Report broken equipment and track your earlier reports.",
+      "mine": "My reports",
+      "empty": "No reports yet. See something broken? Report it above.",
+      "unknownMachine": "Unknown machine"
+    },
+    "banner": {
+      "outOfService": "This machine is out of service",
+      "outOfServiceBody": "A problem has been reported. Please don't use the machine until it has been released.",
+      "warning": "Heads up: a defect has been reported",
+      "warningBody": "The machine is still usable, but there's an open report."
+    }
+  },
   "report": {
     "title": "Report a problem",
     "intro": "Report a problem or idea about the app to the development team. This is not for gym equipment issues.",

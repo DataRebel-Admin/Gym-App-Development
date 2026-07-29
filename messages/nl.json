@@ -1417,6 +1417,85 @@
       "switchLabel": "Taal wisselen"
     }
   },
+  "defects": {
+    "title": "Apparaatdefect melden",
+    "metaTitle": "Defect melden",
+    "intro": "Zie je dat een apparaat kapot is of raar doet? Geef het door — de trainers zien het direct.",
+    "button": "Defect melden",
+    "submit": "Versturen",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "form": {
+      "machine": "Welk apparaat?",
+      "machinePick": "Kies een apparaat…",
+      "machineLoading": "Apparaten laden…",
+      "machineOther": "Staat er niet bij",
+      "machineOtherLabel": "Omschrijf het apparaat",
+      "machineOtherPlaceholder": "Bijv. roeitrainer bij het raam",
+      "symptom": "Wat is er aan de hand?",
+      "description": "Toelichting",
+      "descriptionHint": "Optioneel",
+      "descriptionPlaceholder": "Korte toelichting, bijv. waar je het merkt",
+      "photos": "Foto's",
+      "photosHint": "Optioneel, max 2. Let op: zorg dat er geen andere leden herkenbaar in beeld staan.",
+      "photoRemove": "Foto verwijderen",
+      "safety": "Kun je het apparaat nog veilig gebruiken?",
+      "safetyYes": "Ja, gaat prima",
+      "safetyNo": "Nee, gevaarlijk",
+      "unsafeNote": "Het apparaat wordt direct op 'buiten gebruik' gezet en de trainers krijgen meteen bericht.",
+      "anonymous": "Anoniem melden (je naam wordt niet opgeslagen)"
+    },
+    "symptoms": {
+      "noise": "Maakt raar geluid",
+      "pin": "Pin of gewichtspen kapot of kwijt",
+      "cable": "Kabel of riem beschadigd",
+      "stuck": "Zit vast of loopt stroef",
+      "electronics": "Scherm of elektronica doet het niet",
+      "loose": "Onderdeel los of ontbreekt",
+      "upholstery": "Zitting of bekleding beschadigd",
+      "other": "Anders"
+    },
+    "duplicate": {
+      "title": "Dit is al gemeld",
+      "body": "{count, plural, =0 {Er ligt al een open melding voor dit apparaat met hetzelfde probleem.} one {Er ligt al een open melding — # lid ziet dit ook.} other {Er ligt al een open melding — # leden zien dit ook.}}",
+      "confirm": "Ik zie dit ook",
+      "mine": "Je hebt dit al gemeld of bevestigd.",
+      "reportAnyway": "Toch apart melden"
+    },
+    "success": {
+      "reported": "Doorgegeven aan de sportschool. Bedankt voor het melden!",
+      "confirmed": "Genoteerd — bedankt voor je bevestiging!"
+    },
+    "errors": {
+      "generic": "Versturen is niet gelukt. Probeer het opnieuw.",
+      "rateLimited": "Je hebt vandaag het maximum aantal meldingen bereikt. Probeer het morgen opnieuw."
+    },
+    "status": {
+      "OPEN": "Open",
+      "ACKNOWLEDGED": "Gezien",
+      "IN_REPAIR": "In reparatie",
+      "RESOLVED": "Opgelost",
+      "REJECTED": "Afgewezen"
+    },
+    "severity": {
+      "MINOR": "Klein",
+      "MAJOR": "Niet bruikbaar",
+      "UNSAFE": "Gevaarlijk"
+    },
+    "list": {
+      "title": "Defect melden",
+      "subtitle": "Meld een kapot apparaat en volg je eerdere meldingen.",
+      "mine": "Mijn meldingen",
+      "empty": "Nog geen meldingen. Zie je iets kapot? Meld het hierboven.",
+      "unknownMachine": "Onbekend apparaat"
+    },
+    "banner": {
+      "outOfService": "Dit apparaat is buiten gebruik",
+      "outOfServiceBody": "Er is een probleem gemeld. Gebruik het apparaat niet tot het is vrijgegeven.",
+      "warning": "Let op: er is een defect gemeld",
+      "warningBody": "Het apparaat is nog bruikbaar, maar er ligt een open melding."
+    }
+  },
   "report": {
     "title": "Probleem melden",
     "intro": "Meld een probleem of idee over de app aan het ontwikkelteam. Dit gaat niet over apparatuur in de sportschool.",
