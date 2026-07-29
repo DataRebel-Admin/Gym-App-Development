@@ -1,46 +1,43 @@
-import Link from "next/link";
-import { getTranslations } from "next-intl/server";
-import { useTranslations } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requirePermission } from "@/lib/staff";
 import { getLocationScope } from "@/lib/location-access";
 import { getTenantLocations } from "@/lib/locations";
 import { canAccessLocation, canRollUp, type LocationScope } from "@/lib/location-scope";
-import { getMachineInsights } from "@/lib/insights";
-import { getLocationComparison } from "@/lib/metrics/queries";
+import { getMachineInsights, getPopularExercises } from "@/lib/insights";
+import {
+  getLocationComparison,
+  getInsightsTrends,
+  type InsightsWindow,
+} from "@/lib/metrics/queries";
+import type { Granularity } from "@/lib/metrics/definitions";
 import { LocationComparisonTable } from "@/components/insights/location-comparison";
 import { OccupancyHeatmap } from "@/components/insights/occupancy-heatmap";
+import { InsightsHero } from "@/components/insights/insights-hero";
+import { LinkTabs } from "@/components/insights/link-tabs";
+import { MachineTable } from "@/components/insights/machine-table";
+import { PopularExercisesList } from "@/components/insights/popular-exercises";
+import { VisitsTrendChart } from "@/components/charts/visits-trend-chart.lazy";
+import { MAX_TREND_SERIES } from "@/components/charts/visits-trend-chart";
+import { ClassTrendChart } from "@/components/charts/class-trend-chart.lazy";
+import { MiniBarChart } from "@/components/charts/mini-bar-chart.lazy";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
-import {
-  TableWrap,
-  Table,
-  Thead,
-  Th,
-  Tbody,
-  Tr,
-  Td,
-} from "@/components/ui/table";
 
-const PERIODS = [7, 30, 90] as const;
-type Period = (typeof PERIODS)[number];
+const PERIODS = [7, 30, 90] as const satisfies readonly InsightsWindow[];
 
-function parsePeriod(value: string | undefined): Period {
+function parsePeriod(value: string | undefined): InsightsWindow {
   const n = Number(value);
-  return (PERIODS as readonly number[]).includes(n) ? (n as Period) : 30;
+  return (PERIODS as readonly number[]).includes(n) ? (n as InsightsWindow) : 30;
 }
 
-function Trend({ pct }: { pct: number | null }) {
-  const t = useTranslations("owner.insights");
-  if (pct === null) {
-    return <span className="text-neutral-400">{t("new")}</span>;
-  }
-  if (pct === 0) return <span className="text-neutral-500">±0%</span>;
-  const up = pct > 0;
-  return (
-    <span className={up ? "text-green-600" : "text-red-600"}>
-      {up ? "▲" : "▼"} {Math.abs(pct)}%
-    </span>
-  );
+/** Bucket-sleutel ("2026-07-23") → kort gelokaliseerd as-label ("23-7"). */
+function bucketLabel(key: string, locale: string): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "numeric",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 export async function generateMetadata() {
@@ -57,7 +54,7 @@ export default async function InsightsPage({
   // superset). De vestiging-scope is een RESTRICTIE: een medewerker ziet
   // uitsluitend gekoppelde vestigingen; alleen de admin ziet org-totalen.
   const user = await requirePermission("analytics:view");
-  const t = await getTranslations("owner.insights");
+  const [t, locale] = await Promise.all([getTranslations("owner.insights"), getLocale()]);
   const { period: periodParam, loc } = await searchParams;
   const period = parsePeriod(periodParam);
 
@@ -75,16 +72,45 @@ export default async function InsightsPage({
   const visibleLocations = allLocations.filter((l) => canAccessLocation(userScope, l.id));
   const multiLocation = visibleLocations.length > 1;
 
-  const [rows, comparison] = await Promise.all([
+  const [machineRows, comparison, trends, popular] = await Promise.all([
     getMachineInsights(user.tenantId, period, selectedScope),
-    getLocationComparison(user.tenantId, selectedScope),
+    getLocationComparison(user.tenantId, selectedScope, period),
+    getInsightsTrends(user.tenantId, selectedScope, period),
+    getPopularExercises(user.tenantId, period, selectedScope),
   ]);
 
+  // KPI-hero: org-totalen bij roll-up; bij een selectie van precies één
+  // vestiging de rij-waarde; anders géén actieve-leden/retentie-KPI
+  // (vestigingswaarden zijn niet optelbaar — zie NonAdditiveNote).
+  const singleRow = comparison.rows.length === 1 ? comparison.rows[0] : null;
+  const activeMembers = comparison.orgTotals?.activeMembers ?? singleRow?.activeMembers ?? null;
+  const retention = comparison.orgTotals
+    ? comparison.orgTotals.retention
+    : (singleRow?.retention ?? null);
+  const retentionPct = retention == null ? null : Math.round(retention * 100);
+
+  // Bezoeken-chart: per-vestiging-lijnen alleen binnen het vaste seriepalet;
+  // daarboven bewust het (optelbare) totaal met een expliciete melding.
+  const multiSeries = trends.series.length > 1 && trends.series.length <= MAX_TREND_SERIES;
+  const visitData = trends.visits.map((row) => ({
+    ...row,
+    label: bucketLabel(String(row.bucket), locale),
+  }));
+  const visitSeries = multiSeries
+    ? trends.series.map((s) => ({ key: s.locationId, name: s.name }))
+    : [];
+  const classData = trends.classes.points.map((p) => ({
+    label: bucketLabel(p.bucket, locale),
+    occupancyPct: p.occupancyPct,
+    noShowPct: p.noShowPct,
+  }));
+  const captionKey: Record<Granularity, "perDayCaption" | "perWeekCaption"> = {
+    day: "perDayCaption",
+    week: "perWeekCaption",
+  };
+  const chartCaption = t(captionKey[trends.granularity], { count: period });
+
   const heatmapLocations = comparison.rows.map((r) => ({ id: r.locationId, name: r.name }));
-  const tabClass = (active: boolean) =>
-    `rounded-lg px-3 py-1 font-medium transition-colors ${
-      active ? "bg-surface-1 text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900"
-    }`;
 
   return (
     <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -93,89 +119,160 @@ export default async function InsightsPage({
         description={t("desc")}
         action={
           <div className="flex items-center gap-2">
-            <div className="flex gap-1 rounded-xl border border-border bg-surface-0 p-1 text-sm">
-              {PERIODS.map((p) => (
-                <Link
-                  key={p}
-                  href={`/owner/insights?period=${p}${loc ? `&loc=${loc}` : ""}`}
-                  className={tabClass(p === period)}
-                >
-                  {t("days", { count: p })}
-                </Link>
-              ))}
-            </div>
+            <LinkTabs
+              items={PERIODS.map((p) => ({
+                href: `/owner/insights?period=${p}${loc ? `&loc=${loc}` : ""}`,
+                label: t("days", { count: p }),
+                active: p === period,
+              }))}
+            />
             <FullscreenButton />
           </div>
         }
       />
 
       {multiLocation ? (
-        <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-surface-0 p-1 text-sm self-start">
-          <Link href={`/owner/insights?period=${period}`} className={tabClass(!loc)}>
-            {canRollUp(userScope) ? "Alle vestigingen" : "Mijn vestigingen"}
-          </Link>
-          {visibleLocations.map((l) => (
-            <Link
-              key={l.id}
-              href={`/owner/insights?period=${period}&loc=${l.id}`}
-              className={tabClass(loc === l.id)}
-            >
-              {l.name}
-            </Link>
-          ))}
-        </div>
+        <LinkTabs
+          className="self-start"
+          items={[
+            {
+              href: `/owner/insights?period=${period}`,
+              label: canRollUp(userScope) ? t("allLocations") : t("myLocations"),
+              active: !loc,
+            },
+            ...visibleLocations.map((l) => ({
+              href: `/owner/insights?period=${period}&loc=${l.id}`,
+              label: l.name,
+              active: loc === l.id,
+            })),
+          ]}
+        />
       ) : null}
+
+      <InsightsHero
+        windowDays={period}
+        visitsTotal={trends.visitsTotal}
+        visitsTrendPct={trends.visitsTrendPct}
+        activeMembers={activeMembers}
+        newMembersTotal={trends.signups.total}
+        newMembersTrendPct={trends.signups.trendPct}
+        retentionPct={retentionPct}
+        noShowPct={trends.classes.noShowPct}
+      />
+
+      {/* Bezoeken-trend over tijd (sessies + aanwezig gemelde les-deelnames). */}
+      <Card>
+        <CardHeader className="flex-row items-baseline justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-lg">{t("sectionVisits")}</CardTitle>
+            <p className="text-sm text-neutral-500">{t("sectionVisitsDesc")}</p>
+          </div>
+          <span className="shrink-0 text-xs text-neutral-400">{chartCaption}</span>
+        </CardHeader>
+        <CardContent>
+          {trends.visitsTotal === 0 ? (
+            <p className="py-10 text-center text-sm text-neutral-500">{t("chartEmpty")}</p>
+          ) : (
+            <>
+              <VisitsTrendChart data={visitData} series={visitSeries} unit={t("unitVisits")} />
+              {!multiSeries && trends.series.length > 1 ? (
+                <p className="mt-2 text-xs text-neutral-400">
+                  {t("visitsAggregatedNote", { count: trends.series.length })}
+                </p>
+              ) : null}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Ledengroei: nieuwe aanmeldingen per bucket. */}
+        <Card>
+          <CardHeader className="flex-row items-baseline justify-between gap-2">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-lg">{t("sectionGrowth")}</CardTitle>
+              <p className="text-sm text-neutral-500">{t("sectionGrowthDesc")}</p>
+            </div>
+            <span className="shrink-0 text-xs text-neutral-400">
+              {t("signupsTotal", { count: trends.signups.total })}
+            </span>
+          </CardHeader>
+          <CardContent>
+            {trends.signups.total === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">{t("chartEmpty")}</p>
+            ) : (
+              <MiniBarChart
+                data={trends.signups.points.map((p) => ({
+                  label: bucketLabel(p.bucket, locale),
+                  value: p.count,
+                }))}
+                unit={t("unitMembers")}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Lesbezetting & no-shows: historisch verloop (het dashboard toont
+            juist de kómende lessen — bewust complementair). */}
+        <Card>
+          <CardHeader className="flex-row items-baseline justify-between gap-2">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="text-lg">{t("sectionClasses")}</CardTitle>
+              <p className="text-sm text-neutral-500">{t("sectionClassesDesc")}</p>
+            </div>
+            <span className="shrink-0 text-xs text-neutral-400">
+              {t("classesTotal", { count: trends.classes.sessionsTotal })}
+            </span>
+          </CardHeader>
+          <CardContent>
+            {trends.classes.sessionsTotal === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">{t("chartEmpty")}</p>
+            ) : (
+              <ClassTrendChart
+                data={classData}
+                occupancyLabel={t("occupancyLine")}
+                noShowLabel={t("noShowLine")}
+              />
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Vestigingsvergelijking: actieve leden / bezoeken / retentie / no-shows. */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-neutral-900">Vestigingen</h2>
+        <h2 className="text-lg font-semibold text-neutral-900">{t("sectionLocations")}</h2>
         <LocationComparisonTable data={comparison} />
       </section>
 
       {/* Bezetting per uur (TZ van de vestiging). */}
       {heatmapLocations.length > 0 ? (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold text-neutral-900">Bezetting per uur</h2>
-          <OccupancyHeatmap cells={comparison.occupancy} locations={heatmapLocations} />
+          <h2 className="text-lg font-semibold text-neutral-900">{t("sectionOccupancy")}</h2>
+          <OccupancyHeatmap
+            cells={comparison.occupancy}
+            locations={heatmapLocations}
+            windowDays={comparison.windowDays}
+          />
         </section>
       ) : null}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-neutral-900">{t("colMachine")}s</h2>
-        <TableWrap>
-          <Table>
-            <Thead>
-              <tr>
-                <Th>{t("colMachine")}</Th>
-                <Th>{t("colSessions")}</Th>
-                <Th>{t("colTotalReps")}</Th>
-                <Th>{t("colTrend")}</Th>
-              </tr>
-            </Thead>
-            <Tbody>
-              {rows.map((r) => (
-                <Tr key={r.id}>
-                  <Td className="font-medium">{r.name}</Td>
-                  <Td className="text-neutral-500">{r.sessions}</Td>
-                  <Td className="text-neutral-500">{r.totalReps}</Td>
-                  <Td>
-                    <Trend pct={r.trendPct} />
-                  </Td>
-                </Tr>
-              ))}
-              {rows.length === 0 ? (
-                <Tr>
-                  <Td colSpan={4} className="py-8 text-center text-neutral-500">
-                    {t("noMachines")}
-                  </Td>
-                </Tr>
-              ) : null}
-            </Tbody>
-          </Table>
-        </TableWrap>
-      </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-neutral-900">{t("sectionMachines")}</h2>
+          <MachineTable rows={machineRows} />
+        </section>
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-neutral-900">{t("sectionPopular")}</h2>
+          <Card>
+            <CardContent>
+              <PopularExercisesList rows={popular} />
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+
       <p className="text-xs text-neutral-500">
-        {t("footnote")}
+        {t("footnote")} {t("retentionExplainer")}
       </p>
     </Fullscreenable>
   );
