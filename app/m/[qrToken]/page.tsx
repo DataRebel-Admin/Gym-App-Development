@@ -8,9 +8,12 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { machineTypeLabel } from "@/lib/machine";
 import { Badge } from "@/components/ui/badge";
 import { Dumbbell, Plus, ChevronRight } from "@/components/ui/icons";
+import { getTranslations } from "next-intl/server";
 import { TrackScan } from "@/components/machine/track-scan";
 import { ReportDefectButton } from "@/components/defects/report-defect-modal";
 import { isFeatureEnabled } from "@/lib/features/service";
+import { machineWarningMap } from "@/lib/defects-server";
+import { AlertTriangle } from "@/components/ui/icons";
 import { addMachineToSchema } from "./actions";
 
 export async function generateMetadata({
@@ -55,12 +58,21 @@ export default async function MachinePublicPage({
   });
   if (!machine) notFound();
 
+  // Buiten gebruik (bv. na een UNSAFE-defectmelding) of in onderhoud → banner
+  // en geen "voeg toe aan schema". Open MAJOR-defect → waarschuwingslabel.
+  const outOfService =
+    machine.status === "OUT_OF_SERVICE" || machine.status === "IN_MAINTENANCE";
+  const warning = outOfService
+    ? null
+    : (await machineWarningMap(tenant.id, [machine.id])).get(machine.id) ?? null;
+  const tDefects = await getTranslations("defects");
+
   // "Voeg toe aan mijn schema" alleen voor ingelogde leden van deze tenant met schema.
   const session = await auth();
   const isMember =
     session?.user?.role === "TENANT_MEMBER" && session.user.tenantId === tenant.id;
   let canAdd = false;
-  if (isMember && machine.exercises.length > 0) {
+  if (isMember && !outOfService && machine.exercises.length > 0) {
     const now = new Date();
     const active = await prisma.assignedWorkout.findFirst({
       where: {
@@ -99,6 +111,27 @@ export default async function MachinePublicPage({
       )}
 
       <div className="mt-5 flex flex-col gap-5">
+        {/* Buiten gebruik / defect gemeld — vóór alles zichtbaar. */}
+        {outOfService ? (
+          <div className="rounded-2xl border-2 border-red-300 bg-red-50 px-5 py-4">
+            <p className="flex items-center gap-2 font-semibold text-red-800">
+              <AlertTriangle className="size-5 shrink-0" />
+              {tDefects("banner.outOfService")}
+            </p>
+            <p className="mt-1 text-sm text-red-700">
+              {tDefects("banner.outOfServiceBody")}
+            </p>
+          </div>
+        ) : warning ? (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4">
+            <p className="flex items-center gap-2 font-semibold text-amber-900">
+              <AlertTriangle className="size-5 shrink-0" />
+              {tDefects("banner.warning")}
+            </p>
+            <p className="mt-1 text-sm text-amber-800">{tDefects("banner.warningBody")}</p>
+          </div>
+        ) : null}
+
         <div>
           <Badge tone="accent">{machineTypeLabel(machine.type)}</Badge>
           <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-neutral-900">

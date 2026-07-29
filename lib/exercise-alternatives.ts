@@ -117,7 +117,17 @@ export async function findAlternatives(
 
   const skip = new Set([exerciseId, ...excludeIds]);
   const candidates = await prisma.exercise.findMany({
-    where: { tenantId, archivedAt: null, id: { notIn: [...skip] } },
+    where: {
+      tenantId,
+      archivedAt: null,
+      id: { notIn: [...skip] },
+      // Apparaten die buiten gebruik of in onderhoud staan (bv. na een
+      // UNSAFE-defectmelding) zijn géén bruikbaar alternatief.
+      OR: [
+        { machineId: null },
+        { machine: { status: { notIn: ["OUT_OF_SERVICE", "IN_MAINTENANCE"] } } },
+      ],
+    },
     select: candidateSelect,
   });
 

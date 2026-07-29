@@ -16,6 +16,11 @@ export async function addMachineToSchema(formData: FormData) {
     include: { exercises: { select: { id: true } } },
   });
   if (!machine) redirect("/member/schema");
+  // Buiten gebruik / in onderhoud → niet aan een schema toe te voegen
+  // (server-side; de knop is client-side al verborgen).
+  if (machine.status === "OUT_OF_SERVICE" || machine.status === "IN_MAINTENANCE") {
+    redirect("/member/schema");
+  }
 
   const assignment = await getAssignedSchema(member.id, member.tenantId);
   if (!assignment?.template) redirect("/member/schema");
