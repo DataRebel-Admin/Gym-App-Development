@@ -22,6 +22,7 @@ export type Permission =
   | "schedule:manage" // rooster/groepslessen beheren
   | "exercises:manage" // eigen oefeningen beheren
   | "maintenance:manage" // machine-onderhoud beheren (regels, uitvoeren, status)
+  | "defects:manage" // defectmeldingen van leden behandelen + apparaat vrijgeven
   | "machines:qr-export" // QR-codes van apparaten bulk-exporteren (standaard uit)
   | "analytics:view" // vestigingsanalytics inzien, gescoped op gekoppelde vestigingen (standaard uit)
   | "members:import" // leden importeren (standaard uit)
@@ -42,6 +43,7 @@ export const STAFF_CONFIGURABLE_PERMISSIONS = [
   "schedule:manage",
   "exercises:manage",
   "maintenance:manage",
+  "defects:manage",
   "machines:qr-export",
   "analytics:view",
   "members:import",
@@ -58,6 +60,7 @@ const STAFF_DEFAULT_ON: readonly Permission[] = [
   "schedule:manage",
   "exercises:manage",
   "maintenance:manage",
+  "defects:manage",
 ];
 
 const TENANT_ADMIN_PERMISSIONS: Permission[] = [
@@ -202,6 +205,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
         label: "Machine-onderhoud beheren",
         description:
           "Onderhoudsregels instellen, onderhoud vastleggen en de machinestatus beheren.",
+      },
+      {
+        permission: "defects:manage",
+        label: "Defectmeldingen behandelen",
+        description:
+          "Door leden gemelde apparaatdefecten inzien, toewijzen, oplossen en het apparaat weer vrijgeven.",
       },
       {
         permission: "machines:qr-export",

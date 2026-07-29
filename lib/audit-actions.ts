@@ -22,6 +22,7 @@ export type AuditCategory =
   | "reports"
   | "platform"
   | "features"
+  | "defects"
   | "auth";
 
 export type AuditActionDef = {
@@ -57,6 +58,7 @@ export const CATEGORY_META: Record<
   reports: { label: "Meldingen", icon: "🚩", tone: "warning" },
   platform: { label: "Platform", icon: "🛠️", tone: "neutral" },
   features: { label: "Features", icon: "🧩", tone: "accent" },
+  defects: { label: "Defecten", icon: "🚧", tone: "warning" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
 };
 
@@ -96,6 +98,8 @@ export function categoryFromAction(action: string): AuditCategory {
       return "platform";
     case "feature":
       return "features";
+    case "defect":
+      return "defects";
     case "tenant":
     case "branding":
     default:
@@ -714,6 +718,68 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "reports", label: "Screenshot opgeschoond", icon: "🧹", tone: "neutral",
     sentence: ({ actor, meta }) =>
       `${actor} heeft ${s(meta, "count") ?? "?"} melding-screenshot(s) opgeschoond (retentie)`,
+  },
+
+  // --- Apparaatdefecten (lid → sportschool) ---
+  "defect.create": {
+    category: "defects", label: "Defect gemeld", icon: "🚧", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een defect gemeld aan ${s(meta, "machine") ?? "een apparaat"} (${s(meta, "symptom") ?? "?"})`,
+  },
+  "defect.confirm": {
+    category: "defects", label: "Defect bevestigd", icon: "👍", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een defect aan ${s(meta, "machine") ?? "een apparaat"} bevestigd ("ik zie dit ook")`,
+  },
+  "defect.acknowledge": {
+    category: "defects", label: "Defect gezien", icon: "👀", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de defectmelding van ${s(meta, "machine") ?? "een apparaat"} bevestigd`,
+  },
+  "defect.assign": {
+    category: "defects", label: "Defect toegewezen", icon: "🙋", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het defect aan ${s(meta, "machine") ?? "een apparaat"} toegewezen aan ${s(meta, "assignee") ?? "een medewerker"}`,
+  },
+  "defect.status.change": {
+    category: "defects", label: "Defectstatus gewijzigd", icon: "🔁", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de status van het defect aan ${s(meta, "machine") ?? "een apparaat"} gewijzigd naar ${s(meta, "status") ?? "?"}`,
+  },
+  "defect.resolve": {
+    category: "defects", label: "Defect opgelost", icon: "✅", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het defect aan ${s(meta, "machine") ?? "een apparaat"} opgelost${s(meta, "released") === "true" ? " en het apparaat vrijgegeven" : ""}`,
+  },
+  "defect.reject": {
+    category: "defects", label: "Defect afgewezen", icon: "🚫", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de defectmelding van ${s(meta, "machine") ?? "een apparaat"} afgewezen`,
+  },
+  "defect.merge": {
+    category: "defects", label: "Defect samengevoegd", icon: "🔗", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een defectmelding van ${s(meta, "machine") ?? "een apparaat"} samengevoegd als duplicaat`,
+  },
+  "defect.delete": {
+    category: "defects", label: "Defect verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een defectmelding van ${s(meta, "machine") ?? "een apparaat"} verwijderd`,
+  },
+  "defect.notify.sent": {
+    category: "defects", label: "Defectmelding verstuurd", icon: "📣", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "recipients") ?? "?"} beheerder(s) geïnformeerd over een defect aan ${s(meta, "machine") ?? "een apparaat"}`,
+  },
+  "defect.digest.sent": {
+    category: "defects", label: "Defect-samenvatting verstuurd", icon: "📰", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de dagelijkse defect-samenvatting verstuurd (${s(meta, "count") ?? "0"} melding(en))`,
+  },
+  "defect.cleanup": {
+    category: "defects", label: "Defecten opgeschoond", icon: "🧹", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "removed") ?? "0"} defectmelding(en) en ${s(meta, "photos") ?? "0"} foto('s) opgeschoond (retentie)`,
   },
 
   // --- Feature flags (Superadmin) ---

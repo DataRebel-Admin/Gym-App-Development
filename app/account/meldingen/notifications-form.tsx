@@ -10,6 +10,7 @@ const CATEGORIES = [
   { key: "schemas", label: "Trainingsschema's" },
   { key: "achievements", label: "Trofeeën" },
   { key: "maintenance", label: "Onderhoud" },
+  { key: "defects", label: "Apparaatdefecten" },
   { key: "changes", label: "Wijzigingen" },
   { key: "system", label: "Systeemmeldingen" },
   { key: "news", label: "Nieuws" },

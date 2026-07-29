@@ -16,6 +16,7 @@ export type NotificationCategory =
   | "changes"
   | "achievements"
   | "maintenance"
+  | "defects"
   | "system"
   | "news"
   | "security";

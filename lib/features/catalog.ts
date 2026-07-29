@@ -12,7 +12,7 @@
  * zijn vrije strings in het `FeatureFlag`-model.
  */
 
-export type FeatureKey = "maintenance" | "group_classes" | "ai";
+export type FeatureKey = "maintenance" | "group_classes" | "ai" | "defects";
 
 export type FeatureDef = {
   key: FeatureKey;
@@ -54,6 +54,14 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     description:
       "AI Coach & Assistant: chat, suggesties, oefening-uitleg en coach-analyses. Masterschakelaar boven de eigen AI-instelling van de sportschool.",
     icon: "🤖",
+    defaultEnabled: true,
+  },
+  defects: {
+    key: "defects",
+    name: "Apparaatdefect melden",
+    description:
+      "Leden melden defecte apparaten aan de sportschool; trainers/beheer behandelen ze per vestiging. Een gevaarlijk defect zet het apparaat direct buiten gebruik.",
+    icon: "🚧",
     defaultEnabled: true,
   },
 };
