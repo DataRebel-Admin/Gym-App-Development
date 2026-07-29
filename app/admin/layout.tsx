@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { OwnerNav, type OwnerNavEntry } from "@/components/nav/owner-nav";
@@ -31,6 +31,7 @@ const ICON_AUDIT =
 const ICON_SETTINGS =
   "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z";
 const ICON_CHANGELOG = "M12 8v4l3 3M3.05 11a9 9 0 1 1 .5 4M3 4v4h4";
+const ICON_REPORTS = "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7";
 const ICON_GROUP_BEHEER = "M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5";
 const ICON_GROUP_COMMS =
   "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z";
@@ -68,6 +69,7 @@ const NAV: OwnerNavEntry[] = [
     label: "Systeem",
     iconPath: ICON_GROUP_SYSTEEM,
     items: [
+      { href: "/admin/meldingen", label: "Meldingen", iconPath: ICON_REPORTS, description: "Probleem- en feedbackmeldingen over de app" },
       { href: "/admin/audit", label: "Audit log", iconPath: ICON_AUDIT, description: "Platformbrede activiteit en gebeurtenissen" },
       { href: "/admin/changelog", label: "Wijzigingslogboek", iconPath: ICON_CHANGELOG, description: "Nieuwe functies en verbeteringen in GymRebel" },
       { href: "/admin/settings", label: "Instellingen", iconPath: ICON_SETTINGS, description: "Platforminstellingen en support-contact" },
@@ -82,7 +84,9 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "SUPERADMIN") redirect("/");
+  // Defense-in-depth achter de proxy-rewrite: ook hier een 404 (geen redirect),
+  // zodat het admin-gebied voor tenant-gebruikers niet lijkt te bestaan.
+  if (session.user.role !== "SUPERADMIN") notFound();
 
   const badge = await getUserBadge(session.user.id);
 

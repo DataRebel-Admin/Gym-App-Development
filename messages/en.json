@@ -1274,6 +1274,13 @@
     "maintenanceAlert": {
       "reason": "You're receiving this email because you're responsible for equipment maintenance at {gym}.",
       "btn": "View maintenance"
+    },
+    "reportResolved": {
+      "subject": "Your report {ref} has been resolved",
+      "heading": "Your report has been resolved",
+      "body": "Good news: your report {ref} — {title} — has been resolved by the development team.",
+      "thanks": "Thanks for reporting. You're helping make the app better.",
+      "reason": "You're receiving this email because you allowed us to contact you about your report."
     }
   },
   "common": {

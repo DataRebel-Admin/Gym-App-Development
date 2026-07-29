@@ -19,6 +19,7 @@ export type AuditCategory =
   | "tenant"
   | "email"
   | "support"
+  | "reports"
   | "platform"
   | "features"
   | "auth";
@@ -53,6 +54,7 @@ export const CATEGORY_META: Record<
   tenant: { label: "Tenant", icon: "🏢", tone: "neutral" },
   email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
   support: { label: "Support", icon: "🛟", tone: "accent" },
+  reports: { label: "Meldingen", icon: "🚩", tone: "warning" },
   platform: { label: "Platform", icon: "🛠️", tone: "neutral" },
   features: { label: "Features", icon: "🧩", tone: "accent" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
@@ -88,6 +90,8 @@ export function categoryFromAction(action: string): AuditCategory {
       return "email";
     case "support":
       return "support";
+    case "report":
+      return "reports";
     case "platform":
       return "platform";
     case "feature":
@@ -130,6 +134,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
   "user.deactivate": {
     category: "members", label: "Account gedeactiveerd", icon: "⛔", tone: "warning",
     sentence: ({ actor }) => `${actor} heeft een account gedeactiveerd`,
+  },
+  "user.email.change": {
+    category: "members", label: "E-mailadres gewijzigd", icon: "📧", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het e-mailadres van een lid gewijzigd naar ${s(meta, "newEmail") ?? "?"}`,
   },
   "user.role.change": {
     category: "members", label: "Rol gewijzigd", icon: "🔑", tone: "accent",
@@ -666,6 +675,45 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "support", label: "Supportbericht verzonden", icon: "📨", tone: "success",
     sentence: ({ actor, meta }) =>
       `${actor} heeft een supportbericht verzonden${s(meta, "subject") ? `: '${s(meta, "subject")}'` : ""}`,
+  },
+
+  // --- App-meldingen aan de developers ---
+  "report.create": {
+    category: "reports", label: "Melding ingediend", icon: "🚩", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een ${s(meta, "type") === "BUG" ? "bug" : "melding"} ingediend${s(meta, "anonymous") === "true" ? " (anoniem)" : ""}`,
+  },
+  "report.status.change": {
+    category: "reports", label: "Melding-status gewijzigd", icon: "🔄", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de status van een melding gewijzigd naar ${s(meta, "status") ?? "?"}`,
+  },
+  "report.severity.change": {
+    category: "reports", label: "Melding-prioriteit gewijzigd", icon: "⚠️", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de prioriteit van een melding gewijzigd naar ${s(meta, "severity") ?? "?"}`,
+  },
+  "report.duplicate.link": {
+    category: "reports", label: "Melding als duplicaat gekoppeld", icon: "🔗", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft een melding als duplicaat gekoppeld`,
+  },
+  "report.note.update": {
+    category: "reports", label: "Interne notitie bijgewerkt", icon: "📝", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft de interne notitie van een melding bijgewerkt`,
+  },
+  "report.github.create": {
+    category: "reports", label: "GitHub-issue aangemaakt", icon: "🐙", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een GitHub-issue aangemaakt${s(meta, "issue") ? ` (${s(meta, "issue")})` : ""}`,
+  },
+  "report.notify.sent": {
+    category: "reports", label: "Melder geïnformeerd", icon: "📣", tone: "success",
+    sentence: ({ actor }) => `${actor} heeft de melder geïnformeerd over de afronding`,
+  },
+  "report.retention.cleanup": {
+    category: "reports", label: "Screenshot opgeschoond", icon: "🧹", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft ${s(meta, "count") ?? "?"} melding-screenshot(s) opgeschoond (retentie)`,
   },
 
   // --- Feature flags (Superadmin) ---

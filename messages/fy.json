@@ -1144,6 +1144,13 @@
     "maintenanceAlert": {
       "reason": "Do krigest dizze e-mail omdat do by {gym} ferantwurdlik bist foar it ûnderhâld fan apparatuer.",
       "btn": "Underhâld besjen"
+    },
+    "reportResolved": {
+      "subject": "Jo melding {ref} is oplost",
+      "heading": "Jo melding is oplost",
+      "body": "Goed nijs: jo melding {ref} — {title} — is troch it ûntwikkelteam oplost.",
+      "thanks": "Tank foar it melden. Troch jo wurdt de app better.",
+      "reason": "Jo krije dizze e-mail omdat jo by jo melding oanjûn hawwe dat wy kontakt opnimme meie."
     }
   },
   "common": {

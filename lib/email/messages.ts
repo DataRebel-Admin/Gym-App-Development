@@ -594,3 +594,200 @@ export async function supportRequestMessage(opts: {
     ),
   };
 }
+
+// ── App-meldingen aan de developers ──────────────────────────────────────────
+
+/** Compacte context-samenvatting van een melding voor dev-team-mails (NL). */
+export type ReportEmailSummary = {
+  ref: string;
+  type: string;
+  severity: string;
+  title: string;
+  description: string;
+  origin: string; // "lid" | "sportschool"
+  tenantName?: string | null;
+  route?: string | null;
+  appVersion?: string | null;
+  platform?: string | null;
+  createdAt: Date;
+};
+
+/**
+ * Direct alarm naar het dev-team (BLOCKER of piek op één route). Platform-mail
+ * (GymRebel-branding, NL — het team is intern), patroon supportRequestMessage.
+ */
+export async function reportAlertMessage(opts: {
+  branding: EmailBranding;
+  report: ReportEmailSummary;
+  reason: "blocker" | "burst";
+  inboxUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, report, inboxUrl } = opts;
+  const headline =
+    opts.reason === "blocker"
+      ? "🚨 BLOCKER-melding in de app"
+      : "📈 Piek: meerdere meldingen op dezelfde route";
+  const reason =
+    "Je ontvangt deze e-mail omdat er een urgente app-melding is binnengekomen.";
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:2px 12px 2px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
+      label
+    )}</td><td style="padding:2px 0;font-size:14px;color:#1f2937">${escapeHtml(value)}</td></tr>`;
+
+  const details = emailInfoCard(
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%">
+      ${row("Referentie", report.ref)}
+      ${row("Type", report.type)}
+      ${row("Prioriteit", report.severity)}
+      ${row("Herkomst", report.origin)}
+      ${report.tenantName ? row("Sportschool", report.tenantName) : ""}
+      ${report.route ? row("Route", report.route) : ""}
+      ${report.appVersion ? row("App-versie", report.appVersion) : ""}
+      ${report.platform ? row("Platform", report.platform) : ""}
+    </table>`
+  );
+
+  const contentHtml = [
+    emailHeading(headline),
+    emailParagraph(`<strong>${escapeHtml(report.title)}</strong>`),
+    details,
+    emailParagraph(escapeHtml(report.description).replace(/\r?\n/g, "<br>")),
+    emailButton(inboxUrl, "Open de meldingen-inbox", branding),
+    emailLinkFallback(inboxUrl),
+  ].join("");
+
+  return {
+    subject: `${opts.reason === "blocker" ? "[BLOCKER]" : "[PIEK]"} App-melding ${report.ref}: ${report.title}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${report.ref} — ${report.title}`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      [
+        headline,
+        "",
+        `Referentie: ${report.ref}`,
+        `Type:       ${report.type} · ${report.severity}`,
+        `Herkomst:   ${report.origin}${report.tenantName ? ` (${report.tenantName})` : ""}`,
+        report.route ? `Route:      ${report.route}` : null,
+        report.appVersion ? `Versie:     ${report.appVersion}` : null,
+        "",
+        report.title,
+        report.description,
+        "",
+        inboxUrl,
+      ]
+        .filter((line): line is string => line !== null)
+        .join("\n"),
+      reason,
+      EMAIL_FOOTER_AUTO.NL
+    ),
+  };
+}
+
+/** Dagelijkse digest van nieuwe meldingen (dev-team, NL). */
+export async function reportDigestMessage(opts: {
+  branding: EmailBranding;
+  reports: ReportEmailSummary[];
+  inboxUrl: string;
+}): Promise<EmailMessage> {
+  const { branding, reports, inboxUrl } = opts;
+  const reason =
+    "Je ontvangt deze dagelijkse samenvatting van nieuwe app-meldingen.";
+
+  const items = reports
+    .map(
+      (r) =>
+        `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
+          r.ref
+        )}</td><td style="padding:6px 0;font-size:14px;color:#1f2937"><strong>[${escapeHtml(
+          r.type
+        )}]</strong> ${escapeHtml(r.title)}<br><span style="font-size:12px;color:#6b7280">${escapeHtml(
+          [r.origin, r.tenantName, r.platform, r.appVersion].filter(Boolean).join(" · ")
+        )}</span></td></tr>`
+    )
+    .join("");
+
+  const contentHtml = [
+    emailHeading("Dagelijkse meldingen-digest"),
+    emailParagraph(
+      `Er ${reports.length === 1 ? "is <strong>1</strong> nieuwe melding" : `zijn <strong>${reports.length}</strong> nieuwe meldingen`} binnengekomen in de afgelopen 24 uur.`
+    ),
+    emailInfoCard(
+      `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%">${items}</table>`
+    ),
+    emailButton(inboxUrl, "Open de meldingen-inbox", branding),
+    emailLinkFallback(inboxUrl),
+  ].join("");
+
+  return {
+    subject: `App-meldingen digest: ${reports.length} nieuw`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${reports.length} nieuwe app-melding(en) in de afgelopen 24 uur.`,
+      contentHtml,
+      reason,
+    }),
+    text: textFrame(
+      branding,
+      [
+        "Dagelijkse meldingen-digest",
+        "",
+        ...reports.map((r) => `${r.ref} [${r.type}] ${r.title}`),
+        "",
+        inboxUrl,
+      ].join("\n"),
+      reason,
+      EMAIL_FOOTER_AUTO.NL
+    ),
+  };
+}
+
+/**
+ * Bericht aan de melder wanneer zijn melding is opgelost (alleen verstuurd bij
+ * "mag contact opnemen"). In de taal van de ontvanger, met tenant-branding.
+ */
+export async function reportResolvedMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  reportRef: string;
+  reportTitle: string;
+  locale?: Locale | null;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, reportRef, reportTitle } = opts;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("reportResolved.reason");
+  const g = greetingText(t, recipientName);
+
+  const contentHtml = [
+    emailHeading(t("reportResolved.heading")),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(
+      t("reportResolved.body", { ref: reportRef, title: strong(reportTitle) })
+    ),
+    emailMuted(t("reportResolved.thanks")),
+  ].join("");
+
+  return {
+    subject: t("reportResolved.subject", { ref: reportRef }),
+    html: renderEmailLayout({
+      branding,
+      preheader: t("reportResolved.heading"),
+      contentHtml,
+      reason,
+      footerNote,
+    }),
+    text: textFrame(
+      branding,
+      `${g}\n\n${t("reportResolved.body", { ref: reportRef, title: reportTitle }).replace(/<[^>]+>/g, "")}\n\n${t("reportResolved.thanks")}`,
+      reason,
+      footerNote
+    ),
+  };
+}

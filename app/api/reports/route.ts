@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { uploadReportScreenshot } from "@/lib/blob";
 import { sanitizeReportContext, formatReportRef } from "@/lib/report-context";
+import { notifyDevTeamImmediate } from "@/lib/reports/notify";
 
 // Probleem melden aan de developers. Bewust een route-handler (geen server
 // action): crashschermen (app/global-error.tsx, zonder providers) moeten ook
@@ -158,6 +159,22 @@ export async function POST(req: Request): Promise<NextResponse> {
         route: context.route ?? null,
       },
     });
+
+    // Piek-detectie: ≥3 meldingen binnen een uur op dezelfde route → direct
+    // signaal naar het team (best-effort, blokkeert de response niet inhoudelijk).
+    if (context.route) {
+      try {
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const recentOnRoute = await prisma.appReport.count({
+          where: { route: context.route, createdAt: { gte: hourAgo } },
+        });
+        if (recentOnRoute >= 3) {
+          await notifyDevTeamImmediate(report, "burst");
+        }
+      } catch (err) {
+        console.error("[reports] piek-detectie mislukt:", err);
+      }
+    }
 
     return NextResponse.json(
       {

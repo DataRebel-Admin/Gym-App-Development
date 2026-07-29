@@ -51,9 +51,12 @@ export default auth((req) => {
       loginUrl.searchParams.set("tenant", slug);
       return NextResponse.redirect(loginUrl);
     }
-    // SUPERADMIN hoort op /admin; weg uit tenant-areas (voorkomt redirect-loop).
+    // Het admin-gebied bestaat niet voor tenant-gebruikers: een ingelogde
+    // niet-superadmin krijgt een échte 404 (rewrite naar een niet-bestaand pad
+    // → Next rendert de root not-found met HTTP-status 404). Bewust geen
+    // redirect: verbergt het bestaan van /admin volledig.
     if (onAdmin && user.role !== "SUPERADMIN") {
-      return NextResponse.redirect(new URL("/", nextUrl));
+      return NextResponse.rewrite(new URL("/__404", nextUrl));
     }
     if (user.role === "SUPERADMIN" && (onOwner || onMember)) {
       return NextResponse.redirect(new URL("/admin", nextUrl));
