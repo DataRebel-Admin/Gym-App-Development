@@ -1221,6 +1221,17 @@
       "reactivatedBody": "'{name}' is back in use.",
       "inMaintenanceTitle": "Machine in maintenance",
       "inMaintenanceBody": "'{name}' is now in maintenance."
+    },
+    "defects": {
+      "unsafeTitle": "Equipment reported as unsafe",
+      "unsafeBody": "'{name}' was reported as unsafe ({symptom}) and is now out of service. Please check the equipment.",
+      "escalatedTitle": "Defect reported multiple times",
+      "escalatedBody": "The defect on '{name}' ({symptom}) was confirmed by several members and has been escalated.",
+      "resolvedTitle": "Your report has been resolved",
+      "resolvedBody": "Thanks for reporting! '{name}' has been checked and the issue is fixed.",
+      "digestTitle": "Today's defect reports",
+      "digestBody": "{new, plural, =0 {No new reports} one {# new report} other {# new reports}}{overdue, plural, =0 {} one { and # overdue open report} other { and # overdue open reports}}.",
+      "digestDetail": "See the defect overview for details."
     }
   },
   "email": {
@@ -1274,6 +1285,10 @@
     "maintenanceAlert": {
       "reason": "You're receiving this email because you're responsible for equipment maintenance at {gym}.",
       "btn": "View maintenance"
+    },
+    "defectAlert": {
+      "reason": "You're receiving this email because you handle equipment defect reports at {gym}.",
+      "btn": "View report"
     },
     "reportResolved": {
       "subject": "Your report {ref} has been resolved",

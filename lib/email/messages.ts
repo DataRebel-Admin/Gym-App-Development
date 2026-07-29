@@ -490,6 +490,58 @@ export async function maintenanceAlertMessage(opts: {
   };
 }
 
+// ── Apparaatdefect (melding aan behandelaars / bevestiging aan de melder) ────
+
+/**
+ * Defect-melding: naar behandelaars (UNSAFE/escalatie/dagelijkse samenvatting)
+ * óf als kort "opgelost"-bericht naar de melder. Zelfde opbouw als
+ * maintenanceAlertMessage (non-DB composer); titel/intro komen al vertaald
+ * binnen (notifications.defects.* per ontvanger-locale).
+ */
+export async function defectAlertMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  machineName: string;
+  headline: string;
+  intro: string;
+  detail?: string | null;
+  manageUrl: string;
+  locale?: Locale | null;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, machineName, headline, intro, detail, manageUrl } = opts;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("defectAlert.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
+  const contentHtml = [
+    emailHeading(headline),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(intro),
+    detail?.trim() ? emailInfoCard(`<p style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
+    emailButton(manageUrl, t("defectAlert.btn"), branding),
+    emailLinkFallback(manageUrl),
+  ].join("");
+  return {
+    subject: `${headline}: ${machineName}`,
+    html: renderEmailLayout({
+      branding,
+      preheader: `${machineName} — ${headline.toLowerCase()}.`,
+      contentHtml,
+      reason,
+      footerNote,
+    }),
+    text: textFrame(
+      branding,
+      `${headline}\n\n${g}\n\n${intro.replace(/<[^>]+>/g, "")}${
+        detail?.trim() ? `\n\n${detail.trim()}` : ""
+      }\n\n${manageUrl}`,
+      reason,
+      footerNote
+    ),
+  };
+}
+
 // ── Contactbericht van een sportschooleigenaar (naar platform-support) ───────
 
 /**

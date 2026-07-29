@@ -1091,6 +1091,17 @@
       "reactivatedBody": "'{name}' is wer yn gebrûk nommen.",
       "inMaintenanceTitle": "Masine yn ûnderhâld",
       "inMaintenanceBody": "'{name}' stiet no yn ûnderhâld."
+    },
+    "defects": {
+      "unsafeTitle": "Apparaat as gefaarlik meld",
+      "unsafeBody": "'{name}' is as gefaarlik meld ({symptom}) en stiet no bûten gebrûk. Kontrolearje it apparaat.",
+      "escalatedTitle": "Defekt faker meld",
+      "escalatedBody": "It defekt oan '{name}' ({symptom}) is troch meardere leden befêstige en is opskaald.",
+      "resolvedTitle": "Dyn melding is oplost",
+      "resolvedBody": "Tank foar dyn melding! '{name}' is neisjoen en it probleem is ferholpen.",
+      "digestTitle": "Defektmeldingen fan hjoed",
+      "digestBody": "{new, plural, =0 {Gjin nije meldingen} one {# nije melding} other {# nije meldingen}}{overdue, plural, =0 {} one { en # iepen melding mei efterstân} other { en # iepen meldingen mei efterstân}}.",
+      "digestDetail": "Besjoch it defektenoersjoch foar de details."
     }
   },
   "email": {
@@ -1144,6 +1155,10 @@
     "maintenanceAlert": {
       "reason": "Do krigest dizze e-mail omdat do by {gym} ferantwurdlik bist foar it ûnderhâld fan apparatuer.",
       "btn": "Underhâld besjen"
+    },
+    "defectAlert": {
+      "reason": "Do krigest dizze e-mail omdat do by {gym} belutsen bist by defektmeldingen fan apparatuer.",
+      "btn": "Melding besjen"
     },
     "reportResolved": {
       "subject": "Jo melding {ref} is oplost",

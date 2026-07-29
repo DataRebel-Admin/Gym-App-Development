@@ -159,6 +159,35 @@ export async function uploadReportScreenshot(
   }
 }
 
+/** Maximale grootte van een defect-foto (5 MB). */
+export const DEFECT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Upload een foto bij een apparaatdefect-melding. Bewust GÉÉN data-URL-fallback
+ * (patroon uploadReportScreenshot): zonder Blob-token gaat de melding gewoon
+ * door zonder foto. De URL is onraadbaar (UUID) en komt NOOIT naar de client;
+ * staff bekijkt de foto via de beschermde route
+ * /owner/defects/[id]/photo/[index] (AVG: geen publieke vindbare foto-URLs).
+ */
+export async function uploadDefectPhoto(
+  file: File | null,
+  tenantId: string
+): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+  if (!file.type.startsWith("image/")) return null;
+  if (file.size > DEFECT_PHOTO_MAX_BYTES) return null;
+  if (!blobConfigured()) return null;
+
+  try {
+    const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+    const key = `defects/${tenantId}/${randomUUID()}.${ext}`;
+    const blob = await put(key, file, { access: "public" });
+    return blob.url;
+  } catch {
+    return null;
+  }
+}
+
 /** Maximale grootte van een profielfoto (5 MB). */
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 

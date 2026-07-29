@@ -1221,6 +1221,17 @@
       "reactivatedBody": "'{name}' is weer in gebruik genomen.",
       "inMaintenanceTitle": "Machine in onderhoud",
       "inMaintenanceBody": "'{name}' staat nu in onderhoud."
+    },
+    "defects": {
+      "unsafeTitle": "Apparaat gevaarlijk gemeld",
+      "unsafeBody": "'{name}' is als gevaarlijk gemeld ({symptom}) en staat nu buiten gebruik. Controleer het apparaat.",
+      "escalatedTitle": "Defect vaker gemeld",
+      "escalatedBody": "Het defect aan '{name}' ({symptom}) is door meerdere leden bevestigd en is opgeschaald.",
+      "resolvedTitle": "Je melding is opgelost",
+      "resolvedBody": "Bedankt voor je melding! '{name}' is nagekeken en het probleem is verholpen.",
+      "digestTitle": "Defectmeldingen van vandaag",
+      "digestBody": "{new, plural, =0 {Geen nieuwe meldingen} one {# nieuwe melding} other {# nieuwe meldingen}}{overdue, plural, =0 {} one { en # open melding met achterstand} other { en # open meldingen met achterstand}}.",
+      "digestDetail": "Bekijk het defectenoverzicht voor de details."
     }
   },
   "email": {
@@ -1274,6 +1285,10 @@
     "maintenanceAlert": {
       "reason": "Je ontvangt deze e-mail omdat je bij {gym} verantwoordelijk bent voor het onderhoud van apparatuur.",
       "btn": "Onderhoud bekijken"
+    },
+    "defectAlert": {
+      "reason": "Je ontvangt deze e-mail omdat je bij {gym} betrokken bent bij defectmeldingen van apparatuur.",
+      "btn": "Melding bekijken"
     },
     "reportResolved": {
       "subject": "Je melding {ref} is opgelost",
