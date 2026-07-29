@@ -81,7 +81,7 @@ export default async function OwnerDashboard() {
   // zichtbaarheid en animatie (zie components/dashboard/widget-grid.tsx).
   const nodes: Partial<Record<WidgetId, ReactNode>> = {
     kpis: <KpiRow stats={stats} />,
-    ...(comparison ? { "location-comparison": <LocationComparisonTable data={comparison} /> } : {}),
+    ...(comparison ? { "location-comparison": <LocationComparisonTable data={comparison} compact /> } : {}),
     "week-chart": <WeekChart stats={stats} />,
     "weekday-chart": <WeekdayChart stats={stats} />,
     "popular-exercises": <PopularExercises stats={stats} />,
