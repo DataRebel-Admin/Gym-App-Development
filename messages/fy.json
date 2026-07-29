@@ -379,6 +379,75 @@
     }
   },
   "owner": {
+    "defects": {
+      "metaTitle": "Defekten",
+      "title": "Apparaatdefekten",
+      "subtitle": "Troch leden melde defekten — gefaarlike meldingen boppe-oan.",
+      "cards": {
+        "open": "Iepen",
+        "unsafe": "Gefaarlik",
+        "inRepair": "Yn reparaasje",
+        "resolved30": "Oplost (30 d)"
+      },
+      "filters": {
+        "search": "Sykje apparaat…",
+        "statusOpen": "Alle iepen",
+        "statusAll": "Alle statussen",
+        "severityAll": "Alle earnst",
+        "machineAll": "Alle apparaten",
+        "locationAll": "Alle festigingen",
+        "periodAll": "Hiele perioade",
+        "period7": "Lêste 7 dagen",
+        "period30": "Lêste 30 dagen",
+        "period90": "Lêste 90 dagen",
+        "outOfServiceOnly": "Allinnich bûten gebrûk"
+      },
+      "table": {
+        "machine": "Apparaat",
+        "symptom": "Symptoom",
+        "severity": "Earnst",
+        "confirmations": "Befêstige",
+        "reporter": "Melder",
+        "anonymous": "Anonym",
+        "age": "Leeftyd",
+        "assignee": "Tawiisd",
+        "status": "Status",
+        "empty": "Gjin meldingen fûn mei dizze filters."
+      },
+      "mostReported": {
+        "title": "Faakst meld (90 dagen)",
+        "subtitle": "Handich by de fraach oft in apparaat ferfongen wurde moat.",
+        "count": "{count, plural, one {# melding} other {# meldingen}}"
+      },
+      "detail": {
+        "reportedBy": "Meld troch {name}",
+        "confirmations": "{count}× befêstige",
+        "machineOut": "Apparaat bûten gebrûk",
+        "photoAlt": "Foto {index} by de melding",
+        "timeline": "Tiidline",
+        "reportedAt": "Meld",
+        "acknowledgedAt": "Sjoen",
+        "resolvedAt": "Oplost",
+        "rejectedAt": "Ofwiisd",
+        "history": "Eardere meldingen fan dit apparaat",
+        "internalNote": "Ynterne notysje",
+        "internalNoteHint": "Allinnich sichtber foar meiwurkers en behear.",
+        "saveNote": "Notysje bewarje"
+      },
+      "actions": {
+        "acknowledge": "Befêstigje (sjoen)",
+        "startRepair": "Yn reparaasje",
+        "assign": "Tawize",
+        "assignNone": "Nimmen",
+        "merge": "Gearfoegje as duplikaat",
+        "resolveNote": "Oplossingsnotysje",
+        "release": "Apparaat wer frijjaan",
+        "resolve": "Oplosse",
+        "reject": "Ofwize",
+        "delete": "Fuortsmite",
+        "deleteConfirm": "Bist wis datst dizze melding definityf fuortsmite wolst?"
+      }
+    },
     "dashboard": {
       "metaTitle": "Dashboard",
       "welcomeBack": "Wolkom werom",
@@ -1229,6 +1298,8 @@
       "auditDesc": "Aktiviteitenlochboek",
       "maintenance": "Underhâld",
       "maintenanceDesc": "Underhâld fan masines: sinjalearring op gebrûk en tiid",
+      "defects": "Defekten",
+      "defectsDesc": "Troch leden melde apparaatdefekten behannelje",
       "engagement": "Belutsenheid",
       "engagementDesc": "Trofeeën, mylpeallen en streaks fan dyn leden",
       "changelog": "Wizigingslochboek",

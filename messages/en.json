@@ -509,6 +509,75 @@
     }
   },
   "owner": {
+    "defects": {
+      "metaTitle": "Defects",
+      "title": "Equipment defects",
+      "subtitle": "Defects reported by members — dangerous reports first.",
+      "cards": {
+        "open": "Open",
+        "unsafe": "Dangerous",
+        "inRepair": "In repair",
+        "resolved30": "Resolved (30 d)"
+      },
+      "filters": {
+        "search": "Search machine…",
+        "statusOpen": "All open",
+        "statusAll": "All statuses",
+        "severityAll": "All severities",
+        "machineAll": "All machines",
+        "locationAll": "All locations",
+        "periodAll": "Any time",
+        "period7": "Last 7 days",
+        "period30": "Last 30 days",
+        "period90": "Last 90 days",
+        "outOfServiceOnly": "Out of service only"
+      },
+      "table": {
+        "machine": "Machine",
+        "symptom": "Symptom",
+        "severity": "Severity",
+        "confirmations": "Confirmed",
+        "reporter": "Reporter",
+        "anonymous": "Anonymous",
+        "age": "Age",
+        "assignee": "Assigned to",
+        "status": "Status",
+        "empty": "No reports match these filters."
+      },
+      "mostReported": {
+        "title": "Most reported (90 days)",
+        "subtitle": "Useful when deciding whether equipment needs replacing.",
+        "count": "{count, plural, one {# report} other {# reports}}"
+      },
+      "detail": {
+        "reportedBy": "Reported by {name}",
+        "confirmations": "Confirmed {count}×",
+        "machineOut": "Machine out of service",
+        "photoAlt": "Photo {index} of the report",
+        "timeline": "Timeline",
+        "reportedAt": "Reported",
+        "acknowledgedAt": "Seen",
+        "resolvedAt": "Resolved",
+        "rejectedAt": "Rejected",
+        "history": "Earlier reports for this machine",
+        "internalNote": "Internal note",
+        "internalNoteHint": "Only visible to staff and management.",
+        "saveNote": "Save note"
+      },
+      "actions": {
+        "acknowledge": "Acknowledge (seen)",
+        "startRepair": "In repair",
+        "assign": "Assign",
+        "assignNone": "Nobody",
+        "merge": "Merge as duplicate",
+        "resolveNote": "Resolution note",
+        "release": "Release machine again",
+        "resolve": "Resolve",
+        "reject": "Reject",
+        "delete": "Delete",
+        "deleteConfirm": "Are you sure you want to permanently delete this report?"
+      }
+    },
     "dashboard": {
       "metaTitle": "Dashboard",
       "welcomeBack": "Welcome back",
@@ -1359,6 +1428,8 @@
       "auditDesc": "Activity log",
       "maintenance": "Maintenance",
       "maintenanceDesc": "Machine maintenance: usage- and time-based alerts",
+      "defects": "Defects",
+      "defectsDesc": "Handle equipment defects reported by members",
       "engagement": "Engagement",
       "engagementDesc": "Trophies, milestones and streaks of your members",
       "changelog": "Changelog",

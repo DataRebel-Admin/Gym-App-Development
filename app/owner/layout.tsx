@@ -63,6 +63,7 @@ function buildNav(t: NavTranslator): OwnerNavEntry[] {
         { href: "/owner/exercises", label: t("exercises"), iconPath: ICON_EXERCISES, description: t("exercisesDesc"), permission: "exercises:manage" },
         { href: "/owner/schemas", label: t("schemas"), iconPath: ICON_SCHEMAS, description: t("schemasDesc"), permission: "schemas:manage" },
         { href: "/owner/maintenance", label: t("maintenance"), iconPath: ICON_MAINTENANCE, description: t("maintenanceDesc"), permission: "maintenance:manage" },
+        { href: "/owner/defects", label: t("defects"), iconPath: "M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z", description: t("defectsDesc"), permission: "defects:manage" },
       ],
     },
     {
@@ -137,12 +138,14 @@ export default async function OwnerLayout({
   // Verberg de ingangen van uitgeschakelde modules (Superadmin feature-flags).
   const disabledHrefs = new Set<string>();
   if (tenant) {
-    const [classesOk, maintenanceOk] = await Promise.all([
+    const [classesOk, maintenanceOk, defectsOk] = await Promise.all([
       areClassesEnabled(tenant.id),
       isFeatureEnabled(tenant.id, "maintenance"),
+      isFeatureEnabled(tenant.id, "defects"),
     ]);
     if (!classesOk) disabledHrefs.add("/owner/rooster");
     if (!maintenanceOk) disabledHrefs.add("/owner/maintenance");
+    if (!defectsOk) disabledHrefs.add("/owner/defects");
   }
 
   const NAV = filterNav(

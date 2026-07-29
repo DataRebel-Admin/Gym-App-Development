@@ -509,6 +509,75 @@
     }
   },
   "owner": {
+    "defects": {
+      "metaTitle": "Defecten",
+      "title": "Apparaatdefecten",
+      "subtitle": "Door leden gemelde defecten — gevaarlijke meldingen bovenaan.",
+      "cards": {
+        "open": "Open",
+        "unsafe": "Gevaarlijk",
+        "inRepair": "In reparatie",
+        "resolved30": "Opgelost (30 d)"
+      },
+      "filters": {
+        "search": "Zoek apparaat…",
+        "statusOpen": "Alle open",
+        "statusAll": "Alle statussen",
+        "severityAll": "Alle ernst",
+        "machineAll": "Alle apparaten",
+        "locationAll": "Alle vestigingen",
+        "periodAll": "Hele periode",
+        "period7": "Laatste 7 dagen",
+        "period30": "Laatste 30 dagen",
+        "period90": "Laatste 90 dagen",
+        "outOfServiceOnly": "Alleen buiten gebruik"
+      },
+      "table": {
+        "machine": "Apparaat",
+        "symptom": "Symptoom",
+        "severity": "Ernst",
+        "confirmations": "Bevestigd",
+        "reporter": "Melder",
+        "anonymous": "Anoniem",
+        "age": "Leeftijd",
+        "assignee": "Toegewezen",
+        "status": "Status",
+        "empty": "Geen meldingen gevonden met deze filters."
+      },
+      "mostReported": {
+        "title": "Vaakst gemeld (90 dagen)",
+        "subtitle": "Handig bij de vraag of een apparaat vervangen moet worden.",
+        "count": "{count, plural, one {# melding} other {# meldingen}}"
+      },
+      "detail": {
+        "reportedBy": "Gemeld door {name}",
+        "confirmations": "{count}× bevestigd",
+        "machineOut": "Apparaat buiten gebruik",
+        "photoAlt": "Foto {index} bij de melding",
+        "timeline": "Tijdlijn",
+        "reportedAt": "Gemeld",
+        "acknowledgedAt": "Gezien",
+        "resolvedAt": "Opgelost",
+        "rejectedAt": "Afgewezen",
+        "history": "Eerdere meldingen van dit apparaat",
+        "internalNote": "Interne notitie",
+        "internalNoteHint": "Alleen zichtbaar voor medewerkers en beheer.",
+        "saveNote": "Notitie opslaan"
+      },
+      "actions": {
+        "acknowledge": "Bevestigen (gezien)",
+        "startRepair": "In reparatie",
+        "assign": "Toewijzen",
+        "assignNone": "Niemand",
+        "merge": "Samenvoegen als duplicaat",
+        "resolveNote": "Oplossingsnotitie",
+        "release": "Apparaat weer vrijgeven",
+        "resolve": "Oplossen",
+        "reject": "Afwijzen",
+        "delete": "Verwijderen",
+        "deleteConfirm": "Weet je zeker dat je deze melding definitief wilt verwijderen?"
+      }
+    },
     "dashboard": {
       "metaTitle": "Dashboard",
       "welcomeBack": "Welkom terug",
@@ -1359,6 +1428,8 @@
       "auditDesc": "Activiteitenlogboek",
       "maintenance": "Onderhoud",
       "maintenanceDesc": "Onderhoud van machines: signalering op gebruik en tijd",
+      "defects": "Defecten",
+      "defectsDesc": "Door leden gemelde apparaatdefecten behandelen",
       "engagement": "Betrokkenheid",
       "engagementDesc": "Trofeeën, mijlpalen en streaks van je leden",
       "changelog": "Wijzigingslogboek",

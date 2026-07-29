@@ -17,7 +17,11 @@ import type { DefectSeverity, DefectStatus, Prisma } from "@prisma/client";
 
 const openStatuses = [...OPEN_DEFECT_STATUSES];
 
-/** Selectie voor lijstweergaven — bewust ZONDER photoKeys (die blijven server-side). */
+/**
+ * Selectie voor het dashboard. Bevat photoKeys voor server-side gebruik —
+ * serialiseer naar de client ALTIJD alleen het aantal (de URLs blijven
+ * server-side; foto's gaan via de beschermde route).
+ */
 const defectListSelect = {
   id: true,
   machineId: true,
@@ -27,9 +31,13 @@ const defectListSelect = {
   severity: true,
   symptom: true,
   description: true,
+  photoKeys: true,
   reportedById: true,
   assignedToId: true,
   duplicateOfId: true,
+  internalNote: true,
+  resolutionNote: true,
+  acknowledgedAt: true,
   createdAt: true,
   resolvedAt: true,
   machine: { select: { id: true, name: true, type: true, status: true } },

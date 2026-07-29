@@ -10,6 +10,7 @@ import { QuotesForm } from "@/components/owner/quotes-form";
 import { parseEnabledMetricKeys } from "@/lib/measurement-meta";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { parseCustomQuotes } from "@/lib/workout-quotes";
+import { setDefectReminderDays } from "@/app/owner/defects/actions";
 
 function startOfMonth(): Date {
   const d = new Date();
@@ -38,6 +39,7 @@ export default async function SettingsPage() {
       enabledMeasurementFields: true,
       customQuotes: true,
       memberSchemaMode: true,
+      defectReminderDays: true,
       addressLine: true,
       postalCode: true,
       city: true,
@@ -212,6 +214,37 @@ export default async function SettingsPage() {
               }`}
             >
               {tenant.classesEnabled ? "Uitschakelen" : "Inschakelen"}
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      {features.defects ? (
+        <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">Apparaatdefecten</h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              Een open defectmelding die langer dan deze termijn openstaat, komt als
+              achterstand terug in de dagelijkse samenvatting.
+            </p>
+          </div>
+          <form action={setDefectReminderDays} className="flex items-end gap-3">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
+              Achterstand-termijn (dagen)
+              <input
+                type="number"
+                name="days"
+                min={1}
+                max={90}
+                defaultValue={tenant.defectReminderDays}
+                className="w-28 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              Opslaan
             </button>
           </form>
         </section>
