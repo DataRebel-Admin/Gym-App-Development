@@ -15,6 +15,7 @@ import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { FullscreenToggle } from "@/components/fullscreen-toggle";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { ClientErrorRecorder } from "@/components/error/client-error-recorder";
 import { AppBackground } from "@/components/ui/app-background";
 
 const geistSans = Geist({
@@ -104,6 +105,7 @@ export default async function RootLayout({
                 {children}
                 <FullscreenToggle />
                 <ServiceWorkerRegister />
+                <ClientErrorRecorder />
               </TenantProvider>
             </ToastProvider>
           </MotionProvider>

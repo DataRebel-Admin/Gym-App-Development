@@ -7,6 +7,11 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./lib/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Build-stempel voor probleem-meldingen (AppReport.buildId): op Vercel de
+  // git-commit-SHA, lokaal "dev". Client-side leesbaar via NEXT_PUBLIC_.
+  env: {
+    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
+  },
   // Native/HTTP2-packages niet bundelen, als extern server-package laden.
   // @resvg/resvg-js = QR-rasterisatie (native addon); apns2 = APNs-push (undici/HTTP2).
   serverExternalPackages: ["@resvg/resvg-js", "apns2"],
