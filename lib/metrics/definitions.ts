@@ -132,6 +132,162 @@ export function occupancyByHour(
   return [...cells.values()];
 }
 
+// --- Tijdreeks-buckets (dag/week) --------------------------------------------
+
+/** Korrel van een tijdreeks: 7 dagen → per dag, 30/90 dagen → per week. */
+export type Granularity = "day" | "week";
+
+export function granularityForWindow(windowDays: number): Granularity {
+  return windowDays <= 7 ? "day" : "week";
+}
+
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+function dateFormatter(timeZone: string): Intl.DateTimeFormat {
+  let fmt = dateFormatters.get(timeZone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    dateFormatters.set(timeZone, fmt);
+  }
+  return fmt;
+}
+
+function dateParts(date: Date, timeZone: string): { y: number; m: number; d: number; weekday: number } {
+  const parts = dateFormatter(timeZone).formatToParts(date);
+  let y = 0, m = 0, d = 0, weekday = 0;
+  for (const p of parts) {
+    if (p.type === "year") y = Number(p.value);
+    else if (p.type === "month") m = Number(p.value);
+    else if (p.type === "day") d = Number(p.value);
+    else if (p.type === "weekday") weekday = WEEKDAY_INDEX[p.value] ?? 0;
+  }
+  return { y, m, d, weekday };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** Kalenderdag-sleutel ("2026-07-29") van `date` in `timeZone`. */
+export function dayKeyInTz(date: Date, timeZone: string): string {
+  const { y, m, d } = dateParts(date, timeZone);
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+/**
+ * Maandag-sleutel ("2026-07-27") van de week waarin `date` valt, in `timeZone`
+ * (weekdag 0 = maandag — bestaande conventie). DST-veilig: rekent op de
+ * kalenderdatum via `Date.UTC`, niet op timestamps.
+ */
+export function weekStartKeyInTz(date: Date, timeZone: string): string {
+  const { y, m, d, weekday } = dateParts(date, timeZone);
+  const monday = new Date(Date.UTC(y, m - 1, d - weekday));
+  return `${monday.getUTCFullYear()}-${pad2(monday.getUTCMonth() + 1)}-${pad2(monday.getUTCDate())}`;
+}
+
+export function bucketKeyInTz(date: Date, timeZone: string, granularity: Granularity): string {
+  return granularity === "day" ? dayKeyInTz(date, timeZone) : weekStartKeyInTz(date, timeZone);
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * De volledige, gesorteerde bucket-as voor het venster — inclusief lege buckets
+ * (een chart mag geen gaten stilzwijgend overslaan). Dag-korrel: precies
+ * `windowDays` dag-sleutels t/m vandaag. Week-korrel: alle weken die het
+ * rollende venster raken (randbuckets zijn bewust partieel).
+ */
+export function enumerateBucketKeys(
+  now: Date,
+  windowDays: number,
+  timeZone: string,
+  granularity: Granularity
+): string[] {
+  const keys: string[] = [];
+  const from = granularity === "day" ? windowDays - 1 : windowDays;
+  for (let i = from; i >= 0; i--) {
+    const key = bucketKeyInTz(new Date(now.getTime() - i * DAY_MS), timeZone, granularity);
+    if (keys[keys.length - 1] !== key) keys.push(key);
+  }
+  return keys;
+}
+
+/** Telling per (vestiging, bucket) — generiek voor bezoeken én aanmeldingen. */
+export function countPerBucket(
+  rows: { locationId: string; at: Date }[],
+  timezoneByLocation: Map<string, string>,
+  granularity: Granularity
+): Map<string, Map<string, number>> {
+  const out = new Map<string, Map<string, number>>();
+  for (const r of rows) {
+    const tz = timezoneByLocation.get(r.locationId) ?? "Europe/Amsterdam";
+    const key = bucketKeyInTz(r.at, tz, granularity);
+    let buckets = out.get(r.locationId);
+    if (!buckets) out.set(r.locationId, (buckets = new Map()));
+    buckets.set(key, (buckets.get(key) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** Eén afgeronde les-sessie met uitkomsten (caller aggregeert de enrollments). */
+export type ClassSessionStat = {
+  locationId: string;
+  startsAt: Date;
+  capacity: number;
+  /** ENROLLED + ATTENDED (lib/class-attendance.ts ACTIVE_ENROLLMENT_STATUSES). */
+  enrolledActive: number;
+  attended: number;
+  noShow: number;
+};
+
+export type ClassTrendBucket = {
+  sessions: number;
+  /** Σ enrolledActive / Σ capacity — null zonder capaciteit (geen noemer). */
+  occupancyRate: number | null;
+  /** Σ noShow / Σ (attended + noShow) — zelfde semantiek als noShowStatsPerLocation. */
+  noShowRate: number | null;
+};
+
+/** Lesbezetting + no-show-rate per tijdbucket (in de tijdzone van de vestiging). */
+export function classTrendPerBucket(
+  rows: ClassSessionStat[],
+  timezoneByLocation: Map<string, string>,
+  granularity: Granularity
+): Map<string, ClassTrendBucket> {
+  const agg = new Map<string, { sessions: number; capacity: number; enrolled: number; attended: number; noShow: number }>();
+  for (const r of rows) {
+    const tz = timezoneByLocation.get(r.locationId) ?? "Europe/Amsterdam";
+    const key = bucketKeyInTz(r.startsAt, tz, granularity);
+    let a = agg.get(key);
+    if (!a) agg.set(key, (a = { sessions: 0, capacity: 0, enrolled: 0, attended: 0, noShow: 0 }));
+    a.sessions += 1;
+    a.capacity += r.capacity;
+    a.enrolled += r.enrolledActive;
+    a.attended += r.attended;
+    a.noShow += r.noShow;
+  }
+  const out = new Map<string, ClassTrendBucket>();
+  for (const [key, a] of agg) {
+    const expected = a.attended + a.noShow;
+    out.set(key, {
+      sessions: a.sessions,
+      occupancyRate: a.capacity > 0 ? a.enrolled / a.capacity : null,
+      noShowRate: expected > 0 ? a.noShow / expected : null,
+    });
+  }
+  return out;
+}
+
+/** Totalen per weekdag (index 0 = maandag) uit heatmap-cellen van één vestiging. */
+export function weekdayTotals(cells: OccupancyCell[]): number[] {
+  const totals = new Array<number>(7).fill(0);
+  for (const c of cells) totals[c.weekday] += c.count;
+  return totals;
+}
+
 // --- Retentie & no-shows -----------------------------------------------------
 
 /**
