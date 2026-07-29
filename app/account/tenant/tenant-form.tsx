@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useCallback, useEffect, useRef, useState } from "react";
 import { saveTenantBusiness, type AccountFormState } from "../actions";
 import { Field, Input } from "@/components/ui/field";
 
@@ -49,11 +49,18 @@ export function TenantForm({ tenant }: { tenant: TenantBusiness }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [tick, setTick] = useState(0);
 
+  // Dispatch de action rechtstreeks (géén form-submit): React 19 reset na een
+  // form-action de uncontrolled velden naar hun defaultValue, waardoor invoer
+  // zichtbaar terugsprong (en doortypen tijdens het opslaan verloren ging).
+  const dispatchSave = useCallback(() => {
+    const form = formRef.current;
+    if (form) startTransition(() => save(new FormData(form)));
+  }, [save]);
   useEffect(() => {
     if (tick === 0) return;
-    const t = setTimeout(() => formRef.current?.requestSubmit(), 900);
+    const t = setTimeout(dispatchSave, 900);
     return () => clearTimeout(t);
-  }, [tick]);
+  }, [tick, dispatchSave]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,7 +74,15 @@ export function TenantForm({ tenant }: { tenant: TenantBusiness }) {
         </span>
       </header>
 
-      <form ref={formRef} action={save} onChange={() => setTick((t) => t + 1)} className="flex flex-col gap-6">
+      <form
+        ref={formRef}
+        onSubmit={(e) => {
+          e.preventDefault();
+          dispatchSave();
+        }}
+        onChange={() => setTick((t) => t + 1)}
+        className="flex flex-col gap-6"
+      >
         <Section title="Contact">
           <Field label="Contact-e-mail"><Input name="contactEmail" type="email" defaultValue={tenant.contactEmail ?? ""} /></Field>
           <Field label="Telefoon"><Input name="contactPhone" defaultValue={tenant.contactPhone ?? ""} /></Field>

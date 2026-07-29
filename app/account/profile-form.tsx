@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useCallback, useEffect, useRef, useState } from "react";
 import {
   saveProfile,
   updateAvatar,
@@ -60,11 +60,18 @@ export function ProfileForm({ user }: { user: Profile }) {
   function onChange() {
     setTick((t) => t + 1);
   }
+  // Dispatch de action rechtstreeks (géén form-submit): React 19 reset na een
+  // form-action de uncontrolled velden naar hun defaultValue, waardoor invoer
+  // zichtbaar terugsprong (en doortypen tijdens het opslaan verloren ging).
+  const dispatchSave = useCallback(() => {
+    const form = formRef.current;
+    if (form) startTransition(() => save(new FormData(form)));
+  }, [save]);
   useEffect(() => {
     if (tick === 0) return;
-    const t = setTimeout(() => formRef.current?.requestSubmit(), 900);
+    const t = setTimeout(dispatchSave, 900);
     return () => clearTimeout(t);
-  }, [tick]);
+  }, [tick, dispatchSave]);
 
   // --- Avatar + e-mail ---
   const [avatarState, uploadAvatarAction, uploading] = useActionState(updateAvatar, empty);
@@ -108,7 +115,15 @@ export function ProfileForm({ user }: { user: Profile }) {
             {saving ? "Opslaan…" : state.ok ? "Automatisch opgeslagen ✓" : state.error ? "" : ""}
           </span>
         </div>
-        <form ref={formRef} action={save} onChange={onChange} className="grid gap-4 sm:grid-cols-2">
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            dispatchSave();
+          }}
+          onChange={onChange}
+          className="grid gap-4 sm:grid-cols-2"
+        >
           <Field label="Voornaam">
             <Input name="firstName" defaultValue={user.firstName ?? ""} />
           </Field>
