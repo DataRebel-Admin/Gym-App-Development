@@ -49,7 +49,10 @@ DECLARE
     'FeatureFlag',
     'MachineScan',
     'Location',
-    'StaffLocationAccess'
+    'StaffLocationAccess',
+    'EquipmentDefect',
+    'DefectConfirmation',
+    'DefectQuota'
   ];
 BEGIN
   FOREACH t IN ARRAY tenant_tables

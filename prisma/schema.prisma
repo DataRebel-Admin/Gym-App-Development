@@ -167,6 +167,9 @@ model Tenant {
   // Lesrooster/aanmelden voor lessen aan of uit voor deze sportschool. Default aan;
   // uitzetten verbergt alle les-UI (nav/pagina's) en blokkeert in-/uitschrijven.
   classesEnabled Boolean   @default(true)
+  // Na hoeveel dagen een open defectmelding als achterstand terugkeert in de
+  // dagelijkse samenvatting (instelbaar per sportschool, /owner/settings).
+  defectReminderDays Int   @default(7)
   // Door de owner geselecteerde meetvelden (array van metric-keys uit
   // lib/measurement-meta.ts). NULL = alle velden actief (backward-compat).
   enabledMeasurementFields Json?
@@ -223,6 +226,9 @@ model Tenant {
   machineScans        MachineScan[]
   locations           Location[]
   staffLocationAccess StaffLocationAccess[]
+  equipmentDefects    EquipmentDefect[]
+  defectConfirmations DefectConfirmation[]
+  defectQuotas        DefectQuota[]
 }
 
 // --- Organisatie → Vestigingen ---
@@ -261,6 +267,7 @@ model Location {
   workoutSessions    WorkoutSession[]
   classSessions      ClassSession[]
   measurements       Measurement[]
+  equipmentDefects   EquipmentDefect[]
 
   @@unique([tenantId, name])
   @@unique([tenantId, slug])
@@ -652,6 +659,11 @@ model User {
   earnedAchievements EarnedAchievement[]
   maintenanceRecords MaintenanceRecord[] @relation("MaintenancePerformer") // onderhoud uitgevoerd door deze gebruiker
   machineScans       MachineScan[] // door dit lid gescande apparaat-QR's
+  reportedDefects     EquipmentDefect[] @relation("DefectReporter") // gemelde apparaatdefecten (niet-anoniem)
+  assignedDefects     EquipmentDefect[] @relation("DefectAssignee") // aan deze medewerker toegewezen defecten
+  resolvedDefects     EquipmentDefect[] @relation("DefectResolver") // door deze medewerker opgeloste defecten
+  defectConfirmations DefectConfirmation[] // "ik zie dit ook"-bevestigingen
+  defectQuotas        DefectQuota[] // rate-limit-administratie defectmeldingen
 
   // Email is uniek per tenant (niet globaal): twee tenants mogen hetzelfde
   // emailadres hebben. De tenant-scoped adapter scoped lookups hierop.
@@ -968,6 +980,7 @@ model Machine {
   exercises          Exercise[]
   maintenanceRecords MaintenanceRecord[]
   scans              MachineScan[]
+  defects            EquipmentDefect[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -1038,6 +1051,100 @@ model MaintenancePolicy {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, machineType])
+  @@index([tenantId])
+}
+
+// --- Apparaatdefecten (lid meldt defect aan de sportschool) ---
+// Los van AppReport (bugmeldingen aan de developers): ander model, andere
+// ontvanger (trainers/beheer van de vestiging). Tenant-scoped + RLS conform de
+// checklist nieuwe activiteitstabel (tenantId + locationId + analytics-index).
+
+// Levenscyclus van een defectmelding.
+enum DefectStatus {
+  OPEN // gemeld, nog niet opgepakt
+  ACKNOWLEDGED // gezien/bevestigd door staff
+  IN_REPAIR // reparatie loopt
+  RESOLVED // opgelost (met oplossingsnotitie)
+  REJECTED // afgewezen (geen defect / niet reproduceerbaar)
+}
+
+// Ernst van het defect. UNSAFE zet het apparaat direct buiten gebruik
+// (Machine.status = OUT_OF_SERVICE — geen apart veld, één bron van waarheid).
+enum DefectSeverity {
+  MINOR // werkt nog, wel vervelend
+  MAJOR // niet meer bruikbaar
+  UNSAFE // gevaarlijk — apparaat direct blokkeren
+}
+
+model EquipmentDefect {
+  id             String         @id @default(cuid())
+  tenantId       String
+  locationId     String // vestiging (snapshot van de machine, of keuze van het lid)
+  machineId      String? // null = apparaat staat niet in de lijst
+  machineLabel   String? // naam-snapshot (bij machineId) óf vrije invoer van het lid
+  reportedById   String? // null bij anonieme melding (géén verborgen kopie — AVG)
+  status         DefectStatus   @default(OPEN)
+  severity       DefectSeverity @default(MINOR)
+  symptom        String // key uit de code-registry lib/defects.ts (String — uitbreidbaar zonder migratie)
+  description    String?        @db.Text
+  photoKeys      String[] // Blob-URLs — komen NOOIT naar de client; alleen via de beschermde foto-route
+  assignedToId   String? // toegewezen trainer/beheerder
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolutionNote String?        @db.Text // verplicht bij oplossen/vrijgeven
+  internalNote   String?        @db.Text // alleen zichtbaar voor staff/beheer
+  duplicateOfId  String?
+  digestedAt     DateTime? // idempotente marker voor de dagelijkse samenvatting (patroon notifiedAt)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location      Location          @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  machine       Machine?          @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  reportedBy    User?             @relation("DefectReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  assignedTo    User?             @relation("DefectAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  resolvedBy    User?             @relation("DefectResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  duplicateOf   EquipmentDefect?  @relation("DefectDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates    EquipmentDefect[] @relation("DefectDuplicates")
+  confirmations DefectConfirmation[]
+
+  @@index([tenantId, locationId, status])
+  @@index([tenantId, machineId, status])
+  @@index([tenantId, locationId, createdAt]) // analytics ("vaakst gemeld", digest)
+}
+
+// "Ik zie dit ook" — bevestiging van een bestaande open melding i.p.v. een
+// duplicaat. Vanaf CONFIRM_BUMP_THRESHOLD (lib/defects.ts) gaat de severity één
+// stap omhoog (nooit tot UNSAFE).
+model DefectConfirmation {
+  id        String   @id @default(cuid())
+  tenantId  String
+  defectId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defect EquipmentDefect @relation(fields: [defectId], references: [id], onDelete: Cascade)
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([defectId, userId])
+  @@index([tenantId])
+}
+
+// Rate-limit-administratie los van de melding (patroon ReportQuota): ook bij een
+// anonieme melding wordt een quota-rij mét userId geschreven — er is geen
+// koppeling naar wélke melding, dus de anonimiteit blijft intact.
+model DefectQuota {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
   @@index([tenantId])
 }
 
