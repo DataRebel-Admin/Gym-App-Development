@@ -69,6 +69,7 @@ export {
   Info,
   LifeBuoy,
   MessageCircle,
+  Flag,
   Star,
   Medal,
   Award,

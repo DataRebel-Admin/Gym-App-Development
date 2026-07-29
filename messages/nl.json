@@ -1348,6 +1348,7 @@
     "userMenu": {
       "account": "Accountinstellingen",
       "support": "Contact opnemen",
+      "report": "Probleem melden",
       "logout": "Uitloggen",
       "fallbackName": "Gebruiker"
     }
@@ -1394,12 +1395,66 @@
       "switchLabel": "Taal wisselen"
     }
   },
+  "report": {
+    "title": "Probleem melden",
+    "intro": "Meld een probleem of idee over de app aan het ontwikkelteam. Dit gaat niet over apparatuur in de sportschool.",
+    "button": "Probleem melden",
+    "type": {
+      "bug": "Bug / storing",
+      "feedback": "Feedback / idee",
+      "question": "Vraag"
+    },
+    "form": {
+      "type": "Soort melding",
+      "title": "Korte omschrijving",
+      "titlePlaceholder": "Bijv. opslaan van een set lukt niet",
+      "description": "Wat ging er mis of wat wil je kwijt?",
+      "descriptionPlaceholder": "Beschrijf wat je deed, wat je verwachtte en wat er gebeurde.",
+      "screenshot": "Screenshot (optioneel)",
+      "screenshotHint": "Alleen wat je hier ziet wordt meegestuurd — controleer het eerst.",
+      "screenshotPreviewAlt": "Voorbeeld van de mee te sturen screenshot",
+      "screenshotRemove": "Verwijderen",
+      "anonymous": "Anoniem melden (we slaan niet op wie je bent)",
+      "contactAllowed": "Het team mag contact met mij opnemen over deze melding"
+    },
+    "context": {
+      "heading": "Dit sturen we automatisch mee",
+      "privacy": "Nooit meegestuurd: wachtwoorden, tokens, cookies of persoonlijke gegevens.",
+      "errorCount": "{count, plural, one {# recente fout} other {# recente fouten}}",
+      "noErrors": "Geen recente fouten",
+      "fields": {
+        "route": "Pagina",
+        "appVersion": "App-versie",
+        "buildId": "Build",
+        "platform": "Platform",
+        "osVersion": "Besturingssysteem",
+        "screenSize": "Schermformaat",
+        "locale": "Taal",
+        "userAgent": "Browser",
+        "clientErrors": "Recente fouten"
+      }
+    },
+    "crash": {
+      "title": "Crash: er ging iets mis in de app",
+      "description": "Automatische melding vanaf een foutscherm. De technische gegevens hieronder zijn automatisch meegestuurd."
+    },
+    "submit": "Melding versturen",
+    "cancel": "Annuleren",
+    "close": "Sluiten",
+    "success": "Bedankt! Je melding is bij het ontwikkelteam terechtgekomen.",
+    "reference": "Referentie {ref}",
+    "errors": {
+      "generic": "Versturen is niet gelukt. Probeer het later opnieuw.",
+      "rateLimited": "Je hebt vandaag het maximum aantal meldingen bereikt. Probeer het morgen opnieuw."
+    }
+  },
   "errors": {
     "badge": "Fout {code} · {kicker}",
     "toHome": "Naar home",
     "login": "Inloggen",
     "retry": "Probeer opnieuw",
     "goBack": "Ga terug",
+    "report": "Probleem melden",
     "dashboardAdmin": "Beheer-dashboard",
     "dashboardMine": "Mijn dashboard",
     "codes": {

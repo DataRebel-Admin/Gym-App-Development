@@ -28,6 +28,8 @@ export type ErrorPreset = {
     back?: boolean;
     /** Toon route-suggesties/zoek (alleen 404). */
     suggestions?: boolean;
+    /** "Probleem melden" aan de developers (crash-context automatisch mee). */
+    report?: boolean;
   };
 };
 
@@ -66,7 +68,7 @@ export const ERROR_PRESETS: Record<ErrorCode, ErrorPreset> = {
     description:
       "Er is een onverwachte fout opgetreden aan onze kant. Probeer het zo opnieuw — gaat het daarna nog mis, dan kijken wij ernaar.",
     tone: "danger",
-    actions: { retry: true, back: true },
+    actions: { retry: true, back: true, report: true },
   },
   503: {
     code: 503,
@@ -75,7 +77,7 @@ export const ERROR_PRESETS: Record<ErrorCode, ErrorPreset> = {
     description:
       "De dienst is tijdelijk niet beschikbaar, bijvoorbeeld door onderhoud. Probeer het over een paar minuten opnieuw.",
     tone: "warning",
-    actions: { retry: true },
+    actions: { retry: true, report: true },
   },
 };
 

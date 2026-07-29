@@ -23,5 +23,12 @@ export default function Error({
     console.error(error);
   }, [error]);
 
-  return <ErrorLayout code={500} nav={buildErrorNav(null)} reset={reset} />;
+  return (
+    <ErrorLayout
+      code={500}
+      nav={buildErrorNav(null)}
+      reset={reset}
+      digest={error.digest}
+    />
+  );
 }

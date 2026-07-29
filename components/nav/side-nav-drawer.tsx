@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { LogOut, Settings, X, Check, ChevronRight, LifeBuoy } from "@/components/ui/icons";
+import { LogOut, Settings, X, Check, ChevronRight, LifeBuoy, Flag } from "@/components/ui/icons";
 import type { OwnerNavEntry } from "@/components/nav/owner-nav";
 import { useHydrated } from "@/lib/hooks/use-client-value";
 import type { UserTenant } from "@/lib/tenants";
@@ -18,6 +18,7 @@ import {
   ContactSupportModal,
   type SupportInitial,
 } from "@/components/support/contact-support-modal";
+import { ReportProblemModal } from "@/components/reports/report-problem-modal";
 
 /**
  * Links-inschuivend hamburger-zijmenu voor de beheeromgevingen (Superadmin +
@@ -59,6 +60,7 @@ export function SideNavDrawer({
   // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
   const mounted = useHydrated();
   const [supportOpen, setSupportOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const pathname = usePathname();
 
   const display = profile.name ?? profile.email ?? "Beheerder";
@@ -264,6 +266,18 @@ export function SideNavDrawer({
                           <ChevronRight className="size-4 text-neutral-300" />
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpen(false);
+                          setReportOpen(true);
+                        }}
+                        className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
+                      >
+                        <Flag className="size-5 text-accent" />
+                        <span className="flex-1 text-left">Probleem melden</span>
+                        <ChevronRight className="size-4 text-neutral-300" />
+                      </button>
                     </div>
                     <div className="mt-1 flex items-center justify-between px-4 py-2">
                       <span className="text-sm font-medium text-neutral-700">
@@ -296,6 +310,7 @@ export function SideNavDrawer({
           initial={support}
         />
       ) : null}
+      <ReportProblemModal open={reportOpen} onClose={() => setReportOpen(false)} />
     </>
   );
 }

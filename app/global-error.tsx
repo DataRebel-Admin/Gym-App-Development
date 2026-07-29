@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./globals.css";
+import { getClientErrors } from "@/lib/report-client-errors";
+import { CHANGELOG } from "@/lib/changelog";
 
 /**
  * Catastrofale fout — vervángt de root-layout (en dus alle providers). Daarom
@@ -19,6 +21,52 @@ export default function GlobalError({
   useEffect(() => {
     console.error(error);
   }, [error]);
+
+  // Zelfstandige mini-melding aan de developers: geen providers/i18n/modal
+  // beschikbaar hier, dus een kale fetch naar hetzelfde endpoint als het
+  // gewone meldformulier. Context inline verzameld (whitelist-velden; de
+  // server saneert autoritatief).
+  const [reportState, setReportState] = useState<"idle" | "busy" | "sent" | "failed">(
+    "idle"
+  );
+  async function sendReport() {
+    if (reportState === "busy" || reportState === "sent") return;
+    setReportState("busy");
+    try {
+      const data = new FormData();
+      data.set("type", "BUG");
+      data.set("title", "Crash: applicatie kon niet laden");
+      data.set(
+        "description",
+        `Automatische melding vanaf het globale crashscherm.\n\n${error.message ?? ""}${
+          error.digest ? `\n\n[digest: ${error.digest}]` : ""
+        }`
+      );
+      data.set("contactAllowed", "0");
+      data.set("anonymous", "0");
+      data.set("crash", "1");
+      data.set(
+        "context",
+        JSON.stringify({
+          route: window.location.pathname,
+          appVersion: CHANGELOG[0]?.version,
+          buildId: process.env.NEXT_PUBLIC_BUILD_ID,
+          platform: "web",
+          userAgent: navigator.userAgent,
+          locale: navigator.language,
+          screenSize: `${window.screen.width}x${window.screen.height}`,
+          clientErrors: [
+            { message: error.message, stack: error.stack, at: new Date().toISOString() },
+            ...getClientErrors(),
+          ],
+        })
+      );
+      const res = await fetch("/api/reports", { method: "POST", body: data });
+      setReportState(res.ok ? "sent" : "failed");
+    } catch {
+      setReportState("failed");
+    }
+  }
 
   return (
     <html lang="nl" data-theme="dark" className="h-full antialiased">
@@ -81,6 +129,22 @@ export default function GlobalError({
                 Naar home
               </a>
             </div>
+
+            {/* Dit werkt niet → meld het (stille melding met technische context). */}
+            <button
+              type="button"
+              onClick={sendReport}
+              disabled={reportState === "busy" || reportState === "sent"}
+              className="mt-4 text-sm font-medium text-neutral-500 underline-offset-4 hover:underline disabled:no-underline disabled:opacity-70"
+            >
+              {reportState === "sent"
+                ? "Bedankt — melding verstuurd ✓"
+                : reportState === "busy"
+                  ? "Versturen…"
+                  : reportState === "failed"
+                    ? "Versturen mislukt — probeer nogmaals"
+                    : "Dit werkt niet? Meld het probleem"}
+            </button>
           </div>
         </main>
 

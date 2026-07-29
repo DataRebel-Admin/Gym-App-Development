@@ -10,6 +10,7 @@ import { ChevronLeft, RotateCcw, LayoutDashboard, LogOut } from "@/components/ui
 import { cn } from "@/lib/cn";
 import { ERROR_PRESETS, type ErrorCode, type ErrorNav } from "@/lib/errors";
 import { useClientValue } from "@/lib/hooks/use-client-value";
+import { ReportProblemButton } from "@/components/reports/report-problem-modal";
 import { ErrorIllustration } from "./error-illustration";
 
 /** `?tenant=slug` uit de huidige URL (dev-tenantcontext); leeg op de server. */
@@ -41,11 +42,14 @@ export function ErrorLayout({
   code,
   nav,
   reset,
+  digest,
   children,
 }: {
   code: ErrorCode;
   nav: ErrorNav;
   reset?: () => void;
+  /** error.digest van de error boundary — gaat mee met een probleem-melding. */
+  digest?: string;
   /** Extra inhoud onder de acties (bijv. route-suggesties op de 404). */
   children?: React.ReactNode;
 }) {
@@ -239,6 +243,19 @@ export function ErrorLayout({
               <ChevronLeft className="size-4" />
               {t("goBack")}
             </button>
+          ) : null}
+
+          {/* Probleem melden aan de developers (crash-context gaat automatisch mee) */}
+          {preset.actions.report ? (
+            <ReportProblemButton
+              variant="error"
+              label={t("report")}
+              prefill={{ type: "BUG", crash: true, digest }}
+              className={cn(
+                buttonClasses({ variant: "outline", size: "lg" }),
+                "transition-transform hover:-translate-y-0.5"
+              )}
+            />
           ) : null}
         </m.div>
 

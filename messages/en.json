@@ -1348,6 +1348,7 @@
     "userMenu": {
       "account": "Account settings",
       "support": "Contact support",
+      "report": "Report a problem",
       "logout": "Log out",
       "fallbackName": "User"
     }
@@ -1394,12 +1395,66 @@
       "switchLabel": "Switch language"
     }
   },
+  "report": {
+    "title": "Report a problem",
+    "intro": "Report a problem or idea about the app to the development team. This is not for gym equipment issues.",
+    "button": "Report a problem",
+    "type": {
+      "bug": "Bug / malfunction",
+      "feedback": "Feedback / idea",
+      "question": "Question"
+    },
+    "form": {
+      "type": "Report type",
+      "title": "Short description",
+      "titlePlaceholder": "E.g. saving a set doesn't work",
+      "description": "What went wrong or what would you like to share?",
+      "descriptionPlaceholder": "Describe what you did, what you expected and what happened.",
+      "screenshot": "Screenshot (optional)",
+      "screenshotHint": "Only what you see here is sent — review it first.",
+      "screenshotPreviewAlt": "Preview of the screenshot to be sent",
+      "screenshotRemove": "Remove",
+      "anonymous": "Report anonymously (we don't store who you are)",
+      "contactAllowed": "The team may contact me about this report"
+    },
+    "context": {
+      "heading": "Sent along automatically",
+      "privacy": "Never included: passwords, tokens, cookies or personal data.",
+      "errorCount": "{count, plural, one {# recent error} other {# recent errors}}",
+      "noErrors": "No recent errors",
+      "fields": {
+        "route": "Page",
+        "appVersion": "App version",
+        "buildId": "Build",
+        "platform": "Platform",
+        "osVersion": "Operating system",
+        "screenSize": "Screen size",
+        "locale": "Language",
+        "userAgent": "Browser",
+        "clientErrors": "Recent errors"
+      }
+    },
+    "crash": {
+      "title": "Crash: something went wrong in the app",
+      "description": "Automatic report from an error screen. The technical details below were attached automatically."
+    },
+    "submit": "Send report",
+    "cancel": "Cancel",
+    "close": "Close",
+    "success": "Thank you! Your report has reached the development team.",
+    "reference": "Reference {ref}",
+    "errors": {
+      "generic": "Sending failed. Please try again later.",
+      "rateLimited": "You've reached today's report limit. Please try again tomorrow."
+    }
+  },
   "errors": {
     "badge": "Error {code} · {kicker}",
     "toHome": "Go home",
     "login": "Log in",
     "retry": "Try again",
     "goBack": "Go back",
+    "report": "Report a problem",
     "dashboardAdmin": "Admin dashboard",
     "dashboardMine": "My dashboard",
     "codes": {

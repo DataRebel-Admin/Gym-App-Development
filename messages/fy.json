@@ -1218,6 +1218,7 @@
     "userMenu": {
       "account": "Akkountynstellingen",
       "support": "Kontakt opnimme",
+      "report": "Probleem melde",
       "logout": "Útlogge",
       "fallbackName": "Brûker"
     }
@@ -1264,12 +1265,66 @@
       }
     }
   },
+  "report": {
+    "title": "Probleem melde",
+    "intro": "Meld in probleem of idee oer de app oan it ûntwikkelteam. Dit giet net oer apparatuer yn de sportskoalle.",
+    "button": "Probleem melde",
+    "type": {
+      "bug": "Bug / steuring",
+      "feedback": "Feedback / idee",
+      "question": "Fraach"
+    },
+    "form": {
+      "type": "Soarte melding",
+      "title": "Koarte omskriuwing",
+      "titlePlaceholder": "Bgl. it bewarjen fan in set slagget net",
+      "description": "Wat gie der mis of wat wolst kwyt?",
+      "descriptionPlaceholder": "Beskriuw wat je dienen, wat je ferwachten en wat der barde.",
+      "screenshot": "Screenshot (opsjoneel)",
+      "screenshotHint": "Allinnich wat je hjir sjogge wurdt meistjoerd — kontrolearje it earst.",
+      "screenshotPreviewAlt": "Foarbyld fan de mei te stjoeren screenshot",
+      "screenshotRemove": "Fuortsmite",
+      "anonymous": "Anonym melde (wy bewarje net wa't je binne)",
+      "contactAllowed": "It team mei kontakt mei my opnimme oer dizze melding"
+    },
+    "context": {
+      "heading": "Dit stjoere wy automatysk mei",
+      "privacy": "Nea meistjoerd: wachtwurden, tokens, cookies of persoanlike gegevens.",
+      "errorCount": "{count, plural, one {# resinte flater} other {# resinte flaters}}",
+      "noErrors": "Gjin resinte flaters",
+      "fields": {
+        "route": "Side",
+        "appVersion": "App-ferzje",
+        "buildId": "Build",
+        "platform": "Platfoarm",
+        "osVersion": "Bestjoeringssysteem",
+        "screenSize": "Skermformaat",
+        "locale": "Taal",
+        "userAgent": "Browser",
+        "clientErrors": "Resinte flaters"
+      }
+    },
+    "crash": {
+      "title": "Crash: der gie wat mis yn de app",
+      "description": "Automatyske melding fan in flaterskerm. De technyske gegevens hjirûnder binne automatysk meistjoerd."
+    },
+    "submit": "Melding ferstjoere",
+    "cancel": "Annulearje",
+    "close": "Slute",
+    "success": "Tank! Jo melding is by it ûntwikkelteam telâne kaam.",
+    "reference": "Referinsje {ref}",
+    "errors": {
+      "generic": "Ferstjoeren is net slagge. Besykje it letter nochris.",
+      "rateLimited": "Je hawwe hjoed it maksimum oantal meldingen berikt. Besykje it moarn nochris."
+    }
+  },
   "errors": {
     "badge": "Flater {code} · {kicker}",
     "toHome": "Nei thús",
     "login": "Ynlogge",
     "retry": "Besykje nochris",
     "goBack": "Gean werom",
+    "report": "Probleem melde",
     "dashboardAdmin": "Behear-dashboard",
     "dashboardMine": "Myn dashboard",
     "codes": {
