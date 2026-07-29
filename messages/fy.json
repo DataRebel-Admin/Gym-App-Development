@@ -74,6 +74,7 @@
       "validityExpiredDesc": "Tiid foar in nij skema — freegje dyn trainer.",
       "requestNewSchema": "Nij skema oanfreegje",
       "chooseDay": "Kies dyn trainingsdei",
+      "trainingLocation": "Fêstiging",
       "autoStopTitle": "Workout automatysk stoppe",
       "autoStopBody": "Dizze workout is automatysk stoppe omdat de sesje langer as 5 oer iepenstie."
     },
@@ -249,7 +250,8 @@
     },
     "gym": {
       "metaTitle": "Sportskoalle",
-      "title": "Sportskoalle"
+      "title": "Sportskoalle",
+      "otherLocations": "Oare fêstigingen"
     },
     "requests": {
       "metaTitle": "Skema oanfreegje",
@@ -285,6 +287,7 @@
       "enroll": "Oanmelde",
       "myClasses": "Myn lessen",
       "upcoming": "Kommende lessen",
+      "allLocations": "Alle fêstigingen",
       "emptyTitle": "Noch gjin lessen plend",
       "emptyDesc": "Der steane op dit stuit gjin groepslessen yn it roaster. Kom letter werom of freegje dyn sportskoalle nei it oanbod."
     },
@@ -670,6 +673,10 @@
       "removeTitle": "Meiwurker fuortsmite?",
       "removeMessage": "Wist wis dat'st {name} definityf fuortsmite wolst?",
       "rights": "Rjochten",
+      "locationsTitle": "Fêstigingen",
+      "locationLink": "Keppelje oan dizze fêstiging",
+      "locationUnlink": "Ûntkeppelje fan dizze fêstiging",
+      "noLocationAccess": "Noch oan gjin inkelde fêstiging keppele — dizze meiwurker sjocht gjin fêstigingsdata.",
       "statusGEACTIVEERD": "Aktivearre",
       "statusVERZONDEN": "Ferstjoerd",
       "statusVERLOPEN": "Ferrûn",
@@ -851,6 +858,10 @@
       "training_count_500": {
         "title": "500 trainingen",
         "description": "Fiifhûndert trainingen. In wiere feteraan."
+      },
+      "training_home_base": {
+        "title": "Thúsbasis",
+        "description": "25 trainingen op ien en deselde fêstiging."
       },
       "consistency_streak_3": {
         "title": "3 dagen op rige",
