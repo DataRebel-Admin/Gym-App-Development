@@ -29,7 +29,8 @@ export default async function PrivacyPage() {
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Je gegevens downloaden</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Exporteer al je accountgegevens (profiel, sessies, aanmeldingen) als JSON.
+            Exporteer al je accountgegevens (profiel, sessies, aanmeldingen en je
+            meldingen aan het ontwikkelteam) als JSON.
           </p>
         </div>
         <a href="/account/export" className={`${buttonClasses({ variant: "outline" })} self-start`}>
@@ -43,7 +44,8 @@ export default async function PrivacyPage() {
           <p className="mt-1 text-sm text-neutral-500">
             Verwijder je account zelf. Na een bedenktijd van {ACCOUNT_DELETION_GRACE_DAYS} dagen
             worden je account en persoonlijke gegevens (sessies, prestaties, metingen, doelen,
-            toegangssleutels) automatisch en definitief verwijderd. Je kunt tot die datum annuleren.
+            toegangssleutels) automatisch en definitief verwijderd; meldingen aan het
+            ontwikkelteam worden geanonimiseerd. Je kunt tot die datum annuleren.
           </p>
         </div>
         {user.deletionRequestedAt ? (

@@ -42,6 +42,14 @@ export async function GET(req: Request) {
   let deleted = 0;
   for (const u of due) {
     try {
+      // App-meldingen zijn FK-loos (forensisch, zoals AuditLog): de inhoud
+      // blijft, de persoonslink wordt verbroken. Quota-rijen zijn puur
+      // persoonsgebonden administratie en gaan volledig weg.
+      await prisma.appReport.updateMany({
+        where: { reportedById: u.id },
+        data: { reportedById: null },
+      });
+      await prisma.reportQuota.deleteMany({ where: { userId: u.id } });
       await prisma.user.delete({ where: { id: u.id } });
       deleted++;
       await audit("account.deletion.completed", {

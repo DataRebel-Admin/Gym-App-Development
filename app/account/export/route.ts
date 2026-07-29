@@ -32,11 +32,24 @@ export async function GET() {
     select: { enrolledAt: true, session: { select: { startsAt: true, groupClass: { select: { name: true } } } } },
   });
 
+  // App-meldingen aan het ontwikkelteam (anonieme meldingen hebben geen
+  // reportedById en vallen hier per definitie buiten).
+  const appReports = await prisma.appReport.findMany({
+    where: { reportedById: me.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      type: true, status: true, severity: true, title: true, description: true,
+      contactAllowed: true, route: true, appVersion: true, platform: true,
+      createdAt: true, resolvedAt: true,
+    },
+  });
+
   const payload = {
     exportedAt: new Date().toISOString(),
     account: user,
     workoutSessions: sessions,
     classEnrollments: enrollments,
+    appReports,
   };
 
   await audit("privacy.export", {

@@ -35,6 +35,10 @@ export const TWO_FACTOR_CHALLENGE_COOKIE = "gymrebel-2fa-challenge";
  *  en voldoet aan Apple 5.1.1(v) (in-app, self-service, zonder admin-tussenstap). */
 export const ACCOUNT_DELETION_GRACE_DAYS = 30;
 
+/** Retentie (dagen) van melding-screenshots ná afronding van de melding (AVG);
+ *  de reports-retention-cron verwijdert de blob en nult de verwijzing. */
+export const REPORT_SCREENSHOT_RETENTION_DAYS = 183;
+
 /** Cookie waarin de gekozen UI-taal (locale-code: nl/en/fy) wordt onthouden.
  *  Niet-httpOnly zodat de client 'm ook kan lezen; 1 jaar geldig. Gesynchroniseerd
  *  met `User.locale` bij login en bij wisselen (zie lib/i18n). */
