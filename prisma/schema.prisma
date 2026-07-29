@@ -713,6 +713,90 @@ enum AuditStatus {
   FAILED
 }
 
+// --- Probleem melden aan de developers (app-meldingen) ---
+// Meldingen over de app zélf (bugs/feedback/vragen), niet over apparatuur.
+// Globale platform-tabel zoals AuditLog: bewust GEEN FK's (forensisch — blijft
+// bestaan na verwijdering van tenant/user) en géén tenantId-RLS (alleen de
+// superadmin leest; schrijven gaat via POST /api/reports met base prisma).
+
+enum ReportType {
+  BUG
+  FEEDBACK
+  QUESTION
+}
+
+enum ReportStatus {
+  NEW
+  TRIAGED
+  IN_PROGRESS
+  RESOLVED
+  WONTFIX
+  DUPLICATE
+}
+
+enum ReportSeverity {
+  LOW
+  NORMAL
+  HIGH
+  BLOCKER
+}
+
+model AppReport {
+  id             String         @id @default(cuid())
+  type           ReportType     @default(BUG)
+  status         ReportStatus   @default(NEW)
+  severity       ReportSeverity @default(NORMAL)
+  reportedById   String? // null = anoniem óf niet ingelogd (geen FK — forensisch)
+  reporterRole   String? // Role-enumwaarde als string; null = niet ingelogd. Herkomst: TENANT_MEMBER = lid, overig = sportschool.
+  tenantId       String? // geen FK
+  locationId     String? // geen FK
+  contactAllowed Boolean        @default(false) // "mag contact opnemen" (alleen zinvol bij niet-anoniem)
+  title          String
+  description    String         @db.Text
+  screenshotKey  String? // Vercel-Blob-URL — komt NOOIT naar de client; alleen via /admin/meldingen/[id]/screenshot
+
+  // Automatisch meegestuurde context (whitelist — zie lib/report-context.ts)
+  route        String?
+  appVersion   String?
+  buildId      String?
+  platform     String? // web, ios, android
+  osVersion    String?
+  device       String?
+  screenSize   String?
+  userAgent    String?
+  locale       String?
+  clientErrors Json? // laatste 5 opgevangen client-errors (ringbuffer, gefilterd)
+  occurredAt   DateTime @default(now())
+
+  duplicateOfId String?
+  externalRef   String? // issue-URL in GitHub
+  internalNote  String?   @db.Text
+  resolvedAt    DateTime?
+  resolvedById  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([appVersion, platform])
+  @@index([tenantId])
+  @@index([route, createdAt]) // burst-detectie (3/uur zelfde route)
+  @@index([createdAt]) // digest + tellers
+}
+
+// Rate-limit-administratie los van de inhoud: bij een anonieme melding wordt
+// wél een quota-rij met userId geschreven (er is geen koppeling naar wélke
+// melding — anonimiteit blijft), zodat de daglimiet ook anoniem geldt.
+model ReportQuota {
+  id        String   @id @default(cuid())
+  userId    String? // gezet bij elke ingelogde submit, óók bij anoniem rapport
+  ipHash    String? // HMAC-SHA256(AUTH_SECRET, ip) — alleen voor niet-ingelogde submits
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([ipHash, createdAt])
+}
+
 // --- E-mailtemplatebeheer (Superadmin) ---
 // Globale platform-tabel (géén tenantId/RLS, zoals AuditLog/ExerciseCatalog): de
 // content is bron voor álle tenants; de gebrande shell + branding worden per
