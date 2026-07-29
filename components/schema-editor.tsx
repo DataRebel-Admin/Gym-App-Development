@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useActionState, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -817,16 +817,24 @@ export function SchemaEditor({
     [days]
   );
 
+  // Opslaan dispatcht de action rechtstreeks (géén form-submit): React 19 reset na
+  // een form-action het formulier, waardoor een gefocust getalveld (sets/reps)
+  // terugspringt naar een verouderde defaultValue terwijl de state al juist is.
+  const dispatchSave = useCallback(() => {
+    const form = formRef.current;
+    if (!form || !name.trim()) return;
+    const fd = new FormData(form);
+    startTransition(() => formAction(fd));
+  }, [name, formAction]);
+
   useEffect(() => {
     if (!mounted.current) {
       mounted.current = true;
       return;
     }
-    const t = setTimeout(() => {
-      if (name.trim()) formRef.current?.requestSubmit();
-    }, 1200);
+    const t = setTimeout(dispatchSave, 1200);
     return () => clearTimeout(t);
-  }, [serialized, name, description, coachNote, validityWeeks, goal, serializedBadges]);
+  }, [dispatchSave, serialized, description, coachNote, validityWeeks, goal, serializedBadges]);
 
   const dayKeys = days.map((d) => ({ key: d.key, name: d.name.trim() || "Dag" }));
 
@@ -975,7 +983,14 @@ export function SchemaEditor({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <form ref={formRef} action={formAction} className="flex flex-col gap-5">
+      <form
+        ref={formRef}
+        onSubmit={(e) => {
+          e.preventDefault();
+          dispatchSave();
+        }}
+        className="flex flex-col gap-5"
+      >
         <input type="hidden" name="templateId" value={templateId} />
         <input type="hidden" name="days" value={serialized} />
         <input type="hidden" name="badges" value={serializedBadges} />
