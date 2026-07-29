@@ -59,7 +59,7 @@ export type RecentActivity = {
   exercises: number;
 };
 
-export type PopularExercise = { name: string; count: number };
+export type PopularExercise = { id: string; name: string; count: number };
 export type ClassOccupancy = {
   name: string;
   startsAt: string; // ISO
@@ -77,8 +77,8 @@ export type DashboardStats = {
   sessionsTrend: number | null; // ±% sessies deze week vs vorige
   popularExercises: PopularExercise[];
   classOccupancy: ClassOccupancy[];
-  topMachines: { name: string; sessions: number }[];
-  bottomMachines: { name: string; sessions: number }[];
+  topMachines: { id: string; name: string; sessions: number }[];
+  bottomMachines: { id: string; name: string; sessions: number }[];
   perWeekday: { day: string; sessies: number }[];
   perWeek: { label: string; sessies: number }[];
   recent: RecentActivity[];
@@ -182,6 +182,7 @@ async function computeDashboard(
   });
   const exNameById = new Map(exerciseNames.map((e) => [e.id, e.name]));
   const popularExercises: PopularExercise[] = exerciseGroups.map((g) => ({
+    id: g.exerciseId,
     name: exNameById.get(g.exerciseId) ?? "Onbekend",
     count: g._count.exerciseId,
   }));
@@ -210,14 +211,14 @@ async function computeDashboard(
   // Top 5 deze week.
   const weekCounts = await machineSessionCounts(tenantId, scope, daysAgo(7));
   const topMachines = [...weekCounts.entries()]
-    .map(([id, set]) => ({ name: nameById.get(id) ?? "?", sessions: set.size }))
+    .map(([id, set]) => ({ id, name: nameById.get(id) ?? "?", sessions: set.size }))
     .sort((a, b) => b.sessions - a.sessions)
     .slice(0, 5);
 
   // Bottom 3 deze maand (incl. machines met 0 gebruik).
   const monthCounts = await machineSessionCounts(tenantId, scope, daysAgo(30));
   const bottomMachines = machines
-    .map((m) => ({ name: m.name, sessions: monthCounts.get(m.id)?.size ?? 0 }))
+    .map((m) => ({ id: m.id, name: m.name, sessions: monthCounts.get(m.id)?.size ?? 0 }))
     .sort((a, b) => a.sessions - b.sessions)
     .slice(0, 3);
 
@@ -293,6 +294,7 @@ export function getDashboardStats(
 }
 
 export type MachineInsightRow = {
+  id: string;
   name: string;
   sessions: number;
   totalReps: number;
@@ -349,7 +351,7 @@ async function computeInsights(
       const cur = a.cur.size;
       const prev = a.prev.size;
       const trendPct = prev === 0 ? (cur === 0 ? 0 : null) : Math.round(((cur - prev) / prev) * 100);
-      return { name: m.name, sessions: cur, totalReps: a.reps, trendPct };
+      return { id: m.id, name: m.name, sessions: cur, totalReps: a.reps, trendPct };
     })
     .sort((a, b) => b.sessions - a.sessions);
 }

@@ -154,7 +154,7 @@ export default async function InsightsPage({
             </Thead>
             <Tbody>
               {rows.map((r) => (
-                <Tr key={r.name}>
+                <Tr key={r.id}>
                   <Td className="font-medium">{r.name}</Td>
                   <Td className="text-neutral-500">{r.sessions}</Td>
                   <Td className="text-neutral-500">{r.totalReps}</Td>

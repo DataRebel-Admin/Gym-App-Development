@@ -59,7 +59,7 @@ export function PopularExercises({ stats }: { stats: DashboardStats }) {
   return (
     <ul className="flex flex-col gap-3">
       {stats.popularExercises.map((e, i) => (
-        <li key={e.name} className="flex flex-col gap-1">
+        <li key={e.id} className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 font-medium text-neutral-900">
               <span className="flex size-5 items-center justify-center rounded-md bg-accent-soft text-[11px] font-bold text-accent">
@@ -126,7 +126,7 @@ export function ClassOccupancy({ stats }: { stats: DashboardStats }) {
 export function UsageList({
   items,
 }: {
-  items: { name: string; sessions: number }[];
+  items: { id: string; name: string; sessions: number }[];
 }) {
   const t = useTranslations("owner.widgets");
   if (items.length === 0) {
@@ -136,7 +136,7 @@ export function UsageList({
   return (
     <ul className="flex flex-col gap-3">
       {items.map((m) => (
-        <li key={m.name} className="flex flex-col gap-1">
+        <li key={m.id} className="flex flex-col gap-1">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-neutral-900">{m.name}</span>
             <span className="text-neutral-500">{t("sessionsCount", { count: m.sessions })}</span>
