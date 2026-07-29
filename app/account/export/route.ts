@@ -44,12 +44,24 @@ export async function GET() {
     },
   });
 
+  // Apparaatdefect-meldingen aan de sportschool (anonieme meldingen hebben
+  // geen reportedById en vallen hier per definitie buiten).
+  const equipmentDefects = await prisma.equipmentDefect.findMany({
+    where: { reportedById: me.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      machineLabel: true, symptom: true, severity: true, status: true,
+      description: true, createdAt: true, resolvedAt: true, resolutionNote: true,
+    },
+  });
+
   const payload = {
     exportedAt: new Date().toISOString(),
     account: user,
     workoutSessions: sessions,
     classEnrollments: enrollments,
     appReports,
+    equipmentDefects,
   };
 
   await audit("privacy.export", {

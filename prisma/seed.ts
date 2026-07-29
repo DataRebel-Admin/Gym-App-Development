@@ -215,6 +215,9 @@ async function seedTenant(spec: TenantSpec) {
   await prisma.measurement.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.maintenanceRecord.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.maintenancePolicy.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.defectConfirmation.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.equipmentDefect.deleteMany({ where: { tenantId: tenant.id } });
+  await prisma.defectQuota.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.performanceEntry.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.workoutSession.deleteMany({ where: { tenantId: tenant.id } });
   await prisma.assignedWorkout.deleteMany({ where: { tenantId: tenant.id } });
@@ -1396,9 +1399,118 @@ async function main() {
   await seedCoaching("gymrebel");
   await seedProgress("gymrebel");
   await seedFrameworks("gymrebel");
+  await seedDefects("gymrebel");
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Demo-apparaatdefecten (rijke tenant): een UNSAFE-melding die het apparaat
+ * buiten gebruik zet, een MAJOR met drie "ik zie dit ook"-bevestigingen, een
+ * anonieme MINOR (reportedById null — criterium 6) en een opgeloste melding
+ * met oplossingsnotitie, zodat het dashboard en /member/defects direct
+ * gevuld zijn.
+ */
+async function seedDefects(slug: string) {
+  const tenant = await prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
+  if (!tenant) return;
+  const machines = await prisma.machine.findMany({
+    where: { tenantId: tenant.id },
+    select: { id: true, name: true, locationId: true, type: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const members = await prisma.user.findMany({
+    where: { tenantId: tenant.id, role: "TENANT_MEMBER" },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (machines.length < 2 || members.length === 0) return;
+
+  const ago = (days: number) => new Date(Date.now() - days * DAY_MS);
+  const cardio = machines.find((m) => m.type === "CARDIO") ?? machines[0];
+  const kracht = machines.find((m) => m.type === "KRACHT") ?? machines[1];
+
+  // 1) UNSAFE: kabel beschadigd → apparaat direct buiten gebruik.
+  await prisma.equipmentDefect.create({
+    data: {
+      tenantId: tenant.id,
+      locationId: kracht.locationId,
+      machineId: kracht.id,
+      machineLabel: kracht.name,
+      reportedById: members[0].id,
+      severity: "UNSAFE",
+      symptom: "cable",
+      description: "De kabel rafelt bij de bovenste katrol — dit vertrouw ik niet.",
+      createdAt: ago(1),
+    },
+  });
+  await prisma.machine.update({ where: { id: kracht.id }, data: { status: "OUT_OF_SERVICE" } });
+
+  // 2) MAJOR met drie bevestigingen (de automatische escalatie is al gebeurd).
+  const noisy = await prisma.equipmentDefect.create({
+    data: {
+      tenantId: tenant.id,
+      locationId: cardio.locationId,
+      machineId: cardio.id,
+      machineLabel: cardio.name,
+      reportedById: members[1 % members.length].id,
+      severity: "MAJOR",
+      symptom: "noise",
+      status: "ACKNOWLEDGED",
+      acknowledgedAt: ago(2),
+      description: "Piept hard bij hogere snelheid.",
+      createdAt: ago(4),
+    },
+  });
+  await prisma.defectConfirmation.createMany({
+    data: members.slice(0, 3).map((m, i) => ({
+      tenantId: tenant.id,
+      defectId: noisy.id,
+      userId: m.id,
+      createdAt: ago(3 - i),
+    })),
+    skipDuplicates: true,
+  });
+
+  // 3) Anonieme MINOR (géén reportedById — dat is precies de afspraak).
+  await prisma.equipmentDefect.create({
+    data: {
+      tenantId: tenant.id,
+      locationId: cardio.locationId,
+      machineId: cardio.id,
+      machineLabel: cardio.name,
+      reportedById: null,
+      severity: "MINOR",
+      symptom: "electronics",
+      description: "Het scherm valt soms even weg.",
+      createdAt: ago(9),
+    },
+  });
+
+  // 4) Opgelost, met notitie (zichtbaar voor de melder op /member/defects).
+  await prisma.equipmentDefect.create({
+    data: {
+      tenantId: tenant.id,
+      locationId: kracht.locationId,
+      machineId: kracht.id,
+      machineLabel: kracht.name,
+      reportedById: members[0].id,
+      severity: "MINOR",
+      symptom: "upholstery",
+      status: "RESOLVED",
+      description: "Scheurtje in de zitting.",
+      resolutionNote: "Zitting opnieuw bekleed — weer als nieuw.",
+      resolvedAt: ago(6),
+      acknowledgedAt: ago(13),
+      digestedAt: ago(13),
+      createdAt: ago(14),
+    },
+  });
+
+  console.log(
+    `  ↳ defecten ${slug}: 4 meldingen (1 UNSAFE → ${kracht.name} buiten gebruik, 1 MAJOR met 3 bevestigingen, 1 anoniem, 1 opgelost)`
+  );
+}
 
 /**
  * Zet het trofeeën-systeem aan voor een tenant en kent demo-achievements toe op

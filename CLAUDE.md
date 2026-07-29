@@ -1013,6 +1013,63 @@ team met herkomst-onderscheid; automatisch meegestuurde technische context.
 - **Audit**: categorie `reports` — `report.create/status.change/severity.change/
   duplicate.link/note.update/github.create/notify.sent/retention.cleanup`.
 
+### Apparaatdefect melden aan de sportschool (EquipmentDefect)
+
+Leden melden defecte apparaten aan de **eigen sportschool** (los van AppReport,
+dat naar de developers gaat). Behandeling door trainers/beheer per vestiging;
+een gevaarlijke melding blokkeert het apparaat direct.
+
+- **Datamodel** (migratie `20260730120000_equipment_defects`, tenant+location-
+  scoped + RLS): `EquipmentDefect` (status `DefectStatus OPEN|ACKNOWLEDGED|
+  IN_REPAIR|RESOLVED|REJECTED`, severity `DefectSeverity MINOR|MAJOR|UNSAFE`,
+  `symptom` String uit de code-registry, `machineLabel` naam-snapshot óf vrije
+  tekst bij `machineId null`, `photoKeys[]`, `duplicateOfId`, `digestedAt`
+  digest-marker), `DefectConfirmation` ("ik zie dit ook", uniek per lid) en
+  `DefectQuota` (daglimiet 10, patroon ReportQuota — quota-rij mét userId óók
+  bij anoniem, zonder koppeling naar wélke melding). `Tenant.defectReminderDays`
+  (achterstand-termijn, `/owner/settings`). User-FK's `SetNull` → account-
+  verwijdering anonimiseert. **Géén `isOutOfService`-veld**: UNSAFE zet het
+  bestaande `Machine.status = OUT_OF_SERVICE` (in dezélfde transactie als de
+  create) en vrijgeven zet 'm terug op ACTIVE.
+- **Pure kern `lib/defects.ts`** (ook client): `DEFECT_SYMPTOMS` (vaste lijst,
+  per `MachineType` gefilterd via `symptomsForMachineType`), status/severity-
+  meta, `CONFIRM_BUMP_THRESHOLD = 3`, `bumpSeverity` (MINOR→MAJOR, **nooit**
+  naar UNSAFE), achterstand-helpers. Tests `tests/defects.test.ts`.
+- **Serverlaag `lib/defects-server.ts`**: scope-bewuste queries via
+  `locationScopeWhere` (fail-closed); **cross-locatie/-tenant = `notFound()`**
+  (404, geen 403 — bewust anders dan `requireLocationAccess`). Ook
+  `machineWarningMap` (open MAJOR/UNSAFE per machine) en `hasOtherOpenUnsafe`
+  (vrijgeef-guard).
+- **Member-flow**: `components/defects/report-defect-modal.tsx` (i18n `defects`,
+  nl/en/fy) — symptoom-chips, max 2 foto's (AVG-hint), veiligheidsvraag (→
+  UNSAFE), anoniem-toggle (`reportedById null`), duplicaatcheck ("ik zie dit
+  ook" → `confirmDefect`; 3 bevestigingen → severity-bump + directe melding).
+  Instappen: QR-pagina (voorgevuld, ≤3 taps), `/member/defects` (picker + eigen
+  meldingen), member-drawer. Actions `app/member/defects/actions.ts`
+  (`requireMember` + `requireFeature`).
+- **Doorwerking buiten gebruik**: `findAlternatives` sluit
+  OUT_OF_SERVICE/IN_MAINTENANCE-machines uit; QR-pagina toont banner (rood =
+  buiten gebruik, amber = open MAJOR) en verbergt+blokkeert "voeg toe aan
+  schema".
+- **Owner-dashboard `/owner/defects`** (`requirePermission("defects:manage")` —
+  nieuwe staff-configureerbare permissie, standaard aan): tabel op ernst →
+  leeftijd (UNSAFE rood bovenaan), filters, "vaakst gemeld" (90 d), detail met
+  statustijdlijn/meldhistorie/interne notitie en acties (bevestigen/toewijzen/
+  in-reparatie/oplossen mét verplichte notitie + vrijgeven — alleen als er geen
+  ándere open UNSAFE ligt/afwijzen/samenvoegen; verwijderen + termijn
+  admin-only). **Foto's**: Blob-URL komt nooit naar de client — beschermde
+  route `/owner/defects/[id]/photo/[index]` streamt server-side (AVG).
+- **Meldingen** (`lib/defects/notify.ts`, spiegel maintenance/notify; categorie
+  `defects`): UNSAFE + escalatie direct naar behandelaars mét vestiging-toegang
+  (deny-by-default); melder krijgt kort bericht bij RESOLVED (niet-anoniem).
+  Composer `defectAlertMessage`. **Cron `defects`** (dagelijks 6:30,
+  `lib/defects/digest.ts`): samenvatting per vestiging (nieuw MINOR/MAJOR
+  idempotent via `digestedAt`; achterstand > `defectReminderDays` herhaalt) +
+  AVG-opschoning (foto's 12 mnd, meldingen 24 mnd na afronding).
+- **Feature-flag `defects`** (default aan) gate't alles; audit-categorie
+  `defects` (`defect.create/confirm/…/digest.sent/cleanup`); AVG-export bevat
+  eigen niet-anonieme meldingen. Seed: `seedDefects("gymrebel")`.
+
 ### Logging & Audit Trail
 
 - **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only

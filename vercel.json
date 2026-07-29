@@ -19,6 +19,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/cron/defects",
+      "schedule": "30 6 * * *"
+    },
+    {
       "path": "/api/cron/reports-digest",
       "schedule": "0 8 * * *"
     },
