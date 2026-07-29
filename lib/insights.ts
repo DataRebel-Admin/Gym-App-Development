@@ -293,6 +293,77 @@ export function getDashboardStats(
   )();
 }
 
+export type PopularExerciseRow = {
+  id: string;
+  name: string;
+  count: number;
+  trendPct: number | null; // entries t.o.v. de voorgaande periode van gelijke lengte
+};
+
+async function computePopularExercises(
+  tenantId: string,
+  periodDays: number,
+  scope: LocationScope,
+  limit: number
+): Promise<PopularExerciseRow[]> {
+  // Anders dan de 30d-dashboardvariant: periode-parametrisch én met trend.
+  const current = await prisma.performanceEntry.groupBy({
+    by: ["exerciseId"],
+    where: {
+      tenantId,
+      session: { ...sessionScopeFilter(scope), startedAt: { gte: daysAgo(periodDays) } },
+    },
+    _count: { exerciseId: true },
+    orderBy: { _count: { exerciseId: "desc" } },
+    take: limit,
+  });
+  if (current.length === 0) return [];
+
+  const ids = current.map((g) => g.exerciseId);
+  // Vorige periode alleen voor de top-ids (geen N+1, geen volle scan).
+  const [previous, names] = await Promise.all([
+    prisma.performanceEntry.groupBy({
+      by: ["exerciseId"],
+      where: {
+        tenantId,
+        exerciseId: { in: ids },
+        session: {
+          ...sessionScopeFilter(scope),
+          startedAt: { gte: daysAgo(periodDays * 2), lt: daysAgo(periodDays) },
+        },
+      },
+      _count: { exerciseId: true },
+    }),
+    prisma.exercise.findMany({
+      where: { tenantId, id: { in: ids } },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const prevById = new Map(previous.map((g) => [g.exerciseId, g._count.exerciseId]));
+  const nameById = new Map(names.map((e) => [e.id, e.name]));
+
+  return current.map((g) => ({
+    id: g.exerciseId,
+    name: nameById.get(g.exerciseId) ?? "Onbekend",
+    count: g._count.exerciseId,
+    trendPct: trendPct(g._count.exerciseId, prevById.get(g.exerciseId) ?? 0),
+  }));
+}
+
+export function getPopularExercises(
+  tenantId: string,
+  periodDays: number,
+  scope: LocationScope,
+  limit = 8
+): Promise<PopularExerciseRow[]> {
+  // Scope + periode verplicht in de keyParts (zie getDashboardStats).
+  return unstable_cache(
+    () => computePopularExercises(tenantId, periodDays, scope, limit),
+    ["popular-exercises", tenantId, String(periodDays), String(limit), scopeCacheKey(scope)],
+    { revalidate: 300 }
+  )();
+}
+
 export type MachineInsightRow = {
   id: string;
   name: string;
