@@ -945,6 +945,74 @@ service die frontend én backend delen.
 - **Audit**: categorie **`features`** + actie `feature.toggle` (tenant, feature, oude/nieuwe
   status, actor) in `lib/audit-actions.ts`.
 
+### Probleem melden aan de developers (/admin/meldingen)
+
+Gebruikers (leden én sportschool-gebruikers) melden bugs/feedback/vragen over
+**de app zelf** (niet apparatuur) aan het GymRebel-team. Eén inbox voor het
+team met herkomst-onderscheid; automatisch meegestuurde technische context.
+
+- **Datamodel**: `AppReport` + `ReportQuota` (migratie `20260729120000_app_reports`)
+  zijn **globale tabellen zoals AuditLog** — géén FK's (forensisch), géén RLS,
+  base `prisma`. `reporterRole` = Role-string (herkomst afgeleid:
+  `TENANT_MEMBER`/null = lid, rest = sportschool); `reportedById` null = anoniem.
+  `ReportQuota` staat **los van de inhoud**: bij een anonieme melding wordt wél
+  een quota-rij met userId geschreven (geen koppeling naar wélke melding →
+  anonimiteit blijft, daglimiet geldt toch). `ipHash` = HMAC(AUTH_SECRET, ip)
+  voor niet-ingelogde submits; het ruwe IP wordt nergens opgeslagen.
+- **Whitelist-context `lib/report-context.ts`** (puur, ook client + test):
+  `sanitizeReportContext` houdt uitsluitend `REPORT_CONTEXT_KEYS` over
+  (route/appVersion/buildId/platform/os/device/screen/ua/locale/clientErrors),
+  trunceert en scrubt secret-achtige substrings (Bearer/JWT/cookie/token-query)
+  uit vrije tekst. **Client verzamelt, server saneert autoritatief.** Test:
+  `tests/report-context.test.ts` (expliciet: nooit token/cookie/Authorization).
+  Ringbuffer laatste 5 client-errors: `lib/report-client-errors.ts`, gevuld door
+  `components/error/client-error-recorder.tsx` (gemount in `app/layout.tsx`);
+  `useReportContext()` (lib/hooks) bundelt alles. `appVersion` =
+  `CHANGELOG[0].version`; `buildId` = `NEXT_PUBLIC_BUILD_ID` (next.config.ts ←
+  `VERCEL_GIT_COMMIT_SHA`, lokaal "dev").
+- **Intake `POST /api/reports`** (bewust route-handler, geen server action —
+  `app/global-error.tsx` heeft geen providers en meldt met een kale fetch):
+  zod, daglimiet 10/gebruiker resp. 5/ipHash (patroon AiUsage), screenshot via
+  `uploadReportScreenshot` (lib/blob.ts — **géén data-URL-fallback**; zonder
+  Blob-token wordt alleen de screenshot geweigerd), crash-vlag → severity HIGH,
+  piek-detectie ≥3/uur zelfde route → `notifyDevTeamImmediate`.
+- **Meldknop**: `components/reports/report-problem-modal.tsx` (type/titel/
+  omschrijving, screenshot-opt-in mét preview, anoniem- en contact-toggles,
+  uitklapbare "Dit sturen we mee"-samenvatting = exact het verstuurde object,
+  referentienummer na verzenden). Plekken: user-menu, side-nav-drawer,
+  member-drawer, foutpagina's (preset-vlag `actions.report` in lib/errors.ts →
+  crash-prefill incl. `error.digest`), global-error (self-contained mini-knop).
+  i18n `report.*` (nl/en/fy volledig).
+- **Inbox `/admin/meldingen`** (superadmin-only; NL hardcoded per admin-
+  precedent): tellers (nieuw vandaag/open/open per versie), URL-filters
+  (herkomst/type/status/severity/platform/versie/gym/periode/zoek —
+  `lib/report-query.ts`, spiegel audit-query; namen batch-gefetcht want geen
+  FK's), detailmodal met screenshot, techcontext, **audit-afgeleide status-
+  tijdlijn** (geen apart event-model) en acties status/severity/duplicaat/
+  interne notitie/GitHub-issue (`app/admin/meldingen/actions.ts`).
+  **Screenshot-proxy** `/admin/meldingen/[id]/screenshot`: de blob-URL verlaat
+  de server nooit (Vercel Blob kent geen private ACL — bescherming = onraadbare
+  key + deze auth-route).
+- **`/admin` = 404 voor tenant-gebruikers**: proxy.ts rewrite naar `/__404`
+  (ingelogde niet-superadmin; niet-ingelogd houdt de login-redirect) +
+  `notFound()` in `app/admin/layout.tsx` als defense-in-depth. Het admin-gebied
+  lijkt daardoor niet te bestaan.
+- **Notificaties `lib/reports/`**: `notify.ts` (BLOCKER-opschaling & piek →
+  Slack `REPORTS_SLACK_WEBHOOK_URL`, anders e-mail naar `getSupportEmail()`;
+  RESOLVED → melder alléén bij `contactAllowed`, in-app categorie `system` +
+  gebrande mail in eigen taal), `slack.ts`, `github.ts` (`GITHUB_TOKEN` +
+  `GITHUB_REPO`, issue zonder melder-PII → `externalRef`). Composers
+  `reportAlertMessage`/`reportDigestMessage`/`reportResolvedMessage` in
+  lib/email/messages.ts. Alles best-effort.
+- **Crons** (vercel.json): `reports-digest` (dagelijks 8u, skip bij 0) en
+  `reports-retention` (dagelijks 4u — screenshots `REPORT_SCREENSHOT_RETENTION_DAYS`
+  (183) na afronding wissen; **eerste `del()`-gebruik van @vercel/blob**).
+- **AVG**: account-export bevat eigen (niet-anonieme) meldingen;
+  account-verwijdering nult `reportedById` (inhoud blijft forensisch, zoals
+  AuditLog) en wist `ReportQuota`-rijen.
+- **Audit**: categorie `reports` — `report.create/status.change/severity.change/
+  duplicate.link/note.update/github.create/notify.sent/retention.cleanup`.
+
 ### Logging & Audit Trail
 
 - **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only
