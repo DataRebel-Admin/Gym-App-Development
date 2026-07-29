@@ -127,6 +127,38 @@ export async function uploadTenantAsset(
   }
 }
 
+/** Maximale grootte van een melding-screenshot (5 MB). */
+export const REPORT_SCREENSHOT_MAX_BYTES = 5 * 1024 * 1024;
+
+export type ReportScreenshotResult =
+  | { url: string }
+  | { error: "no-file" | "too-large" | "bad-type" | "unconfigured" | "failed" };
+
+/**
+ * Upload een screenshot bij een probleem-melding (AppReport). Bewust GÉÉN
+ * data-URL-fallback: zonder Blob-token weigeren we de screenshot (de melding
+ * zelf gaat gewoon door) — megabytes base64 in de DB is het niet waard. De
+ * URL is onraadbaar (UUID) en komt nooit in de client; de superadmin bekijkt
+ * de screenshot via de beschermde route /admin/meldingen/[id]/screenshot.
+ */
+export async function uploadReportScreenshot(
+  file: File | null
+): Promise<ReportScreenshotResult> {
+  if (!file || file.size === 0) return { error: "no-file" };
+  if (!file.type.startsWith("image/")) return { error: "bad-type" };
+  if (file.size > REPORT_SCREENSHOT_MAX_BYTES) return { error: "too-large" };
+  if (!blobConfigured()) return { error: "unconfigured" };
+
+  try {
+    const ext = file.name.includes(".") ? file.name.split(".").pop() : "png";
+    const key = `reports/screenshots/${randomUUID()}.${ext}`;
+    const blob = await put(key, file, { access: "public" });
+    return { url: blob.url };
+  } catch {
+    return { error: "failed" };
+  }
+}
+
 /** Maximale grootte van een profielfoto (5 MB). */
 export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
