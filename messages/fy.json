@@ -16,11 +16,11 @@
       "greetingEvening": "Goeiejûn",
       "athleteFallback": "sporter",
       "motivationFirst": "Klear foar dyn earste training dizze wike?",
-      "motivationGoalReached": "Dyn wykdoel is helle — sterk dwaande! 🎉",
+      "motivationGoalReached": "Dyn wykdoel is helle, sterk dwaande! 🎉",
       "motivationRemaining": "Noch {count} {count, plural, one {training} other {trainingen}} oant dyn wykdoel.",
       "newBadge": "Nij",
       "newSchemaTitle": "Dyn trainer hat in nij skema foar dy klearset",
-      "newSchemaDefault": "'{name}' stiet klear — iepenje it en begjin dyn training.",
+      "newSchemaDefault": "'{name}' stiet klear. Iepenje it en begjin dyn training.",
       "viewSchema": "Besjoch skema",
       "thisWeek": "Dizze wike",
       "weekGoal": "wykdoel",
@@ -60,12 +60,14 @@
       "scanMachine": "Scan in masine",
       "buildSelf": "Sels gearstalle",
       "buildOwnSchema": "Sels in skema gearstalle",
+      "editOwnSchema": "Myn skema bewurkje",
+      "requestChange": "Oanpassing freegje oan dyn trainer",
+      "editAssignedSchema": "Dit skema oanpasse",
       "newBadge": "Nij",
       "exercisesCount": "{count} oefeningen",
       "daysCount": "{count} dagen",
       "trainerMessage": "Berjocht fan dyn trainer",
       "assignedBy": "Tawiisd troch {trainer}",
-      "coachNote": "Coach-notysje",
       "startTraining": "Start training",
       "starting": "Training starte…",
       "downloadPdf": "Download as PDF",
@@ -73,17 +75,25 @@
       "validityExpiringTitle": "Dyn skema ferrint ynkoarten",
       "validityExpiringDesc": "Noch {days, plural, one {# dei} other {# dagen}} jildich. Freegje dyn trainer om in nij skema.",
       "validityExpiredTitle": "Dyn skema is ferrûn",
-      "validityExpiredDesc": "Tiid foar in nij skema — freegje dyn trainer.",
+      "validityExpiredDesc": "Tiid foar in nij skema. Freegje dyn trainer.",
       "requestNewSchema": "Nij skema oanfreegje",
       "chooseDay": "Kies dyn trainingsdei",
       "trainingLocation": "Fêstiging",
       "autoStopTitle": "Workout automatysk stoppe",
-      "autoStopBody": "Dizze workout is automatysk stoppe omdat de sesje langer as 5 oer iepenstie."
+      "autoStopBody": "Dizze workout is automatysk stoppe omdat de sesje langer as 5 oer iepenstie.",
+      "progressTitle": "Dyn fuortgong",
+      "progressDaysThisWeek": "{done} fan {total} trainingsdagen dizze wike dien",
+      "progressSessionsThisWeek": "{count, plural, =0 {Noch net traind dizze wike} one {# workout dizze wike} other {# workouts dizze wike}}",
+      "progressWorkoutsShort": "workouts",
+      "progressLastTrained": "{days, plural, =0 {Hjoed traind} one {Juster traind} other {# dagen lyn traind}}",
+      "progressNeverTrained": "Noch gjin workout op dit skema",
+      "progressDayLast": "{days, plural, =0 {hjoed} one {juster} other {# dagen lyn}}",
+      "progressDayNever": "noch net dien",
+      "progressViewAll": "Sjoch dyn folsleine fuortgong"
     },
-    "checklist": {
-      "allDone": "Hielendal klear! 💪",
-      "yourProgress": "Dyn fuortgong",
-      "checkedOff": "{completed}/{total} oefeningen ôffinkt",
+    "program": {
+      "title": "Wat je giet dwaan",
+      "schemaNote": "Skema-notysje",
       "tip": "Tip: ",
       "explain": "Útlis"
     },
@@ -137,7 +147,7 @@
       "streakWeeks": "{count} {count, plural, one {wike} other {wiken}}",
       "streakLabel": "streak",
       "weekGoalLabel": "wykdoel",
-      "goalReached": "🎯 Wykdoel helle — top!",
+      "goalReached": "🎯 Wykdoel helle, top!",
       "goalRemaining": "Noch {count} {count, plural, one {training} other {trainingen}} oant dyn wykdoel.",
       "continueTraining": "Fierder traine",
       "durationMs": "{minutes}m {seconds}s",
@@ -164,7 +174,7 @@
       "substitutedFrom": "Ferfangt {name}",
       "altTitle": "Kies in alternatyf",
       "altLoading": "Alternativen sykje…",
-      "altHint": "Deselde spiergroep of type — bygelyks as it apparaat beset is.",
+      "altHint": "Deselde spiergroep of type, bygelyks as it apparaat beset is.",
       "altEmptyTitle": "Gjin alternativen fûn",
       "altEmptyBody": "Wy koene gjin ferlykbere oefening fine. Freegje eventueel dyn trainer om in alternatyf.",
       "altChoose": "Kies",
@@ -174,12 +184,12 @@
       "cancelConfirmBody": "Witst wis datst dizze workout annulearje wolst? Net-bewarre gegevens fan dizze sesje geane ferlern.",
       "cancelConfirm": "Workout annulearje",
       "keepWorkout": "Workout behâlde",
-      "saveFailed": "Set net bewarre — kontrolearje dyn ferbining.",
+      "saveFailed": "Set net bewarre. Kontrolearje dyn ferbining.",
       "notSaved": "Net bewarre",
       "retrySave": "Opnij",
-      "logFailed": "Resultaat net bewarre — kontrolearje dyn ferbining.",
+      "logFailed": "Resultaat net bewarre. Kontrolearje dyn ferbining.",
       "noteFailed": "Notysje net bewarre.",
-      "actionFailed": "Aksje mislearre — probearje opnij.",
+      "actionFailed": "Aksje mislearre. Probearje opnij.",
       "guided": {
         "viewGuided": "Begelaat",
         "viewList": "List",
@@ -193,7 +203,7 @@
         "finishRound": "Ronde ôfrûnje",
         "finishGroup": "Groep ôfrûnje",
         "passSet": "Trochskowe sûnder te loggen",
-        "allDone": "Groep ôfrûne — sterk dien!",
+        "allDone": "Groep ôfrûne, sterk dien!",
         "allSkipped": "Alle oefeningen yn dizze groep binne oerslein.",
         "amrapStart": "Start timer",
         "amrapLeft": "oer",
@@ -258,11 +268,10 @@
     "requests": {
       "metaTitle": "Skema oanfreegje",
       "title": "Trainingsskema oanfreegje",
-      "subtitle": "Jou dyn doel en winsken troch — dyn trainer stelt in persoanlik skema foar dy gear.",
+      "subtitle": "Jou dyn doel en winsken troch. Dyn trainer stelt in persoanlik skema foar dy gear.",
       "myRequests": "Myn oanfragen",
       "requestedOn": "Oanfrege {date}",
       "startOn": " · start {date}",
-      "cancel": "Annulearje",
       "successTitle": "Oanfraach ferstjoerd! 🎉",
       "successBody": "Dyn trainer hat dyn oanfraach ûntfongen. Do sjochst hjirûnder de status en krijst in melding sadree't der nijs is.",
       "alreadyPending": "Do hast al in rinnende oanfraach. Sadree't dyn trainer dy ôfrûne hat, kinsto in nije oanfraach yntsjinje.",
@@ -274,7 +283,24 @@
       "notesLabel": "Ekstra opmerkingen",
       "notesPlaceholder": "Oanfoljende ynformaasje foar dyn trainer…",
       "submitting": "Ferstjoere…",
-      "submit": "Oanfraach ferstjoere"
+      "submit": "Oanfraach ferstjoere",
+      "changeMetaTitle": "Oanpassing freegje",
+      "changeTitle": "Oanpassing freegje oan dyn trainer",
+      "changeSubtitle": "Fertel wat oars moat yn dyn hjoeddeistige skema. Dyn trainer past it foar dy oan.",
+      "changeDescLabel": "Wat wolst oanpasse?",
+      "changeDescPlaceholder": "Bygelyks: de squats jouwe klachten yn myn knie, kin dêr wat oars foar?",
+      "changeSubmit": "Fersyk ferstjoere",
+      "changeSuccessBody": "Dyn trainer hat dyn fersyk ûntfongen en past dyn skema oan. Je krijst in melding sa gau as it klear is.",
+      "changeAlreadyPending": "Der stiet al in oanpassingsfersyk iepen. Sa gau as dyn trainer dat oppakt hat, kinst in nij fersyk dwaan.",
+      "changeNoSchema": "Je hast no gjin skema fan dyn trainer om oan te passen. Freegje hjirûnder in trainingsskema oan.",
+      "switchToNew": "Dochs in hiel nij skema oanfreegje →",
+      "switchToChange": "Allinnich in oanpassing op dyn hjoeddeistige skema freegje →",
+      "withdraw": "Ynlûke",
+      "withdrawTitle": "Oanfraach ynlûke?",
+      "withdrawBody": "Dyn trainer sjocht dan dat dizze fraach net mear nedich is. Dêrnei kinst opnij in oanfraach fan dit type yntsjinje.",
+      "delete": "Fuortsmite",
+      "deleteTitle": "Oanfraach fuortsmite?",
+      "deleteBody": "Dizze ôfsletten oanfraach ferdwynt út dyn list. Dit kinst net weromdraaie."
     },
     "rooster": {
       "metaTitle": "Roaster",
@@ -296,7 +322,7 @@
     "muscles": {
       "metaTitle": "Spieranalyze",
       "title": "Spieranalyze",
-      "subtitle": "Sjoch hokker spieren dyn skema trainet — en oft'st it folgest.",
+      "subtitle": "Sjoch hokker spieren dyn skema trainet, en oft'st it folgest.",
       "emptyTitle": "Noch gjin aktyf skema",
       "emptyDesc": "Sadree'st du in trainingsskema hast, lit dizze side sjen hokker spiergroepen it trainet.",
       "requestSchema": "Skema oanfreegje",
@@ -367,13 +393,13 @@
       "dialogLabel": "Wolkom",
       "welcome": "Wolkom! 👋",
       "welcomeWithGym": "Wolkom by {gym}! 👋",
-      "welcomeText": "Dyn persoanlike trainingsapp. Flugger traine, dyn foarútgong sjen en motivearre bliuwe — alles op ien plak.",
+      "welcomeText": "Dyn persoanlike trainingsapp. Flugger traine, dyn foarútgong sjen en motivearre bliuwe. Alles op ien plak.",
       "scanTitle": "Scan & train",
       "scanText": "Scan in masine foar útlis, of start dyn skema en finkje dyn sets ôf. Grutte knoppen, switthannen-proof.",
       "progressTitle": "Sjoch dyn foarútgong",
       "progressText": "Persoanlike records, streaks en grafiken hâlde dy skerp. Elke training telt mei.",
       "readyTitle": "Klear om te knallen",
-      "readyText": "Stel dysels in doel fan in pear trainings yn 'e wike. Konsistinsje is alles — wy hâlde it by.",
+      "readyText": "Stel dysels in doel fan in pear trainings yn 'e wike. Konsistinsje is alles, wy hâlde it by.",
       "skip": "Oerslaan",
       "start": "Oan 'e slach"
     }
@@ -382,7 +408,7 @@
     "defects": {
       "metaTitle": "Defekten",
       "title": "Apparaatdefekten",
-      "subtitle": "Troch leden melde defekten — gefaarlike meldingen boppe-oan.",
+      "subtitle": "Troch leden melde defekten, gefaarlike meldingen boppe-oan.",
       "cards": {
         "open": "Iepen",
         "unsafe": "Gefaarlik",
@@ -453,7 +479,7 @@
       "welcomeBack": "Wolkom werom",
       "welcomeBackName": "Wolkom werom, {name}",
       "activeToday": "{count} {count, plural, one {lid hat} other {leden hawwe}} hjoed al traind.",
-      "noTrainingToday": "Noch gjin trainingen hjoed — tiid om dyn leden te aktivearjen."
+      "noTrainingToday": "Noch gjin trainingen hjoed. Tiid om dyn leden te aktivearjen."
     },
     "widgets": {
       "kpiActiveToday": "Aktyf hjoed",
@@ -537,9 +563,9 @@
     },
     "members": {
       "metaTitle": "Leden",
-      "titleAdmin": "Leden & behearders",
+      "titleAdmin": "Leden",
       "titleStaff": "Leden",
-      "descAdmin": "Behear wa't tagong hat ta dyn sportskoalle.",
+      "descAdmin": "Behear de sporters fan dyn sportskoalle. Meiwurkers en behearders steane by Meiwurkers.",
       "descStaff": "Besjoch leden, iepenje harren profyl en folgje de fuortgong.",
       "allMembers": "Alle leden",
       "myMembers": "Myn leden",
@@ -580,7 +606,7 @@
       "activate": "Aktivearje",
       "remove": "Fuortsmite",
       "removeTitle": "Lid fuortsmite?",
-      "removeMessage": "Wist wis dat'st {name} definityf fuortsmite wolst? Dit kin net ûngedien makke wurde — oerweagje argivearjen.",
+      "removeMessage": "Wist wis dat'st {name} definityf fuortsmite wolst? Dit kin net ûngedien makke wurde. Oerweagje argivearjen.",
       "you": "(do)",
       "statusGEACTIVEERD": "Aktivearre",
       "statusVERZONDEN": "Ferstjoerd",
@@ -649,9 +675,9 @@
       "orgVisits": "Besites (org)",
       "orgRetention": "Retinsje (org)",
       "orgNoShow": "No-show (org)",
-      "locationsEmpty": "Do bist noch net oan in fêstiging keppele — freegje de eigner om fêstiging-tagong.",
+      "locationsEmpty": "Do bist noch net oan in fêstiging keppele. Freegje de eigner om fêstiging-tagong.",
       "locationsFootnote": "Lêste {days} dagen · retinsje = oandiel fan de foarige kalindermoanne dat dizze moanne weromkaam · tiden yn de tiidsône fan de fêstiging.",
-      "nonAdditiveNote": "<b>Tink derom:</b> fêstigingstotalen foar <b>aktive leden</b> telle net op ta it organisaasjetotaal — in lid dat op meardere fêstigingen traint, telt per fêstiging mei mar is ien lid foar de organisaasje. Besites telle wól suver op.",
+      "nonAdditiveNote": "<b>Tink derom:</b> fêstigingstotalen foar <b>aktive leden</b> telle net op ta it organisaasjetotaal: in lid dat op meardere fêstigingen traint, telt per fêstiging mei mar is ien lid foar de organisaasje. Besites telle wól suver op.",
       "heatmapEmpty": "Noch gjin besites yn de lêste {days} dagen.",
       "legendLow": "Rêstich",
       "legendHigh": "Drok",
@@ -676,7 +702,7 @@
       "signupsTotal": "{count} nije leden",
       "classesTotal": "{count} ôfrûne lessen",
       "noExercises": "Noch gjin oefeningdata yn dizze perioade.",
-      "retentionExplainer": "Retinsje is moanne-basearre: it oandiel fan de leden mei in besite yn de foarige kalindermoanne dat dizze moanne weromkaam — ûnôfhinklik fan de keazen perioade."
+      "retentionExplainer": "Retinsje is moanne-basearre: it oandiel fan de leden mei in besite yn de foarige kalindermoanne dat dizze moanne weromkaam, ûnôfhinklik fan de keazen perioade."
     },
     "rooster": {
       "metaTitle": "Roaster",
@@ -703,7 +729,7 @@
     "exercises": {
       "metaTitle": "Oefeningen",
       "title": "Oefeningebiblioteek",
-      "desc": "Kies standertoefeningen út de sintrale katalogus of behear dyn eigen oefeningen — beide binne beskikber yn dyn trainingsskema's.",
+      "desc": "Kies standertoefeningen út de sintrale katalogus of behear dyn eigen oefeningen. Beide binne beskikber yn dyn trainingsskema's.",
       "tabStandard": "Standert oefeningen",
       "tabCustom": "Eigen oefeningen",
       "catalogCount": "{count} oefeningen yn de katalogus. Selektearje der meardere (of alle resultaten) en foegje se yn ien kear ta oan dyn sportskoalle.",
@@ -762,7 +788,7 @@
     "audit": {
       "metaTitle": "Audit logs",
       "title": "Audit log",
-      "desc": "Wa hat wat dien, en wannear — binnen dyn sportskoalle.",
+      "desc": "Wa hat wat dien en wannear, binnen dyn sportskoalle.",
       "exportCsv": "Export CSV",
       "exportPdf": "Export PDF",
       "summary": "{total} rigels · side {page} / {totalPages}",
@@ -782,19 +808,20 @@
       "takeInProgress": "Yn behanneling nimme",
       "schemaCreated": "Skema oanmakke",
       "complete": "Ôfrûnje",
-      "reject": "Ôfwize"
+      "reject": "Ôfwize",
+      "adjustSchema": "Skema oanpasse"
     },
     "staff": {
       "metaTitle": "Meiwurkers",
-      "title": "Meiwurkers",
-      "desc": "Nûgje meiwurkers (coaches) út en bepaal per persoan wat se meie.",
-      "inviteStaff": "Meiwurker útnûgje",
+      "title": "Meiwurkers & behearders",
+      "desc": "Nûgje meiwurkers en behearders út en bepaal per persoan wat se meie.",
+      "inviteStaff": "Teamlid útnûgje",
       "emailLabel": "E-mailadres",
       "emailPlaceholder": "coach@sportskoalle.nl",
       "sendInvite": "Útnûging stjoere",
-      "inviteHint": "De meiwurker kriget standert de deistige coach-rjochten. Pas se hjirûnder per persoan oan.",
+      "inviteHint": "In meiwurker krijt de deistige coach-rjochten, in behearder mei alles. Pas de rjochten hjirûnder per meiwurker oan.",
       "pendingInvites": "Útsteande útnûgings",
-      "noStaff": "Noch gjin meiwurkers. Nûgje dyn earste coach út mei it formulier hjirboppe.",
+      "noStaff": "Noch gjin meiwurkers of behearders. Nûgje dyn earste teamlid út mei it formulier hjirboppe.",
       "deactivated": "deaktivearre",
       "invite": "Útnûgje",
       "resend": "Opnij",
@@ -807,11 +834,18 @@
       "locationsTitle": "Fêstigingen",
       "locationLink": "Keppelje oan dizze fêstiging",
       "locationUnlink": "Ûntkeppelje fan dizze fêstiging",
-      "noLocationAccess": "Noch oan gjin inkelde fêstiging keppele — dizze meiwurker sjocht gjin fêstigingsdata.",
+      "noLocationAccess": "Noch oan gjin inkelde fêstiging keppele. Dizze meiwurker sjocht gjin fêstigingsdata.",
       "statusGEACTIVEERD": "Aktivearre",
       "statusVERZONDEN": "Ferstjoerd",
       "statusVERLOPEN": "Ferrûn",
-      "statusNIET_UITGENODIGD": "Net útnûge"
+      "statusNIET_UITGENODIGD": "Net útnûge",
+      "roleLabel": "Rol",
+      "roleAdmin": "Behearder",
+      "roleStaff": "Meiwurker",
+      "roleMember": "Lid",
+      "ok": "OK",
+      "you": "do",
+      "adminFullAccess": "Behearders hawwe altyd alle rjochten op alle fêstigings. Set de rol op Meiwurker om rjochten per persoan te regeljen."
     },
     "schemas": {
       "metaTitle": "Trainingsskema's",
@@ -840,7 +874,9 @@
     "filterNew": "Nij",
     "filterProgress": "Yn behanneling",
     "filterDone": "Ôfrûne",
-    "filterRejected": "Ôfwiisd"
+    "filterRejected": "Ôfwiisd",
+    "kindNEW_SCHEMA": "Nij skema",
+    "kindCHANGE": "Oanpassing"
   },
   "achievements": {
     "level": {
@@ -972,7 +1008,7 @@
       },
       "training_count_10": {
         "title": "10 trainingen",
-        "description": "Tsien trainingen op de teller — de gewoante groeit."
+        "description": "Tsien trainingen op de teller. De gewoante groeit."
       },
       "training_count_50": {
         "title": "50 trainingen",
@@ -980,7 +1016,7 @@
       },
       "training_count_100": {
         "title": "100 trainingen",
-        "description": "Hûndert trainingen — do bist in fêste wearde."
+        "description": "Hûndert trainingen. Do bist in fêste wearde."
       },
       "training_count_250": {
         "title": "250 trainingen",
@@ -1028,7 +1064,7 @@
       },
       "strength_volume_10000": {
         "title": "10.000 kg ferpleatst",
-        "description": "Tsientûzen kilo totaal — dat rint op."
+        "description": "Tsientûzen kilo totaal. Dat rint op."
       },
       "strength_volume_100000": {
         "title": "100.000 kg ferpleatst",
@@ -1123,7 +1159,7 @@
     "schemaAssigned": {
       "title": "Nij trainingsskema",
       "pushBody": "Der stiet in nij trainingsskema foar dy klear.",
-      "introMessage": "{message} — do trainest no mei '{schema}'.",
+      "introMessage": "{message} Do trainest no mei '{schema}'.",
       "introDefault": "Dyn trainer hat '{schema}' foar dy klearset."
     },
     "schemaRequest": {
@@ -1132,7 +1168,10 @@
       "receivedTitle": "Oanfraach ûntfongen",
       "receivedBody": "Dyn trainer hat dyn skema-oanfraach ûntfongen. Do hearst it sadree't der in update is.",
       "statusTitle": "Update oer dyn skema-oanfraach",
-      "statusBody": "Nije status: {status}."
+      "statusBody": "Nije status: {status}.",
+      "changeTitle": "Fersyk om skema-oanpassing",
+      "changeBody": "{member} wol in oanpassing fan it hjoeddeistige trainingsskema.",
+      "receivedChangeBody": "Dyn trainer hat dyn oanpassingsfersyk ûntfongen. Je hearst it sa gau as dyn skema bywurke is."
     },
     "memberSchema": {
       "submitTitle": "Nij skema om te kontrolearjen",
@@ -1182,7 +1221,11 @@
       "body": "{member} hat in nij trainingsskema oanfrege. Doel: {goal}.",
       "btn": "Oanfraach besjen",
       "subject": "Skema-oanfraach fan {member}",
-      "preheader": "{member} freget in trainingsskema oan ({goal})."
+      "preheader": "{member} freget in trainingsskema oan ({goal}).",
+      "headingChange": "Fersyk om skema-oanpassing",
+      "bodyChange": "{member} freget in oanpassing fan it hjoeddeistige trainingsskema.",
+      "subjectChange": "Oanpassingsfersyk fan {member}",
+      "preheaderChange": "{member} wol it hjoeddeistige skema oanpasse litte."
     },
     "memberSchemaSubmitted": {
       "reason": "Do krigest dizze e-mail omdat in lid fan {gym} sels in trainingsskema yntsjinne hat om te kontrolearjen.",
@@ -1219,7 +1262,7 @@
       "body": "Lokwinske! Do hast de trofee {title} ({rarity}) helle.",
       "btn": "Besjoch dyn trofeeën",
       "subject": "🏆 Trofee helle: {title}",
-      "preheader": "Do hast \"{title}\" helle — goed dwaande!"
+      "preheader": "Do hast \"{title}\" helle, goed dwaande!"
     },
     "maintenanceAlert": {
       "reason": "Do krigest dizze e-mail omdat do by {gym} ferantwurdlik bist foar it ûnderhâld fan apparatuer.",
@@ -1232,7 +1275,7 @@
     "reportResolved": {
       "subject": "Jo melding {ref} is oplost",
       "heading": "Jo melding is oplost",
-      "body": "Goed nijs: jo melding {ref} — {title} — is troch it ûntwikkelteam oplost.",
+      "body": "Goed nijs: jo melding {ref} ({title}) is troch it ûntwikkelteam oplost.",
       "thanks": "Tank foar it melden. Troch jo wurdt de app better.",
       "reason": "Jo krije dizze e-mail omdat jo by jo melding oanjûn hawwe dat wy kontakt opnimme meie."
     }
@@ -1286,7 +1329,7 @@
       "members": "Leden",
       "membersDesc": "Ledenbehear & útnûgings",
       "staff": "Meiwurkers",
-      "staffDesc": "Meiwurkers & rjochten beheare",
+      "staffDesc": "Meiwurkers, behearders & rjochten",
       "rooster": "Roaster",
       "roosterDesc": "Groepslessen & ynskriuwings",
       "requests": "Skema-oanfragen",
@@ -1361,7 +1404,7 @@
   "defects": {
     "title": "Apparaatdefekt melde",
     "metaTitle": "Defekt melde",
-    "intro": "Sjochst datst in apparaat stikken is of nuver docht? Jou it troch — de trainers sjogge it fuortendaliks.",
+    "intro": "Sjochst datst in apparaat stikken is of nuver docht? Jou it troch, de trainers sjogge it fuortendaliks.",
     "button": "Defekt melde",
     "submit": "Ferstjoere",
     "cancel": "Annulearje",
@@ -1398,14 +1441,14 @@
     },
     "duplicate": {
       "title": "Dit is al meld",
-      "body": "{count, plural, =0 {Der leit al in iepen melding foar dit apparaat mei itselde probleem.} one {Der leit al in iepen melding — # lid sjocht dit ek.} other {Der leit al in iepen melding — # leden sjogge dit ek.}}",
+      "body": "{count, plural, =0 {Der leit al in iepen melding foar dit apparaat mei itselde probleem.} one {Der leit al in iepen melding, # lid sjocht dit ek.} other {Der leit al in iepen melding, # leden sjogge dit ek.}}",
       "confirm": "Ik sjoch dit ek",
       "mine": "Do hast dit al meld of befêstige.",
       "reportAnyway": "Dochs apart melde"
     },
     "success": {
       "reported": "Trochjûn oan de sportskoalle. Tank foar it melden!",
-      "confirmed": "Notearre — tank foar dyn befêstiging!"
+      "confirmed": "Notearre, tank foar dyn befêstiging!"
     },
     "errors": {
       "generic": "Ferstjoeren is net slagge. Besykje it nochris.",
@@ -1453,7 +1496,7 @@
       "description": "Wat gie der mis of wat wolst kwyt?",
       "descriptionPlaceholder": "Beskriuw wat je dienen, wat je ferwachten en wat der barde.",
       "screenshot": "Screenshot (opsjoneel)",
-      "screenshotHint": "Allinnich wat je hjir sjogge wurdt meistjoerd — kontrolearje it earst.",
+      "screenshotHint": "Allinnich wat je hjir sjogge wurdt meistjoerd. Kontrolearje it earst.",
       "screenshotPreviewAlt": "Foarbyld fan de mei te stjoeren screenshot",
       "screenshotRemove": "Fuortsmite",
       "anonymous": "Anonym melde (wy bewarje net wa't je binne)",
@@ -1518,7 +1561,7 @@
       "500": {
         "kicker": "Der gie wat mis",
         "title": "Der gie wat mis",
-        "description": "Der is in ûnferwachte flater bard oan ús kant. Besykje it aanst nochris — giet it dêrnei noch mis, dan sjogge wy dernei."
+        "description": "Der is in ûnferwachte flater bard oan ús kant. Besykje it aanst nochris. Giet it dêrnei noch mis, dan sjogge wy dernei."
       },
       "503": {
         "kicker": "Tydlik offline",
@@ -1582,9 +1625,9 @@
     "emailPlaceholder": "dy@foarbyld.nl",
     "sending": "Ferstjoere…",
     "sendMagicLink": "Stjoer magic link",
-    "magicLinkHint": "Wy maile dy in feilige link — gjin wachtwurd nedich.",
+    "magicLinkHint": "Wy maile dy in feilige link, gjin wachtwurd nedich.",
     "noPasswordTitle": "Gjin wachtwurd nedich",
-    "noPasswordBody": "Wy maile dy in feilige ynloglink — ien tik en do bist binnen.",
+    "noPasswordBody": "Wy maile dy in feilige ynloglink. Ien tik en do bist binnen.",
     "passwordLabel": "Wachtwurd",
     "loggingIn": "Ynlogge…",
     "login": "Ynlogge",
@@ -1592,7 +1635,7 @@
     "forgotPassword": "Wachtwurd fergetten?",
     "reset": {
       "title": "Wachtwurd fergetten",
-      "subtitle": "Fier dyn e-mailadres yn — wy stjoere dy in link om in nij wachtwurd yn te stellen.",
+      "subtitle": "Fier dyn e-mailadres yn. Wy stjoere dy in link om in nij wachtwurd yn te stellen.",
       "emailLabel": "E-mailadres",
       "emailPlaceholder": "dy@foarbyld.nl",
       "sending": "Ferstjoere…",
@@ -1605,7 +1648,7 @@
       "mismatch": "De wachtwurden komme net oerien.",
       "saving": "Bewarje…",
       "save": "Wachtwurd bewarje",
-      "successBody": "Dyn wachtwurd is opnij ynsteld. Foar de wissichheid bisto oeral útlogd — log opnij yn mei dyn nije wachtwurd.",
+      "successBody": "Dyn wachtwurd is opnij ynsteld. Foar de wissichheid bisto oeral útlogd. Log opnij yn mei dyn nije wachtwurd.",
       "toLogin": "Gean nei ynlogge",
       "invalidTitle": "Link ûnjildich of ferrûn",
       "invalidBody": "Dizze reset-link is net mear jildich. Freegje in nije oan.",
@@ -1625,7 +1668,7 @@
     },
     "twoFactor": {
       "title": "Twastapsferifikaasje",
-      "subtitle": "Noch ien stap — befêstigje dat do it bist.",
+      "subtitle": "Noch ien stap: befêstigje dat do it bist.",
       "codeLabel": "Autentikaasjekoade",
       "codeHint": "Fier de 6-siferige koade út dyn authenticator-app yn.",
       "verify": "Ferifiearje",
@@ -1637,6 +1680,7 @@
       "title": "Wolkom! Aktivearje dyn account",
       "titleFallback": "Account aktivearje",
       "resent": "Der is in nije aktivearringslink nei dyn e-mailadres stjoerd.",
+      "resentFailed": "Dyn link is fernijd, mar de e-mail koe net ferstjoerd wurde. Nim kontakt op mei dyn sportskoalle.",
       "roles": {
         "TENANT_ADMIN": "behearder",
         "TENANT_STAFF": "meiwurker",
@@ -1652,7 +1696,7 @@
       "submitting": "Account aktivearje…",
       "hint": "Hjirnei kinst ynlogge mei dyn wachtwurd of fia in magic link.",
       "expiredTitle": "Dizze aktivearringslink is ferrûn",
-      "expiredBody": "Út feilichheidsoerwagings is dyn útnûging ferrûn. Freegje hjirûnder in nije oan — dy stjoere wy nei itselde e-mailadres.",
+      "expiredBody": "Út feilichheidsoerwagings is dyn útnûging ferrûn. Freegje hjirûnder in nije oan. Dy stjoere wy nei itselde e-mailadres.",
       "resend": "Nije aktivearringslink oanfreegje",
       "resending": "Ferstjoere…",
       "acceptedTitle": "Dyn account is al aktivearre",
@@ -1681,7 +1725,7 @@
       "in": "(oer {days} d)"
     },
     "log": {
-      "title": "Ûnderhâld fêstlizze — {machine}",
+      "title": "Ûnderhâld fêstlizze: {machine}",
       "kind": "Soarte",
       "date": "Datum",
       "action": "Útfierde aksje *",

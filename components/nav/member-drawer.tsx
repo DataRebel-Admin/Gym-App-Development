@@ -3,22 +3,45 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
+import { cn } from "@/lib/cn";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, Pencil, PersonStanding, Trophy, Flag, Wrench } from "@/components/ui/icons";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, Pencil, PersonStanding, Trophy, Flag, Wrench, LifeBuoy, Sparkles } from "@/components/ui/icons";
+import { parseRequestKind, requestKindHref } from "@/lib/schema-requests";
 import { ReportProblemModal } from "@/components/reports/report-problem-modal";
 import { reopenOnboarding } from "@/components/member/onboarding";
 import { useHydrated } from "@/lib/hooks/use-client-value";
 import type { UserTenant } from "@/lib/tenants";
 
 /**
+ * Eén regel per menu-ingang: een link (`href`) óf een actie (`onSelect`, bv. een
+ * modal). Zo passen "Probleem melden" en "Rondleiding" in dezelfde groepen als
+ * de navigatielinks.
+ */
+type DrawerItem = {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  href?: string;
+  onSelect?: () => void;
+  /** Overschrijft de active-state (voor ingangen die alleen in de query verschillen). */
+  active?: boolean;
+};
+
+/**
  * Mobiel-vriendelijke zijwaartse uitklap-drawer voor de member-area. Vervangt de
- * drukke header-knoppenrij: één hamburger opent een paneel met profiel, snelle
- * links (oefeningenbibliotheek, account), sportschool-wisselaar, thema en uitloggen.
+ * drukke header-knoppenrij: één hamburger opent een paneel met profiel, de
+ * gegroepeerde menu-ingangen, sportschool-wisselaar, thema en uitloggen.
+ *
+ * De ingangen staan bewust **gegroepeerd** (Trainen / Voortgang / Sportschool /
+ * Instellingen / Hulp) i.p.v. als één lange lijst — zelfde groep-idioom als de
+ * owner-drawer (`components/nav/side-nav-drawer.tsx`): een kleine hoofdletter-kop
+ * per groep. Nieuwe ingang = één record in de juiste `groups`-entry hieronder.
  */
 export function MemberDrawer({
   name,
@@ -28,6 +51,7 @@ export function MemberDrawer({
   currentSlug,
   showAchievements = false,
   showSchemaBuilder = false,
+  showSchemaChange = false,
 }: {
   name: string | null;
   email: string | null;
@@ -36,11 +60,15 @@ export function MemberDrawer({
   currentSlug: string | null;
   showAchievements?: boolean;
   showSchemaBuilder?: boolean;
+  /** Er ligt een actief coach-schema → "Aanpassing vragen" is zinvol. */
+  showSchemaChange?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
   const mounted = useHydrated();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const display = name ?? email ?? "Sporter";
   const initial = display.charAt(0).toUpperCase();
 
@@ -56,6 +84,107 @@ export function MemberDrawer({
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  const itemActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
+
+  // De twee aanvraag-ingangen delen één pad en verschillen alleen in `?type=`;
+  // zonder deze splitsing zouden ze samen oplichten.
+  const onRequests = pathname === "/member/requests";
+  const changeActive = onRequests && parseRequestKind(searchParams.get("type")) === "CHANGE";
+
+  // Menu-ingangen per groep. `false`-items vallen weg (tenant-/lid-afhankelijk).
+  const groups: { key: string; label: string; items: DrawerItem[] }[] = [
+    {
+      key: "training",
+      label: "Trainen",
+      items: [
+        {
+          key: "requests",
+          label: "Trainingsschema aanvragen",
+          icon: <ClipboardList className="size-5" />,
+          href: "/member/requests",
+          active: onRequests && !changeActive,
+        },
+        // Aanpassing vragen is een ánder verzoek dan een nieuw schema (eigen
+        // formulier + eigen coach-actie), dus een eigen ingang — alleen zichtbaar
+        // als er een coach-schema ligt om aan te passen.
+        ...(showSchemaChange
+          ? [
+              {
+                key: "requestChange",
+                label: "Aanpassing vragen",
+                icon: <Sparkles className="size-5" />,
+                href: requestKindHref("CHANGE"),
+                active: changeActive,
+              },
+            ]
+          : []),
+        ...(showSchemaBuilder
+          ? [
+              {
+                key: "builder",
+                label: "Zelf schema samenstellen",
+                icon: <Pencil className="size-5" />,
+                href: "/member/schema/builder",
+              },
+            ]
+          : []),
+        {
+          key: "exercises",
+          label: "Oefeningenbibliotheek",
+          icon: <Dumbbell className="size-5" />,
+          href: "/member/exercises",
+        },
+      ],
+    },
+    {
+      key: "progress",
+      label: "Voortgang",
+      items: [
+        {
+          key: "progress",
+          label: "Mijn voortgang",
+          icon: <Activity className="size-5" />,
+          href: "/member/progress",
+        },
+        {
+          key: "muscles",
+          label: "Spieranalyse",
+          icon: <PersonStanding className="size-5" />,
+          href: "/member/muscles",
+        },
+        ...(showAchievements
+          ? [
+              {
+                key: "trophies",
+                label: "Trofeeën",
+                icon: <Trophy className="size-5" />,
+                href: "/member/trophies",
+              },
+            ]
+          : []),
+      ],
+    },
+    {
+      key: "gym",
+      label: "Sportschool",
+      items: [
+        {
+          key: "gym",
+          label: "Mijn sportschool",
+          icon: <Building2 className="size-5" />,
+          href: "/member/gym",
+        },
+        {
+          key: "defects",
+          label: "Apparaatdefect melden",
+          icon: <Wrench className="size-5" />,
+          href: "/member/defects",
+        },
+      ],
+    },
+  ];
 
   return (
     <>
@@ -124,88 +253,78 @@ export function MemberDrawer({
                 </div>
               </div>
 
-              {/* Snelle links */}
-              <nav className="flex flex-col gap-1 px-2.5">
-                {showAchievements ? (
-                  <DrawerLink href="/member/trophies" icon={<Trophy className="size-5" />} onClick={() => setOpen(false)}>
-                    Trofeeën
-                  </DrawerLink>
-                ) : null}
-                <DrawerLink href="/member/requests" icon={<ClipboardList className="size-5" />} onClick={() => setOpen(false)}>
-                  Schema aanvragen
-                </DrawerLink>
-                {showSchemaBuilder ? (
-                  <DrawerLink href="/member/schema/builder" icon={<Pencil className="size-5" />} onClick={() => setOpen(false)}>
-                    Zelf schema samenstellen
-                  </DrawerLink>
-                ) : null}
-                <DrawerLink href="/member/defects" icon={<Wrench className="size-5" />} onClick={() => setOpen(false)}>
-                  Apparaatdefect melden
-                </DrawerLink>
-                <DrawerLink href="/member/gym" icon={<Building2 className="size-5" />} onClick={() => setOpen(false)}>
-                  Sportschool
-                </DrawerLink>
-                <DrawerLink href="/member/exercises" icon={<Dumbbell className="size-5" />} onClick={() => setOpen(false)}>
-                  Oefeningenbibliotheek
-                </DrawerLink>
-                <DrawerLink href="/member/progress" icon={<Activity className="size-5" />} onClick={() => setOpen(false)}>
-                  Mijn voortgang
-                </DrawerLink>
-                <DrawerLink href="/member/muscles" icon={<PersonStanding className="size-5" />} onClick={() => setOpen(false)}>
-                  Spieranalyse
-                </DrawerLink>
-                <DrawerLink href="/account" icon={<Settings className="size-5" />} onClick={() => setOpen(false)}>
-                  Accountinstellingen
-                </DrawerLink>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    setReportOpen(true);
-                  }}
-                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
-                >
-                  <span className="text-accent"><Flag className="size-5" /></span>
-                  <span className="flex-1 text-left">Probleem melden</span>
-                  <ChevronRight className="size-4 text-neutral-300" />
-                </button>
+              {/* Gegroepeerde menu-ingangen */}
+              <nav className="flex flex-col px-2.5">
+                {groups.map((group) => (
+                  <DrawerGroup key={group.key} label={group.label}>
+                    {group.items.map((item) => (
+                      <DrawerRow
+                        key={item.key}
+                        item={item}
+                        active={item.active ?? (item.href ? itemActive(item.href) : false)}
+                        onNavigate={() => setOpen(false)}
+                      />
+                    ))}
+                  </DrawerGroup>
+                ))}
+
+                {/* Instellingen: account-link + de keuzes die geen pagina zijn
+                    (sportschool wisselen, taal, thema) staan bewust in dezelfde
+                    groep zodat het menu één scanbare kolom blijft. */}
+                <DrawerGroup label="Instellingen">
+                  <DrawerRow
+                    item={{
+                      key: "account",
+                      label: "Accountinstellingen",
+                      icon: <Settings className="size-5" />,
+                      href: "/account",
+                    }}
+                    active={itemActive("/account")}
+                    onNavigate={() => setOpen(false)}
+                  />
+                  {tenants.length >= 2 ? (
+                    <div className="px-3 pb-1 pt-1.5">
+                      <p className="mb-1.5 text-xs font-medium text-neutral-500">
+                        Sportschool wisselen
+                      </p>
+                      <TenantDropdown tenants={tenants} currentSlug={currentSlug} />
+                    </div>
+                  ) : null}
+                  <div className="px-3 pb-1 pt-1.5">
+                    <p className="mb-1.5 text-xs font-medium text-neutral-500">Taal</p>
+                    <LanguageSwitcher variant="dropdown" />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="text-sm font-medium text-neutral-800">
+                      Donker / licht thema
+                    </span>
+                    <ThemeToggle />
+                  </div>
+                </DrawerGroup>
+
+                <DrawerGroup label="Hulp">
+                  <DrawerRow
+                    item={{
+                      key: "report",
+                      label: "Probleem melden",
+                      icon: <Flag className="size-5" />,
+                      onSelect: () => setReportOpen(true),
+                    }}
+                    active={false}
+                    onNavigate={() => setOpen(false)}
+                  />
+                  <DrawerRow
+                    item={{
+                      key: "tour",
+                      label: "Rondleiding opnieuw bekijken",
+                      icon: <LifeBuoy className="size-5" />,
+                      onSelect: reopenOnboarding,
+                    }}
+                    active={false}
+                    onNavigate={() => setOpen(false)}
+                  />
+                </DrawerGroup>
               </nav>
-
-              {/* Sportschool wisselen */}
-              {tenants.length >= 2 ? (
-                <div className="mt-4 px-4">
-                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
-                    Sportschool
-                  </p>
-                  <TenantDropdown tenants={tenants} currentSlug={currentSlug} />
-                </div>
-              ) : null}
-
-              {/* Taal */}
-              <div className="mt-4 px-4">
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
-                  Taal
-                </p>
-                <LanguageSwitcher variant="dropdown" />
-              </div>
-
-              {/* Thema */}
-              <div className="mt-4 flex items-center justify-between px-4">
-                <span className="text-sm font-medium text-neutral-700">Donker / licht thema</span>
-                <ThemeToggle />
-              </div>
-
-              {/* Rondleiding — bewust subtiel, geen prominente nav-link */}
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  reopenOnboarding();
-                }}
-                className="mt-4 px-4 text-left text-xs font-medium text-neutral-400 transition-colors hover:text-neutral-600"
-              >
-                Rondleiding opnieuw bekijken
-              </button>
 
               <div className="mt-auto px-2.5 pb-4 pt-6">
                 <form action={logout}>
@@ -322,26 +441,69 @@ function TenantDropdown({
   );
 }
 
-function DrawerLink({
-  href,
-  icon,
+/** Groepskop + rijen; zelfde kop-stijl als de owner-drawer. */
+function DrawerGroup({
+  label,
   children,
-  onClick,
 }: {
-  href: string;
-  icon: React.ReactNode;
+  label: string;
   children: React.ReactNode;
-  onClick: () => void;
 }) {
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
+    <div className="mt-3.5 first:mt-0">
+      <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Eén menu-regel: `Link` bij een `href`, anders een knop die de actie uitvoert.
+ * Sluit in beide gevallen de drawer via `onNavigate`.
+ */
+function DrawerRow({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: DrawerItem;
+  active: boolean;
+  onNavigate: () => void;
+}) {
+  const className = cn(
+    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors",
+    active ? "bg-accent-soft text-accent" : "text-neutral-800 hover:bg-surface-2"
+  );
+
+  if (item.href) {
+    return (
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        aria-current={active ? "page" : undefined}
+        className={className}
+      >
+        <span className="text-accent">{item.icon}</span>
+        <span className="flex-1">{item.label}</span>
+        <ChevronRight className="size-4 text-neutral-300" />
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onNavigate();
+        item.onSelect?.();
+      }}
+      className={className}
     >
-      <span className="text-accent">{icon}</span>
-      <span className="flex-1">{children}</span>
+      <span className="text-accent">{item.icon}</span>
+      <span className="flex-1">{item.label}</span>
       <ChevronRight className="size-4 text-neutral-300" />
-    </Link>
+    </button>
   );
 }

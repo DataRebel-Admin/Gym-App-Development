@@ -26,7 +26,7 @@
       "in": "(over {days} d)"
     },
     "log": {
-      "title": "Onderhoud vastleggen — {machine}",
+      "title": "Onderhoud vastleggen: {machine}",
       "kind": "Soort",
       "date": "Datum",
       "action": "Uitgevoerde actie *",
@@ -146,11 +146,11 @@
       "greetingEvening": "Goedenavond",
       "athleteFallback": "sporter",
       "motivationFirst": "Klaar voor je eerste training deze week?",
-      "motivationGoalReached": "Je weekdoel is gehaald — sterk bezig! 🎉",
+      "motivationGoalReached": "Je weekdoel is gehaald, sterk bezig! 🎉",
       "motivationRemaining": "Nog {count} {count, plural, one {training} other {trainingen}} tot je weekdoel.",
       "newBadge": "Nieuw",
       "newSchemaTitle": "Je trainer heeft een nieuw schema voor je klaargezet",
-      "newSchemaDefault": "'{name}' staat klaar — open het en begin je training.",
+      "newSchemaDefault": "'{name}' staat klaar. Open het en begin je training.",
       "viewSchema": "Bekijk schema",
       "thisWeek": "Deze week",
       "weekGoal": "weekdoel",
@@ -190,12 +190,14 @@
       "scanMachine": "Scan een machine",
       "buildSelf": "Zelf samenstellen",
       "buildOwnSchema": "Zelf een schema samenstellen",
+      "editOwnSchema": "Mijn schema bewerken",
+      "requestChange": "Aanpassing vragen aan je trainer",
+      "editAssignedSchema": "Dit schema aanpassen",
       "newBadge": "Nieuw",
       "exercisesCount": "{count} oefeningen",
       "daysCount": "{count} dagen",
       "trainerMessage": "Bericht van je trainer",
       "assignedBy": "Toegewezen door {trainer}",
-      "coachNote": "Coach-notitie",
       "chooseDay": "Kies je trainingsdag",
       "trainingLocation": "Vestiging",
       "startTraining": "Start training",
@@ -205,15 +207,23 @@
       "validityExpiringTitle": "Je schema verloopt binnenkort",
       "validityExpiringDesc": "Nog {days, plural, one {# dag} other {# dagen}} geldig. Vraag je trainer om een nieuw schema.",
       "validityExpiredTitle": "Je schema is verlopen",
-      "validityExpiredDesc": "Tijd voor een nieuw schema — vraag je trainer.",
+      "validityExpiredDesc": "Tijd voor een nieuw schema. Vraag je trainer.",
       "requestNewSchema": "Nieuw schema aanvragen",
       "autoStopTitle": "Workout automatisch gestopt",
-      "autoStopBody": "Deze workout is automatisch gestopt omdat de sessie langer dan 5 uur openstond."
+      "autoStopBody": "Deze workout is automatisch gestopt omdat de sessie langer dan 5 uur openstond.",
+      "progressTitle": "Jouw voortgang",
+      "progressDaysThisWeek": "{done} van {total} trainingsdagen deze week gedaan",
+      "progressSessionsThisWeek": "{count, plural, =0 {Nog niet getraind deze week} one {# workout deze week} other {# workouts deze week}}",
+      "progressWorkoutsShort": "workouts",
+      "progressLastTrained": "{days, plural, =0 {Vandaag getraind} one {Gisteren getraind} other {# dagen geleden getraind}}",
+      "progressNeverTrained": "Nog geen workout op dit schema",
+      "progressDayLast": "{days, plural, =0 {vandaag} one {gisteren} other {# dagen geleden}}",
+      "progressDayNever": "nog niet gedaan",
+      "progressViewAll": "Bekijk je volledige voortgang"
     },
-    "checklist": {
-      "allDone": "Helemaal klaar! 💪",
-      "yourProgress": "Jouw voortgang",
-      "checkedOff": "{completed}/{total} oefeningen afgevinkt",
+    "program": {
+      "title": "Wat je gaat doen",
+      "schemaNote": "Schema-notitie",
       "tip": "Tip: ",
       "explain": "Uitleg"
     },
@@ -267,7 +277,7 @@
       "streakWeeks": "{count} {count, plural, one {week} other {weken}}",
       "streakLabel": "streak",
       "weekGoalLabel": "weekdoel",
-      "goalReached": "🎯 Weekdoel gehaald — top!",
+      "goalReached": "🎯 Weekdoel gehaald, top!",
       "goalRemaining": "Nog {count} {count, plural, one {training} other {trainingen}} tot je weekdoel.",
       "continueTraining": "Verder trainen",
       "durationMs": "{minutes}m {seconds}s",
@@ -294,7 +304,7 @@
       "substitutedFrom": "Vervangt {name}",
       "altTitle": "Kies een alternatief",
       "altLoading": "Alternatieven zoeken…",
-      "altHint": "Zelfde spiergroep of type — bijvoorbeeld als het apparaat bezet is.",
+      "altHint": "Zelfde spiergroep of type, bijvoorbeeld als het apparaat bezet is.",
       "altEmptyTitle": "Geen alternatieven gevonden",
       "altEmptyBody": "We konden geen vergelijkbare oefening vinden. Vraag eventueel je trainer om een alternatief.",
       "altChoose": "Kies",
@@ -304,12 +314,12 @@
       "cancelConfirmBody": "Weet je zeker dat je deze workout wilt annuleren? Niet-opgeslagen gegevens van deze sessie gaan verloren.",
       "cancelConfirm": "Workout annuleren",
       "keepWorkout": "Workout behouden",
-      "saveFailed": "Set niet opgeslagen — controleer je verbinding.",
+      "saveFailed": "Set niet opgeslagen. Controleer je verbinding.",
       "notSaved": "Niet opgeslagen",
       "retrySave": "Opnieuw",
-      "logFailed": "Resultaat niet opgeslagen — controleer je verbinding.",
+      "logFailed": "Resultaat niet opgeslagen. Controleer je verbinding.",
       "noteFailed": "Notitie niet opgeslagen.",
-      "actionFailed": "Actie mislukt — probeer opnieuw.",
+      "actionFailed": "Actie mislukt. Probeer opnieuw.",
       "guided": {
         "viewGuided": "Geleid",
         "viewList": "Lijst",
@@ -323,7 +333,7 @@
         "finishRound": "Ronde afronden",
         "finishGroup": "Groep afronden",
         "passSet": "Doorschuiven zonder te loggen",
-        "allDone": "Groep afgerond — sterk gedaan!",
+        "allDone": "Groep afgerond, sterk gedaan!",
         "allSkipped": "Alle oefeningen in deze groep zijn overgeslagen.",
         "amrapStart": "Start timer",
         "amrapLeft": "resterend",
@@ -388,11 +398,10 @@
     "requests": {
       "metaTitle": "Schema aanvragen",
       "title": "Trainingsschema aanvragen",
-      "subtitle": "Geef je doel en wensen door — je trainer stelt een persoonlijk schema voor je samen.",
+      "subtitle": "Geef je doel en wensen door. Je trainer stelt een persoonlijk schema voor je samen.",
       "myRequests": "Mijn aanvragen",
       "requestedOn": "Aangevraagd {date}",
       "startOn": " · start {date}",
-      "cancel": "Annuleren",
       "successTitle": "Aanvraag verstuurd! 🎉",
       "successBody": "Je trainer heeft je aanvraag ontvangen. Je ziet hieronder de status en krijgt een melding zodra er nieuws is.",
       "alreadyPending": "Je hebt al een lopende aanvraag. Zodra je trainer die heeft afgerond, kun je een nieuwe aanvraag indienen.",
@@ -404,7 +413,24 @@
       "notesLabel": "Extra opmerkingen",
       "notesPlaceholder": "Aanvullende informatie voor je trainer…",
       "submitting": "Versturen…",
-      "submit": "Aanvraag versturen"
+      "submit": "Aanvraag versturen",
+      "changeMetaTitle": "Aanpassing vragen",
+      "changeTitle": "Aanpassing vragen aan je trainer",
+      "changeSubtitle": "Vertel wat je anders wilt in je huidige schema. Je trainer past het voor je aan.",
+      "changeDescLabel": "Wat wil je aanpassen?",
+      "changeDescPlaceholder": "Bijv. De squats geven klachten in mijn knie, kan daar iets anders voor?",
+      "changeSubmit": "Verzoek versturen",
+      "changeSuccessBody": "Je trainer heeft je verzoek ontvangen en past je schema aan. Je krijgt een melding zodra het klaar is.",
+      "changeAlreadyPending": "Je hebt al een openstaand aanpassingsverzoek. Zodra je trainer dat heeft opgepakt, kun je een nieuw verzoek doen.",
+      "changeNoSchema": "Je hebt nu geen schema van je trainer om aan te passen. Vraag hieronder een trainingsschema aan.",
+      "switchToNew": "Toch een heel nieuw schema aanvragen →",
+      "switchToChange": "Alleen een aanpassing op je huidige schema vragen →",
+      "withdraw": "Intrekken",
+      "withdrawTitle": "Aanvraag intrekken?",
+      "withdrawBody": "Je trainer ziet dan dat deze vraag niet meer nodig is. Daarna kun je opnieuw een aanvraag van dit type indienen.",
+      "delete": "Verwijderen",
+      "deleteTitle": "Aanvraag verwijderen?",
+      "deleteBody": "Deze afgesloten aanvraag verdwijnt uit je lijst. Dit kun je niet ongedaan maken."
     },
     "rooster": {
       "metaTitle": "Rooster",
@@ -426,7 +452,7 @@
     "muscles": {
       "metaTitle": "Spieranalyse",
       "title": "Spieranalyse",
-      "subtitle": "Zie welke spieren je schema traint — en of je het volgt.",
+      "subtitle": "Zie welke spieren je schema traint, en of je het volgt.",
       "emptyTitle": "Nog geen actief schema",
       "emptyDesc": "Zodra je een trainingsschema hebt, laat deze pagina zien welke spiergroepen het traint.",
       "requestSchema": "Schema aanvragen",
@@ -497,13 +523,13 @@
       "dialogLabel": "Welkom",
       "welcome": "Welkom! 👋",
       "welcomeWithGym": "Welkom bij {gym}! 👋",
-      "welcomeText": "Jouw persoonlijke trainingsapp. Sneller trainen, je voortgang zien en gemotiveerd blijven — alles op één plek.",
+      "welcomeText": "Jouw persoonlijke trainingsapp. Sneller trainen, je voortgang zien en gemotiveerd blijven. Alles op één plek.",
       "scanTitle": "Scan & train",
       "scanText": "Scan een machine voor uitleg, of start je schema en vink je sets af. Grote knoppen, zweethanden-proof.",
       "progressTitle": "Zie je vooruitgang",
       "progressText": "Persoonlijke records, streaks en grafieken houden je scherp. Elke training telt mee.",
       "readyTitle": "Klaar om te knallen",
-      "readyText": "Stel jezelf een doel van een paar trainingen per week. Consistentie is alles — wij houden het bij.",
+      "readyText": "Stel jezelf een doel van een paar trainingen per week. Consistentie is alles, wij houden het bij.",
       "skip": "Overslaan",
       "start": "Aan de slag"
     }
@@ -512,7 +538,7 @@
     "defects": {
       "metaTitle": "Defecten",
       "title": "Apparaatdefecten",
-      "subtitle": "Door leden gemelde defecten — gevaarlijke meldingen bovenaan.",
+      "subtitle": "Door leden gemelde defecten, gevaarlijke meldingen bovenaan.",
       "cards": {
         "open": "Open",
         "unsafe": "Gevaarlijk",
@@ -583,7 +609,7 @@
       "welcomeBack": "Welkom terug",
       "welcomeBackName": "Welkom terug, {name}",
       "activeToday": "{count} {count, plural, one {lid heeft} other {leden hebben}} vandaag al getraind.",
-      "noTrainingToday": "Nog geen trainingen vandaag — tijd om je leden te activeren."
+      "noTrainingToday": "Nog geen trainingen vandaag. Tijd om je leden te activeren."
     },
     "widgets": {
       "kpiActiveToday": "Actief vandaag",
@@ -667,9 +693,9 @@
     },
     "members": {
       "metaTitle": "Leden",
-      "titleAdmin": "Leden & beheerders",
+      "titleAdmin": "Leden",
       "titleStaff": "Leden",
-      "descAdmin": "Beheer wie toegang heeft tot jouw sportschool.",
+      "descAdmin": "Beheer de sporters van je sportschool. Medewerkers en beheerders staan bij Medewerkers.",
       "descStaff": "Bekijk leden, open hun profiel en volg de voortgang.",
       "allMembers": "Alle leden",
       "myMembers": "Mijn leden",
@@ -710,7 +736,7 @@
       "activate": "Activeer",
       "remove": "Verwijder",
       "removeTitle": "Lid verwijderen?",
-      "removeMessage": "Weet je zeker dat je {name} definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt — overweeg archiveren.",
+      "removeMessage": "Weet je zeker dat je {name} definitief wilt verwijderen? Dit kan niet ongedaan worden gemaakt. Overweeg archiveren.",
       "you": "(jij)",
       "statusGEACTIVEERD": "Geactiveerd",
       "statusVERZONDEN": "Verzonden",
@@ -779,9 +805,9 @@
       "orgVisits": "Bezoeken (org)",
       "orgRetention": "Retentie (org)",
       "orgNoShow": "No-show (org)",
-      "locationsEmpty": "Je bent nog niet aan een vestiging gekoppeld — vraag de eigenaar om vestiging-toegang.",
+      "locationsEmpty": "Je bent nog niet aan een vestiging gekoppeld. Vraag de eigenaar om vestiging-toegang.",
       "locationsFootnote": "Laatste {days} dagen · retentie = aandeel van vorige kalendermaand dat deze maand terugkwam · tijden in de tijdzone van de vestiging.",
-      "nonAdditiveNote": "<b>Let op:</b> vestigingstotalen voor <b>actieve leden</b> tellen niet op tot het organisatietotaal — een lid dat op meerdere vestigingen traint, telt per vestiging mee maar is één lid voor de organisatie. Bezoeken tellen wél zuiver op.",
+      "nonAdditiveNote": "<b>Let op:</b> vestigingstotalen voor <b>actieve leden</b> tellen niet op tot het organisatietotaal: een lid dat op meerdere vestigingen traint, telt per vestiging mee maar is één lid voor de organisatie. Bezoeken tellen wél zuiver op.",
       "heatmapEmpty": "Nog geen bezoeken in de laatste {days} dagen.",
       "legendLow": "Rustig",
       "legendHigh": "Druk",
@@ -806,7 +832,7 @@
       "signupsTotal": "{count} nieuwe leden",
       "classesTotal": "{count} afgeronde lessen",
       "noExercises": "Nog geen oefeningdata in deze periode.",
-      "retentionExplainer": "Retentie is maand-gebaseerd: het aandeel van de leden met een bezoek in de vorige kalendermaand dat deze maand terugkwam — onafhankelijk van de gekozen periode."
+      "retentionExplainer": "Retentie is maand-gebaseerd: het aandeel van de leden met een bezoek in de vorige kalendermaand dat deze maand terugkwam, onafhankelijk van de gekozen periode."
     },
     "rooster": {
       "metaTitle": "Rooster",
@@ -833,7 +859,7 @@
     "exercises": {
       "metaTitle": "Oefeningen",
       "title": "Oefeningenbibliotheek",
-      "desc": "Kies standaardoefeningen uit de centrale catalogus of beheer je eigen oefeningen — beide zijn beschikbaar in je trainingsschema's.",
+      "desc": "Kies standaardoefeningen uit de centrale catalogus of beheer je eigen oefeningen. Beide zijn beschikbaar in je trainingsschema's.",
       "tabStandard": "Standaard oefeningen",
       "tabCustom": "Eigen oefeningen",
       "catalogCount": "{count} oefeningen in de catalogus. Selecteer er meerdere (of alle resultaten) en voeg ze in één keer toe aan jouw sportschool.",
@@ -891,16 +917,18 @@
       "libraryCount": "{count} oefeningen in de bibliotheek. Selecteer er meerdere (of alle resultaten) en voeg ze in één keer toe aan jouw sportschool.",
       "filterDifficulty": "Niveau",
       "filterGoal": "Doel",
-      "badgeClassic": "Klassiek",
+      "badgeClassic": "Aanvullend",
       "tips": "Coach-tips",
-      "legacyTitle": "Klassieke catalogus (verouderd)",
+      "legacyTitle": "Aanvullende oefeningen",
       "legacyMatches": "{count} {count, plural, one {resultaat} other {resultaten}}",
-      "legacyHint": "Terugvaloptie: deze oefeningen komen uit de oude catalogus en worden niet meer bijgewerkt. Gebruik ze alleen als iets nog niet in de nieuwe bibliotheek staat — ze blijven duidelijk gemarkeerd als Klassiek."
+      "legacyHint": "Deze oefeningen komen uit onze oudere collectie en worden niet meer uitgebreid. Handig als iets nog niet in de bibliotheek staat. Ze blijven gemarkeerd als Aanvullend.",
+      "legacyShow": "Ook in aanvullende oefeningen zoeken",
+      "legacyHide": "Aanvullende oefeningen verbergen"
     },
     "audit": {
       "metaTitle": "Audit logs",
       "title": "Audit log",
-      "desc": "Wie heeft wat gedaan, en wanneer — binnen jouw sportschool.",
+      "desc": "Wie heeft wat gedaan en wanneer, binnen jouw sportschool.",
       "exportCsv": "Export CSV",
       "exportPdf": "Export PDF",
       "summary": "{total} regels · pagina {page} / {totalPages}",
@@ -920,19 +948,20 @@
       "takeInProgress": "In behandeling nemen",
       "schemaCreated": "Schema aangemaakt",
       "complete": "Afronden",
-      "reject": "Afwijzen"
+      "reject": "Afwijzen",
+      "adjustSchema": "Schema aanpassen"
     },
     "staff": {
       "metaTitle": "Medewerkers",
-      "title": "Medewerkers",
-      "desc": "Nodig medewerkers (coaches) uit en bepaal per persoon wat ze mogen.",
-      "inviteStaff": "Medewerker uitnodigen",
+      "title": "Medewerkers & beheerders",
+      "desc": "Nodig medewerkers en beheerders uit en bepaal per persoon wat ze mogen.",
+      "inviteStaff": "Teamlid uitnodigen",
       "emailLabel": "E-mailadres",
       "emailPlaceholder": "coach@sportschool.nl",
       "sendInvite": "Uitnodiging sturen",
-      "inviteHint": "De medewerker krijgt standaard de dagelijkse coach-rechten. Pas ze hieronder per persoon aan.",
+      "inviteHint": "Een medewerker krijgt de dagelijkse coach-rechten, een beheerder mag alles. Pas de rechten hieronder per medewerker aan.",
       "pendingInvites": "Uitstaande uitnodigingen",
-      "noStaff": "Nog geen medewerkers. Nodig je eerste coach uit met het formulier hierboven.",
+      "noStaff": "Nog geen medewerkers of beheerders. Nodig je eerste teamlid uit met het formulier hierboven.",
       "deactivated": "gedeactiveerd",
       "invite": "Uitnodigen",
       "resend": "Opnieuw",
@@ -945,11 +974,18 @@
       "locationsTitle": "Vestigingen",
       "locationLink": "Koppel aan deze vestiging",
       "locationUnlink": "Ontkoppel van deze vestiging",
-      "noLocationAccess": "Nog aan geen enkele vestiging gekoppeld — deze medewerker ziet geen vestigingsdata.",
+      "noLocationAccess": "Nog aan geen enkele vestiging gekoppeld. Deze medewerker ziet geen vestigingsdata.",
       "statusGEACTIVEERD": "Geactiveerd",
       "statusVERZONDEN": "Verzonden",
       "statusVERLOPEN": "Verlopen",
-      "statusNIET_UITGENODIGD": "Niet uitgenodigd"
+      "statusNIET_UITGENODIGD": "Niet uitgenodigd",
+      "roleLabel": "Rol",
+      "roleAdmin": "Beheerder",
+      "roleStaff": "Medewerker",
+      "roleMember": "Lid",
+      "ok": "OK",
+      "you": "jij",
+      "adminFullAccess": "Beheerders hebben altijd alle rechten op alle vestigingen. Zet de rol op Medewerker om rechten per persoon te regelen."
     },
     "schemas": {
       "metaTitle": "Trainingsschema's",
@@ -978,7 +1014,9 @@
     "filterNew": "Nieuw",
     "filterProgress": "In behandeling",
     "filterDone": "Afgerond",
-    "filterRejected": "Afgewezen"
+    "filterRejected": "Afgewezen",
+    "kindNEW_SCHEMA": "Nieuw schema",
+    "kindCHANGE": "Aanpassing"
   },
   "achievements": {
     "ui": {
@@ -1110,7 +1148,7 @@
       },
       "training_count_10": {
         "title": "10 trainingen",
-        "description": "Tien trainingen op de teller — de gewoonte groeit."
+        "description": "Tien trainingen op de teller. De gewoonte groeit."
       },
       "training_count_50": {
         "title": "50 trainingen",
@@ -1118,7 +1156,7 @@
       },
       "training_count_100": {
         "title": "100 trainingen",
-        "description": "Honderd trainingen — je bent een vaste waarde."
+        "description": "Honderd trainingen. Je bent een vaste waarde."
       },
       "training_count_250": {
         "title": "250 trainingen",
@@ -1166,7 +1204,7 @@
       },
       "strength_volume_10000": {
         "title": "10.000 kg verplaatst",
-        "description": "Tienduizend kilo totaal — dat telt op."
+        "description": "Tienduizend kilo totaal. Dat telt op."
       },
       "strength_volume_100000": {
         "title": "100.000 kg verplaatst",
@@ -1261,7 +1299,7 @@
     "schemaAssigned": {
       "title": "Nieuw trainingsschema",
       "pushBody": "Er staat een nieuw trainingsschema voor je klaar.",
-      "introMessage": "{message} — je traint nu met '{schema}'.",
+      "introMessage": "{message} Je traint nu met '{schema}'.",
       "introDefault": "Je trainer heeft '{schema}' voor je klaargezet."
     },
     "schemaRequest": {
@@ -1270,7 +1308,10 @@
       "receivedTitle": "Aanvraag ontvangen",
       "receivedBody": "Je trainer heeft je schema-aanvraag ontvangen. Je hoort het zodra er een update is.",
       "statusTitle": "Update over je schema-aanvraag",
-      "statusBody": "Nieuwe status: {status}."
+      "statusBody": "Nieuwe status: {status}.",
+      "changeTitle": "Verzoek om schema-aanpassing",
+      "changeBody": "{member} wil een aanpassing van het huidige trainingsschema.",
+      "receivedChangeBody": "Je trainer heeft je aanpassingsverzoek ontvangen. Je hoort het zodra je schema is bijgewerkt."
     },
     "memberSchema": {
       "submitTitle": "Nieuw schema ter controle",
@@ -1320,7 +1361,11 @@
       "body": "{member} heeft een nieuw trainingsschema aangevraagd. Doel: {goal}.",
       "btn": "Aanvraag bekijken",
       "subject": "Schema-aanvraag van {member}",
-      "preheader": "{member} vraagt een trainingsschema aan ({goal})."
+      "preheader": "{member} vraagt een trainingsschema aan ({goal}).",
+      "headingChange": "Verzoek om schema-aanpassing",
+      "bodyChange": "{member} vraagt een aanpassing van het huidige trainingsschema.",
+      "subjectChange": "Aanpassingsverzoek van {member}",
+      "preheaderChange": "{member} wil het huidige schema laten aanpassen."
     },
     "memberSchemaSubmitted": {
       "reason": "Je ontvangt deze e-mail omdat een lid van {gym} zelf een trainingsschema heeft ingediend ter controle.",
@@ -1357,7 +1402,7 @@
       "body": "Gefeliciteerd! Je hebt de trofee {title} ({rarity}) behaald.",
       "btn": "Bekijk je trofeeën",
       "subject": "🏆 Trofee behaald: {title}",
-      "preheader": "Je hebt \"{title}\" behaald — goed bezig!"
+      "preheader": "Je hebt \"{title}\" behaald, goed bezig!"
     },
     "maintenanceAlert": {
       "reason": "Je ontvangt deze e-mail omdat je bij {gym} verantwoordelijk bent voor het onderhoud van apparatuur.",
@@ -1370,7 +1415,7 @@
     "reportResolved": {
       "subject": "Je melding {ref} is opgelost",
       "heading": "Je melding is opgelost",
-      "body": "Goed nieuws: je melding {ref} — {title} — is door het ontwikkelteam opgelost.",
+      "body": "Goed nieuws: je melding {ref} ({title}) is door het ontwikkelteam opgelost.",
       "thanks": "Bedankt voor het melden. Dankzij jou wordt de app beter.",
       "reason": "Je ontvangt deze e-mail omdat je bij je melding hebt aangegeven dat we contact mogen opnemen."
     }
@@ -1424,7 +1469,7 @@
       "members": "Leden",
       "membersDesc": "Ledenbeheer & uitnodigingen",
       "staff": "Medewerkers",
-      "staffDesc": "Medewerkers & rechten beheren",
+      "staffDesc": "Medewerkers, beheerders & rechten",
       "rooster": "Rooster",
       "roosterDesc": "Groepslessen & inschrijvingen",
       "requests": "Schema-aanvragen",
@@ -1499,7 +1544,7 @@
   "defects": {
     "title": "Apparaatdefect melden",
     "metaTitle": "Defect melden",
-    "intro": "Zie je dat een apparaat kapot is of raar doet? Geef het door — de trainers zien het direct.",
+    "intro": "Zie je dat een apparaat kapot is of raar doet? Geef het door, de trainers zien het direct.",
     "button": "Defect melden",
     "submit": "Versturen",
     "cancel": "Annuleren",
@@ -1536,14 +1581,14 @@
     },
     "duplicate": {
       "title": "Dit is al gemeld",
-      "body": "{count, plural, =0 {Er ligt al een open melding voor dit apparaat met hetzelfde probleem.} one {Er ligt al een open melding — # lid ziet dit ook.} other {Er ligt al een open melding — # leden zien dit ook.}}",
+      "body": "{count, plural, =0 {Er ligt al een open melding voor dit apparaat met hetzelfde probleem.} one {Er ligt al een open melding, # lid ziet dit ook.} other {Er ligt al een open melding, # leden zien dit ook.}}",
       "confirm": "Ik zie dit ook",
       "mine": "Je hebt dit al gemeld of bevestigd.",
       "reportAnyway": "Toch apart melden"
     },
     "success": {
       "reported": "Doorgegeven aan de sportschool. Bedankt voor het melden!",
-      "confirmed": "Genoteerd — bedankt voor je bevestiging!"
+      "confirmed": "Genoteerd, bedankt voor je bevestiging!"
     },
     "errors": {
       "generic": "Versturen is niet gelukt. Probeer het opnieuw.",
@@ -1591,7 +1636,7 @@
       "description": "Wat ging er mis of wat wil je kwijt?",
       "descriptionPlaceholder": "Beschrijf wat je deed, wat je verwachtte en wat er gebeurde.",
       "screenshot": "Screenshot (optioneel)",
-      "screenshotHint": "Alleen wat je hier ziet wordt meegestuurd — controleer het eerst.",
+      "screenshotHint": "Alleen wat je hier ziet wordt meegestuurd. Controleer het eerst.",
       "screenshotPreviewAlt": "Voorbeeld van de mee te sturen screenshot",
       "screenshotRemove": "Verwijderen",
       "anonymous": "Anoniem melden (we slaan niet op wie je bent)",
@@ -1656,7 +1701,7 @@
       "500": {
         "kicker": "Er ging iets mis",
         "title": "Er ging iets mis",
-        "description": "Er is een onverwachte fout opgetreden aan onze kant. Probeer het zo opnieuw — gaat het daarna nog mis, dan kijken wij ernaar."
+        "description": "Er is een onverwachte fout opgetreden aan onze kant. Probeer het zo opnieuw. Gaat het daarna nog mis, dan kijken wij ernaar."
       },
       "503": {
         "kicker": "Tijdelijk offline",
@@ -1720,9 +1765,9 @@
     "emailPlaceholder": "jij@voorbeeld.nl",
     "sending": "Versturen…",
     "sendMagicLink": "Stuur magic link",
-    "magicLinkHint": "We mailen je een veilige link — geen wachtwoord nodig.",
+    "magicLinkHint": "We mailen je een veilige link, geen wachtwoord nodig.",
     "noPasswordTitle": "Geen wachtwoord nodig",
-    "noPasswordBody": "We mailen je een veilige inloglink — één tik en je bent binnen.",
+    "noPasswordBody": "We mailen je een veilige inloglink. Eén tik en je bent binnen.",
     "passwordLabel": "Wachtwoord",
     "loggingIn": "Inloggen…",
     "login": "Inloggen",
@@ -1730,7 +1775,7 @@
     "forgotPassword": "Wachtwoord vergeten?",
     "reset": {
       "title": "Wachtwoord vergeten",
-      "subtitle": "Vul je e-mailadres in — we sturen je een link om een nieuw wachtwoord in te stellen.",
+      "subtitle": "Vul je e-mailadres in. We sturen je een link om een nieuw wachtwoord in te stellen.",
       "emailLabel": "E-mailadres",
       "emailPlaceholder": "jij@voorbeeld.nl",
       "sending": "Versturen…",
@@ -1743,7 +1788,7 @@
       "mismatch": "De wachtwoorden komen niet overeen.",
       "saving": "Opslaan…",
       "save": "Wachtwoord opslaan",
-      "successBody": "Je wachtwoord is opnieuw ingesteld. Voor de zekerheid ben je overal uitgelogd — log opnieuw in met je nieuwe wachtwoord.",
+      "successBody": "Je wachtwoord is opnieuw ingesteld. Voor de zekerheid ben je overal uitgelogd. Log opnieuw in met je nieuwe wachtwoord.",
       "toLogin": "Ga naar inloggen",
       "invalidTitle": "Link ongeldig of verlopen",
       "invalidBody": "Deze reset-link is niet meer geldig. Vraag een nieuwe aan.",
@@ -1763,7 +1808,7 @@
     },
     "twoFactor": {
       "title": "Tweestapsverificatie",
-      "subtitle": "Nog één stap — bevestig dat jij het bent.",
+      "subtitle": "Nog één stap: bevestig dat jij het bent.",
       "codeLabel": "Authenticatiecode",
       "codeHint": "Voer de 6-cijferige code uit je authenticator-app in.",
       "verify": "Verifiëren",
@@ -1775,6 +1820,7 @@
       "title": "Welkom! Activeer je account",
       "titleFallback": "Account activeren",
       "resent": "Er is een nieuwe activatielink naar je e-mail verstuurd.",
+      "resentFailed": "Je link is vernieuwd, maar de e-mail kon niet worden verstuurd. Neem contact op met je sportschool.",
       "roles": {
         "TENANT_ADMIN": "beheerder",
         "TENANT_STAFF": "medewerker",
@@ -1790,7 +1836,7 @@
       "submitting": "Account activeren…",
       "hint": "Hierna kun je inloggen met je wachtwoord of via een magic link.",
       "expiredTitle": "Deze activatielink is verlopen",
-      "expiredBody": "Uit veiligheidsoverwegingen is je uitnodiging verlopen. Vraag hieronder een nieuwe aan — die sturen we naar hetzelfde e-mailadres.",
+      "expiredBody": "Uit veiligheidsoverwegingen is je uitnodiging verlopen. Vraag hieronder een nieuwe aan. Die sturen we naar hetzelfde e-mailadres.",
       "resend": "Nieuwe activatielink aanvragen",
       "resending": "Versturen…",
       "acceptedTitle": "Je account is al geactiveerd",

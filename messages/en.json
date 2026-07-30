@@ -26,7 +26,7 @@
       "in": "(in {days} d)"
     },
     "log": {
-      "title": "Log maintenance — {machine}",
+      "title": "Log maintenance: {machine}",
       "kind": "Type",
       "date": "Date",
       "action": "Action performed *",
@@ -146,11 +146,11 @@
       "greetingEvening": "Good evening",
       "athleteFallback": "athlete",
       "motivationFirst": "Ready for your first workout this week?",
-      "motivationGoalReached": "You've hit your weekly goal — great work! 🎉",
+      "motivationGoalReached": "You've hit your weekly goal, great work! 🎉",
       "motivationRemaining": "{count} {count, plural, one {workout} other {workouts}} to go until your weekly goal.",
       "newBadge": "New",
       "newSchemaTitle": "Your trainer has prepared a new plan for you",
-      "newSchemaDefault": "'{name}' is ready — open it and start your workout.",
+      "newSchemaDefault": "'{name}' is ready. Open it and start your workout.",
       "viewSchema": "View plan",
       "thisWeek": "This week",
       "weekGoal": "weekly goal",
@@ -190,12 +190,14 @@
       "scanMachine": "Scan a machine",
       "buildSelf": "Build your own",
       "buildOwnSchema": "Build your own plan",
+      "editOwnSchema": "Edit my plan",
+      "requestChange": "Ask your trainer for a change",
+      "editAssignedSchema": "Adjust this plan",
       "newBadge": "New",
       "exercisesCount": "{count} exercises",
       "daysCount": "{count} days",
       "trainerMessage": "Message from your trainer",
       "assignedBy": "Assigned by {trainer}",
-      "coachNote": "Coach note",
       "chooseDay": "Choose your training day",
       "trainingLocation": "Location",
       "startTraining": "Start workout",
@@ -205,15 +207,23 @@
       "validityExpiringTitle": "Your schema expires soon",
       "validityExpiringDesc": "Valid for {days, plural, one {# more day} other {# more days}}. Ask your trainer for a new schema.",
       "validityExpiredTitle": "Your schema has expired",
-      "validityExpiredDesc": "Time for a new schema — ask your trainer.",
+      "validityExpiredDesc": "Time for a new schema. Ask your trainer.",
       "requestNewSchema": "Request a new schema",
       "autoStopTitle": "Workout stopped automatically",
-      "autoStopBody": "This workout was stopped automatically because the session was open for more than 5 hours."
+      "autoStopBody": "This workout was stopped automatically because the session was open for more than 5 hours.",
+      "progressTitle": "Your progress",
+      "progressDaysThisWeek": "{done} of {total} training days done this week",
+      "progressSessionsThisWeek": "{count, plural, =0 {No workouts this week yet} one {# workout this week} other {# workouts this week}}",
+      "progressWorkoutsShort": "workouts",
+      "progressLastTrained": "{days, plural, =0 {Trained today} one {Trained yesterday} other {Trained # days ago}}",
+      "progressNeverTrained": "No workout on this schema yet",
+      "progressDayLast": "{days, plural, =0 {today} one {yesterday} other {# days ago}}",
+      "progressDayNever": "not done yet",
+      "progressViewAll": "View your full progress"
     },
-    "checklist": {
-      "allDone": "All done! 💪",
-      "yourProgress": "Your progress",
-      "checkedOff": "{completed}/{total} exercises checked off",
+    "program": {
+      "title": "What you'll be doing",
+      "schemaNote": "Schema note",
       "tip": "Tip: ",
       "explain": "How to"
     },
@@ -267,7 +277,7 @@
       "streakWeeks": "{count} {count, plural, one {week} other {weeks}}",
       "streakLabel": "streak",
       "weekGoalLabel": "weekly goal",
-      "goalReached": "🎯 Weekly goal reached — nice!",
+      "goalReached": "🎯 Weekly goal reached, nice!",
       "goalRemaining": "{count} {count, plural, one {workout} other {workouts}} to go until your weekly goal.",
       "continueTraining": "Keep training",
       "durationMs": "{minutes}m {seconds}s",
@@ -294,7 +304,7 @@
       "substitutedFrom": "Replaces {name}",
       "altTitle": "Choose an alternative",
       "altLoading": "Finding alternatives…",
-      "altHint": "Same muscle group or type — e.g. if the machine is busy.",
+      "altHint": "Same muscle group or type, e.g. if the machine is busy.",
       "altEmptyTitle": "No alternatives found",
       "altEmptyBody": "We couldn't find a comparable exercise. Ask your trainer for an alternative.",
       "altChoose": "Choose",
@@ -304,12 +314,12 @@
       "cancelConfirmBody": "Are you sure you want to cancel this workout? Unsaved data from this session will be lost.",
       "cancelConfirm": "Cancel workout",
       "keepWorkout": "Keep workout",
-      "saveFailed": "Set not saved — check your connection.",
+      "saveFailed": "Set not saved. Check your connection.",
       "notSaved": "Not saved",
       "retrySave": "Retry",
-      "logFailed": "Result not saved — check your connection.",
+      "logFailed": "Result not saved. Check your connection.",
       "noteFailed": "Note not saved.",
-      "actionFailed": "Action failed — please try again.",
+      "actionFailed": "Action failed. Please try again.",
       "guided": {
         "viewGuided": "Guided",
         "viewList": "List",
@@ -323,7 +333,7 @@
         "finishRound": "Finish round",
         "finishGroup": "Finish group",
         "passSet": "Move on without logging",
-        "allDone": "Group complete — strong work!",
+        "allDone": "Group complete, strong work!",
         "allSkipped": "All exercises in this group have been skipped.",
         "amrapStart": "Start timer",
         "amrapLeft": "remaining",
@@ -388,11 +398,10 @@
     "requests": {
       "metaTitle": "Request plan",
       "title": "Request a training plan",
-      "subtitle": "Share your goal and preferences — your trainer will put together a personal plan for you.",
+      "subtitle": "Share your goal and preferences. Your trainer will put together a personal plan for you.",
       "myRequests": "My requests",
       "requestedOn": "Requested {date}",
       "startOn": " · start {date}",
-      "cancel": "Cancel",
       "successTitle": "Request sent! 🎉",
       "successBody": "Your trainer has received your request. You'll see the status below and get a notification as soon as there's news.",
       "alreadyPending": "You already have a pending request. Once your trainer has completed it, you can submit a new one.",
@@ -404,7 +413,24 @@
       "notesLabel": "Extra notes",
       "notesPlaceholder": "Additional information for your trainer…",
       "submitting": "Sending…",
-      "submit": "Send request"
+      "submit": "Send request",
+      "changeMetaTitle": "Request an adjustment",
+      "changeTitle": "Ask your trainer for an adjustment",
+      "changeSubtitle": "Tell us what you want changed in your current schema. Your trainer will adjust it for you.",
+      "changeDescLabel": "What would you like changed?",
+      "changeDescPlaceholder": "E.g. Squats bother my knee, could I get an alternative?",
+      "changeSubmit": "Send request",
+      "changeSuccessBody": "Your trainer received your request and will adjust your schema. You'll get a notification once it's done.",
+      "changeAlreadyPending": "You already have an open adjustment request. Once your trainer has picked it up, you can send a new one.",
+      "changeNoSchema": "You don't have a trainer-assigned schema to adjust right now. Request a training schema below.",
+      "switchToNew": "Request a completely new schema instead →",
+      "switchToChange": "Just ask for an adjustment to your current schema →",
+      "withdraw": "Withdraw",
+      "withdrawTitle": "Withdraw request?",
+      "withdrawBody": "Your trainer will see that this request is no longer needed. You can submit a new request of this type afterwards.",
+      "delete": "Delete",
+      "deleteTitle": "Delete request?",
+      "deleteBody": "This closed request disappears from your list. This cannot be undone."
     },
     "rooster": {
       "metaTitle": "Schedule",
@@ -426,7 +452,7 @@
     "muscles": {
       "metaTitle": "Muscle analysis",
       "title": "Muscle analysis",
-      "subtitle": "See which muscles your schema trains — and whether you're following it.",
+      "subtitle": "See which muscles your schema trains, and whether you're following it.",
       "emptyTitle": "No active schema yet",
       "emptyDesc": "Once you have a training schema, this page shows which muscle groups it trains.",
       "requestSchema": "Request a schema",
@@ -497,13 +523,13 @@
       "dialogLabel": "Welcome",
       "welcome": "Welcome! 👋",
       "welcomeWithGym": "Welcome to {gym}! 👋",
-      "welcomeText": "Your personal training app. Train faster, see your progress and stay motivated — all in one place.",
+      "welcomeText": "Your personal training app. Train faster, see your progress and stay motivated. All in one place.",
       "scanTitle": "Scan & train",
       "scanText": "Scan a machine for instructions, or start your schedule and check off your sets. Big buttons, sweaty-hands-proof.",
       "progressTitle": "See your progress",
       "progressText": "Personal records, streaks and charts keep you sharp. Every workout counts.",
       "readyTitle": "Ready to go",
-      "readyText": "Set yourself a goal of a few workouts a week. Consistency is everything — we'll keep track.",
+      "readyText": "Set yourself a goal of a few workouts a week. Consistency is everything, we'll keep track.",
       "skip": "Skip",
       "start": "Get started"
     }
@@ -512,7 +538,7 @@
     "defects": {
       "metaTitle": "Defects",
       "title": "Equipment defects",
-      "subtitle": "Defects reported by members — dangerous reports first.",
+      "subtitle": "Defects reported by members, dangerous reports first.",
       "cards": {
         "open": "Open",
         "unsafe": "Dangerous",
@@ -583,7 +609,7 @@
       "welcomeBack": "Welcome back",
       "welcomeBackName": "Welcome back, {name}",
       "activeToday": "{count} {count, plural, one {member has} other {members have}} already trained today.",
-      "noTrainingToday": "No workouts today yet — time to activate your members."
+      "noTrainingToday": "No workouts today yet. Time to activate your members."
     },
     "widgets": {
       "kpiActiveToday": "Active today",
@@ -667,9 +693,9 @@
     },
     "members": {
       "metaTitle": "Members",
-      "titleAdmin": "Members & admins",
+      "titleAdmin": "Members",
       "titleStaff": "Members",
-      "descAdmin": "Manage who has access to your gym.",
+      "descAdmin": "Manage the athletes of your gym. Staff and admins live under Staff.",
       "descStaff": "View members, open their profile and track progress.",
       "allMembers": "All members",
       "myMembers": "My members",
@@ -710,7 +736,7 @@
       "activate": "Activate",
       "remove": "Remove",
       "removeTitle": "Remove member?",
-      "removeMessage": "Are you sure you want to permanently remove {name}? This cannot be undone — consider archiving instead.",
+      "removeMessage": "Are you sure you want to permanently remove {name}? This cannot be undone. Consider archiving instead.",
       "you": "(you)",
       "statusGEACTIVEERD": "Activated",
       "statusVERZONDEN": "Sent",
@@ -779,9 +805,9 @@
       "orgVisits": "Visits (org)",
       "orgRetention": "Retention (org)",
       "orgNoShow": "No-show (org)",
-      "locationsEmpty": "You are not linked to a location yet — ask the owner for location access.",
+      "locationsEmpty": "You are not linked to a location yet. Ask the owner for location access.",
       "locationsFootnote": "Last {days} days · retention = share of last calendar month that returned this month · times in the location's timezone.",
-      "nonAdditiveNote": "<b>Note:</b> location totals for <b>active members</b> do not add up to the organization total — a member training at multiple locations counts per location but is one member for the organization. Visits do add up cleanly.",
+      "nonAdditiveNote": "<b>Note:</b> location totals for <b>active members</b> do not add up to the organization total: a member training at multiple locations counts per location but is one member for the organization. Visits do add up cleanly.",
       "heatmapEmpty": "No visits in the last {days} days yet.",
       "legendLow": "Quiet",
       "legendHigh": "Busy",
@@ -806,7 +832,7 @@
       "signupsTotal": "{count} new members",
       "classesTotal": "{count} completed classes",
       "noExercises": "No exercise data in this period yet.",
-      "retentionExplainer": "Retention is month-based: the share of members with a visit in the previous calendar month that returned this month — independent of the chosen period."
+      "retentionExplainer": "Retention is month-based: the share of members with a visit in the previous calendar month that returned this month, independent of the chosen period."
     },
     "rooster": {
       "metaTitle": "Schedule",
@@ -833,7 +859,7 @@
     "exercises": {
       "metaTitle": "Exercises",
       "title": "Exercise library",
-      "desc": "Pick standard exercises from the central catalog or manage your own — both are available in your training plans.",
+      "desc": "Pick standard exercises from the central catalog or manage your own. Both are available in your training plans.",
       "tabStandard": "Standard exercises",
       "tabCustom": "Custom exercises",
       "catalogCount": "{count} exercises in the catalog. Select several (or all results) and add them to your gym in one go.",
@@ -891,16 +917,18 @@
       "libraryCount": "{count} exercises in the library. Select several (or all results) and add them to your gym in one go.",
       "filterDifficulty": "Level",
       "filterGoal": "Goal",
-      "badgeClassic": "Classic",
+      "badgeClassic": "Additional",
       "tips": "Coach tips",
-      "legacyTitle": "Classic catalog (deprecated)",
+      "legacyTitle": "Additional exercises",
       "legacyMatches": "{count} {count, plural, one {result} other {results}}",
-      "legacyHint": "Fallback option: these exercises come from the old catalog and are no longer updated. Use them only when something is not yet in the new library — they stay clearly marked as Classic."
+      "legacyHint": "These exercises come from our older collection and are no longer being expanded. Handy when something is not in the library yet. They stay marked as Additional.",
+      "legacyShow": "Also search additional exercises",
+      "legacyHide": "Hide additional exercises"
     },
     "audit": {
       "metaTitle": "Audit logs",
       "title": "Audit log",
-      "desc": "Who did what, and when — within your gym.",
+      "desc": "Who did what and when, within your gym.",
       "exportCsv": "Export CSV",
       "exportPdf": "Export PDF",
       "summary": "{total} entries · page {page} / {totalPages}",
@@ -920,19 +948,20 @@
       "takeInProgress": "Take in progress",
       "schemaCreated": "Plan created",
       "complete": "Complete",
-      "reject": "Reject"
+      "reject": "Reject",
+      "adjustSchema": "Adjust schema"
     },
     "staff": {
       "metaTitle": "Staff",
-      "title": "Staff",
-      "desc": "Invite staff (coaches) and set what each person is allowed to do.",
-      "inviteStaff": "Invite staff member",
+      "title": "Staff & admins",
+      "desc": "Invite staff and admins, and set what each person is allowed to do.",
+      "inviteStaff": "Invite team member",
       "emailLabel": "Email address",
       "emailPlaceholder": "coach@gym.com",
       "sendInvite": "Send invitation",
-      "inviteHint": "The staff member gets the default daily coach permissions. Adjust them per person below.",
+      "inviteHint": "Staff get the everyday coaching rights, an admin may do everything. Adjust the rights per staff member below.",
       "pendingInvites": "Pending invitations",
-      "noStaff": "No staff yet. Invite your first coach with the form above.",
+      "noStaff": "No staff or admins yet. Invite your first team member with the form above.",
       "deactivated": "deactivated",
       "invite": "Invite",
       "resend": "Resend",
@@ -945,11 +974,18 @@
       "locationsTitle": "Locations",
       "locationLink": "Link to this location",
       "locationUnlink": "Unlink from this location",
-      "noLocationAccess": "Not linked to any location yet — this staff member sees no location data.",
+      "noLocationAccess": "Not linked to any location yet. This staff member sees no location data.",
       "statusGEACTIVEERD": "Activated",
       "statusVERZONDEN": "Sent",
       "statusVERLOPEN": "Expired",
-      "statusNIET_UITGENODIGD": "Not invited"
+      "statusNIET_UITGENODIGD": "Not invited",
+      "roleLabel": "Role",
+      "roleAdmin": "Admin",
+      "roleStaff": "Staff",
+      "roleMember": "Member",
+      "ok": "OK",
+      "you": "you",
+      "adminFullAccess": "Admins always have every right at every location. Set the role to Staff to manage rights per person."
     },
     "schemas": {
       "metaTitle": "Training plans",
@@ -978,7 +1014,9 @@
     "filterNew": "New",
     "filterProgress": "In progress",
     "filterDone": "Completed",
-    "filterRejected": "Rejected"
+    "filterRejected": "Rejected",
+    "kindNEW_SCHEMA": "New schema",
+    "kindCHANGE": "Adjustment"
   },
   "achievements": {
     "ui": {
@@ -1110,7 +1148,7 @@
       },
       "training_count_10": {
         "title": "10 workouts",
-        "description": "Ten workouts on the board — the habit is growing."
+        "description": "Ten workouts on the board. The habit is growing."
       },
       "training_count_50": {
         "title": "50 workouts",
@@ -1118,7 +1156,7 @@
       },
       "training_count_100": {
         "title": "100 workouts",
-        "description": "A hundred workouts — you're a regular now."
+        "description": "A hundred workouts. You're a regular now."
       },
       "training_count_250": {
         "title": "250 workouts",
@@ -1166,7 +1204,7 @@
       },
       "strength_volume_10000": {
         "title": "10,000 kg moved",
-        "description": "Ten thousand kilos total — it adds up."
+        "description": "Ten thousand kilos total. It adds up."
       },
       "strength_volume_100000": {
         "title": "100,000 kg moved",
@@ -1261,7 +1299,7 @@
     "schemaAssigned": {
       "title": "New training schedule",
       "pushBody": "A new training schedule is ready for you.",
-      "introMessage": "{message} — you're now training with '{schema}'.",
+      "introMessage": "{message} You're now training with '{schema}'.",
       "introDefault": "Your trainer has set up '{schema}' for you."
     },
     "schemaRequest": {
@@ -1270,7 +1308,10 @@
       "receivedTitle": "Request received",
       "receivedBody": "Your trainer has received your schedule request. You'll hear from us as soon as there's an update.",
       "statusTitle": "Update on your schedule request",
-      "statusBody": "New status: {status}."
+      "statusBody": "New status: {status}.",
+      "changeTitle": "Schema adjustment requested",
+      "changeBody": "{member} would like an adjustment to their current schema.",
+      "receivedChangeBody": "Your trainer received your adjustment request. You'll hear from us once your schema is updated."
     },
     "memberSchema": {
       "submitTitle": "New schedule to review",
@@ -1320,7 +1361,11 @@
       "body": "{member} requested a new training schedule. Goal: {goal}.",
       "btn": "View request",
       "subject": "Schedule request from {member}",
-      "preheader": "{member} is requesting a training schedule ({goal})."
+      "preheader": "{member} is requesting a training schedule ({goal}).",
+      "headingChange": "Schema adjustment requested",
+      "bodyChange": "{member} is asking for an adjustment to their current training schema.",
+      "subjectChange": "Adjustment request from {member}",
+      "preheaderChange": "{member} would like their current schema adjusted."
     },
     "memberSchemaSubmitted": {
       "reason": "You're receiving this email because a member of {gym} submitted their own training schedule for review.",
@@ -1357,7 +1402,7 @@
       "body": "Congratulations! You earned the trophy {title} ({rarity}).",
       "btn": "View your trophies",
       "subject": "🏆 Trophy earned: {title}",
-      "preheader": "You earned \"{title}\" — nice work!"
+      "preheader": "You earned \"{title}\", nice work!"
     },
     "maintenanceAlert": {
       "reason": "You're receiving this email because you're responsible for equipment maintenance at {gym}.",
@@ -1370,7 +1415,7 @@
     "reportResolved": {
       "subject": "Your report {ref} has been resolved",
       "heading": "Your report has been resolved",
-      "body": "Good news: your report {ref} — {title} — has been resolved by the development team.",
+      "body": "Good news: your report {ref} ({title}) has been resolved by the development team.",
       "thanks": "Thanks for reporting. You're helping make the app better.",
       "reason": "You're receiving this email because you allowed us to contact you about your report."
     }
@@ -1424,7 +1469,7 @@
       "members": "Members",
       "membersDesc": "Member management & invitations",
       "staff": "Staff",
-      "staffDesc": "Manage staff & permissions",
+      "staffDesc": "Staff, admins & permissions",
       "rooster": "Schedule",
       "roosterDesc": "Group classes & enrolments",
       "requests": "Plan requests",
@@ -1499,7 +1544,7 @@
   "defects": {
     "title": "Report equipment defect",
     "metaTitle": "Report defect",
-    "intro": "Spotted broken or misbehaving equipment? Let us know — the trainers will see it right away.",
+    "intro": "Spotted broken or misbehaving equipment? Let us know, the trainers will see it right away.",
     "button": "Report defect",
     "submit": "Send",
     "cancel": "Cancel",
@@ -1536,14 +1581,14 @@
     },
     "duplicate": {
       "title": "This has already been reported",
-      "body": "{count, plural, =0 {There's already an open report for this machine with the same issue.} one {There's already an open report — # member sees this too.} other {There's already an open report — # members see this too.}}",
+      "body": "{count, plural, =0 {There's already an open report for this machine with the same issue.} one {There's already an open report, # member sees this too.} other {There's already an open report, # members see this too.}}",
       "confirm": "I see this too",
       "mine": "You already reported or confirmed this.",
       "reportAnyway": "Report separately anyway"
     },
     "success": {
       "reported": "Passed on to the gym. Thanks for reporting!",
-      "confirmed": "Noted — thanks for confirming!"
+      "confirmed": "Noted, thanks for confirming!"
     },
     "errors": {
       "generic": "Sending failed. Please try again.",
@@ -1591,7 +1636,7 @@
       "description": "What went wrong or what would you like to share?",
       "descriptionPlaceholder": "Describe what you did, what you expected and what happened.",
       "screenshot": "Screenshot (optional)",
-      "screenshotHint": "Only what you see here is sent — review it first.",
+      "screenshotHint": "Only what you see here is sent. Review it first.",
       "screenshotPreviewAlt": "Preview of the screenshot to be sent",
       "screenshotRemove": "Remove",
       "anonymous": "Report anonymously (we don't store who you are)",
@@ -1656,7 +1701,7 @@
       "500": {
         "kicker": "Something went wrong",
         "title": "Something went wrong",
-        "description": "An unexpected error occurred on our side. Try again shortly — if it keeps failing, we'll look into it."
+        "description": "An unexpected error occurred on our side. Try again shortly. If it keeps failing, we'll look into it."
       },
       "503": {
         "kicker": "Temporarily offline",
@@ -1720,9 +1765,9 @@
     "emailPlaceholder": "you@example.com",
     "sending": "Sending…",
     "sendMagicLink": "Send magic link",
-    "magicLinkHint": "We'll email you a secure link — no password needed.",
+    "magicLinkHint": "We'll email you a secure link, no password needed.",
     "noPasswordTitle": "No password needed",
-    "noPasswordBody": "We'll email you a secure sign-in link — one tap and you're in.",
+    "noPasswordBody": "We'll email you a secure sign-in link. One tap and you're in.",
     "passwordLabel": "Password",
     "loggingIn": "Logging in…",
     "login": "Log in",
@@ -1730,7 +1775,7 @@
     "forgotPassword": "Forgot your password?",
     "reset": {
       "title": "Forgot your password",
-      "subtitle": "Enter your email address — we'll send you a link to set a new password.",
+      "subtitle": "Enter your email address. We'll send you a link to set a new password.",
       "emailLabel": "Email address",
       "emailPlaceholder": "you@example.com",
       "sending": "Sending…",
@@ -1743,7 +1788,7 @@
       "mismatch": "The passwords don't match.",
       "saving": "Saving…",
       "save": "Save password",
-      "successBody": "Your password has been reset. For your security you've been signed out everywhere — log in again with your new password.",
+      "successBody": "Your password has been reset. For your security you've been signed out everywhere. Log in again with your new password.",
       "toLogin": "Go to login",
       "invalidTitle": "Link invalid or expired",
       "invalidBody": "This reset link is no longer valid. Request a new one.",
@@ -1763,7 +1808,7 @@
     },
     "twoFactor": {
       "title": "Two-factor authentication",
-      "subtitle": "One more step — confirm it's you.",
+      "subtitle": "One more step: confirm it's you.",
       "codeLabel": "Authentication code",
       "codeHint": "Enter the 6-digit code from your authenticator app.",
       "verify": "Verify",
@@ -1775,6 +1820,7 @@
       "title": "Welcome! Activate your account",
       "titleFallback": "Activate account",
       "resent": "A new activation link has been sent to your email address.",
+      "resentFailed": "Your link has been refreshed, but the email could not be sent. Please contact your gym.",
       "roles": {
         "TENANT_ADMIN": "administrator",
         "TENANT_STAFF": "staff member",
@@ -1790,7 +1836,7 @@
       "submitting": "Activating account…",
       "hint": "After this you can log in with your password or via a magic link.",
       "expiredTitle": "This activation link has expired",
-      "expiredBody": "For security reasons your invitation has expired. Request a new one below — we'll send it to the same email address.",
+      "expiredBody": "For security reasons your invitation has expired. Request a new one below. We'll send it to the same email address.",
       "resend": "Request a new activation link",
       "resending": "Sending…",
       "acceptedTitle": "Your account is already activated",
