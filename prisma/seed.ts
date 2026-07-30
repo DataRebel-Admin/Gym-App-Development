@@ -3,8 +3,18 @@ import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { snapshotOf } from "../lib/schema-diff";
 import { formatExerciseName } from "../lib/exercise-name";
+import {
+  assertTenantUnchanged,
+  assertNoExtraSuperadmins,
+  writeBaseline,
+  SEEDED_SLUGS,
+} from "./seed-guard";
 
 const prisma = new PrismaClient();
+
+/** E-mailadres van het demo-superadmin-account (wordt bij elke seed vervangen). */
+const SUPERADMIN_EMAIL = "admin@datarebel.nl";
+
 
 /** Demo-wachtwoord voor álle geseede accounts, zodat wachtwoord- én magic-link-
  *  login werken (magic link vereist een geactiveerd account = wachtwoord gezet).
@@ -187,26 +197,21 @@ function contactData(contact: TenantContactSpec | undefined) {
 }
 
 /**
- * Weigert de destructieve reset hieronder als er sinds de laatste seed-run
- * *echte* schema-toewijzingen zijn bijgekomen — bv. een owner/staff die via de
- * app handmatig een schema toewees, of een lid dat er zelf een indiende.
- * Betrouwbaar signaal: `assignedById` en `origin: MEMBER` worden UITSLUITEND
- * door de app gezet (app/owner/schemas/actions.ts); `seedAssignment()` hieronder
- * laat beide op hun default staan. Overschrijf met `SEED_FORCE=1` als je zeker
- * weet dat de tenant alleen demodata bevat (bv. een verse database).
+ * Pre-flight: controleert ÁLLE te seeden tenants (plus de superadmin) vóórdat
+ * er ook maar iets gewist wordt. Zonder deze volgorde zou een schone tenant al
+ * opnieuw opgebouwd zijn op het moment dat een latere tenant de seed blokkeert.
+ * De detectie zelf zit in prisma/seed-guard.ts.
  */
-async function assertNoManualAssignments(tenantId: string, tenantLabel: string) {
-  if (process.env.SEED_FORCE === "1") return;
-  const manual = await prisma.assignedWorkout.count({
-    where: { tenantId, OR: [{ assignedById: { not: null } }, { origin: "MEMBER" }] },
-  });
-  if (manual === 0) return;
-  throw new Error(
-    `Seed geweigerd: tenant "${tenantLabel}" heeft ${manual} handmatig(e) schema-` +
-      `toewijzing(en) die niet door dit seedscript zijn aangemaakt — een db:seed ` +
-      `zou die onherstelbaar verwijderen. Zet SEED_FORCE=1 als je zeker weet dat dit ` +
-      `alleen demodata is, of verwijder/verplaats de betreffende toewijzing(en) eerst.`
-  );
+async function preflight() {
+  await assertNoExtraSuperadmins(prisma, SUPERADMIN_EMAIL);
+  for (const slug of SEEDED_SLUGS) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { slug },
+      select: { id: true, name: true },
+    });
+    if (!tenant) continue; // bestaat nog niet → niets te beschermen
+    await assertTenantUnchanged(prisma, tenant.id, slug, tenant.name);
+  }
 }
 
 async function seedTenant(spec: TenantSpec) {
@@ -224,7 +229,10 @@ async function seedTenant(spec: TenantSpec) {
     },
   });
 
-  await assertNoManualAssignments(tenant.id, spec.name);
+  // Defense-in-depth naast de pre-flight in main(): ook bij een directe aanroep
+  // of een tenant die niet in SEEDED_SLUGS staat, wist deze functie nooit
+  // ongevraagd eigen werk.
+  await assertTenantUnchanged(prisma, tenant.id, spec.slug, spec.name);
 
   // Idempotent: ruim bestaande child-data op in FK-volgorde.
   await prisma.classEnrollment.deleteMany({ where: { tenantId: tenant.id } });
@@ -1047,11 +1055,15 @@ async function seedFrameworks(slug: string) {
 }
 
 async function main() {
+  // Eerst controleren, dan pas wissen: een db:seed mag nooit stilletjes eigen
+  // werk opeten (zie prisma/seed-guard.ts). Overrulen: SEED_FORCE=1.
+  await preflight();
+
   // SUPERADMIN — platform-beheerder, geen tenant (transcendeert tenants).
   await prisma.user.deleteMany({ where: { role: Role.SUPERADMIN } });
   await prisma.user.create({
     data: {
-      email: "admin@datarebel.nl",
+      email: SUPERADMIN_EMAIL,
       name: "Platform Beheer",
       role: Role.SUPERADMIN,
       tenantId: null,
@@ -1425,6 +1437,16 @@ async function main() {
   await seedProgress("gymrebel");
   await seedFrameworks("gymrebel");
   await seedDefects("gymrebel");
+
+  // Nieuwe nullijn: alles wat híérna in de app ontstaat is eigen werk en
+  // blokkeert een volgende db:seed (zie prisma/seed-guard.ts).
+  const finishedAt = new Date();
+  for (const slug of SEEDED_SLUGS) {
+    await writeBaseline(prisma, slug, finishedAt);
+  }
+  console.log(
+    `✓ seed-nullijn gezet op ${finishedAt.toISOString()} — eigen werk vanaf nu beschermd`
+  );
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -73,13 +73,31 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   `DATABASE_URL` + `DIRECT_URL` staan in `.env`.
 - **Seed-config**: staat in `prisma.config.ts` onder `migrations.seed` (niet in
   `package.json#prisma`). Draaien met `npm run db:seed`.
-- **Seed-guard tegen dataverlies**: `seedTenant()` (prisma/seed.ts) reset per tenant
-  destructief (`deleteMany` in FK-volgorde) vóór het opnieuw opbouwen — dat overschreef
-  ooit een handmatig via de app toegewezen schema. `assertNoManualAssignments()` checkt
-  daarom vóór elke reset op `AssignedWorkout`-rijen met `assignedById != null` of
-  `origin: MEMBER` (velden die uitsluitend de app zet, nooit de seed zelf) en gooit een
-  harde fout als die bestaan. Override met `SEED_FORCE=1 npm run db:seed` als je zeker
-  weet dat een tenant alleen demodata bevat.
+- **Seed-guard tegen dataverlies (`prisma/seed-guard.ts`)**: `seedTenant()` reset per
+  tenant destructief (`deleteMany` in FK-volgorde) vóór het opnieuw opbouwen. De guard
+  beschermt **álle** eigen data, niet alleen schema-toewijzingen, door de tenant te
+  vergelijken met een **nullijn** (het moment van de laatste geslaagde seed):
+  - **Opslag**: `PlatformSetting`-key `seed.baseline.<slug>`, weggeschreven aan het
+    einde van een geslaagde `main()`. Geen markering → afgeleid uit de oudste gebruiker
+    van de tenant + 15 min (die is per definitie door de seed gemaakt; de seed wist
+    immers eerst álle gebruikers).
+  - **Detectie**: per tabel op `createdAt`/`updatedAt` (vangt dus ook *bewerkte*
+    seed-data, bv. een aangepast sjabloon), plus het onveranderde sterke signaal
+    `AssignedWorkout.assignedById != null || origin: MEMBER`. Tabellen zónder eigen
+    tijdstempel (`Exercise`, `ClassSession`, `WorkoutDay`/`WorkoutExerciseItem`) worden
+    gedekt door het **auditlog-vangnet**: élke app-mutatie logt, de seed nooit. Puur
+    niet-data-events (`auth.*`, `report.*`, `support.*`, `privacy.*`, `*.notify.sent`,
+    `*.email.sent`, QR-export) staan in de negeerlijst zodat inloggen niets blokkeert.
+  - **`WorkoutSession.createdAt`** (migratie `20260730130000_workout_session_created_at`)
+    bestaat speciaal hiervoor: `startedAt` is teruggedateerd én krijgt voor de huidige
+    dag willekeurige tijdstippen die ná de seedrun kunnen liggen → vals alarm.
+  - **Volgorde**: `preflight()` controleert álle tenants (+ extra superadmins) vóórdat
+    er iets gewist wordt; `seedTenant()` checkt daarnaast zelf (defense-in-depth).
+  - **Commando's**: `npm run db:seed:check` toont zonder iets te wijzigen wat een seed
+    zou blokkeren; `npm run db:seed:baseline` verklaart de huidige staat als vertrekpunt
+    (nodig op een database van vóór deze guard). Override blijft
+    `SEED_FORCE=1 npm run db:seed`; volledig schoon beginnen is `npm run db:reset`.
+  - Een nieuwe demo-tenant toevoegen = één regel in `SEEDED_SLUGS` (seed-guard.ts).
 - **Trainings-sessiemodel heet `WorkoutSession`** (niet `Session`) om botsing met het
   Auth.js `Session`-model (prompt 03) te voorkomen. `PerformanceEntry.session` →
   `WorkoutSession`.

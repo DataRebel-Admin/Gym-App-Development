@@ -1535,6 +1535,11 @@ model WorkoutSession {
   locationId String
   startedAt  DateTime  @default(now())
   endedAt    DateTime?
+  // Wanneer de rij is aangemaakt — los van `startedAt`, dat teruggedateerd kan
+  // zijn (de seed fabriceert historie). Zonder dit onderscheid kan de
+  // seed-bescherming (prisma/seed-guard.ts) een gefabriceerde sessie niet van
+  // een echt getrainde sessie onderscheiden.
+  createdAt  DateTime  @default(now())
   // Trainingsbeleving (Workout Mood) — mood-key uit lib/workout-moods.ts.
   // NULL = het lid heeft (nog) geen beleving gekozen. One-tap na afronden.
   mood      String?

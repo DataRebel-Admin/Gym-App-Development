@@ -11,6 +11,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:seed:check": "tsx scripts/seed-check.ts",
+    "db:seed:baseline": "tsx scripts/seed-baseline.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:rls": "prisma db execute --file prisma/sql/rls.sql --schema prisma/schema.prisma",
