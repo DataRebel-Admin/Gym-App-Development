@@ -4,11 +4,12 @@ import { requireMember } from "@/lib/member";
 import { prisma } from "@/lib/db";
 import {
   requireMemberSchemaEnabled,
+  requireAssignedEditEnabled,
   getMemberSchemaForEdit,
   getMemberExercises,
   resolveFramework,
 } from "@/lib/member-schema";
-import { isEditableMemberStatus } from "@/lib/member-schema-status";
+import { isEditableMemberStatus, requiresApproval } from "@/lib/member-schema-status";
 import { itemToInputValues } from "@/lib/exercise-params";
 import { pickGroupFields } from "@/lib/exercise-groups";
 import { getFavoriteIds } from "@/lib/user-preferences";
@@ -25,17 +26,27 @@ export default async function MemberSchemaBuilderEditPage({
 }) {
   const { id } = await params;
   const member = await requireMember();
-  const mode = await requireMemberSchemaEnabled(member.tenantId);
 
   const assignment = await getMemberSchemaForEdit(id, member.id, member.tenantId);
   if (!assignment?.template) redirect("/member/schema/builder");
+
+  // Twee herkomsten, twee poorten: een zelf-gebouwd schema valt onder
+  // `memberSchemaMode`, een toegewezen schema onder `memberCanEditAssigned`.
+  const assigned = assignment.origin === "COACH";
+  if (assigned) await requireAssignedEditEnabled(member.tenantId);
+  const mode = assigned ? null : await requireMemberSchemaEnabled(member.tenantId);
+
   const memberStatus = assignment.memberStatus ?? "DRAFT";
-  // Alleen concept/afgewezen zijn bewerkbaar; anders terug naar het overzicht.
-  if (!isEditableMemberStatus(memberStatus)) redirect("/member/schema/builder");
+  // Alles behalve "in beoordeling" is bewerkbaar — ook een actief schema. Ligt het
+  // bij de coach, dan moet het lid eerst intrekken (knop op het overzicht). Een
+  // toegewezen schema kent die levenscyclus niet.
+  if (!assigned && !isEditableMemberStatus(memberStatus)) redirect("/member/schema/builder");
 
   const [exercises, framework, userRow] = await Promise.all([
     getMemberExercises(member.tenantId),
-    resolveFramework(member.tenantId, member.id),
+    // Kaders begrenzen zelf-bouwen; op het schema van de trainer is de coach
+    // leidend (zie persistDraft) — dus ook geen kader-chips of gefilterde picker.
+    assigned ? null : resolveFramework(member.tenantId, member.id),
     prisma.user.findUnique({ where: { id: member.id }, select: { preferences: true } }),
   ]);
 
@@ -61,16 +72,21 @@ export default async function MemberSchemaBuilderEditPage({
     <div className="flex flex-1 flex-col">
       <div className="flex items-center gap-2 px-5 pt-5">
         <Link
-          href="/member/schema/builder"
+          href={assigned ? "/member/schema" : "/member/schema/builder"}
           className="inline-flex items-center gap-1 text-sm text-neutral-500 active:text-neutral-900"
         >
-          <ChevronLeft className="size-4" /> Mijn schema&apos;s
+          <ChevronLeft className="size-4" />
+          {assigned ? "Mijn schema" : "Mijn schema's"}
         </Link>
       </div>
       <MemberSchemaEditor
         assignmentId={assignment.id}
+        kind={assigned ? "assigned" : "own"}
         status={memberStatus}
-        mode={mode}
+        isLive={assignment.status === "PUBLISHED"}
+        // Kader-override kan de tenant-modus overrulen — dezelfde regel als de
+        // server-action, zodat de knoptekst nooit iets anders belooft.
+        needsApproval={mode != null && requiresApproval(mode, framework?.requireApproval)}
         initialName={assignment.template.name}
         initialDescription={assignment.template.description ?? ""}
         initialDays={initialDays}

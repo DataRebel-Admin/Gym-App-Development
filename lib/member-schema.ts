@@ -33,6 +33,24 @@ export async function requireMemberSchemaEnabled(tenantId: string): Promise<Memb
   return mode;
 }
 
+/**
+ * Mag een lid het schema aanpassen dat zijn trainer hém heeft toegewezen?
+ * Staat LOS van `memberSchemaMode` (dat gaat over zélf bouwen): een sportschool
+ * kan zelf-bouwen uit hebben staan en dit toch aanzetten, of andersom.
+ */
+export async function canEditAssignedSchema(tenantId: string): Promise<boolean> {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: { memberCanEditAssigned: true },
+  });
+  return tenant?.memberCanEditAssigned ?? false;
+}
+
+/** Guard voor het bewerken van een toegewezen schema → premium 403 als het uit staat. */
+export async function requireAssignedEditEnabled(tenantId: string): Promise<void> {
+  if (!(await canEditAssignedSchema(tenantId))) forbidden();
+}
+
 const itemInclude = {
   orderBy: { order: "asc" },
   include: {
@@ -55,6 +73,9 @@ export async function getMemberSchemas(memberId: string, tenantId: string) {
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
+      // Zichtbaarheidspoort — nodig om "staat nu live" te tonen; die loopt tijdens
+      // een herbeoordeling bewust niet gelijk met `memberStatus`.
+      status: true,
       memberStatus: true,
       goal: true,
       focusNote: true,
@@ -67,6 +88,8 @@ export async function getMemberSchemas(memberId: string, tenantId: string) {
         select: {
           name: true,
           description: true,
+          // Nullijn voor "aangepast sinds de beoordeling" (hasUnsubmittedChanges).
+          updatedAt: true,
           _count: { select: { items: true, days: true } },
         },
       },
@@ -75,12 +98,15 @@ export async function getMemberSchemas(memberId: string, tenantId: string) {
 }
 
 /**
- * Eén zelf-gebouwd schema van een lid, incl. dagen/oefeningen — voor de editor.
- * Scoped op memberId + tenantId (nooit een schema van een ander lid/tenant).
+ * Eén schema van een lid, incl. dagen/oefeningen — voor de editor. Scoped op
+ * memberId + tenantId (nooit een schema van een ander lid/tenant). Bewust géén
+ * `origin`-filter: ook een door de trainer toegewezen schema kan hier landen
+ * (`Tenant.memberCanEditAssigned`). De aanroeper bepaalt per herkomst welke
+ * guard geldt — zie `requireMemberSchemaEnabled` vs. `requireAssignedEditEnabled`.
  */
 export async function getMemberSchemaForEdit(id: string, memberId: string, tenantId: string) {
   return prisma.assignedWorkout.findFirst({
-    where: { id, tenantId, userId: memberId, origin: "MEMBER" },
+    where: { id, tenantId, userId: memberId },
     include: {
       template: {
         include: {
@@ -96,21 +122,9 @@ export async function getMemberExercises(tenantId: string): Promise<MemberExerci
   return getPickerExercises(tenantId);
 }
 
-/** Library-templates die de owner heeft vrijgegeven als lid-startsjabloon. */
-export async function getMemberVisibleTemplates(tenantId: string) {
-  return prisma.workoutTemplate.findMany({
-    where: { tenantId, isLibrary: true, memberVisible: true, kind: "SCHEMA" },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      goal: true,
-      badges: true,
-      _count: { select: { items: true, days: true } },
-    },
-  });
-}
+// Vrijgegeven library-templates (startsjabloon én lid-library) wonen in
+// lib/member-library.ts — één query voor beide oppervlakken, zodat "zichtbaar in
+// de library" en "bruikbaar als startpunt" niet uit elkaar lopen.
 
 export type ResolvedFramework = {
   id: string;

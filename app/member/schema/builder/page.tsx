@@ -1,26 +1,41 @@
 import Link from "next/link";
 import { requireMember } from "@/lib/member";
-import { requireMemberSchemaEnabled, getMemberSchemas } from "@/lib/member-schema";
-import { MEMBER_STATUS_META } from "@/lib/member-schema-status";
+import { requireMemberSchemaEnabled, getMemberSchemas, resolveFramework } from "@/lib/member-schema";
+import {
+  MEMBER_STATUS_META,
+  isEditableMemberStatus,
+  isWithdrawableMemberStatus,
+  hasUnsubmittedChanges,
+  requiresApproval,
+} from "@/lib/member-schema-status";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Dumbbell, Plus, Pencil, Play } from "@/components/ui/icons";
 import { fmtDate } from "@/lib/schema-status";
-import { activateMemberSchema, pauseMemberSchema, deleteMemberSchema } from "./actions";
+import {
+  activateMemberSchema,
+  pauseMemberSchema,
+  deleteMemberSchema,
+  withdrawMemberSchema,
+} from "./actions";
 
 export const metadata = { title: "Mijn schema's" };
 
 export default async function MemberBuilderOverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; revision?: string }>;
 }) {
   const member = await requireMember();
-  await requireMemberSchemaEnabled(member.tenantId);
-  const { submitted } = await searchParams;
+  const mode = await requireMemberSchemaEnabled(member.tenantId);
+  const { submitted, revision } = await searchParams;
 
-  const schemas = await getMemberSchemas(member.id, member.tenantId);
+  const [schemas, framework] = await Promise.all([
+    getMemberSchemas(member.id, member.tenantId),
+    resolveFramework(member.tenantId, member.id),
+  ]);
+  const needsApproval = requiresApproval(mode, framework?.requireApproval);
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 py-7">
@@ -35,9 +50,13 @@ export default async function MemberBuilderOverviewPage({
 
       {submitted ? (
         <div className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
-          <p className="text-sm font-semibold text-neutral-900">Ingediend ter controle 🎉</p>
+          <p className="text-sm font-semibold text-neutral-900">
+            {revision ? "Wijzigingen ingediend 🎉" : "Ingediend ter controle 🎉"}
+          </p>
           <p className="mt-0.5 text-sm text-neutral-600">
-            Je coach bekijkt je schema en laat het je weten.
+            {revision
+              ? "Je coach bekijkt je aanpassingen. Je kunt gewoon blijven trainen."
+              : "Je coach bekijkt je schema en laat het je weten."}
           </p>
         </div>
       ) : null}
@@ -60,7 +79,17 @@ export default async function MemberBuilderOverviewPage({
           {schemas.map((s) => {
             const status = s.memberStatus ?? "DRAFT";
             const meta = MEMBER_STATUS_META[status];
-            const editable = status === "DRAFT" || status === "REJECTED";
+            const editable = isEditableMemberStatus(status);
+            // Verwijderen blijft beperkt tot concept/afgewezen: een schema dat in
+            // gebruik is (geweest) hoort bij de historie van het lid.
+            const removable = status === "DRAFT" || status === "REJECTED";
+            const live = s.status === "PUBLISHED";
+            const pendingChanges = hasUnsubmittedChanges({
+              status,
+              needsApproval,
+              contentUpdatedAt: s.template?.updatedAt ?? null,
+              reviewedAt: s.reviewedAt,
+            });
             return (
               <li
                 key={s.id}
@@ -76,7 +105,14 @@ export default async function MemberBuilderOverviewPage({
                       {fmtDate(s.createdAt)}
                     </p>
                   </div>
-                  <Badge tone={meta.tone}>{meta.label}</Badge>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                    {/* Tijdens een herbeoordeling blijft een lopend schema
+                        trainbaar — dat is niet af te lezen aan de lid-status. */}
+                    {live && status !== "ACTIVE" ? (
+                      <Badge tone="success">In gebruik</Badge>
+                    ) : null}
+                  </div>
                 </div>
 
                 {status === "REJECTED" && s.reviewNote ? (
@@ -86,6 +122,13 @@ export default async function MemberBuilderOverviewPage({
                 ) : (
                   <p className="text-xs text-neutral-500">{meta.description}</p>
                 )}
+
+                {pendingChanges ? (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Je hebt dit schema aangepast. Dien de wijzigingen in zodat je coach
+                    meekijkt.
+                  </p>
+                ) : null}
 
                 <div className="flex flex-wrap items-center gap-2">
                   {editable ? (
@@ -109,27 +152,39 @@ export default async function MemberBuilderOverviewPage({
                     </form>
                   ) : null}
 
-                  {status === "ACTIVE" ? (
-                    <>
-                      <Link
-                        href="/member/schema"
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-neutral-700 active:bg-surface-2"
-                      >
-                        Bekijk schema
-                      </Link>
-                      <form action={pauseMemberSchema}>
-                        <input type="hidden" name="assignmentId" value={s.id} />
-                        <button
-                          type="submit"
-                          className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-neutral-600 active:bg-surface-2"
-                        >
-                          Pauzeren
-                        </button>
-                      </form>
-                    </>
+                  {isWithdrawableMemberStatus(status) ? (
+                    <ConfirmButton
+                      action={withdrawMemberSchema}
+                      fields={{ assignmentId: s.id }}
+                      label="Intrekken & bewerken"
+                      triggerClassName="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+                      title="Indiening intrekken?"
+                      message="Je coach stopt met beoordelen en je kunt weer verder bewerken. Dien het daarna opnieuw in."
+                    />
                   ) : null}
 
-                  {editable ? (
+                  {live ? (
+                    <Link
+                      href="/member/schema"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+                    >
+                      Bekijk schema
+                    </Link>
+                  ) : null}
+
+                  {status === "ACTIVE" ? (
+                    <form action={pauseMemberSchema}>
+                      <input type="hidden" name="assignmentId" value={s.id} />
+                      <button
+                        type="submit"
+                        className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-neutral-600 active:bg-surface-2"
+                      >
+                        Pauzeren
+                      </button>
+                    </form>
+                  ) : null}
+
+                  {removable ? (
                     <ConfirmButton
                       action={deleteMemberSchema}
                       fields={{ assignmentId: s.id }}

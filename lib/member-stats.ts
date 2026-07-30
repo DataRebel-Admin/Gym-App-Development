@@ -18,7 +18,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Maandag 00:00 van de week waarin `d` valt (lokale tijd). */
-function startOfWeek(d: Date): Date {
+export function startOfWeek(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   const dow = (x.getDay() + 6) % 7; // ma=0 … zo=6

@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { MemberSchemaMode, MemberSchemaStatus } from "@prisma/client";
+import type { MemberSchemaStatus } from "@prisma/client";
 import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
 import {
   NO_GROUP,
@@ -32,7 +32,9 @@ import {
   setFavoriteExercises,
   type MemberSchemaSaveState,
 } from "@/app/member/schema/builder/actions";
+import { isCommittedMemberStatus } from "@/lib/member-schema-status";
 import { getExerciseType, exerciseTypeLabel, type ParamField } from "@/lib/exercise-types";
+import { selectOnFocus } from "@/lib/select-on-focus";
 import {
   defaultInputValues,
   summaryFromInputValues,
@@ -42,8 +44,8 @@ import {
   groupPositionLabel,
   groupSummary,
   clampDropsetCount,
-  REST_PRESETS_SECONDS,
 } from "@/lib/exercise-groups";
+import { RestPicker, isRestField } from "@/components/schema/rest-picker";
 import {
   isExerciseAllowed,
   describeLimits,
@@ -115,6 +117,7 @@ function ParamInput({
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value)}
+          {...selectOnFocus}
           className="w-24 rounded-lg border border-border px-2 py-2 text-sm outline-none focus:border-accent"
         />
       </label>
@@ -132,7 +135,9 @@ function ParamInput({
         step={field.step ?? (field.kind === "float" ? 0.5 : 1)}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        {...selectOnFocus}
         onBlur={(e) => {
+          selectOnFocus.onBlur(e);
           // Clamp op de (kader-)grenzen zodat het lid binnen de kaders blijft.
           const raw = e.target.value.trim();
           if (raw === "") return;
@@ -157,13 +162,6 @@ function SourceBadge({ source }: { source: ExerciseSource }) {
       {meta.label}
     </span>
   );
-}
-
-function restPresetLabel(sec: number): string {
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return s === 0 ? `${m}m` : `${m}m${s}`;
 }
 
 function ItemCard({
@@ -197,7 +195,8 @@ function ItemCard({
   const otherDays = dayKeys.filter((d) => d.key !== currentDayKey);
   const type = getExerciseType(item.exerciseType);
   const TypeIcon = type.icon;
-  const hasRestField = type.targetFields.some((f) => f.column === "restSeconds");
+  const restField = type.targetFields.find(isRestField);
+  const restBounds = restField ? boundsFor(restField, limits) : null;
 
   function setValue(fieldId: string, v: string) {
     onChange(item.key, { values: { ...item.values, [fieldId]: v } });
@@ -242,8 +241,9 @@ function ItemCard({
         </span>
       </div>
 
+      {/* Doelvelden (rust: zie de RestPicker hieronder) */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-6">
-        {type.targetFields.map((field) => (
+        {type.targetFields.filter((f) => !isRestField(f)).map((field) => (
           <ParamInput
             key={field.id}
             field={field}
@@ -254,27 +254,14 @@ function ItemCard({
         ))}
       </div>
 
-      {hasRestField ? (
-        <div className="flex flex-wrap items-center gap-1.5 pl-6 text-[11px] text-neutral-500">
-          <span className="text-neutral-400">Rust:</span>
-          {REST_PRESETS_SECONDS.map((sec) => {
-            const active = (item.values.restSeconds ?? "") === String(sec);
-            return (
-              <button
-                key={sec}
-                type="button"
-                onClick={() => setValue("restSeconds", String(sec))}
-                aria-pressed={active}
-                className={`rounded-full border px-2 py-0.5 font-medium ${
-                  active
-                    ? "border-transparent bg-accent-soft text-accent"
-                    : "border-border text-neutral-500 active:bg-surface-2"
-                }`}
-              >
-                {restPresetLabel(sec)}
-              </button>
-            );
-          })}
+      {restBounds ? (
+        <div className="pl-6">
+          <RestPicker
+            value={item.values.restSeconds ?? ""}
+            min={restBounds.min}
+            max={restBounds.max}
+            onChange={(v) => setValue("restSeconds", v)}
+          />
         </div>
       ) : null}
 
@@ -303,6 +290,7 @@ function ItemCard({
             onChange={(e) =>
               onChange(item.key, { dropsetCount: clampDropsetCount(Number(e.target.value)) ?? 1 })
             }
+            {...selectOnFocus}
             className="ml-1 w-12 rounded-md border border-border px-1.5 py-0.5 text-xs outline-none focus:border-accent"
           />
         ) : null}
@@ -491,7 +479,7 @@ function DayCard({
       </DndContext>
 
       {day.items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Nog geen oefeningen — zoek hieronder.</p>
+        <p className="text-sm text-neutral-500">Nog geen oefeningen. Zoek hieronder.</p>
       ) : null}
 
       {index > 0 ? (
@@ -572,8 +560,10 @@ function DayCard({
 
 export function MemberSchemaEditor({
   assignmentId,
+  kind = "own",
   status,
-  mode,
+  isLive,
+  needsApproval,
   initialName,
   initialDescription,
   initialDays,
@@ -583,8 +573,17 @@ export function MemberSchemaEditor({
   reviewNote,
 }: {
   assignmentId: string;
+  /**
+   * `own` = zelf-gebouwd schema met indien-/activeerstap; `assigned` = schema van
+   * de trainer dat het lid mag aanpassen (staat al live, geen review-stap, en de
+   * kaders gelden er niet — de coach is daar leidend).
+   */
+  kind?: "own" | "assigned";
   status: MemberSchemaStatus;
-  mode: MemberSchemaMode;
+  /** Staat dit schema nu live in de trainingsomgeving? */
+  isLive: boolean;
+  /** Moet de coach de (gewijzigde) inhoud goedkeuren? */
+  needsApproval: boolean;
   initialName: string;
   initialDescription: string;
   initialDays: EditorDay[];
@@ -745,8 +744,25 @@ export function MemberSchemaEditor({
     });
   }
 
-  const submitLabel =
-    mode === "DIRECT" ? "Direct gebruiken" : "Indienen ter controle";
+  const assigned = kind === "assigned";
+  // Een al vastgelegd schema (goedgekeurd/actief/gepauzeerd) bewerk je "live":
+  // de autosave landt meteen in het schema, de knop hieronder legt de wijziging
+  // vast (opnieuw ter controle, of direct definitief).
+  const committed = isCommittedMemberStatus(status);
+  const submitLabel = committed
+    ? needsApproval
+      ? "Wijzigingen indienen ter controle"
+      : "Wijzigingen vastleggen"
+    : needsApproval
+      ? "Indienen ter controle"
+      : "Direct gebruiken";
+  const submitHint = committed
+    ? needsApproval
+      ? "Je wijzigingen staan al in je schema. Dien ze in zodat je coach meekijkt. Je kunt gewoon blijven trainen."
+      : "Je wijzigingen zijn meteen actief. Je sportschool kan meekijken."
+    : needsApproval
+      ? "Je coach controleert je schema voordat het actief wordt."
+      : "Je schema wordt direct actief. Je sportschool kan meekijken.";
   const violations = submitState.violations ?? saveState.violations ?? [];
 
   return (
@@ -774,6 +790,29 @@ export function MemberSchemaEditor({
           className="rounded-xl border border-border px-3 py-2 text-sm text-neutral-700 outline-none focus:border-accent"
         />
       </div>
+
+      {assigned ? (
+        <div className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            Schema van je trainer
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">
+            Je past jouw eigen versie aan. Het sjabloon van je trainer blijft
+            ongewijzigd. Je trainer ziet je aanpassingen terug. Wijzigingen zijn meteen
+            zichtbaar in je training.
+          </p>
+        </div>
+      ) : isLive ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+            Je traint met dit schema
+          </p>
+          <p className="mt-1 text-sm text-neutral-700">
+            Wijzigingen zijn meteen zichtbaar in je training. Je schema blijft actief,
+            ook terwijl je eraan werkt.
+          </p>
+        </div>
+      ) : null}
 
       {reviewNote && status === "REJECTED" ? (
         <div className="rounded-2xl border border-red-300 bg-red-50 px-4 py-3">
@@ -852,7 +891,7 @@ export function MemberSchemaEditor({
       {totalItems > 0 ? (
         <details className="rounded-2xl border border-border bg-surface-1 p-4">
           <summary className="cursor-pointer text-sm font-semibold text-neutral-900">
-            Voorbeeld — zo ziet je schema eruit
+            Voorbeeld: zo ziet je schema eruit
           </summary>
           <div className="mt-3 flex flex-col gap-4">
             {days.map((d) => (
@@ -909,25 +948,38 @@ export function MemberSchemaEditor({
         </p>
       ) : null}
 
-      {/* Indienen / direct gebruiken */}
-      <form action={submitFormAction} className="sticky bottom-20 z-10">
-        <input type="hidden" name="assignmentId" value={assignmentId} />
-        <input type="hidden" name="name" value={name} />
-        <input type="hidden" name="description" value={description} />
-        <input type="hidden" name="days" value={serialized} />
-        <button
-          type="submit"
-          disabled={submitting || totalItems === 0}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98] disabled:opacity-50"
-        >
-          {submitting ? "Bezig…" : submitLabel}
-        </button>
-      </form>
-      <p className="-mt-2 text-center text-xs text-neutral-400">
-        {mode === "DIRECT"
-          ? "Je schema wordt direct actief. Je sportschool kan meekijken."
-          : "Je coach controleert je schema voordat het actief wordt."}
-      </p>
+      {/* Toegewezen schema: geen indien-/activeerstap — het staat al live en is met
+          de autosave al bijgewerkt. Alleen een nette uitgang. */}
+      {assigned ? (
+        <>
+          <Link
+            href="/member/schema"
+            className="sticky bottom-20 z-10 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
+          >
+            Klaar
+          </Link>
+          <p className="-mt-2 text-center text-xs text-neutral-400">
+            Je aanpassingen zijn opgeslagen in jouw versie van dit schema.
+          </p>
+        </>
+      ) : (
+        <>
+          <form action={submitFormAction} className="sticky bottom-20 z-10">
+            <input type="hidden" name="assignmentId" value={assignmentId} />
+            <input type="hidden" name="name" value={name} />
+            <input type="hidden" name="description" value={description} />
+            <input type="hidden" name="days" value={serialized} />
+            <button
+              type="submit"
+              disabled={submitting || totalItems === 0}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98] disabled:opacity-50"
+            >
+              {submitting ? "Bezig…" : submitLabel}
+            </button>
+          </form>
+          <p className="-mt-2 text-center text-xs text-neutral-400">{submitHint}</p>
+        </>
+      )}
     </div>
   );
 }

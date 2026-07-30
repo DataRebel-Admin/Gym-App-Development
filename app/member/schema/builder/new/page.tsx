@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { requireMember } from "@/lib/member";
-import {
-  requireMemberSchemaEnabled,
-  getMemberVisibleTemplates,
-} from "@/lib/member-schema";
+import { requireMemberSchemaEnabled } from "@/lib/member-schema";
+import { getMemberLibrary } from "@/lib/member-library";
 import { SCHEMA_BLUEPRINTS } from "@/lib/member-schema-blueprints";
 import { GOAL_OPTIONS, REQUEST_GOAL_LABELS } from "@/lib/schema-requests";
 import { ChevronLeft } from "@/components/ui/icons";
 import { SchemaBadges } from "@/components/schema/schema-badges";
+import { SchemaCover } from "@/components/schema/schema-cover";
+import { schemaImage } from "@/lib/schema-image";
+import { getCurrentTenant } from "@/lib/tenant";
 import { startMemberSchema } from "../actions";
 
 export const metadata = { title: "Nieuw schema" };
@@ -19,7 +20,11 @@ export default async function MemberBuilderNewPage() {
   const member = await requireMember();
   await requireMemberSchemaEnabled(member.tenantId);
 
-  const templates = await getMemberVisibleTemplates(member.tenantId);
+  const [templates, tenant] = await Promise.all([
+    getMemberLibrary(member.tenantId),
+    getCurrentTenant(),
+  ]);
+  const logoUrl = tenant?.logoUrl ?? null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 py-6">
@@ -77,6 +82,12 @@ export default async function MemberBuilderNewPage() {
                   name="source"
                   value={`template:${tpl.id}`}
                   className="mt-1 accent-[var(--tenant-accent)]"
+                />
+                <SchemaCover
+                  image={schemaImage(tpl, { logoUrl })}
+                  alt={tpl.name}
+                  aspect={false}
+                  className="h-14 w-21 shrink-0 rounded-xl"
                 />
                 <span className="min-w-0">
                   <span className="block font-semibold text-neutral-900">{tpl.name}</span>
