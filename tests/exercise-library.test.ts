@@ -19,7 +19,7 @@ import {
   parseTemplateReps,
   pickJsonName,
 } from "../lib/exercise-library/mapping";
-import { exerciseSourceOf } from "../lib/exercise-library/source";
+import { exerciseSourceOf, OWN_EXERCISE_WHERE } from "../lib/exercise-library/source";
 import { resolveRegion } from "../lib/muscle-map";
 
 // --- media ------------------------------------------------------------------
@@ -129,6 +129,29 @@ test("herkomst: libraryId → standaard, catalogId → klassiek, geen → eigen"
   assert.equal(exerciseSourceOf({ libraryId: "bench-press" }), "standaard");
   assert.equal(exerciseSourceOf({ catalogId: "0001" }), "klassiek");
   assert.equal(exerciseSourceOf({}), "eigen");
+});
+
+// OWN_EXERCISE_WHERE is de query-tegenhanger van `exerciseSourceOf === "eigen"`.
+// Regressie: met alleen `catalogId: null` lekte de hele bibliotheek de Eigen-tab
+// in en waren bibliotheek-oefeningen via het eigen-formulier muteerbaar.
+test("OWN_EXERCISE_WHERE matcht precies de rijen die 'eigen' zijn", () => {
+  assert.deepEqual({ ...OWN_EXERCISE_WHERE }, { catalogId: null, libraryId: null });
+
+  const rows = [
+    { name: "Rowing", catalogId: null, libraryId: null },
+    { name: "Burpee", catalogId: null, libraryId: "burpees" },
+    { name: "Barbell squat", catalogId: "0001", libraryId: null },
+  ];
+  const matches = (r: { catalogId: string | null; libraryId: string | null }) =>
+    Object.entries(OWN_EXERCISE_WHERE).every(
+      ([k, v]) => r[k as "catalogId" | "libraryId"] === v
+    );
+
+  assert.deepEqual(
+    rows.filter(matches).map((r) => r.name),
+    rows.filter((r) => exerciseSourceOf(r) === "eigen").map((r) => r.name)
+  );
+  assert.deepEqual(rows.filter(matches).map((r) => r.name), ["Rowing"]);
 });
 
 // --- muscle-map: RepDB-slugs ------------------------------------------------

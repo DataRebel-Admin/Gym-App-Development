@@ -406,6 +406,14 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   = `exerciseSourceOf` → `"standaard"` (bibliotheek) | `"klassiek"` (oude catalogus) |
   `"eigen"`. RepDB-spier-slugs resolven via `resolveRegion` (muscle-map leest `_` als
   spatie) → heatmap/analyse werken direct.
+- **EIGEN-OEFENING SCOPING = `OWN_EXERCISE_WHERE`** (`lib/exercise-library/source.ts`) —
+  de query-tegenhanger van `exerciseSourceOf(...) === "eigen"`: `{ catalogId: null,
+  libraryId: null }`. Sinds `libraryId` bestaat is **`catalogId: null` alléén niet meer
+  "eigen"** (bibliotheek-rijen hebben óók `catalogId == null`). Dat gaf een bug: de
+  Eigen-tab toonde de hele bibliotheek (484 i.p.v. 1) én de eigen-mutaties
+  (bewerken/dupliceren/archiveren/verwijderen) matchten bibliotheek-oefeningen, wat
+  eigen-content-velden náást een leidende externe bron kon zetten. Gebruik de constante
+  overal — nooit weer een losse null-check. Regressietest in `tests/exercise-library.test.ts`.
 - **Resolver** `getExerciseDetail` is **3-weg** (bibliotheek → klassiek → eigen), zelfde
   `ExerciseDetail`-shape + nieuw: `tips[]`, `animationUrl`, `met`, `muscleDiagrams[]`,
   `equipmentIconUrl`, `source`. `getAlternativeExercises` gebruikt voor bibliotheek-
@@ -424,8 +432,57 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   maakt ontbrekende oefeningen als tenant-Exercise aan en bouwt het schema relationeel op;
   idempotent via `WorkoutTemplate.libraryTemplateId` (migratie
   `20260730150000_library_template_link`). Audit `schema.library.import`.
-- **Vertaling (nog te doen)**: nl-teksten genereren (Azure Translator, patroon oude
-  pipeline) → `LibraryExerciseText` rijen met `origin: "machine"`; UI-taalkeuze staat er al.
+- **Vertaling NL — GEDAAN** (`npm run library:translate`, `scripts/translate-library.ts`):
+  alle **483** oefeningen hebben een `nl`-rij (`origin: "machine"`), vertaald vanuit de
+  en-rijen via **Azure Translator** (regio `germanywestcentral` = EU). `origin: "manual"`
+  wordt **nooit** overschreven — en `library:import` raakt nl-rijen ook niet aan (loopt
+  alleen en/de/es + slaat origin ≠ "dataset" over), dus de twee scripts kunnen in elke
+  volgorde. Gedeelde client: `lib/translate/azure.ts` (chunking ≤90 items/45k tekens,
+  backoff op 429/5xx, index-behoudend). Vier modi:
+  - *(geen vlag)* — vult alleen wat nog mist (hervatbaar); `--limit`/`--dry-run` voor
+    steekproeven, `--names=translate` om ook de namen te vertalen (zie naamsbeleid).
+  - `--force` — hertaalt de machine-rijen volledig (kost een volle Azure-ronde).
+  - `--repair` — vertaalt **alléén** de fragmenten die op het Engels zijn teruggevallen
+    (nl == en). Gebruikt na het verscherpen van de ontkennings-controle; 27 fragmenten
+    i.p.v. 4.317.
+  - `--refix` — past het glossarium opnieuw toe op bestaande rijen, **zonder API-calls**
+    (gratis + instant). Dít is de modus na elke uitbreiding van `DUTCH_FIXES`.
+- **Vertaalkwaliteit = `lib/translate/fitness-nl.ts`** (puur + getest,
+  `tests/translate-fitness-nl.test.ts`). Generieke MT mangelt sportschool-jargon, dus drie
+  lagen — **nieuwe term = één regel**:
+  1. `protectTerms()` forceert termen via Azure's *dynamic dictionary*
+     (`<mstrans:dictionary translation="…">`). **ALLEEN zelfstandige naamwoorden/termen**:
+     een geforceerde clausule sloopt de zinsbouw — empirisch bewezen ("Do not let the
+     `<forced>`lower back arch`</forced>`" verloor de ontkenning). Een test dwingt af dat
+     geen sleutel een lidwoord/voorzetsel bevat.
+  2. `applyDutchFixes()` corrigeert de Nederlandse uitvoer voor de werkwoordsvormen en
+     bewegingsnamen die MT structureel fout doet. Empirisch gevonden en afgedekt: `drive`
+     → "Rijd door je hielen" (88×!) → **"Zet kracht door je hielen"**; `hinge` →
+     "scharnier(en/ende/hoek)" (55×) → **"hip hinge"/"kantel vanuit je heupen"**; `squat`
+     → "hurk(t/en)" (26×) → **"squat"/"zak in een squat"**; `curl` → "krul" (17×);
+     `arch` → "de rugbogen komen"/"lichte boog in je onderrug" → **"hol trekken"/
+     "holling"** (maar "brede boog" = échte arc blijft!); verder `press`→"pers",
+     `crunch`→"kraak", `kettlebell`→"klok", `pullover`→"trui", `jerk`→"ruk",
+     `delts`→"delta's". Sluit af met een **hoofdletter-normalisatie** (elk fragment is een
+     zin) en is hoofdletter-behoudend per regel.
+  3. `negationPreserved()` = **veiligheidsvangnet**: verdwijnt de ontkenning uit een
+     instructie, dan is de betekenis omgeklapt en houdt het script de **Engelse** bron
+     (fail-safe, nooit fail-wrong; ontwerpprincipe 2). Empirisch nodig: een geforceerde
+     clausule liet "Do not let the lower back arch" omslaan in "Laat de onderrug hol
+     trekken". **Let op de vervoegingen** in de markers (`voorkom\w*`, `vermijd\w*`) —
+     zonder prefix-matching sloeg het vangnet aan op 27 correcte vertalingen.
+  - **Eindstand**: 1 "treffer" over op 4.317 fragmenten, en dat is een correcte vertaling
+    ("de bal *drijft* van links naar rechts" = drifts). Audit-query staat in de
+    git-historie van deze ronde; hercontroleren = de jargon-regexes uit `DUTCH_FIXES`
+    over de nl-fragmenten halen.
+- **NAAMSBELEID (vastgelegd door de eigenaar + getest)**: **namen van apparaten en
+  oefeningen worden niet vertaald** — in Nederlandse sportscholen is het Engels daarvoor de
+  gangbare taal. Dat geldt voor het `name`-veld (default `--names=keep`) én *binnen* de
+  instructieteksten (FORCED_TERMS mapt ze op zichzelf; dat is geen no-op, want MT wisselde
+  anders willekeurig tussen "dumbbell"/"halter"/"domoor"). Alleen anatomie en algemene
+  termen krijgen Nederlands ("posterior deltoids" → "achterste deltoïden", want MT maakte
+  er "achterste delta's" van). De owner-grid en `bulkAddLibraryToGym` lezen de naam dus
+  bewust uit de **en**-tekstrij.
 - **Bewust (nog) niet**: `embeddings.json` (semantische zoek — ligt klaar in
   `exercise-source`), MET-calorieën-UI (waarde wordt al opgeslagen/getoond als
   intensiteit), en een legacy→bibliotheek-migratie-assistent per oefening (kan later;

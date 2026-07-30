@@ -1166,10 +1166,12 @@ model Exercise {
   // Bewust een String (geen enum): een nieuw type vereist geen DB-migratie.
   exerciseType String @default("strength")
 
-  // --- Eigen-oefening content (alleen gevuld bij catalogId == null) ---
-  // Een "eigen oefening" is een tenant-Exercise zonder catalogus-koppeling; deze
-  // velden vervangen dan de catalogus als bron van media/instructies/metadata.
-  // Bij catalogus-gekoppelde oefeningen blijven ze NULL (catalogus is leidend).
+  // --- Eigen-oefening content (alleen gevuld bij catalogId == null && libraryId == null) ---
+  // Een "eigen oefening" is een tenant-Exercise zónder externe bron; deze velden
+  // vervangen dan bibliotheek/catalogus als bron van media/instructies/metadata.
+  // Bij een gekoppelde oefening blijven ze NULL (de externe bron is leidend).
+  // Query-scoping: gebruik OWN_EXERCISE_WHERE (lib/exercise-library/source.ts) —
+  // `catalogId: null` alléén matcht óók de hele bibliotheek.
   muscleGroups     String[]            @default([]) // extra spiergroepen (naast targetMuscle)
   category         String? // categorie (bv. "Kracht", "Cardio")
   difficulty       ExerciseDifficulty? // moeilijkheidsgraad (expliciet voor eigen oefeningen)

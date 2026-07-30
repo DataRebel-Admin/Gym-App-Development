@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { blobConfigured } from "@/lib/blob";
+import { OWN_EXERCISE_WHERE } from "@/lib/exercise-library/source";
 import {
   CustomExerciseForm,
   type CustomExerciseFormData,
@@ -12,7 +13,7 @@ import { DeleteCustomExercise } from "./delete-section";
 
 async function loadExercise(id: string, tenantId: string) {
   return prisma.exercise.findFirst({
-    where: { id, tenantId, catalogId: null },
+    where: { id, tenantId, ...OWN_EXERCISE_WHERE },
     select: {
       id: true,
       name: true,

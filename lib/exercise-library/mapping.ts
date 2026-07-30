@@ -125,6 +125,31 @@ export const LIBRARY_BODY_PART_LABEL: Record<string, string> = {
   upper_legs: "Bovenbenen",
 };
 
+/**
+ * Lichaamsdeel-waardes van de VEROUDERDE catalogus → hetzelfde NL-label. De oude
+ * dataset gebruikt eigen termen ("waist" = buik/core, "cardio" is geen lichaamsdeel).
+ * Waardes met een spatie ("upper legs") worden al door {@link bodyPartLabel}
+ * genormaliseerd naar de bibliotheek-sleutel.
+ */
+const LEGACY_BODY_PART_LABEL: Record<string, string> = {
+  waist: "Core", // valt bewust samen met bibliotheek-`core` → één filterchip
+  cardio: "Cardio",
+  neck: "Nek",
+};
+
+/**
+ * Canoniek NL-label voor een lichaamsdeel, bron-onafhankelijk: bibliotheek-sleutels
+ * (`upper_legs`) én klassieke catalogus-waardes (`upper legs`) leveren hetzelfde
+ * label. Nodig omdat een oefeningenlijst beide bronnen mengt — anders staat
+ * "upper legs" náást "Bovenbenen" (of ontbreekt de chip helemaal).
+ */
+export function bodyPartLabel(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed) return null;
+  const key = trimmed.toLowerCase().replace(/[\s-]+/g, "_");
+  return LIBRARY_BODY_PART_LABEL[key] ?? LEGACY_BODY_PART_LABEL[key] ?? trimmed;
+}
+
 export const LIBRARY_CATEGORY_LABEL: Record<string, string> = {
   cardio: "Cardio",
   olympic: "Olympisch",

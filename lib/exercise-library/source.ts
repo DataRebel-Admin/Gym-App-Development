@@ -49,3 +49,14 @@ export function exerciseSourceOf(ex: {
   if (ex.catalogId) return "klassiek";
   return "eigen";
 }
+
+/**
+ * Prisma-`where`-fragment voor "echt eigen" oefeningen — de query-tegenhanger van
+ * `exerciseSourceOf(...) === "eigen"`: BEIDE bron-FK's moeten NULL zijn.
+ *
+ * Gebruik dit overal waar eigen-oefeningbeheer gescoped wordt (lijst, bewerken,
+ * dupliceren, archiveren, verwijderen). `catalogId: null` alléén is sinds
+ * `libraryId` bestaat NIET genoeg — dan lekt de hele bibliotheek de Eigen-tab in
+ * en kunnen bibliotheek-oefeningen via het eigen-formulier gemuteerd worden.
+ */
+export const OWN_EXERCISE_WHERE = { catalogId: null, libraryId: null } as const;

@@ -17,6 +17,7 @@ import {
 } from "@/lib/exercise";
 import { buildLibraryWhere, myLibraryEquipmentSlugs } from "@/lib/exercise-library/search";
 import { machineTypeFromLibrary, pickJsonName } from "@/lib/exercise-library/mapping";
+import { OWN_EXERCISE_WHERE } from "@/lib/exercise-library/source";
 import { formatExerciseName } from "@/lib/exercise-name";
 import { getCurrentTenant } from "@/lib/tenant";
 import {
@@ -521,8 +522,9 @@ function parseKeptImages(value: FormDataEntryValue | null): string[] {
 
 /**
  * Maak of werk een eigen oefening bij. Gescoped op `owner.tenantId`; bij
- * bewerken is `catalogId == null` vereist (catalogus-oefeningen kunnen niet via
- * dit pad gewijzigd worden). Redirect bij succes terug naar de Eigen-tab.
+ * bewerken geldt `OWN_EXERCISE_WHERE` (oefeningen met een externe bron —
+ * bibliotheek óf klassieke catalogus — kunnen niet via dit pad gewijzigd
+ * worden). Redirect bij succes terug naar de Eigen-tab.
  */
 export async function saveCustomExercise(
   _prev: CustomExerciseState,
@@ -586,9 +588,9 @@ export async function saveCustomExercise(
   };
 
   if (data.id) {
-    // Update — alleen eigen (catalogId == null), gescoped op tenant.
+    // Update — alleen echt eigen oefeningen, gescoped op tenant.
     const result = await prisma.exercise.updateMany({
-      where: { id: data.id, tenantId: owner.tenantId, catalogId: null },
+      where: { id: data.id, tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE },
       data: fields,
     });
     if (result.count === 0) return { error: "Oefening niet gevonden" };
@@ -602,7 +604,7 @@ export async function saveCustomExercise(
     });
   } else {
     const created = await prisma.exercise.create({
-      data: { tenantId: owner.tenantId, catalogId: null, ...fields },
+      data: { tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE, ...fields },
     });
     await audit("exercise.add", {
       actor: owner,
@@ -625,14 +627,14 @@ export async function duplicateCustomExercise(formData: FormData) {
   if (!id) return;
 
   const src = await prisma.exercise.findFirst({
-    where: { id, tenantId: owner.tenantId, catalogId: null },
+    where: { id, tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE },
   });
   if (!src) return;
 
   const created = await prisma.exercise.create({
     data: {
       tenantId: owner.tenantId,
-      catalogId: null,
+      ...OWN_EXERCISE_WHERE,
       name: `${src.name} (kopie)`,
       exerciseType: src.exerciseType,
       description: src.description,
@@ -671,11 +673,11 @@ export async function setCustomExerciseArchived(formData: FormData) {
   if (!id) return;
 
   const existing = await prisma.exercise.findFirst({
-    where: { id, tenantId: owner.tenantId, catalogId: null },
+    where: { id, tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE },
     select: { name: true },
   });
   const result = await prisma.exercise.updateMany({
-    where: { id, tenantId: owner.tenantId, catalogId: null },
+    where: { id, tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE },
     data: { archivedAt: archived ? new Date() : null },
   });
 
@@ -707,7 +709,7 @@ export async function deleteCustomExercise(
   if (!id) return { error: "Onbekende oefening" };
 
   const existing = await prisma.exercise.findFirst({
-    where: { id, tenantId: owner.tenantId, catalogId: null },
+    where: { id, tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE },
     select: { name: true },
   });
   if (!existing) return { error: "Oefening niet gevonden" };
@@ -724,7 +726,7 @@ export async function deleteCustomExercise(
   }
 
   await prisma.exercise.deleteMany({
-    where: { id, tenantId: owner.tenantId, catalogId: null },
+    where: { id, tenantId: owner.tenantId, ...OWN_EXERCISE_WHERE },
   });
   await audit("exercise.remove", {
     actor: owner,

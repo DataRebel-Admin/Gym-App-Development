@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { OWN_EXERCISE_WHERE } from "@/lib/exercise-library/source";
 import { Badge } from "@/components/ui/badge";
 import { LibraryTab, type LibraryTabSearchParams } from "./library-tab";
 import { ExerciseTypeSelect } from "./exercise-type-select";
@@ -78,13 +79,13 @@ function TabLink({
 }
 
 // ---------------------------------------------------------------------------
-// Tab: Eigen oefeningen (tenant-Exercise zonder catalogus → volledig beheer)
+// Tab: Eigen oefeningen (tenant-Exercise zonder externe bron → volledig beheer)
 // ---------------------------------------------------------------------------
 
 async function EigenTab({ tenantId }: { tenantId: string }) {
   const t = await getTranslations("owner.exercises");
   const exercises = await prisma.exercise.findMany({
-    where: { tenantId, catalogId: null },
+    where: { tenantId, ...OWN_EXERCISE_WHERE },
     orderBy: [{ archivedAt: "asc" }, { name: "asc" }],
     select: {
       id: true,

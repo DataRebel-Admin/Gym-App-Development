@@ -2,7 +2,11 @@
 //
 // Koppelt bestaande tenant-`Exercise`-rijen aan de globale `ExerciseCatalog` op
 // basis van een naam-match (case-insensitief). Best-effort en idempotent: alleen
-// oefeningen zonder catalogId worden bekeken; al gekoppelde blijven ongemoeid.
+// oefeningen zónder bron worden bekeken; al gekoppelde blijven ongemoeid.
+//
+// LET OP: bibliotheek-oefeningen (libraryId) worden overgeslagen — een oefening
+// heeft max. één bron (CHECK `Exercise_single_source_check`) en de bibliotheek
+// is de actuele standaard, dus die nooit naar de verouderde catalogus trekken.
 //
 // Handig om bestaande/geseede data te verrijken zonder de owner-bibliotheek.
 // Gebruik: npm run data:link
@@ -25,7 +29,7 @@ async function main() {
   console.log(`Catalogus: ${catalog.length} items (${byName.size} unieke namen).`);
 
   const exercises = await prisma.exercise.findMany({
-    where: { catalogId: null },
+    where: { catalogId: null, libraryId: null },
     select: { id: true, name: true },
   });
   console.log(`Niet-gekoppelde oefeningen: ${exercises.length}`);

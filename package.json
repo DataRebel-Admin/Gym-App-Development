@@ -20,6 +20,7 @@
     "media:upload": "node scripts/upload-media.mjs",
     "blob:copy": "node scripts/blob-copy-container.mjs",
     "library:import": "tsx scripts/import-library.ts",
+    "library:translate": "tsx scripts/translate-library.ts",
     "data:import": "node scripts/import-exercises.mjs",
     "data:link": "node scripts/link-catalog.mjs",
     "audit:prune": "node scripts/prune-audit.mjs",
