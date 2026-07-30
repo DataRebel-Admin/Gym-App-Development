@@ -31,7 +31,11 @@ type ExerciseSpec = {
   name: string;
   targetMuscle: string;
   machine: string | null; // machine-naam binnen dezelfde tenant, of null (lichaamsgewicht)
-  catalogName?: string; // exacte naam in ExerciseCatalog (lowercase) → koppelt media/instructies
+  /** RepDB-slug in LibraryExercise → dé standaardbron (wint van catalogName). */
+  librarySlug?: string;
+  /** VEROUDERD: exacte naam in ExerciseCatalog (lowercase) → Klassiek-koppeling.
+   *  Alleen nog gebruikt om de terugvaloptie/Klassiek-badge te demonstreren. */
+  catalogName?: string;
   exerciseType?: string; // registry-key (lib/exercise-types.ts); default "strength"
 };
 
@@ -446,8 +450,24 @@ async function seedTenant(spec: TenantSpec) {
     });
   }
 
-  // Koppel-namen → catalogId (één query). Verrijkt de seed-oefeningen met
-  // catalogus-media/instructies zonder de NL-namen te verliezen.
+  // Koppel-slugs → LibraryExercise (dé standaardbron) en — alleen nog als
+  // Klassiek-demo — koppel-namen → ExerciseCatalog (verouderde terugvaloptie).
+  const wantedLibrary = spec.exercises
+    .map((e) => e.librarySlug)
+    .filter((s): s is string => Boolean(s));
+  const libraryItems =
+    wantedLibrary.length > 0
+      ? await prisma.libraryExercise.findMany({
+          where: { id: { in: wantedLibrary } },
+          select: {
+            id: true,
+            exerciseType: true,
+            texts: { where: { locale: "en" }, select: { name: true } },
+          },
+        })
+      : [];
+  const libraryBySlug = new Map(libraryItems.map((l) => [l.id, l]));
+
   const wantedCatalog = spec.exercises
     .map((e) => e.catalogName)
     .filter((n): n is string => Boolean(n));
@@ -461,33 +481,35 @@ async function seedTenant(spec: TenantSpec) {
   const catalogIdByName = new Map(
     catalogItems.map((c) => [c.name.toLowerCase(), c.id])
   );
-  // Displaynaam van een catalogus-gekoppelde oefening = de (Engelse) catalogusnaam,
-  // exact zoals een owner-add via /owner/exercises die opslaat. Zo geen NL-namen
-  // als "Beenpers"; de spec-`name` blijft alleen de referentiesleutel hieronder.
   const catalogNameByKey = new Map(
     catalogItems.map((c) => [c.name.toLowerCase(), c.name])
   );
 
   // Oefeningen. `e.name` blijft de stabiele sleutel voor de schema-items; de
-  // opgeslagen naam volgt de catalogus (Engels) waar een koppeling bestaat.
+  // opgeslagen naam volgt de bron (bibliotheek-EN of catalogus-EN) waar een
+  // koppeling bestaat — exact zoals een owner-add via /owner/exercises.
   const created = await Promise.all(
     spec.exercises.map(async (e) => {
-      const catalogName = e.catalogName
-        ? catalogNameByKey.get(e.catalogName.toLowerCase())
-        : undefined;
-      const displayName = catalogName
-        ? formatExerciseName(catalogName)
-        : e.name;
+      const library = e.librarySlug ? libraryBySlug.get(e.librarySlug) : undefined;
+      const catalogName =
+        !library && e.catalogName
+          ? catalogNameByKey.get(e.catalogName.toLowerCase())
+          : undefined;
+      const displayName =
+        library?.texts[0]?.name ??
+        (catalogName ? formatExerciseName(catalogName) : e.name);
       const row = await prisma.exercise.create({
         data: {
           tenantId: tenant.id,
           name: displayName,
           targetMuscle: e.targetMuscle,
           machineId: e.machine ? machineByName.get(e.machine)?.id ?? null : null,
-          catalogId: e.catalogName
-            ? catalogIdByName.get(e.catalogName.toLowerCase()) ?? null
-            : null,
-          exerciseType: e.exerciseType ?? "strength",
+          libraryId: library?.id ?? null,
+          catalogId:
+            !library && e.catalogName
+              ? catalogIdByName.get(e.catalogName.toLowerCase()) ?? null
+              : null,
+          exerciseType: e.exerciseType ?? library?.exerciseType ?? "strength",
           description: `${displayName} — gericht op ${e.targetMuscle.toLowerCase()}.`,
         },
       });
@@ -1145,23 +1167,23 @@ async function main() {
     exercises: [
       { name: "Hardlopen", targetMuscle: "Cardio", machine: "Loopband", exerciseType: "cardio" },
       { name: "Crosstrainen", targetMuscle: "Cardio", machine: "Crosstrainer", exerciseType: "cardio" },
-      { name: "Beenpers", targetMuscle: "Quadriceps", machine: "Beenpers", catalogName: "lever alternate leg press" },
-      { name: "Lat pulldown", targetMuscle: "Latissimus", machine: "Lat pulldown", catalogName: "cable lat pulldown full range of motion" },
-      { name: "Bankdrukken", targetMuscle: "Borst", machine: "Halterbank", catalogName: "barbell bench press" },
-      { name: "Biceps curl", targetMuscle: "Biceps", machine: "Halterbank", catalogName: "dumbbell biceps curl" },
-      { name: "Squat", targetMuscle: "Benen", machine: null, catalogName: "dumbbell squat" },
-      { name: "Push-up", targetMuscle: "Borst", machine: null, catalogName: "push-up" },
-      { name: "Plank", targetMuscle: "Core", machine: null, catalogName: "front plank with twist", exerciseType: "isometric" },
-      { name: "Lunges", targetMuscle: "Benen", machine: null, catalogName: "dumbbell lunge" },
+      { name: "Beenpers", targetMuscle: "Quadriceps", machine: "Beenpers", librarySlug: "leg-press" },
+      { name: "Lat pulldown", targetMuscle: "Latissimus", machine: "Lat pulldown", librarySlug: "lat-pulldown" },
+      { name: "Bankdrukken", targetMuscle: "Borst", machine: "Halterbank", librarySlug: "bench-press" },
+      { name: "Biceps curl", targetMuscle: "Biceps", machine: "Halterbank", librarySlug: "bicep-curl" },
+      { name: "Squat", targetMuscle: "Benen", machine: null, librarySlug: "db-squat" },
+      { name: "Push-up", targetMuscle: "Borst", machine: null, librarySlug: "push-up" },
+      { name: "Plank", targetMuscle: "Core", machine: null, librarySlug: "plank", exerciseType: "isometric" },
+      { name: "Lunges", targetMuscle: "Benen", machine: null, librarySlug: "db-lunge" },
       // Bredere mix van oefeningstypes — zodat de bibliotheek uiteenlopende
       // trainingsdoelen bedient (niet alleen kracht/bodybuilding).
-      { name: "Bird dog", targetMuscle: "Core & rug", machine: null, exerciseType: "stability" },
-      { name: "Dead bug", targetMuscle: "Core", machine: null, exerciseType: "core" },
-      { name: "Glute bridge", targetMuscle: "Bilspieren", machine: null, exerciseType: "rehab" },
-      { name: "Kettlebell swing", targetMuscle: "Hele lichaam", machine: null, exerciseType: "functional" },
-      { name: "Farmer's carry", targetMuscle: "Hele lichaam", machine: null, exerciseType: "functional" },
-      { name: "Schoudermobiliteit", targetMuscle: "Schouders", machine: null, exerciseType: "mobility" },
-      { name: "Heupflexor-stretch", targetMuscle: "Heupen", machine: null, exerciseType: "stretch" },
+      { name: "Bird dog", targetMuscle: "Core & rug", machine: null, librarySlug: "bird-dog-hold", exerciseType: "stability" },
+      { name: "Dead bug", targetMuscle: "Core", machine: null, librarySlug: "dead-bug", exerciseType: "core" },
+      { name: "Glute bridge", targetMuscle: "Bilspieren", machine: null, librarySlug: "glute-bridge", exerciseType: "rehab" },
+      { name: "Kettlebell swing", targetMuscle: "Hele lichaam", machine: null, librarySlug: "kettlebell-swing", exerciseType: "functional" },
+      { name: "Farmer's carry", targetMuscle: "Hele lichaam", machine: null, librarySlug: "kettlebell-farmers-walk", exerciseType: "functional" },
+      { name: "Schoudermobiliteit", targetMuscle: "Schouders", machine: null, librarySlug: "cross-body-shoulder-stretch", exerciseType: "mobility" },
+      { name: "Heupflexor-stretch", targetMuscle: "Heupen", machine: null, librarySlug: "kneeling-hip-flexor-stretch", exerciseType: "stretch" },
     ],
     // Bewust een brede spreiding aan trainingsdoelen — de bibliotheek is er voor
     // élke sporter (kracht, conditie, mobiliteit, herstel …), niet één doelgroep.
@@ -1388,9 +1410,11 @@ async function main() {
       { name: "Squat rack", type: MachineType.VRIJE_GEWICHTEN, description: "Rack for barbell squats." },
     ],
     exercises: [
+      // Bewust gemengd: eigen (Rowing), Klassiek-demo (Barbell squat, oude
+      // catalogus + amber badge) en bibliotheek (Burpee) — alle drie herkomsten.
       { name: "Rowing", targetMuscle: "Back", machine: "Rowing machine" },
       { name: "Barbell squat", targetMuscle: "Legs", machine: "Squat rack", catalogName: "barbell full squat" },
-      { name: "Burpee", targetMuscle: "Full body", machine: null, catalogName: "burpee" },
+      { name: "Burpee", targetMuscle: "Full body", machine: null, librarySlug: "burpees" },
     ],
     templates: [
       {

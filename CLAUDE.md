@@ -362,21 +362,93 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
 - **QR-scanner** gebruikt `html5-qrcode` (dynamic import, camera). Progressie-grafieken &
   dashboards: `recharts`. 1RM-schatting via Epley.
 
-### Oefeningen-catalogus (externe dataset — leidende structuur)
+### Oefeningen-bibliotheek (RepDB — dé standaardbron)
 
-Een externe dataset van **1.324 oefeningen** (rijke metadata, thumbnail + animatie,
-meertalige instructies) is dé bron van waarheid voor oefening-content. Media staat op
-**Azure Blob** (`datarebel`/**`exercise-media-legacy`**, publieke blob-read); metadata in
-Postgres.
+De **RepDB Standard**-bundel (gekocht, commerciële licentie; v1.26 = **483 oefeningen**,
+100% dekking op álle velden) is dé bron van waarheid voor oefening-content. Metadata in
+Postgres; media (WebP: `classic/` transparant + `flat/` + 407 animaties + 27
+spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
 
-> **Deze dataset is VEROUDERD.** Er komt een nieuwe oefeningen-bibliotheek naast (eigen
-> tabel, eigen container, eigen import); deze blijft bestaan als **terugvaloptie** en wordt
-> in de UI geoormerkt. De container is daarom omgenoemd naar `exercise-media-legacy`
-> (Azure kán niet hernoemen → copy + delete, zie `npm run blob:copy` /
-> `scripts/blob-copy-container.mjs`) en de 1.324 `image_url`/`gif_url`-waarden zijn
-> mee-herschreven. De naam `exercise-media` is daarmee vrij voor de nieuwe set.
-> **Les hieruit**: de nieuwe tabel slaat een *relatieve* blob-key op + een basis-URL uit
-> env, zodat een containerwissel geen data-migratie meer is.
+- **Blob-indeling (licentie-eis!)**: publiek `datarebel`/**`exercise-media`** bevat
+  ALLEEN `images/**`; de ruwe bundel (exercises.json, sqlite, embeddings, …) staat in de
+  **privé**-container **`exercise-source`** — de licentie verbiedt een open bucket met de
+  dataset ("serving individual images is expressly fine"). Nooit ruwe data publiek zetten.
+  ⚠️ Licentie-aandachtspunt: Standard dekt "multi-tenant onder eigen brand"; de
+  whitelabel-clausule ("deliveries under a third party's brand → Enterprise") is voor
+  GymRebel grensgeval — check bij support@repdb.co vóór commerciële livegang.
+- **Modellen** (globaal, géén tenantId/RLS, zoals ExerciseCatalog): `LibraryExercise`
+  (id = RepDB-slug; categorische velden als String → dataset-update zonder migratie;
+  `met`, `images` Json varianten-map, `imageAlias`, `retiredAt`, `exerciseType` afgeleid
+  bij import), **`LibraryExerciseText`** (`@@unique([exerciseId, locale])`, locale =
+  lowercase ISO-String — en/de/es gevuld, **nl-slot klaar maar bewust nog niet vertaald**;
+  `origin` "dataset"/"machine"/"manual" maakt de latere vertaalronde idempotent en
+  beschermt handwerk bij re-import), `LibraryMuscle`/`LibraryEquipment` (kleine lookups,
+  `names` Json per taal), `LibraryRelation` (doel-relatief: alternative/progression_of/
+  regression_of) en `LibraryWorkoutTemplate` (15 voorbeeldschema's, `days` verbatim Json).
+- **Media = relatieve keys** + basis-URL uit env (`LIBRARY_MEDIA_BASE_URL`) — containerwissel
+  is config, geen datamigratie (les van de legacy-hernoeming). Pure paden-helpers in
+  `lib/exercise-library/media.ts` (alias-regel: `imageAlias` wint van `id`). Default-stijl
+  **classic** (transparant → composeert op tenant-huisstijl).
+- **Import**: `npm run library:import` (`scripts/import-library.ts`, tsx+Prisma) leest de
+  bundel uit de privé-container, valideert licht, upsert idempotent op slug, vervangt
+  relaties, **retire't** verdwenen slugs (nooit hard delete) en un-retire't terugkeerders.
+  Versie uit CHANGELOG.md (`datasetVersion`).
+- **Pure kern `lib/exercise-library/`** (géén `server-only`): `mapping.ts`
+  (`inferLibraryExerciseType`, `machineTypeFromLibrary` op materiaal-tags,
+  `difficultyFromLibrary`, `datasetLocalePreference` (nl→[nl,en], fy volgt nl),
+  `pickLibraryText`/`pickJsonName`, `trainingGoalFromLibrary`, `parseTemplateReps`
+  ("8-12"/"AMRAP" → int+notitie), NL-labels voor de RepDB-enums), `media.ts`, `source.ts`
+  (`ExerciseSource` + `EXERCISE_SOURCE_META` + `exerciseSourceOf`). `search.ts`
+  (`server-only`): `buildLibraryWhere`/`myLibraryEquipmentSlugs` (spiegel lib/catalog.ts).
+  Tests: `tests/exercise-library.test.ts`.
+- **Tenant-koppeling**: `Exercise.libraryId` naast het verouderde `catalogId`;
+  **CHECK-constraint**: nooit beide (migratie `20260730140000_exercise_library`). Herkomst
+  = `exerciseSourceOf` → `"standaard"` (bibliotheek) | `"klassiek"` (oude catalogus) |
+  `"eigen"`. RepDB-spier-slugs resolven via `resolveRegion` (muscle-map leest `_` als
+  spatie) → heatmap/analyse werken direct.
+- **Resolver** `getExerciseDetail` is **3-weg** (bibliotheek → klassiek → eigen), zelfde
+  `ExerciseDetail`-shape + nieuw: `tips[]`, `animationUrl`, `met`, `muscleDiagrams[]`,
+  `equipmentIconUrl`, `source`. `getAlternativeExercises` gebruikt voor bibliotheek-
+  oefeningen de gecureerde **relations** (+ spier-overlap-aanvulling); klassiek behoudt de
+  oude match. `getLibraryPreview` = picker-preview. Gedeelde picker-query in
+  **`lib/exercise-picker.ts`** (`getPickerExercises`) — gebruikt door de 3
+  owner-schema-pagina's én de lid-builder; `AvailableExercise.source` is 3-waardig en
+  beide editors renderen de badge via `EXERCISE_SOURCE_META`.
+- **Owner-UI** `/owner/exercises` (Standaard-tab): bibliotheek met filters (zoek op
+  naam/synoniem/slug, lichaamsdeel, materiaal, niveau, doel, "mijn apparatuur" via
+  tag-afgeleid machinetype), gedeeld bulk-grid (`catalog-bulk-grid.tsx`,
+  `source="library"|"catalog"`), detailmodal met animatie + coach-tips.
+  `bulkAddLibraryToGym`/`libraryPreview`/`removeLibraryExerciseFromGym` spiegelen de
+  catalogus-actions; naam/spier komen uit de EN-tekstrij, type uit de import-inferentie.
+- **Voorbeeldschema's**: sectie op `/owner/schemas/templates` → `importLibraryTemplate`
+  maakt ontbrekende oefeningen als tenant-Exercise aan en bouwt het schema relationeel op;
+  idempotent via `WorkoutTemplate.libraryTemplateId` (migratie
+  `20260730150000_library_template_link`). Audit `schema.library.import`.
+- **Vertaling (nog te doen)**: nl-teksten genereren (Azure Translator, patroon oude
+  pipeline) → `LibraryExerciseText` rijen met `origin: "machine"`; UI-taalkeuze staat er al.
+- **Bewust (nog) niet**: `embeddings.json` (semantische zoek — ligt klaar in
+  `exercise-source`), MET-calorieën-UI (waarde wordt al opgeslagen/getoond als
+  intensiteit), en een legacy→bibliotheek-migratie-assistent per oefening (kan later;
+  koppeling per tenant-Exercise omzetten = `catalogId → null` + `libraryId` zetten).
+
+### Klassieke oefeningen-catalogus (VEROUDERD — terugvaloptie)
+
+De oude externe dataset (1.324 oefeningen, **non-commerciële licentie** — vervangen vóór
+commercieel gebruik) blijft bestaan als geoormerkte terugvaloptie. Media staat op
+`datarebel`/**`exercise-media-legacy`** (hernoemd met `npm run blob:copy` — Azure kán niet
+hernoemen → copy+verify+delete; de 1.324 absolute `image_url`/`gif_url`-waarden zijn
+mee-herschreven).
+
+- **Vindbaarheid gated** door superadmin-feature-flag **`exercise_legacy_catalog`**
+  (default aan; sectie "Verouderd / terugval" in `/admin/features` via
+  `FeatureDef.deprecated`). Uit = geen nieuwe klassieke oefeningen toevoegen; **al
+  gekoppelde blijven altijd werken** (resolver/render is niet gegate).
+- **Nooit dominant**: op de Standaard-tab alleen als ingeklapte `<details>`-sectie onder
+  de bibliotheek-resultaten (amber, alleen zoekterm-filter, eigen paginering `lpage`),
+  klapt automatisch open bij < 3 bibliotheek-hits mét zoekterm. Overal amber
+  **Klassiek**-badge (grid, schema-editors, detailpagina's).
+- Import-scripts (`media:upload`/`data:import`/`data:link`) + `AZURE_BLOB_CONTAINER`
+  wijzen naar de legacy-container en blijven alleen voor onderhoud van de oude set.
 
 - **`ExerciseCatalog`** (`@@map("exercise_catalog")`) = globaal, **géén `tenantId`/RLS**
   (zoals Tenant/Auth-tabellen). Velden: category/bodyPart/equipment/target/muscleGroup/
