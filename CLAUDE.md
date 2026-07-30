@@ -150,7 +150,7 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   Components via `useTenant()` (`components/tenant-provider.tsx`).
 - **Whitelabel theming.** De root-layout injecteert `--tenant-accent` (uit `tenant.accentColor`)
   als inline CSS-var op `<body>`; `bg-accent`/`text-accent` kleuren daardoor per tenant.
-  `<html lang>` volgt `tenant.locale`.
+  `<html lang>` volgt sinds de i18n-ronde de **UI-locale** (niet `tenant.locale`).
 - **RLS-runtime.** `lib/tenant-db.ts` (`getTenantDb()` / `tenantDbFor(id)`) is een Prisma
   `$extends`-client die elke operatie in één transactie wrapt met
   `set_config('app.current_tenant', id, true)`. Gebruik deze voor tenant-business-data.
@@ -161,7 +161,8 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   niet-bypass rol (fitpower=4, ironhouse=2, onbekend=0). Voor échte DB-enforcement in
   productie: aparte app-rol zonder BYPASSRLS + `FORCE ROW LEVEL SECURITY` (zie rls.sql).
   Vandaag is isolatie primair applicatie-side (expliciete `tenantId` + tenant-scoped client).
-- **Seed heeft 2 tenants**: `gymrebel` (oranje, NL, rijk — voorheen `fitpower`; oudere
+- **Seed heeft 2 tenants** (**beide `locale = NL`** — taal is een lid-instelling, geen
+  gym-instelling; zie `getContentLocale`): `gymrebel` (oranje, NL, rijk — voorheen `fitpower`; oudere
   verwijzingen hieronder naar "fitpower" lees je als `gymrebel`) en `ironhouse` (blauw, EN,
   compact). `duco@gymrebel.nl` bestaat in beide tenants (demonstreert e-mail uniek per
   tenant). `gymrebel` heeft **2 vestigingen** (Leeuwarden Centrum default + Leeuwarden
@@ -195,6 +196,20 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   atomair (transactie respecteert `maxParticipants`); `@@unique([sessionId, userId])`.
 - **PDF (prompt 13)**: `/member/schema/pdf` route-handler rendert met **pdf-lib**
   (geen native deps, betrouwbaarder in Next dan @react-pdf/renderer) en streamt als download.
+- **Afbeeldingen in de schema-PDF**: elke oefening met beeld krijgt een thumbnail in een
+  eigen kolom (`THUMB_BOX` 34pt) links van de naam. De kolom bestaat **alleen** als het
+  schema minstens één afbeelding heeft — anders houdt de oefening-kolom z'n volle breedte
+  (tekst-only schema = identieke opmaak als voorheen); de ruimte gaat van de naam-kolom af,
+  nooit van de smalle notities-kolom, en de thumbnail legt een ondergrens op de rijhoogte.
+  URL via `exerciseThumbUrl` (zie de bibliotheek-sectie), embedden via **`lib/pdf-image.ts`**
+  (`embedRemoteImage`/`embedRemoteImages`: dedupe per URL, 6 parallel, max 80, 5s-timeout).
+  **Waarom `sharp` (nieuwe dependency)**: pdf-lib embedt alléén PNG/JPEG, terwijl de
+  bibliotheek volledig **WebP** is (animaties incl.) en de klassieke catalogus `.gif` heeft —
+  sharp normaliseert elke bron naar een verkleinde PNG (eerste frame bij animatie). Lui
+  geïmporteerd: zonder sharp gaan PNG/JPEG nog rauw door en levert de rest simpelweg geen
+  beeld op. Elke fetch/decode is best-effort → een download faalt nooit op een plaatje
+  (bewezen: een 404-URL rendert die rij gewoon zonder beeld). Ook het tenant-logo loopt nu
+  via deze helper (dus WebP/GIF-logo's werken, i.p.v. de oude `.png`-extensiecheck).
 - **Niet gebouwd (bewust)**: prompt 14 (i18n) — op verzoek overgeslagen.
 
 ### AI Coach & Assistant (modulaire, contextbewuste uitbreiding)
@@ -297,6 +312,103 @@ multi-dag, eigen + standaardoefeningen) en wijst ze toe met een volledige
 - **Bewust niet gebouwd**: lidmaatschapsgroepen (toewijs-flow is er wel op voorbereid via
   multi-select; "filter op groep" volgt zodra een MemberGroup-model bestaat).
 
+### Afbeelding bij een schema (omslagfoto's)
+
+Elk trainingsschema heeft beeld. **`lib/schema-image.ts`** (puur, ook client —
+idioom `exercise-types.ts`) is de bron van waarheid met een **3-lagen-resolver**
+`schemaImage(template, {logoUrl})`: eigen upload (`WorkoutTemplate.imageUrl`,
+migratie `20260730170000_schema_image`) → **herkomst-foto** van het
+RepDB-voorbeeldschema (via `libraryTemplateId`) → **sportschoollogo**. `null` =
+accent-vlak met icoon; een gat in de UI bestaat niet.
+
+- **Gecureerde foto's = code-registry, géén kolom op `LibraryWorkoutTemplate`.**
+  `LIBRARY_TEMPLATE_PHOTOS` heeft één record per voorbeeldschema (slug, Pexels-id,
+  NL alt-tekst, optionele `focus`). Reden: `library:import` upsert't die tabel uit
+  de RepDB-bundel — een kolom zou bij elke re-import weggeschreven worden, en de
+  foto's zijn **onze** curatie, geen dataset-content. Nieuwe foto = één record +
+  `npm run library:images`. `GOAL_FALLBACK_SLUG` dekt **beide** doel-woordenschatten
+  (RepDB-goals én lib/training-goals.ts), zodat een schema uit een volgende bundel
+  nooit beeldloos in de lijst staat.
+- **Bron/licentie**: Pexels (gratis, commercieel toegestaan, naamsvermelding niet
+  verplicht). Herkomst per foto vastgelegd als `pexelsId` → `pexelsSourceUrl()`.
+  Bestanden **niet gehotlinkt** maar gekopieerd naar de eigen publieke container:
+  `exercise-media/images/schema-templates/<slug>.webp` (eigen map — het is géén
+  RepDB-materiaal), URL via het bestaande `libraryMediaUrl` (`LIBRARY_MEDIA_BASE_URL`).
+- **`npm run library:images`** (`scripts/upload-schema-images.ts`): haalt de bron bij
+  Pexels, snijdt met `sharp` naar **3:2** (`SCHEMA_COVER_*`) en upload als WebP.
+  Idempotent (`--force` overschrijft, `--only=<slug>`, `--dry-run`). De doelcontainer
+  wordt **afgeleid uit `LIBRARY_MEDIA_BASE_URL`** — nooit uit `AZURE_BLOB_CONTAINER`,
+  dat wijst bewust naar de verouderde legacy-container.
+- **Waarom 3:2 en waarom `focus`**: de helft van de bronfoto's is staand. 16:9 sneed
+  het onderwerp eraf; en `sharp`'s `attention`-strategie faalt op donkere/wijd
+  gekadreerde beelden (bewezen: `glutes-focus` hield alléén de vloer over). Vandaar
+  per foto een geverifieerde `focus` (`attention` default, `center` waar nodig).
+  Elke uitsnede is visueel gecontroleerd — wijzig `focus` niet zonder opnieuw te kijken.
+- **KOPIËREN GAAT VIA `coverUrlForCopy`, NOOIT VIA `libraryTemplateId`.** Toewijzen
+  (`cloneToAssignment`), dupliceren (`duplicateTemplate`) en het lid dat een sjabloon
+  overneemt (`startMemberSchema`) schrijven de geërfde URL **hard** mee. Zou je
+  `libraryTemplateId` meekopiëren, dan geldt de kopie als "al overgenomen" en stuurt
+  `importLibraryTemplate` de owner naar het verkeerde schema (die idempotentie-check
+  filtert niet op `isLibrary`).
+- **UI**: gedeelde `components/schema/schema-cover.tsx` (géén `"use client"`; foto =
+  `object-cover`, logo = `object-contain` op accent-vlak — een uitgesneden wordmark is
+  geen sfeerbeeld). Ingebouwd op de voorbeeldschema-kaarten + detailmodal, de
+  template-tabel, `/member/schema` (banner, niet de volle 3:2 — titel en startknop
+  moeten op een telefoon in beeld blijven) en de lid-builder-startsjablonen.
+  Rauwe `<img>`, geen `next/image`: zonder Blob-token levert de upload lokaal een
+  data-URL op en die kan de optimizer niet aan.
+- **Owner-upload**: sectie "Afbeelding" op `/owner/schemas/templates/[id]`
+  (`schema-image-form.tsx` → `setTemplateImage`, `uploadSchemaImage` in lib/blob.ts,
+  5 MB). Verwijderen zet het veld op NULL → terugval, dus "geen afbeelding" bestaat
+  niet als eindtoestand. Audit `schema.image.set`. Tests: `tests/schema-image.test.ts`.
+
+### Schema-aanvragen: nieuw schema vs. aanpassing (twee aparte types)
+
+Een lid dat z'n **huidige** schema wil bijstellen vraagt iets anders dan een lid dat
+een **nieuw** schema wil. Dat liep door elkaar: de link "Aanpassing vragen aan je
+trainer" op `/member/schema` landde op een pagina met de kop "Trainingsschema
+aanvragen" en een formulier dat om doel + startdatum vroeg, en één open aanvraag per
+lid blokkeerde het andere verzoek. Sinds migratie `20260730160000_schema_request_kind`
+zijn het twee types op één model.
+
+- **Model**: `enum SchemaRequestKind { NEW_SCHEMA | CHANGE }` + `SchemaRequest.kind`
+  (default NEW_SCHEMA → bestaande rijen zijn per definitie nieuw-schema-aanvragen) en
+  **`goal` is nullable** geworden: een aanpassing kiest geen doel en geen
+  `preferredStart`, maar vult `description` ("wat wil je aanpassen?", server-side
+  verplicht). Géén RLS-wijziging (geen nieuwe tabel).
+- **Pure kern `lib/schema-requests.ts`** (ook client, idioom `exercise-types.ts`):
+  `REQUEST_KIND_META` (label + badge-tone), `REQUEST_KIND_PARAM`/`requestKindHref`/
+  `parseRequestKind` (de URL-kant: `?type=aanpassing`), en de indienregel
+  **`canSubmitRequest(kind, openKinds)`** = één open aanvraag **per type**, zodat een
+  aanpassingsverzoek niet wacht op een lopende nieuw-schema-aanvraag. Daarnaast
+  `OPEN_REQUEST_STATUSES` + **`canCancelRequest`** (intrekken mag in élke open status,
+  óók `SCHEMA_CREATED` — anders zit het lid vast achter z'n eigen open aanvraag) en
+  `DELETABLE_REQUEST_STATUSES` + **`canDeleteRequest`** (opruimen alleen bij
+  CANCELLED/REJECTED; `COMPLETED` draagt `resolvedAssignmentId` = historie). Tests:
+  `tests/schema-requests.test.ts`.
+- **Lid**: `/member/requests` kiest het formulier op `?type=` — `SchemaRequestForm`
+  krijgt `kind` en toont óf doel+toelichting+startdatum, óf alleen "wat wil je
+  aanpassen?". Kop/subtitel/knop/succestekst volgen het type; een tekstlink schakelt
+  naar het andere type. **Terugval**: `?type=aanpassing` zonder actief coach-schema valt
+  op de nieuw-schema-variant terug (met uitleg) — er is dan niets om aan te passen.
+  Server-action `submitRequest` valideert met een **zod discriminated union** op `kind`
+  (nooit de client vertrouwen); `cancelRequest`/`deleteRequest` gebruiken de predicaten
+  hierboven en scopen op tenant+lid in de `where` (geen aparte read-check).
+- **`hasActiveCoachSchema`** (lib/member.ts) beslist waar "aanpassing vragen" zinvol is
+  (member-layout → drawer-ingang, en de pagina). Die deelt de zichtbaarheidsregel met
+  `getAssignedSchema` via de private `activeAssignmentWhere` — **nooit opnieuw
+  uitschrijven** (wie `availableFrom`/`endDate` vergeet, telt een verborgen of verlopen
+  schema mee). Let op: typeer die helper als `Prisma.AssignedWorkoutWhereInput`, niet
+  `as const` — readonly arrays breken Prisma's payload-inferentie (`template` verdwijnt
+  dan uit het resultaattype).
+- **Coach**: `/owner/requests` toont het type als badge vóór de status en labelt de
+  knop per type ("Schema maken" vs **"Schema aanpassen"**); de doel-regel valt weg als
+  er geen doel is. Meldingen (`lib/schema-requests-notify.ts`) en de e-mailcomposer
+  `schemaRequestReceivedMessage` hebben eigen kop/tekst/subject per type.
+- **Audit**: `request.change.submit` naast `request.submit`, plus `request.delete`.
+- **Bewust niet**: geen aparte kind-filter-tab in de coach-queue (de tabs blijven
+  status-gebaseerd, het type staat als badge op de rij).
+
 ### Leden bouwen zelf een schema (self-service, coach houdt controle)
 
 Een lid kan **zelf een trainingsschema samenstellen** binnen door de sportschool
@@ -314,7 +426,32 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
   reviewedById/reviewNote`, `goal SchemaRequestGoal?`, `focusNote`, `frameworkId`.
   **Statusbrug** houdt bestaande zichtbaarheid intact: DRAFT/IN_REVIEW/REJECTED/APPROVED →
   `status=DRAFT` (verborgen), ACTIVE → `status=PUBLISHED` (zichtbaar via het ongewijzigde
-  `getAssignedSchema`), PAUSED → `status=ARCHIVED`.
+  `getAssignedSchema`), PAUSED → `status=ARCHIVED`. **Uitzondering (bewust): een
+  bewerkt/heringediend schema dat al live stond behoudt `status=PUBLISHED`** — zie
+  "Blijvend eigenaarschap" hieronder.
+- **Blijvend eigenaarschap: het lid mag z'n eigen schema áltijd bewerken** — ook ná
+  goedkeuring/activering. Pure regels in `lib/member-schema-status.ts` (getest in
+  `tests/member-schema-status.test.ts`), gedeeld door de pagina-guard, de server-action en
+  de knop-teksten:
+  - `isEditableMemberStatus` = **alles behalve IN_REVIEW** (anders beoordeelt de coach een
+    bewegend doel). Vastzitten kan niet: `withdrawMemberSchema` trekt de indiening in →
+    `statusAfterWithdraw` volgt de zichtbaarheidspoort (PUBLISHED→ACTIVE, ARCHIVED→PAUSED,
+    rest→DRAFT), dus intrekken pakt nooit een lopende training af.
+  - **Autosave verandert nóóit de status** — alleen de expliciete commit-knop doet dat.
+    Zou autosave naar IN_REVIEW flippen, dan sloeg het lid zichzelf midden in het bewerken
+    buiten. Gevolg: op een al vastgelegd schema (`isCommittedMemberStatus`) landt een
+    wijziging meteen in het schema ("live bewerken"), en de knop dient 'm daarna in
+    (APPROVAL) of legt 'm vast (DIRECT).
+  - **Herbeoordeling zonder onderbreking**: `submitMemberSchema` zet `memberStatus=IN_REVIEW`
+    maar laat `status` staan → het lid traint door terwijl de coach kijkt. `reviewMemberSchema`
+    spiegelt dat: goedkeuren van een PUBLISHED-schema geeft ACTIVE (niet APPROVED), afwijzen
+    laat het draaien (met reden). `activate()` behoudt de bestaande `publishedAt` als het
+    schema al live was — die datum is de nullijn voor voortgang/geldigheid.
+  - **"Aangepast, nog niet ingediend"** is puur afgeleid (`hasUnsubmittedChanges`:
+    `template.updatedAt` > `reviewedAt`) — géén extra kolom.
+  - `persistDraft` schrijft `memberNote` (coach-boodschap per oefening) ongewijzigd terug:
+    een bewerkronde van het lid mag de notitie van de coach niet wissen.
+  - Verwijderen blijft beperkt tot DRAFT/REJECTED (historie beschermen).
 - **Kaders (`SchemaFramework`, tenant-scoped + RLS)**: toegestane oefeningen/types,
   min/max dagen, oefeningen-per-dag, sets/reps/rust, en `requireApproval`-override.
   Resolutie per lid: **per-lid koppeling (`MemberFrameworkAssignment`, uniek per lid) →
@@ -335,8 +472,42 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
   identiek aan de owner-editor → gedeelde opslaglogica. Server-actions
   (`app/member/schema/builder/actions.ts`): `startMemberSchema`, `saveMemberDraft`
   (autosave) en `submitMemberSchema` delen `persistDraft` (voorkomt save-race bij
-  indienen); verder `activateMemberSchema`, `pauseMemberSchema`, `deleteMemberSchema`,
-  `setFavoriteExercises`. Toegang gegate via `requireMemberSchemaEnabled` (lib/member-schema.ts).
+  indienen); verder `activateMemberSchema`, `pauseMemberSchema`, `withdrawMemberSchema`,
+  `deleteMemberSchema`, `setFavoriteExercises`. Toegang gegate via
+  `requireMemberSchemaEnabled` (lib/member-schema.ts). Ingangen naar de editor: "Mijn
+  schema's" (`/member/schema/builder`, knop **Bewerken** op élk bewerkbaar schema,
+  **Intrekken & bewerken** bij IN_REVIEW) én een directe **Mijn schema bewerken**-link op
+  `/member/schema` zodra het actieve schema `origin=MEMBER` is.
+- **Toegewezen schema laten aanpassen door het lid** (`Tenant.memberCanEditAssigned`,
+  migratie `20260730160000_member_edit_assigned`, default **uit**): staat bewust LOS van
+  `memberSchemaMode` — een sportschool kan zelf-bouwen uitzetten en dit tóch aanzetten (of
+  andersom). Owner-toggle op `/owner/settings` (`setMemberCanEditAssigned`).
+  - **Het lid bewerkt zijn eigen kopie**, nooit de master: een toewijzing wijst al naar een
+    eigen niet-library `WorkoutTemplate`. De coach ziet de wijziging automatisch als
+    **persoonlijke aanpassing** — `lib/schema-assignments.ts` berekent `personalized` uit
+    `diffSnapshots(baselineSnapshot, snapshotOf(template))`; daar was dus niets voor nodig.
+  - **Twee poorten, niet samengevoegd** (`assertEditAllowed` in
+    `app/member/schema/builder/actions.ts` + de guard-keuze in `builder/[id]/page.tsx`):
+    `origin=MEMBER` → `requireMemberSchemaEnabled` + `isEditableMemberStatus`;
+    `origin=COACH` → `requireAssignedEditEnabled` (`lib/member-schema.ts`). `saveMemberDraft`
+    doet daarom géén blanket `requireMemberSchemaEnabled` meer.
+  - **`getMemberSchemaForEdit` heeft geen `origin`-filter meer** (wel userId+tenantId);
+    de aanroeper kiest de poort.
+  - **Kaders (`SchemaFramework`) gelden NIET op een toegewezen schema** — de coach is daar
+    leidend. Zou je ze toch toepassen, dan sluit het schema van de coach het lid buiten van
+    z'n eigen opslag zodra de coach iets voorschrijft dat buiten het kader valt (6 sets waar
+    max 4 mag, meer dagen dan toegestaan, een niet-vrijgegeven oefening). De editor krijgt
+    dus ook `limits={null}` (geen kader-chips, ongefilterde picker).
+  - **Geen review-/activeerstap**: het schema staat al live. De editor rendert bij
+    `kind="assigned"` geen indienknop maar een "Klaar"-link; `submitMemberSchema` heeft een
+    defense-in-depth-guard (COACH → terug naar `/member/schema`) zodat `activate()` nooit een
+    coach-toewijzing in de lid-levenscyclus trekt.
+  - **Audit**: `schema.member.edit` bij élke save van een toegewezen schema (spiegelt
+    `schema.update` van de owner-editor, die ook per autosave logt). Zelf-gebouwde concepten
+    loggen bewust niet — te veel ruis.
+  - Ingang: **"Dit schema aanpassen"** op `/member/schema` (alleen bij `origin=COACH` +
+    vlag aan). Los daarvan staat er bij élk trainer-schema **"Aanpassing vragen aan je
+    trainer"** → `/member/requests` (die link ontbrak: hij zat alleen in de verloop-banner).
 - **Coach-review** (`/owner/schemas/member-built` + `[id]`): queue van ingediende schema's;
   de coach opent het lid-schema in de bestaande owner `SchemaEditor` (het is een gewone
   niet-library `WorkoutTemplate`) om te bewerken, en keurt goed / goed+activeer / af
@@ -344,8 +515,8 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
 - **Meldingen** (`lib/member-schema-notify.ts`): indienen → coaches met `schemas:manage`
   (in-app via `notifyStaffWithPermission` + e-mail `memberSchemaSubmittedMessage`);
   beoordeling → lid (in-app + e-mail `memberSchemaReviewedMessage`). Best-effort.
-- **Audit** (categorie `schemas`): `schema.member.start/submit/approve/reject/activate/pause`
-  + `schema.framework.save/delete/assign`.
+- **Audit** (categorie `schemas`): `schema.member.start/submit/withdraw/approve/reject/
+  activate/pause` + `schema.framework.save/delete/assign`.
 - **Bewust**: de 3-weg-sync/bulk-edit gelden alleen voor coach-master-schema's; zelf-gebouwde
   schema's hebben geen master (`sourceTemplateId = null`).
 
@@ -380,7 +551,7 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   (id = RepDB-slug; categorische velden als String → dataset-update zonder migratie;
   `met`, `images` Json varianten-map, `imageAlias`, `retiredAt`, `exerciseType` afgeleid
   bij import), **`LibraryExerciseText`** (`@@unique([exerciseId, locale])`, locale =
-  lowercase ISO-String — en/de/es gevuld, **nl-slot klaar maar bewust nog niet vertaald**;
+  lowercase ISO-String — en/de/es uit de bundel, **nl volledig vertaald** (zie hieronder);
   `origin` "dataset"/"machine"/"manual" maakt de latere vertaalronde idempotent en
   beschermt handwerk bij re-import), `LibraryMuscle`/`LibraryEquipment` (kleine lookups,
   `names` Json per taal), `LibraryRelation` (doel-relatief: alternative/progression_of/
@@ -405,7 +576,8 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   **CHECK-constraint**: nooit beide (migratie `20260730140000_exercise_library`). Herkomst
   = `exerciseSourceOf` → `"standaard"` (bibliotheek) | `"klassiek"` (oude catalogus) |
   `"eigen"`. RepDB-spier-slugs resolven via `resolveRegion` (muscle-map leest `_` als
-  spatie) → heatmap/analyse werken direct.
+  spatie), maar een consument moet de slugs óók daadwerkelijk **selecteren** — zie de
+  bron-bewust-waarschuwing onder "Spier-heatmap & -analyse".
 - **EIGEN-OEFENING SCOPING = `OWN_EXERCISE_WHERE`** (`lib/exercise-library/source.ts`) —
   de query-tegenhanger van `exerciseSourceOf(...) === "eigen"`: `{ catalogId: null,
   libraryId: null }`. Sinds `libraryId` bestaat is **`catalogId: null` alléén niet meer
@@ -414,6 +586,16 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   (bewerken/dupliceren/archiveren/verwijderen) matchten bibliotheek-oefeningen, wat
   eigen-content-velden náást een leidende externe bron kon zetten. Gebruik de constante
   overal — nooit weer een losse null-check. Regressietest in `tests/exercise-library.test.ts`.
+- **THUMBNAIL = `exerciseThumbUrl`** (`lib/exercise-thumb.ts`, puur) — dé 3-weg-lookup voor
+  "de afbeelding van een oefening": bibliotheek-media → klassieke `imageUrl`/`gifUrl` →
+  eigen `imageUrls[0]`. Zelfde valkuil als `OWN_EXERCISE_WHERE`: nu de bibliotheek dé
+  standaardbron is levert een losse `catalog?.imageUrl`-keten bij bijna elke oefening géén
+  beeld op. Selecteer de bronnen met `EXERCISE_THUMB_SELECT` (select-sites) resp.
+  `EXERCISE_THUMB_RELATIONS` (include-sites, o.a. `getAssignedSchema`) zodat een call-site de
+  bibliotheek niet stil kan vergeten. Gebruikt door de pickers, `/member/exercises`, het
+  schema-overzicht en de schema-PDF; getest in `tests/exercise-library.test.ts`. Nog niet
+  omgezet (catalogus-only, dus blind voor bibliotheek-beeld): `lib/active-session-view.ts`,
+  `lib/exercise-alternatives.ts`, `lib/workout-session-ops.ts`, `app/m/[qrToken]/page.tsx`.
 - **Resolver** `getExerciseDetail` is **3-weg** (bibliotheek → klassiek → eigen), zelfde
   `ExerciseDetail`-shape + nieuw: `tips[]`, `animationUrl`, `met`, `muscleDiagrams[]`,
   `equipmentIconUrl`, `source`. `getAlternativeExercises` gebruikt voor bibliotheek-
@@ -422,6 +604,21 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   **`lib/exercise-picker.ts`** (`getPickerExercises`) — gebruikt door de 3
   owner-schema-pagina's én de lid-builder; `AvailableExercise.source` is 3-waardig en
   beide editors renderen de badge via `EXERCISE_SOURCE_META`.
+- **TAAL IS PER LID, NIET PER SPORTSCHOOL — `getContentLocale`** (`lib/i18n/content-locale.ts`,
+  `server-only`): de **UI-taal van de lezer wint**, `tenant.locale` is alleen vangnet.
+  Instructies/tips/spier-/materiaalnamen horen bij wie ze léést, niet bij de sportschool.
+  Dit ging mis: de resolvers kregen `tenant?.locale ?? "NL"` mee, dus een Nederlandstalig
+  lid bij de demo-tenant `ironhouse` (`locale = EN`) zag een Nederlandse interface met een
+  **Engelse "Uitvoering"** — terwijl de nl-teksten allang bestonden. Gebruik de helper op
+  élke nieuwe call-site van `getExerciseDetail`/`getLibraryPreview`/`getCatalogPreview`/
+  `datasetLocalePreference`; nooit weer rechtstreeks `tenant.locale`. Buiten request-scope
+  (scripts/tests) valt hij terug op het meegegeven vangnet.
+  - **`Tenant.locale` = standaardtaal van de sportschool, géén dwang.** Beide demo-tenants
+    staan op NL. Wat de taal wél bepaalt: de UI-cookie `gymrebel-locale` → `User.locale`
+    (door `proxy.ts` in de cookie gezet na login) → `Accept-Language` → NL.
+  - Reeds per ontvanger: e-mails/notificaties (`localeFromEnum(user.locale)` in
+    `lib/schema-notify.ts` c.s.) en de **AI-antwoordtaal** (`lib/ai/assist.ts` gebruikt
+    `getContentLocale`, niet langer `tenant.locale`).
 - **Owner-UI** `/owner/exercises` (Standaard-tab): bibliotheek met filters (zoek op
   naam/synoniem/slug, lichaamsdeel, materiaal, niveau, doel, "mijn apparatuur" via
   tag-afgeleid machinetype), gedeeld bulk-grid (`catalog-bulk-grid.tsx`,
@@ -475,35 +672,82 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
     ("de bal *drijft* van links naar rechts" = drifts). Audit-query staat in de
     git-historie van deze ronde; hercontroleren = de jargon-regexes uit `DUTCH_FIXES`
     over de nl-fragmenten halen.
-- **NAAMSBELEID (vastgelegd door de eigenaar + getest)**: **namen van apparaten en
-  oefeningen worden niet vertaald** — in Nederlandse sportscholen is het Engels daarvoor de
+- **NAAMSBELEID (vastgelegd door de eigenaar + getest)**: **oefeningnamen worden niet
+  vertaald** — in Nederlandse sportscholen is "bench press"/"lat pulldown"/"squat" de
   gangbare taal. Dat geldt voor het `name`-veld (default `--names=keep`) én *binnen* de
-  instructieteksten (FORCED_TERMS mapt ze op zichzelf; dat is geen no-op, want MT wisselde
-  anders willekeurig tussen "dumbbell"/"halter"/"domoor"). Alleen anatomie en algemene
-  termen krijgen Nederlands ("posterior deltoids" → "achterste deltoïden", want MT maakte
-  er "achterste delta's" van). De owner-grid en `bulkAddLibraryToGym` lezen de naam dus
-  bewust uit de **en**-tekstrij.
+  instructieteksten (FORCED_TERMS mapt oefening- én apparaatnamen op zichzelf; dat is geen
+  no-op, want MT wisselde anders willekeurig tussen "dumbbell"/"halter"/"domoor"). De
+  owner-grid en `bulkAddLibraryToGym` lezen de oefening**naam** dus bewust uit de
+  **en**-tekstrij. Anatomie krijgt altijd Nederlands ("posterior deltoids" → "achterste
+  deltoïden", want MT maakte er "achterste delta's" van).
+- **WEERGAVENAMEN VAN DE LOOKUPS ZIJN NEDERLANDS** (`lib/translate/library-lookups-nl.ts`,
+  puur + getest; script **`npm run library:lookups`**, géén API-calls). `LibraryMuscle.names`
+  en `LibraryEquipment.names` kwamen uit de bundel met alleen en/de/es, dus spierchips,
+  hulpspieren, diagram-labels en materiaalfilters vielen terug op het Engels. Nu:
+  - **Spieren**: Nederlands in het vocabulaire van de spierkaart ("Borst", "Bilspieren",
+    "Voorste deltoïden"); anatomisch Latijn dat óók Nederlands is blijft ("Trapezius",
+    "Quadriceps"). **Harde eis**: elke nl-naam moet door `resolveRegion` te herleiden zijn —
+    de naam belandt als vrij label in `Exercise.targetMuscle`, en een onbekend label kleurt
+    stil géén spier meer op de heatmap. `tests/library-lookups-nl.test.ts` dwingt dat af;
+    de Nederlandse namen staan als sleutels in `RAW_TO_REGION`.
+  - **Materiaal**: het woord dat hier op het apparaat staat — Nederlands waar dat de
+    gangbare term is ("Loopband", "Crosstrainer", "Beenpers", "Kabelmachine",
+    "Hometrainer"), het Engelse leenwoord waar *dát* de Nederlandse term is ("Dumbbell",
+    "Barbell", "Kettlebell", "Smith machine"). Per term een keuze, geen automatisme.
+    Dit is een **verruiming** van het oude "apparaatnamen blijven Engels": alleen de
+    weergavenaam van de lookup is vertaald, ín de instructieteksten blijven ze Engels.
+  - **Snapshots meegemigreerd**: het script zet `Exercise.targetMuscle` van
+    bibliotheek-oefeningen om, maar **alleen waar de waarde letterlijk de en-naam is**
+    (bewijs dat het de automatische snapshot is, geen handwerk van de sportschool).
+    797 rijen omgezet, 15 ongemoeid. `--skip-snapshots` slaat de stap over.
+  - **Re-import-veilig**: `library:import` bewaart een bestaande `nl` bij de upsert
+    (`namesJsonKeepNl`) — het lookup-equivalent van `origin: "manual"` bij de teksten.
+    Nieuw materiaal zónder curatie wordt opgesomd + exitcode 1, dus het blijft niet stil
+    Engels. De twee scripts kunnen in elke volgorde draaien.
 - **Bewust (nog) niet**: `embeddings.json` (semantische zoek — ligt klaar in
   `exercise-source`), MET-calorieën-UI (waarde wordt al opgeslagen/getoond als
   intensiteit), en een legacy→bibliotheek-migratie-assistent per oefening (kan later;
   koppeling per tenant-Exercise omzetten = `catalogId → null` + `libraryId` zetten).
 
-### Klassieke oefeningen-catalogus (VEROUDERD — terugvaloptie)
+### Aanvullende oefeningen-collectie (de oudere dataset, intern "klassiek")
 
 De oude externe dataset (1.324 oefeningen, **non-commerciële licentie** — vervangen vóór
-commercieel gebruik) blijft bestaan als geoormerkte terugvaloptie. Media staat op
-`datarebel`/**`exercise-media-legacy`** (hernoemd met `npm run blob:copy` — Azure kán niet
-hernoemen → copy+verify+delete; de 1.324 absolute `image_url`/`gif_url`-waarden zijn
-mee-herschreven).
+commercieel gebruik) blijft bestaan als geoormerkte aanvulling naast de bibliotheek. Media
+staat op `datarebel`/**`exercise-media-legacy`** (hernoemd met `npm run blob:copy` — Azure
+kán niet hernoemen → copy+verify+delete; de 1.324 absolute `image_url`/`gif_url`-waarden
+zijn mee-herschreven).
 
+- **NAAR DE GEBRUIKER HEET DIT "AANVULLEND", NOOIT "KLASSIEK/VEROUDERD".** Deze
+  oefeningen worden nog gewoon gebruikt, dus een afstotelijk label hoort er niet: badge
+  **Aanvullend** (neutraal sky-blauw, `Badge tone="info"`), sectie "Aanvullende
+  oefeningen", feature-flag "Aanvullende oefeningen-collectie", admin-sectie "Aanvullende
+  modules". De **interne** sleutels blijven ongewijzigd (`ExerciseSource "klassiek"`,
+  flag-key `exercise_legacy_catalog`, i18n-keys `badgeClassic`/`legacy*`, anker
+  `#klassiek`) — alleen labels zijn omgezet.
 - **Vindbaarheid gated** door superadmin-feature-flag **`exercise_legacy_catalog`**
-  (default aan; sectie "Verouderd / terugval" in `/admin/features` via
-  `FeatureDef.deprecated`). Uit = geen nieuwe klassieke oefeningen toevoegen; **al
+  (default aan; sectie "Aanvullende modules" in `/admin/features` via
+  `FeatureDef.deprecated`). Uit = geen nieuwe aanvullende oefeningen toevoegen; **al
   gekoppelde blijven altijd werken** (resolver/render is niet gegate).
 - **Nooit dominant**: op de Standaard-tab alleen als ingeklapte `<details>`-sectie onder
-  de bibliotheek-resultaten (amber, alleen zoekterm-filter, eigen paginering `lpage`),
-  klapt automatisch open bij < 3 bibliotheek-hits mét zoekterm. Overal amber
-  **Klassiek**-badge (grid, schema-editors, detailpagina's).
+  de bibliotheek-resultaten (alleen zoekterm-filter, eigen paginering `lpage`), klapt
+  automatisch open bij < 3 bibliotheek-hits mét zoekterm. Overal de
+  **Aanvullend**-badge (grid, schema-editors, detailpagina's).
+- **WEERGAVENAMEN = `formatExerciseName` (`lib/exercise-name.ts`, puur + getest)** — de
+  dataset levert álles in kleine letters, wat naast de bibliotheek goedkoop oogt. Twee
+  door de eigenaar vastgelegde regels: (1) **élk** woord een hoofdletter, ook
+  verbindingswoorden ("Full Range Of Motion") en na `-`/`/` ("3/4 Sit-Up"), maar nooit na
+  een apostrof; afkortingen (`ez`, `jm`, `pov`, …) in kapitalen. (2) het dataset-
+  voorvoegsel **`lever` → `Machine`** ("lever calf press" → "Machine Calf Press"),
+  **alleen als eerste woord** — "Back Lever"/"Front Lever" zijn calisthenics, geen
+  apparaat. De functie is **idempotent** (bestaande hoofdletters blijven staan), dus
+  herhaald toepassen is veilig. Gebruikt door de seed, beide catalogus-add-paden en het
+  normalisatiescript. Tests: `tests/exercise-name.test.ts`.
+- **`npm run data:names`** (`scripts/normalize-catalog-names.ts`) schrijft die namen naar
+  de database: alle `ExerciseCatalog.name`-rijen (1.324 omgezet) plus de **naam-snapshots**
+  op tenant-`Exercise` — maar alléén waar de waarde *letterlijk* de oude catalogusnaam is
+  (bewijs dat het de automatische snapshot is, geen handwerk van de sportschool), zelfde
+  precedent als `library:lookups`. `--dry-run` / `--skip-snapshots`. `data:import` roept
+  het script na afloop aan, zodat een re-import de namen niet terugdraait.
 - Import-scripts (`media:upload`/`data:import`/`data:link`) + `AZURE_BLOB_CONTAINER`
   wijzen naar de legacy-container en blijven alleen voor onderhoud van de oude set.
 
@@ -515,7 +759,9 @@ mee-herschreven).
   spiergroepen en instructies komen uit de catalogus. Downstream FK's
   (`WorkoutExerciseItem`, `PerformanceEntry`) blijven naar tenant-`Exercise` wijzen.
 - **Resolver `lib/exercise.ts`** (`getExerciseDetail`) merget Exercise + catalogus en kiest
-  taal op `tenant.locale` met **EN-fallback** (dataset heeft en/es/it/tr + deels nl).
+  taal via **`getContentLocale`** (UI-taal van de lezer, `tenant.locale` als vangnet — zie
+  "TAAL VAN DATASET-CONTENT" in de bibliotheek-sectie) met **EN-fallback** (dataset heeft
+  en/es/it/tr/nl).
 - **Owner**: `/owner/exercises` doorzoekt de catalogus (filters + paginering) en voegt
   items toe als tenant-`Exercise`; `suggestMachineType()` (lib/machine.ts) stelt een
   MachineType voor, owner kiest de machine. **Member**: detailpagina + machine-QR-pagina
@@ -523,8 +769,9 @@ mee-herschreven).
 - **Scripts** (`scripts/`, idempotent): `media:upload` (Azure), `data:import`
   (catalogus + en→nl vertaling via Azure Translator), `data:link` (naam-koppeling).
   Seed koppelt demo-oefeningen via `catalogName` (exacte, lowercase catalogus-naam).
-- **Vertaalstand**: nl-instructies zijn deels gevuld; Azure **F0** throttelt te hard voor
-  de volledige set. Afmaken: Translator-tier **S1** + `npm run data:import` (hervat).
+- **Vertaalstand: compleet** — alle **1.324** rijen hebben nl-instructies én nl-stappen
+  (geverifieerd: 0 rijen waar het nl-slot leeg is of identiek aan het Engels). De eerdere
+  "deels gevuld"-notitie (Azure F0-throttling) is achterhaald.
 - **Licentie**: dataset-media is **non-commercieel** — vervangen vóór commercieel gebruik.
 - **Eigen oefeningen (tenant-specifiek)**: een eigen oefening = tenant-`Exercise` met
   `catalogId == null` + ingevulde eigen-content-velden op datzelfde model (géén apart model):
@@ -656,10 +903,31 @@ RLS-wijziging.
   `tests/exercise-groups.test.ts`.
 - **Editor** (`components/schema-editor.tsx`): multi-select → "Groepeer als …"; groep-kop
   (type/rondes/rust-ná-groep/label/AMRAP-timecap) + A/B/C-badges + ontgroeperen; dropset-toggle,
-  rust-preset-chips + "rust → alle in dag"; `memberNote`-veld via prop `showMemberNote` (aan op
+  rust-chips + "rust → alle in dag"; `memberNote`-veld via prop `showMemberNote` (aan op
   lid-schema-pagina's). `serializeEditorDay` normaliseert (groepen < 2 leden self-healen naar
-  losstaand) — gedeeld met de mobiele lid-builder (`member-schema-editor.tsx`, pariteit:
-  dropset + rust-presets + groep-weergave).
+  losstaand).
+- **TWEE NOTITIE-NIVEAUS, NIET DOOR ELKAAR**: `WorkoutTemplate.coachNote` (de
+  "Schema-notitie") hoort bij het **programma** — elk lid dat het schema krijgt leest
+  dezelfde tekst — en is daarom **alleen op een library-template bewerkbaar**
+  (prop `showCoachNote`, default aan; `false` op `/owner/schemas/members/[userId]` en
+  `/owner/schemas/member-built/[id]`, waar de editor de meegekloonde notitie alleen-lezen
+  toont). Persoonlijk richting één lid gaat via `WorkoutExerciseItem.memberNote` (per
+  oefening) en `AssignedWorkout.trainerMessage` (bij de toewijzing). `saveSchema` is
+  autoritatief: op een niet-library-template blijft `template.coachNote` staan (de client
+  stuurt het veld daar niet mee, dus zonder die regel zou het wissen); de 3-weg-sync blijft
+  de master-notitie doorduwen naar de kopieën. `serializeEditorDay` is verder gedeeld met
+  de mobiele lid-builder (`member-schema-editor.tsx`, pariteit: dropset + rust-chips +
+  groep-weergave).
+- **RUST = ÉÉN BEDIENING (`components/schema/rest-picker.tsx`)**: de rust stond dubbel in beide
+  editors — één keer als dynamisch doelveld ("rust (sec)", want `PARAM.rest` heeft
+  `column: "restSeconds"` en zit dus in `targetFields`) en één keer als preset-chips; twee
+  invoervelden op dezelfde `values.restSeconds`. Nu chips-only: `RestPicker` (30s/60s/90s/2m/3m +
+  **Aangepast** → getalveld in seconden, geclampt op de veld-/kader-grenzen) en beide editors
+  filteren het rustveld met **`isRestField`** uit de `targetFields`-rij. Voeg je een nieuw
+  oefeningstype met rust toe, dan hoef je niets te doen — het loopt automatisch via de picker.
+  De owner-editor geeft "→ alle in dag" als `children` mee; de lid-builder geeft de door
+  `boundsFor` vernauwde kader-grenzen mee. Groep-rust ("rust ná groep") blijft bewust een eigen
+  getalveld in de groep-kop (ander concept, één keer per groep).
 - **Downstream**: `schema-diff.ts` draagt groep/dropset als bundel-velden `"group"`/`"dropset"`
   (3-weg-sync); `memberNote` valt er bewust buiten. Klonen/dupliceren nemen groep/dropset mee
   (`cloneToAssignment` laat `memberNote` weg — per lid vers). Member-checklist
@@ -697,12 +965,27 @@ Volledig afgeleid — géén nieuw DB-model, géén migratie.
   `MuscleRegion`'s (chest/shoulders/biceps/…/calves) met NL-label + aanzicht (front/back).
   `RAW_TO_REGION` normaliseert de vrije spier-labels uit de catalogus (`target`,
   `secondaryMuscles`) én eigen oefeningen (`targetMuscle`, `muscleGroups`) naar een regio;
-  `resolveRegion()` is de enige lookup. Volume-schaal `MUSCLE_LEVELS` (0=grijs…5=donkergroen)
-  + `levelForWeeklySets()` (grenzen ~hypertrofie-richtlijn).
+  `resolveRegion()` is de enige lookup — die dekt de RepDB-slugs (`_` als spatie), de
+  afwijkende RepDB-wéérgavenamen ("Side Delts"/"Glute Medius"/"Deep Core"/"Serratus", die
+  als vrij label in `targetMuscle` belanden) én Nederlandse labels voor eigen oefeningen
+  ("Borst"/"Bilspieren"/…). Meerduidige termen ("benen", "hele lichaam") worden **bewust
+  niet gegokt** — liever geen kleur dan de verkeerde spier. Volume-schaal `MUSCLE_LEVELS`
+  (0=grijs…5=donkergroen) + `levelForWeeklySets()` (grenzen ~hypertrofie-richtlijn).
+  De **telregel** woont hier ook (puur + getest, `tests/muscle-volume.test.ts`):
+  `accumulateMuscleVolume(acc, ex, sets)` met `primaryMuscleRaws`/`secondaryMuscleRaws`.
+- **BRON-BEWUST (3-weg) — lees dit vóór je aan de spier-analyse werkt.** De telling moet
+  `library.primaryMuscles`/`secondaryMuscles` gebruiken bij een bibliotheek-oefening: dat zijn
+  de gecureerde slugs (vaak méérdere primaire spieren; die tellen allemaal vol), terwijl
+  `Exercise.targetMuscle` daar slechts één afgeleide weergavenaam is. Dit ging eerder mis:
+  `exerciseMuscleSelect` selecteerde alleen `targetMuscle`/`catalog`, waardoor na de
+  RepDB-migratie **alle** secundaire spieren wegvielen en het demo-schema 3 van 16 regio's
+  kleurde i.p.v. 12. De slug-test alléén dekt dit niet af — die bewijst de *mapping*, niet de
+  *query*. Voeg `library` dus toe aan élke nieuwe spier-selectie.
 - **`lib/muscle-analysis.ts`** (`server-only`): `getMuscleAnalysis(memberId, tenantId)` telt
   wekelijks set-volume per regio uit het actieve schema (**plan**, aanname 1×/week) en uit de
-  laatste 28 dagen `PerformanceEntry` (**echt getraind**, ÷4). Primaire spier telt vol,
-  secundaire half (0.5). Serialiseert `regions[]` (plan/actual/level) + `topRegions`/`neglected`.
+  laatste 28 dagen `PerformanceEntry` (**echt getraind**, ÷4) via `accumulateMuscleVolume`:
+  primaire spieren vol, secundaire half (0.5), elke regio max. één keer per oefening.
+  Serialiseert `regions[]` (plan/actual/level) + `topRegions`/`neglected`.
   Base `prisma` + expliciete `tenantId` (zoals `member-stats.ts`).
 - **Visuals** (client): `components/muscle/body-heatmap.tsx` — een **anatomisch spierfiguur**
   (voor/achter) waarvan de spier-polygonen **gevendord** zijn uit `react-body-highlighter`
@@ -713,9 +996,15 @@ Volledig afgeleid — géén nieuw DB-model, géén migratie.
   `quadriceps`→`quads`, `gluteal`→`glutes`, `left/right-soleus`+`calves`→`calves`); `head`/`neck`/
   `knees` → `region=null` (grijze basis). Het component tekent per `BodyPart` de polygonen, kleurt
   ze op volume-niveau (`MUSCLE_LEVEL_COLOR`), maakt ze klikbaar en highlight de geselecteerde regio.
-  **Kanttekening**: de dataset heeft géén aparte `lats`-polygoon (opgenomen in `upper-back`), dus
-  `lats`-volume kleurt niet apart op de figuur (wel in de analyse/vergelijking). Regenereren = de
-  MIT-bron opnieuw mappen; niet met de hand editen. `components/muscle/muscle-comparison.tsx`
+  **GEDEELDE POLYGONEN (`REGION_SHARED_POLYGON` in lib/muscle-map.ts)**: de MIT-dataset heeft géén
+  aparte `lats`-vorm (die zit in `upper-back`), terwijl RepDB `latissimus_dorsi` wél onderscheidt.
+  Eén polygoon draagt daarom méérdere regio's: hij kleurt op de **zwaarst belaste** ervan (som zou
+  hetzelfde oppervlak dubbel tellen), `aria-label` noemt beide en het detailpaneel splitst ze uit
+  met elk hun eigen volume. De geometrie blijft ongemoeid — nooit met de hand splitsen; regenereren
+  = de MIT-bron opnieuw mappen. Een test in `tests/muscle-volume.test.ts` dwingt af dat élke regio
+  zichtbaar is (eigen polygoon óf gekoppeld) én dat een meelifter op hetzelfde aanzicht staat als
+  zijn gastheer — zo kan een nieuwe regio nooit stil onzichtbaar blijven.
+  `components/muscle/muscle-comparison.tsx`
   — per-spiergroep "bullet"-balken (accent-vulling = echt getraind, streepje = schema-doel) met
   bovenaan een therapietrouw-ring (% van gepland volume gehaald); vervangt de eerdere radar —
   duidelijker af te lezen welke spiergroepen achterblijven ("Achter") of extra getraind worden ("Extra").
@@ -789,7 +1078,7 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
   `deletedAt`), huisstijl-editor (accent/secundair/logo/favicon/font — runtime in `app/layout.tsx`),
   ledenbeheer + uitnodigingen per tenant, globale gebruikers (`/admin/users`), audit-viewer
   (`/admin/audit`).
-- **Tenant-admin** beheert eigen leden op `/owner/members` (uitnodigen, rol, (de)activeren,
+- **Tenant-admin** beheert eigen leden op `/owner/members` (uitnodigen, (de)activeren,
   verwijderen — niet zichzelf). Server-actions zijn gescoped op `owner.tenantId`.
 - **Invitations**: `Invitation`-model (token + 7d vervaldatum); mail naar server-console in dev
   (`lib/invitation.ts`, net als de magic link). Publieke accept-flow `/invite/[token]` maakt/
@@ -824,11 +1113,30 @@ Vierde rol **`TENANT_STAFF`** (Sportschoolmedewerker/coach): tenant-gebonden coa
   **read-only variant** voor staff (geen invite/rol/verwijderen); profieltabs zijn
   permissie-gefilterd.
 - **Medewerkersbeheer** op **`/owner/staff`** (admin-only): uitnodigen (hergebruikt
-  `inviteMember` met `role=TENANT_STAFF`), (de)activeren/verwijderen/opnieuw uitnodigen
-  (hergebruikt `app/owner/members/actions.ts`; `tenantRole`-zod uitgebreid met `TENANT_STAFF`),
+  `inviteMember`, met rolkeuze medewerker/beheerder), (de)activeren/verwijderen/opnieuw
+  uitnodigen (hergebruikt `app/owner/members/actions.ts`), rol wisselen (`setMemberRole`)
   en de **rechtenmatrix** (`components/staff/permission-matrix.tsx` → `setStaffPermissions`
-  in `app/owner/staff/actions.ts`, `requireOwner` + `role:assign`). `listMembers` sluit staff
-  bewust uit (filter admin+member); de staff-pagina queryt `TENANT_STAFF` apart.
+  in `app/owner/staff/actions.ts`, `requireOwner` + `role:assign`).
+- **LEDEN ↔ TEAM ZIJN GESCHEIDEN LIJSTEN.** `/owner/members` = uitsluitend
+  **`TENANT_MEMBER`** (de sportersadministratie), `/owner/staff` = het **team**
+  (`TENANT_ADMIN` + `TENANT_STAFF`). Eerder stonden beheerders tússen de leden: het
+  toevoegformulier had een rolkeuze "Lid/Beheerder", waardoor een beheerder in de
+  ledenlijst, de ledentellingen en de leden-uitnodigingen meeliep. Nu:
+  - `listMembers` (lib/members.ts) filtert hard op `role: "TENANT_MEMBER"` (de
+    `role`-optie is weg — er valt niets meer te kiezen); de ledenlijst heeft geen
+    rolkolom meer en toont alleen `TENANT_MEMBER`-uitnodigingen.
+  - `addMember` negeert een meegestuurde rol en maakt altijd een sporter;
+    `inviteMember` accepteert alléén de teamrollen (`TEAM_ROLES`) en is dus de staff-kant.
+  - **Bulk-import maakt altijd sporters**: `ImportFieldKey` heeft geen `role` meer
+    (een "rol"-kolom in een klantbestand zou stil beheerders aanmaken).
+  - **Promoveren gebeurt op het ledenprofiel** (`member-edit-form.tsx`, admin-only):
+    kies Medewerker/Beheerder → de persoon verdwijnt uit de ledenlijst en verschijnt
+    bij Medewerkers. Degraderen kan met dezelfde rol-select op `/owner/staff`.
+  - **Zelf-degradatie is geblokkeerd** in `setMemberRole` én `editMember` (spiegelt
+    `setMemberActive`/`deleteMember`): een eigenaar sluit zichzelf anders buiten.
+  - Alle gedeelde acties revalideren **beide** paden (`/owner/members` + `/owner/staff`).
+  - Een beheerder heeft per definitie alle rechten op álle vestigingen, dus zijn kaart
+    op `/owner/staff` toont géén rechtenmatrix en géén vestiging-chips.
 - **Coachnotities** (nieuw): model `CoachNote` (tenant-scoped + RLS), `lib/coach-notes.ts`,
   tab "Coachnotities" op het ledenprofiel (`/owner/members/[userId]/notes`,
   `requirePermission("coachnotes:manage")`) met toevoegen/bewerken/pinnen/verwijderen.
@@ -1289,10 +1597,28 @@ huisstijl + verzending blijven gedeeld.
 - **`layout.ts`** (`renderEmailLayout`) — de centrale HTML-shell: table-based,
   600px, inline CSS, `<style>` met responsive + `prefers-color-scheme:dark`, MSO
   conditionals, verborgen preheader, branded header (logo/wordmark) + footer
-  (contact, socials, reden, auto-bericht, copyright).
+  (contact, socials, reden, auto-bericht, copyright). `scheme` (`"auto"` default |
+  `"light"` | `"dark"`) forceert één weergave zonder media-query — de
+  template-preview gebruikt dat (licht/donker-schakelaar in de editor).
 - **`components.ts`** — table-safe string-bouwstenen (`emailButton` = bulletproof
   VML-knop, `emailHeading/Paragraph/Muted/Divider/LinkFallback/InfoCard`,
   `escapeHtml` voor álle gebruikers-/tenant-input).
+- **LEESBAARHEID IN DARK MODE = `!important` + de `dm-*`-klassen.** E-mailinhoud
+  draagt **inline** kleuren (verplicht voor Outlook/Gmail) en die winnen van een
+  gewone klasse-regel. De dark-mode-CSS kleurde daarom alleen de kaart donker,
+  terwijl elke `<h1>`/`<p>` op `#1f2937` bleef staan: **1,2:1 — onleesbaar**.
+  `DARK_RULES` (layout.ts) zet nu álles met `!important`, want een
+  `!important`-declaratie uit het `<style>`-blok verslaat wél een inline `style`.
+  Bouwstenen dragen `dm-text`/`dm-muted`/`dm-panel`/`dm-divider`; daarnaast is er
+  een **vangnetregel** `.dm-card h1,…,p,td,span,strong,li` zodat óók door de
+  Superadmin geschreven template-HTML (die onze klassen niet kent) leesbaar
+  blijft. **`<a>` staat bewust NIET in dat vangnet** — dat zou het knoplabel
+  overschrijven en `accentText` op een licht accent slopen. Nieuwe bouwsteen =
+  de passende `dm-*`-klasse meegeven; test `tests/color-contrast.test.ts`.
+- **Knop-/headertekst = `readableText`** (lib/color.ts, puur + gedeeld met
+  `--tenant-accent-foreground`): wit zolang dat ≥ 3:1 haalt, anders donkergrijs.
+  De oude luminantie-grens (0,55) gaf **wit op geel/limoen** (~1,8:1); donkere en
+  middeldonkere accenten (o.a. het GymRebel-oranje) houden gewoon wit.
 - **`messages.ts`** — composers `{ subject, html, text }` per type (elk levert óók
   een **plain-text alternatief**): `magicLink`, `invite`, `emailChange`, `welcome`,
   `passwordChanged`, `schemaAssigned`.
@@ -1307,6 +1633,27 @@ huisstijl + verzending blijven gedeeld.
   gewijzigd (`app/account/security-actions.ts`), schema toegewezen
   (`app/owner/schemas/actions.ts` → `notifySchemaAssigned`). Nieuwe-flow-sends zijn
   best-effort (try/catch, vóór een eventuele `redirect`) — breken de actie nooit.
+- **UITNODIGINGEN ZIJN TRANSACTIONEEL, GEEN MELDING.** `createInvitation`
+  (lib/invitation.ts) loopt bewust **niet** langs `shouldNotifyByEmail` — net als de
+  magic link en de e-mailverificatie: zonder die mail komt de ontvanger niet binnen.
+  Dat ging eerder mis: e-mail staat per categorie standaard **uit** (alleen `schemas`
+  staat aan), dus elke (her)uitnodiging naar een adres dat al een `User`-rij had
+  verdween stil terwijl de UI "opnieuw verzonden" meldde. De categorie `invitations`
+  bestaat nog voor reeds opgeslagen voorkeuren maar stuurt niets meer aan en staat
+  daarom **niet** meer in `/account/meldingen`. Niet opnieuw als gate gebruiken.
+- **BEZORGRESULTAAT WORDT GEREGISTREERD, NOOIT AANGENOMEN.** `sendEmail` geeft
+  `"sent" | "logged"` terug; `sendInviteEmail`/`createInvitation` geven dat door
+  (die gooiden het eerder weg, waardoor niemand kon zien of er echt iets wegging).
+  `createInvitation` audit **zelf** `user.invite.email` (`{email, delivery}`, status
+  `FAILED` bij `logged`) zodat geen enkel uitnodig-pad dat kan vergeten; de
+  call-site-audits (`user.invite`/`user.invite.resend`) dragen `delivery` als extra
+  metadata. `listPendingInvitations` leidt `lastDelivery` af uit die auditregel
+  (**geen extra kolom**, zelfde patroon als de statustijdlijn bij app-meldingen) →
+  badge "E-mail niet verstuurd" in `PendingInvitationsTable`. Ook zichtbaar in het
+  superadmin-uitnodigingsformulier, de import-wizard en op `/invite/[token]`
+  (`?resent=0`). **Let op**: Graph verstuurt app-only vanuit `GRAPH_SENDER`, en de
+  JSON-fallback zet `saveToSentItems: false` — de Verzonden-map is dus géén bewijs
+  van (niet-)verzending, het auditlog wel.
 
 ### E-mailtemplatebeheer (Superadmin, DB-backed, geen redeploy)
 
@@ -1343,7 +1690,9 @@ toegevoegd door `renderEmailLayout` — branding kan dus niet stuk en blijft whi
   + client-editor (`[key]/editor.tsx`) met **CodeMirror 6** (`@uiw/react-codemirror` +
   `@codemirror/lang-html`, dynamic `ssr:false` in `code-editor.tsx`; zoek/vervang +
   undo/redo via `basicSetup`), placeholder-invoegchips, autosave-concept, **live preview**
-  in een sandboxed `<iframe srcDoc>` (device-toggle desktop/tablet/mobiel + tenant-selector
+  in een sandboxed `<iframe srcDoc>` (device-toggle desktop/tablet/mobiel +
+  **licht/donker-toggle** — de preview forceert het schema via `renderPreview`, want de
+  iframe zou anders de dark-mode van de beheerder z'n eigen browser volgen + tenant-selector
   → echte huisstijl + testgegevens-toggle), publiceren (bevestiging + versie), testmail
   (eigen adres + tenant) en versiegeschiedenis met herstellen.
 - **Server-actions** `[key]/actions.ts` (`requireSuperadmin` + Zod): `saveDraft`,
@@ -1397,7 +1746,8 @@ sleutels → NL-fallback). Géén Prisma-migratie nodig: `enum Locale {NL,EN,FY}
   `User.locale`).
 - **Provider**: `app/layout.tsx` wrapt in `NextIntlClientProvider`; `<html lang>` volgt de
   **UI-locale** (niet langer `tenant.locale`). Tenant-branding (logo/accent/font) blijft
-  100% taal-onafhankelijk.
+  100% taal-onafhankelijk. **Dataset-content** (oefeningteksten) volgt dezelfde regel via
+  `getContentLocale` — zie "TAAL VAN DATASET-CONTENT" in de bibliotheek-sectie.
 - **Persistentie/detectie**: de switcher zet cookie + `User.locale`; de **JWT/session** dragen
   `locale` en **`proxy.ts`** zet bij de eerste request na login de cookie uit `User.locale`
   (dekt magic-link/OAuth/wachtwoord). Nieuwe gast → `Accept-Language` → NL.
