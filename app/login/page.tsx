@@ -3,7 +3,7 @@ import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
 import { DEV_FALLBACK_TENANT } from "@/lib/constants";
 import { oauthEnabled } from "@/lib/oauth";
-import { demoLoginEnabled, DEMO_ACCOUNTS } from "@/lib/demo-login";
+import { listDemoAccounts } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 
@@ -19,7 +19,8 @@ export default async function LoginPage() {
   const tenant = await getCurrentTenant();
   const t = await getTranslations("auth");
   const oauth = oauthEnabled();
-  const demoAccounts = demoLoginEnabled() ? DEMO_ACCOUNTS : null;
+  // Leeg wanneer demo-login uit staat (zie listDemoAccounts).
+  const demoAccounts = await listDemoAccounts();
 
   const name = tenant?.name ?? "GymRebel";
   const initial = name.charAt(0).toUpperCase();
