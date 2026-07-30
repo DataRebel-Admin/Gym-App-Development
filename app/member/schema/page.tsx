@@ -7,7 +7,7 @@ import { enforceSessionTimeout } from "@/lib/session-timeout";
 import { MarkAutoStopSeen } from "@/components/member/mark-auto-stop-seen";
 import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding } from "@/components/ui/icons";
+import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding, Pencil } from "@/components/ui/icons";
 import {
   SchemaChecklist,
   type ChecklistItem,
@@ -148,7 +148,7 @@ export default async function MemberSchemaPage() {
                   href="/member/schema/builder"
                   className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
                 >
-                  <Dumbbell className="size-4" /> Zelf samenstellen
+                  <Dumbbell className="size-4" /> {t("buildSelf")}
                 </Link>
               ) : null}
               <Link
@@ -338,6 +338,17 @@ export default async function MemberSchemaPage() {
       >
         <PersonStanding className="size-4 text-accent" /> {t("muscleAnalysis")}
       </Link>
+
+      {/* Ook mét een actief schema bereikbaar — anders is de builder onvindbaar
+          zodra een trainer al een schema heeft toegewezen. */}
+      {canBuild ? (
+        <Link
+          href="/member/schema/builder"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-border px-6 py-3 text-center text-sm font-medium text-neutral-700 active:bg-surface-2"
+        >
+          <Pencil className="size-4 text-accent" /> {t("buildOwnSchema")}
+        </Link>
+      ) : null}
     </Fullscreenable>
   );
 }

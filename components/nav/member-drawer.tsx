@@ -9,7 +9,8 @@ import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, PersonStanding, Trophy } from "@/components/ui/icons";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, Pencil, PersonStanding, Trophy, Flag, Wrench } from "@/components/ui/icons";
+import { ReportProblemModal } from "@/components/reports/report-problem-modal";
 import { reopenOnboarding } from "@/components/member/onboarding";
 import { useHydrated } from "@/lib/hooks/use-client-value";
 import type { UserTenant } from "@/lib/tenants";
@@ -26,6 +27,7 @@ export function MemberDrawer({
   tenants,
   currentSlug,
   showAchievements = false,
+  showSchemaBuilder = false,
 }: {
   name: string | null;
   email: string | null;
@@ -33,8 +35,10 @@ export function MemberDrawer({
   tenants: UserTenant[];
   currentSlug: string | null;
   showAchievements?: boolean;
+  showSchemaBuilder?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
   const mounted = useHydrated();
   const display = name ?? email ?? "Sporter";
@@ -130,6 +134,14 @@ export function MemberDrawer({
                 <DrawerLink href="/member/requests" icon={<ClipboardList className="size-5" />} onClick={() => setOpen(false)}>
                   Schema aanvragen
                 </DrawerLink>
+                {showSchemaBuilder ? (
+                  <DrawerLink href="/member/schema/builder" icon={<Pencil className="size-5" />} onClick={() => setOpen(false)}>
+                    Zelf schema samenstellen
+                  </DrawerLink>
+                ) : null}
+                <DrawerLink href="/member/defects" icon={<Wrench className="size-5" />} onClick={() => setOpen(false)}>
+                  Apparaatdefect melden
+                </DrawerLink>
                 <DrawerLink href="/member/gym" icon={<Building2 className="size-5" />} onClick={() => setOpen(false)}>
                   Sportschool
                 </DrawerLink>
@@ -145,6 +157,18 @@ export function MemberDrawer({
                 <DrawerLink href="/account" icon={<Settings className="size-5" />} onClick={() => setOpen(false)}>
                   Accountinstellingen
                 </DrawerLink>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setReportOpen(true);
+                  }}
+                  className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-neutral-800 transition-colors hover:bg-surface-2"
+                >
+                  <span className="text-accent"><Flag className="size-5" /></span>
+                  <span className="flex-1 text-left">Probleem melden</span>
+                  <ChevronRight className="size-4 text-neutral-300" />
+                </button>
               </nav>
 
               {/* Sportschool wisselen */}
@@ -200,6 +224,7 @@ export function MemberDrawer({
             document.body
           )
         : null}
+      <ReportProblemModal open={reportOpen} onClose={() => setReportOpen(false)} />
     </>
   );
 }
