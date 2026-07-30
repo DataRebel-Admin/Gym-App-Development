@@ -122,8 +122,15 @@ export default async function InviteActivationPage({
             {status === "ok" ? (
               <>
                 {resent ? (
-                  <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-center text-xs font-medium text-emerald-700">
-                    {t("resent")}
+                  // `resent=0` → de link is vernieuwd maar de mail ging niet weg.
+                  <p
+                    className={
+                      resent === "0"
+                        ? "rounded-xl bg-amber-50 px-3 py-2.5 text-center text-xs font-medium text-amber-700"
+                        : "rounded-xl bg-emerald-50 px-3 py-2.5 text-center text-xs font-medium text-emerald-700"
+                    }
+                  >
+                    {resent === "0" ? t("resentFailed") : t("resent")}
                   </p>
                 ) : null}
                 <p className="text-center text-sm text-neutral-600">

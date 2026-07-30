@@ -11,6 +11,11 @@ import { prisma } from "@/lib/db";
  */
 export type NotificationCategory =
   | "new_members"
+  /**
+   * Behouden voor reeds opgeslagen voorkeuren, maar stuurt niets meer aan: een
+   * uitnodiging is transactioneel en loopt sinds `createInvitation` bewust langs
+   * deze check heen (zie de toelichting daar). Niet opnieuw als gate gebruiken.
+   */
   | "invitations"
   | "schemas"
   | "changes"

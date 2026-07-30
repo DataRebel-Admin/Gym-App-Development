@@ -40,6 +40,21 @@ function formatDate(d: Date): string {
 }
 
 /**
+ * "Verzonden" in de statuskolom slaat op de uitnodiging zelf, niet op de mail.
+ * Deze badge toont het bezorgresultaat van de laatste poging (afgeleid uit het
+ * auditlog) zodat een uitnodiging die alleen in de serverlog belandde niet als
+ * verstuurd overkomt. Onbekend (geen auditregel) toont bewust niets.
+ */
+function DeliveryBadge({ inv }: { inv: PendingInvitationRow }) {
+  if (inv.lastDelivery !== "logged") return null;
+  return (
+    <span title="De uitnodiging staat klaar, maar er is geen e-mail verstuurd (geen mailtransport ingesteld of uitgaande mail staat uit). Controleer de platforminstellingen en stuur daarna opnieuw.">
+      <Badge tone="danger">E-mail niet verstuurd</Badge>
+    </span>
+  );
+}
+
+/**
  * Gedeeld overzicht van uitstaande uitnodigingen — gebruikt door superadmin
  * (platformbreed, `showTenant`) én tenant-admin (gescoped). De resend/revoke
  * server-actions worden door de caller meegegeven zodat scoping + revalidatie
@@ -162,6 +177,7 @@ export function PendingInvitationsTable({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge tone={STATUS_TONE[inv.status]}>{STATUS_LABEL[inv.status]}</Badge>
                       {inv.hasAccount ? <Badge tone="neutral">heeft account</Badge> : null}
+                      <DeliveryBadge inv={inv} />
                     </div>
                   </Td>
                   <Td className="text-neutral-600">{formatDate(inv.expiresAt)}</Td>

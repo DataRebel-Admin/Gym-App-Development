@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";
-import { inviteToken, inviteExpiry, sendInviteEmail } from "@/lib/invitation";
+import { createInvitation } from "@/lib/invitation";
 
 const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_MEMBER"]);
 
@@ -50,19 +50,18 @@ export async function inviteToTenant(formData: FormData) {
   });
   if (existingUser) return;
 
-  const token = inviteToken();
-  await prisma.invitation.upsert({
-    where: { tenantId_email: { tenantId, email } },
-    update: { role, token, expiresAt: inviteExpiry(), invitedById: admin.id, acceptedAt: null },
-    create: { tenantId, email, role, token, expiresAt: inviteExpiry(), invitedById: admin.id },
-  });
-
-  await sendInviteEmail({
-    email,
+  // Via de gedeelde helper (token + mail + bezorg-audit op één plek) in plaats
+  // van een eigen upsert; anders mist dit pad de registratie van het
+  // bezorgresultaat die de andere uitnodig-paden wél hebben.
+  const delivery = await createInvitation({
     tenantId,
-    acceptUrl: `${await origin()}/invite/${token}`,
+    email,
+    role,
+    invitedById: admin.id,
+    origin: await origin(),
+    actor: admin,
   });
-  await audit("user.invite", { actor: admin, tenantId, targetType: "Invitation", metadata: { email, role } });
+  await audit("user.invite", { actor: admin, tenantId, targetType: "Invitation", metadata: { email, role, delivery } });
 
   revalidate(tenantId);
 }

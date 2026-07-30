@@ -41,6 +41,15 @@ function s(meta: Meta, key: string): string | undefined {
   return v == null ? undefined : String(v);
 }
 
+/**
+ * Zelfstandig naamwoord voor een `SchemaRequest`, afgeleid uit `kind` in de
+ * metadata. Een aanpassingsverzoek is een andere vraag aan de coach dan een
+ * nieuw-schema-aanvraag; de activiteiten-widget hoort dat verschil te tonen.
+ */
+function requestNoun(meta: Meta): string {
+  return s(meta, "kind") === "CHANGE" ? "aanpassingsverzoek" : "schema-aanvraag";
+}
+
 export const CATEGORY_META: Record<
   AuditCategory,
   { label: string; icon: string; tone: BadgeTone }
@@ -169,6 +178,15 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft de uitnodiging voor ${s(meta, "email") ?? "een lid"} opnieuw verstuurd`,
   },
+  "user.invite.email": {
+    category: "members", label: "Uitnodigingsmail", icon: "📤", tone: "neutral",
+    sentence: ({ meta }) => {
+      const email = s(meta, "email") ?? "een lid";
+      return s(meta, "delivery") === "sent"
+        ? `De uitnodigingsmail voor ${email} is verstuurd`
+        : `De uitnodigingsmail voor ${email} is NIET verstuurd (alleen gelogd)`;
+    },
+  },
   "user.invite.revoke": {
     category: "members", label: "Uitnodiging ingetrokken", icon: "🚫", tone: "warning",
     sentence: ({ actor }) => `${actor} heeft een uitnodiging ingetrokken`,
@@ -237,6 +255,13 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "schemas", label: "Schema verwijderd", icon: "🗑️", tone: "danger",
     sentence: ({ actor, meta }) =>
       `${actor} heeft schema ${s(meta, "name") ?? ""} verwijderd`.trim(),
+  },
+  "schema.image.set": {
+    category: "schemas", label: "Schema-afbeelding gewijzigd", icon: "🖼️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      s(meta, "removed") === "true"
+        ? `${actor} heeft de afbeelding van schema ${s(meta, "name") ?? ""} verwijderd`.trim()
+        : `${actor} heeft een afbeelding ingesteld voor schema ${s(meta, "name") ?? ""}`.trim(),
   },
   "schema.duplicate": {
     category: "schemas", label: "Schema gedupliceerd", icon: "📑", tone: "neutral",
@@ -406,6 +431,16 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft zelf-schema '${s(meta, "name") ?? ""}' ingediend ter controle`.trim(),
   },
+  "schema.member.edit": {
+    category: "schemas", label: "Toegewezen schema aangepast", icon: "✏️", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft het toegewezen schema '${s(meta, "name") ?? ""}' zelf aangepast`.trim(),
+  },
+  "schema.member.withdraw": {
+    category: "schemas", label: "Zelf-schema ingetrokken", icon: "↩️", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de indiening van zelf-schema '${s(meta, "name") ?? ""}' ingetrokken`.trim(),
+  },
   "schema.member.approve": {
     category: "schemas", label: "Zelf-schema goedgekeurd", icon: "✅", tone: "success",
     sentence: ({ actor, meta }) =>
@@ -448,6 +483,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ meta }) =>
       `${s(meta, "member") ?? "Een lid"} heeft een nieuw trainingsschema aangevraagd`,
   },
+  "request.change.submit": {
+    category: "schemas", label: "Aanpassing van schema gevraagd", icon: "📝", tone: "accent",
+    sentence: ({ meta }) =>
+      `${s(meta, "member") ?? "Een lid"} heeft een aanpassing van het huidige schema gevraagd`,
+  },
   "request.status.change": {
     category: "schemas", label: "Aanvraagstatus gewijzigd", icon: "🔁", tone: "neutral",
     sentence: ({ actor, meta }) =>
@@ -459,8 +499,13 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
       `${actor} heeft een schema-aanvraag van ${s(meta, "member") ?? "een lid"} afgerond met een schema`,
   },
   "request.cancel": {
-    category: "schemas", label: "Schema-aanvraag geannuleerd", icon: "✖️", tone: "warning",
-    sentence: ({ actor }) => `${actor} heeft een schema-aanvraag geannuleerd`,
+    category: "schemas", label: "Aanvraag ingetrokken", icon: "✖️", tone: "warning",
+    sentence: ({ actor, meta }) => `${actor} heeft een ${requestNoun(meta)} ingetrokken`,
+  },
+  "request.delete": {
+    category: "schemas", label: "Aanvraag verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft een afgesloten ${requestNoun(meta)} verwijderd`,
   },
 
   // --- Oefeningen ---

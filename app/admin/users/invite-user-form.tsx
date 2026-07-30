@@ -47,8 +47,14 @@ export function InviteUserForm({
         Uitnodigen
       </Button>
       {state.error ? <p className="w-full text-sm text-red-600">{state.error}</p> : null}
-      {state.ok ? (
+      {state.ok && state.delivery === "sent" ? (
         <p className="w-full text-sm text-green-600">Uitnodiging verzonden.</p>
+      ) : null}
+      {state.ok && state.delivery !== "sent" ? (
+        <p className="w-full text-sm text-amber-700">
+          Uitnodiging aangemaakt, maar er is géén e-mail verstuurd. Er is geen mailtransport
+          ingesteld of uitgaande mail staat uit onder Platforminstellingen.
+        </p>
       ) : null}
     </form>
   );

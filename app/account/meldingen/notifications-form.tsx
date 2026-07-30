@@ -6,7 +6,9 @@ import { saveNotificationPrefs, type AccountFormState } from "../actions";
 
 const CATEGORIES = [
   { key: "new_members", label: "Nieuwe leden" },
-  { key: "invitations", label: "Uitnodigingen" },
+  // Bewust geen "Uitnodigingen": een uitnodiging is transactioneel (zonder die
+  // mail kom je niet binnen) en loopt daarom niet langs deze voorkeuren, net als
+  // de magic link. Een schakelaar tonen die niets doet, is misleidend.
   { key: "schemas", label: "Trainingsschema's" },
   { key: "achievements", label: "Trofeeën" },
   { key: "maintenance", label: "Onderhoud" },

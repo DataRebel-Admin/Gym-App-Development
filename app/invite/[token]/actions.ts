@@ -182,19 +182,22 @@ export async function requestNewActivationLink(
     return { error: "Deze link kan niet vernieuwd worden. Vraag de sportschool om een nieuwe uitnodiging." };
   }
 
-  await createInvitation({
+  const delivery = await createInvitation({
     tenantId: invite.tenantId,
     email: invite.email,
     role: invite.role,
     invitedById: invite.invitedById,
     origin: await origin(),
+    actor: { email: invite.email, role: invite.role },
   });
   await audit("user.activate.resend", {
     actor: { email: invite.email, role: invite.role },
     tenantId: invite.tenantId,
     targetType: "Invitation",
-    metadata: { email: invite.email },
+    metadata: { email: invite.email, delivery },
   });
 
-  redirect(`/invite/${token}?resent=1`);
+  // Ging er niets de deur uit, zeg dat dan ook: anders wacht de bezoeker op een
+  // mail die nooit komt.
+  redirect(`/invite/${token}?resent=${delivery === "sent" ? "1" : "0"}`);
 }

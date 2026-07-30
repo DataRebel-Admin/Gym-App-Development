@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";
 import { createInvitation } from "@/lib/invitation";
+import type { EmailDelivery } from "@/lib/email/send";
 
 const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_MEMBER"]);
 
@@ -17,7 +18,12 @@ async function origin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-export type InviteFormState = { ok?: boolean; error?: string };
+export type InviteFormState = {
+  ok?: boolean;
+  error?: string;
+  /** `"logged"` = de uitnodiging staat klaar, maar er ging géén mail de deur uit. */
+  delivery?: EmailDelivery;
+};
 
 const inviteSchema = z.object({
   tenantId: z.string().min(1, "Kies een tenant"),
@@ -53,11 +59,18 @@ export async function inviteUser(
     return { error: "Deze gebruiker heeft al een actief account in deze tenant" };
   }
 
-  await createInvitation({ tenantId, email, role, invitedById: admin.id, origin: await origin() });
-  await audit("user.invite", { actor: admin, tenantId, targetType: "Invitation", metadata: { email, role } });
+  const delivery = await createInvitation({
+    tenantId,
+    email,
+    role,
+    invitedById: admin.id,
+    origin: await origin(),
+    actor: admin,
+  });
+  await audit("user.invite", { actor: admin, tenantId, targetType: "Invitation", metadata: { email, role, delivery } });
 
   revalidatePath("/admin/users");
-  return { ok: true };
+  return { ok: true, delivery };
 }
 
 /** Verstuur een bestaande uitnodiging opnieuw (nieuwe token + vervaldatum). */
@@ -72,14 +85,15 @@ export async function resendInvitation(formData: FormData) {
   });
   if (!inv) return;
 
-  await createInvitation({
+  const delivery = await createInvitation({
     tenantId: inv.tenantId,
     email: inv.email,
     role: inv.role,
     invitedById: admin.id,
     origin: await origin(),
+    actor: admin,
   });
-  await audit("user.invite.resend", { actor: admin, tenantId: inv.tenantId, targetType: "Invitation", targetId: id, metadata: { email: inv.email } });
+  await audit("user.invite.resend", { actor: admin, tenantId: inv.tenantId, targetType: "Invitation", targetId: id, metadata: { email: inv.email, delivery } });
 
   revalidatePath("/admin/users");
 }
