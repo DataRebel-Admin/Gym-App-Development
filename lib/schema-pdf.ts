@@ -18,6 +18,8 @@ import {
   groupSummary,
   type GroupFields,
 } from "@/lib/exercise-groups";
+import { exerciseThumbUrl, type ExerciseThumbSource } from "@/lib/exercise-thumb";
+import { embedRemoteImage, embedRemoteImages } from "@/lib/pdf-image";
 
 /**
  * Alle statische PDF-teksten, vooraf vertaald door de aanroeper (route-handler
@@ -91,6 +93,11 @@ export type SchemaPdfItem = {
   /** Type-bewuste samenvatting (voor niet-kracht-types). */
   summary?: string;
   notes: string | null;
+  /**
+   * Absolute URL van de oefening-afbeelding (bron-bewust, zie
+   * `exerciseThumbUrl`). Aanwezig → de tabel krijgt een beeld-kolom.
+   */
+  imageUrl?: string | null;
 };
 
 export type SchemaPdfDay = { name: string; items: SchemaPdfItem[] };
@@ -105,7 +112,11 @@ type PdfSourceItem = {
   params: unknown;
   notes: string | null;
   memberNote: string | null;
-  exercise: { name: string; exerciseType: string; machine: { name: string } | null };
+  exercise: {
+    name: string;
+    exerciseType: string;
+    machine: { name: string } | null;
+  } & ExerciseThumbSource;
 } & GroupFields;
 
 /**
@@ -139,6 +150,7 @@ export function buildPdfItems(items: PdfSourceItem[]): SchemaPdfItem[] {
         exerciseType: type,
         summary: targetSummaryFromItem(it, type),
         notes: noteParts.length > 0 ? noteParts.join(" · ") : null,
+        imageUrl: exerciseThumbUrl(it.exercise),
       });
     });
   }
@@ -257,33 +269,49 @@ function formatRest(sec: number | null): string {
 
 // --- Tabel-kolommen --------------------------------------------------------
 type ColAlign = "left" | "center";
-const RAW_COLS: { key: string; label: string; w: number; align: ColAlign }[] = [
-  { key: "ex", label: "Oefening", w: 196, align: "left" },
-  { key: "sets", label: "Sets", w: 42, align: "center" },
-  { key: "reps", label: "Reps", w: 46, align: "center" },
-  { key: "weight", label: "Gewicht", w: 58, align: "center" },
-  { key: "rest", label: "Rust", w: 46, align: "center" },
-  { key: "tempo", label: "Tempo", w: 42, align: "center" },
-];
-// Notities-kolom vult de resterende breedte.
-const COLS = (() => {
-  const used = RAW_COLS.reduce((a, c) => a + c.w, 0);
-  return [
-    ...RAW_COLS,
-    { key: "notes", label: "Notities", w: CONTENT_W - used, align: "left" as ColAlign },
-  ];
-})();
-const colX = (() => {
-  const xs: Record<string, number> = {};
-  let x = MARGIN;
-  for (const c of COLS) {
-    xs[c.key] = x;
-    x += c.w;
-  }
-  return xs;
-})();
+type Col = { key: string; w: number; align: ColAlign };
 
 const CELL_PAD = 7;
+/** Zijde van het vierkante thumbnail-vak in de tabel (pt). */
+const THUMB_BOX = 34;
+/** Breedte van de beeld-kolom: het vak + ademruimte naar de naam. */
+const IMG_COL_W = THUMB_BOX + CELL_PAD;
+/** Breedte van de oefening-kolom (naam + machine) zonder beeld. */
+const EX_COL_W = 196;
+
+/**
+ * Kolommen + hun x-posities. De beeld-kolom bestaat **alleen** als dit schema
+ * minstens één afbeelding heeft: zonder beeld houdt de oefening-kolom z'n volle
+ * breedte, zodat een tekst-only schema er precies uitziet als voorheen. Met
+ * beeld gaat de ruimte van de naam-kolom af (de notities-kolom is de smalste en
+ * kan niets missen); de naam wrapt dan een regel extra, wat ruimschoots binnen
+ * de rijhoogte valt die de thumbnail toch al oplegt.
+ */
+function buildColumns(withImages: boolean) {
+  const fixed: Col[] = [
+    ...(withImages ? [{ key: "img", w: IMG_COL_W, align: "center" as ColAlign }] : []),
+    { key: "ex", w: EX_COL_W - (withImages ? IMG_COL_W : 0), align: "left" },
+    { key: "sets", w: 42, align: "center" },
+    { key: "reps", w: 46, align: "center" },
+    { key: "weight", w: 58, align: "center" },
+    { key: "rest", w: 46, align: "center" },
+    { key: "tempo", w: 42, align: "center" },
+  ];
+  const used = fixed.reduce((a, c) => a + c.w, 0);
+  // Notities-kolom vult de resterende breedte.
+  const cols: Col[] = [...fixed, { key: "notes", w: CONTENT_W - used, align: "left" }];
+
+  const W: Record<string, number> = {};
+  const X: Record<string, number> = {};
+  let x = MARGIN;
+  for (const c of cols) {
+    W[c.key] = c.w;
+    X[c.key] = x;
+    x += c.w;
+  }
+  return { cols, W, X };
+}
+
 const NAME_SIZE = 9.5;
 const SUB_SIZE = 7.5;
 const CELL_SIZE = 9.5;
@@ -292,7 +320,7 @@ const NOTE_SIZE = 7.5;
 // =========================================================================
 export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  doc.setTitle(`${sanitize(data.schemaName)} — ${sanitize(data.memberName)}`);
+  doc.setTitle(`${sanitize(data.schemaName)} · ${sanitize(data.memberName)}`);
   doc.setProducer("GymRebel");
   doc.setCreator(sanitize(data.tenantName));
 
@@ -304,21 +332,22 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   const secondary = hexToTuple(data.secondaryColor, accent);
   const accentSoft = mix(accent, WHITE, 0.88); // zeer lichte tint voor vlakken
 
-  // Logo eenmalig embedden (kan op meerdere plekken gebruikt worden).
-  let logo: PDFImage | null = null;
-  if (data.logoUrl) {
-    try {
-      const res = await fetch(data.logoUrl);
-      if (res.ok) {
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        logo = data.logoUrl.toLowerCase().endsWith(".png")
-          ? await doc.embedPng(bytes)
-          : await doc.embedJpg(bytes);
-      }
-    } catch {
-      logo = null;
-    }
-  }
+  // Logo eenmalig embedden (kan op meerdere plekken gebruikt worden). Via de
+  // gedeelde helper, zodat een WebP/GIF-logo óók werkt (niet alleen PNG/JPEG).
+  const logo: PDFImage | null = data.logoUrl
+    ? await embedRemoteImage(doc, data.logoUrl, { maxPx: 400 })
+    : null;
+
+  // Oefening-afbeeldingen: alle unieke URL's parallel ophalen en één keer
+  // embedden (dezelfde oefening op meerdere dagen kost dus één plaatje).
+  // Mislukt er één, dan staat 'ie niet in de map en rendert die rij zonder
+  // beeld — de download gaat nooit stuk op een afbeelding.
+  const thumbs = await embedRemoteImages(
+    doc,
+    data.days.flatMap((d) => d.items.map((it) => it.imageUrl)),
+    { maxPx: 120 }
+  );
+  const { cols, W, X } = buildColumns(thumbs.size > 0);
 
   const L = data.labels;
   const createdStr = formatDate(data.createdAt ?? new Date(), data.locale, "long");
@@ -437,6 +466,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
 
   // ---- Tabel-header tekenen ----
   const COL_LABELS: Record<string, string> = {
+    img: "", // beeld-kolom blijft koploos
     ex: L.colExercise,
     sets: L.colSets,
     reps: L.colReps,
@@ -448,28 +478,35 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
   function drawTableHeader(continued = false) {
     const h = 19;
     rect(MARGIN, y - h + 13, CONTENT_W, h, mix(accent, WHITE, 0.9));
-    for (const c of COLS) {
-      const base = COL_LABELS[c.key] ?? c.label;
+    for (const c of cols) {
+      const base = COL_LABELS[c.key] ?? "";
+      if (!base) continue;
       const label = continued && c.key === "ex" ? `${base} ${L.continued}` : base;
       if (c.align === "center") {
-        textCenter(label, colX[c.key] + c.w / 2, y, 8, bold, mix(INK, SUBTLE, 0.3));
+        textCenter(label, X[c.key] + c.w / 2, y, 8, bold, mix(INK, SUBTLE, 0.3));
       } else {
-        text(label, colX[c.key] + CELL_PAD, y, 8, bold, mix(INK, SUBTLE, 0.3));
+        text(label, X[c.key] + CELL_PAD, y, 8, bold, mix(INK, SUBTLE, 0.3));
       }
     }
     y -= h + 1;
   }
 
+  /** Ingebedde afbeelding van een rij (of undefined als er geen beeld is). */
+  const thumbOf = (it: SchemaPdfItem) => (it.imageUrl ? thumbs.get(it.imageUrl) : undefined);
+
   // ---- Rij-hoogte schatten ----
   function rowHeight(it: SchemaPdfItem): number {
-    const nameLines = wrap(it.exercise, bold, NAME_SIZE, COLS[0].w - CELL_PAD * 2).length;
+    const nameLines = wrap(it.exercise, bold, NAME_SIZE, W.ex - CELL_PAD * 2).length;
     const subH = it.machine ? SUB_SIZE + 3 : 0;
     const noteLines = it.notes?.trim()
-      ? wrap(it.notes, font, NOTE_SIZE, COLS[6].w - CELL_PAD * 2).length
+      ? wrap(it.notes, font, NOTE_SIZE, W.notes - CELL_PAD * 2).length
       : 0;
     const left = nameLines * (NAME_SIZE + 2.5) + subH;
     const right = noteLines * (NOTE_SIZE + 2.5);
-    return CELL_PAD * 2 + Math.max(left, right, CELL_SIZE + 2);
+    // De thumbnail legt een ondergrens op de rijhoogte, zodat beeld nooit over
+    // de rijscheiding heen loopt.
+    const img = thumbOf(it) ? THUMB_BOX : 0;
+    return CELL_PAD * 2 + Math.max(left, right, CELL_SIZE + 2, img);
   }
 
   // ---- Eén rij tekenen ----
@@ -486,17 +523,32 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     // letterhoogte (~0.78·size) zodat de tekst-toppen netjes uitlijnen.
     const firstBaseline = (size: number) => top - CELL_PAD - size * 0.78;
 
+    // Afbeelding: past binnen THUMB_BOX met behoud van verhouding, horizontaal
+    // gecentreerd in de kolom en met de bovenrand op dezelfde hoogte als de naam.
+    const img = thumbOf(it);
+    if (img) {
+      const scale = Math.min(THUMB_BOX / img.width, THUMB_BOX / img.height, 1);
+      const iw = img.width * scale;
+      const ih = img.height * scale;
+      page.drawImage(img, {
+        x: X.img + (W.img - iw) / 2,
+        y: top - CELL_PAD - ih,
+        width: iw,
+        height: ih,
+      });
+    }
+
     // Oefening + machine-subtitel.
     let ny = firstBaseline(NAME_SIZE);
-    const nameLines = wrap(it.exercise, bold, NAME_SIZE, COLS[0].w - CELL_PAD * 2);
+    const nameLines = wrap(it.exercise, bold, NAME_SIZE, W.ex - CELL_PAD * 2);
     for (const ln of nameLines) {
-      text(ln, colX.ex + CELL_PAD, ny, NAME_SIZE, bold, INK);
+      text(ln, X.ex + CELL_PAD, ny, NAME_SIZE, bold, INK);
       ny -= NAME_SIZE + 2.5;
     }
     if (it.machine) {
       text(
-        ellipsize(it.machine, font, SUB_SIZE, COLS[0].w - CELL_PAD * 2),
-        colX.ex + CELL_PAD,
+        ellipsize(it.machine, font, SUB_SIZE, W.ex - CELL_PAD * 2),
+        X.ex + CELL_PAD,
         ny,
         SUB_SIZE,
         font,
@@ -509,7 +561,7 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     const isStrengthRow = !it.exerciseType || it.exerciseType === "strength";
     if (isStrengthRow) {
       const center = (key: string, s: string, c: Tuple = INK, f: PDFFont = font) =>
-        textCenter(s, colX[key] + COLS.find((k) => k.key === key)!.w / 2, cy, CELL_SIZE, f, c);
+        textCenter(s, X[key] + W[key] / 2, cy, CELL_SIZE, f, c);
       center("sets", String(it.sets), INK, bold);
       center("reps", String(it.reps));
       if (it.weightKg != null) center("weight", `${it.weightKg} kg`);
@@ -519,8 +571,8 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     } else {
       // Niet-kracht: de getalkolommen vervangen door één type-bewuste samenvatting
       // (tijd/afstand/intensiteit/…), die de Sets…Tempo-breedte overspant.
-      const spanX = colX.sets + CELL_PAD;
-      const spanW = colX.notes - colX.sets - CELL_PAD * 2;
+      const spanX = X.sets + CELL_PAD;
+      const spanW = X.notes - X.sets - CELL_PAD * 2;
       const s = it.summary?.trim() || "—";
       text(ellipsize(s, font, CELL_SIZE, spanW), spanX, cy, CELL_SIZE, font, INK);
     }
@@ -528,8 +580,8 @@ export async function buildSchemaPdf(data: SchemaPdfData): Promise<Uint8Array> {
     // Notities.
     if (it.notes?.trim()) {
       let qy = firstBaseline(NOTE_SIZE);
-      for (const ln of wrap(it.notes, font, NOTE_SIZE, COLS[6].w - CELL_PAD * 2)) {
-        text(ln, colX.notes + CELL_PAD, qy, NOTE_SIZE, font, mix(INK, SUBTLE, 0.4));
+      for (const ln of wrap(it.notes, font, NOTE_SIZE, W.notes - CELL_PAD * 2)) {
+        text(ln, X.notes + CELL_PAD, qy, NOTE_SIZE, font, mix(INK, SUBTLE, 0.4));
         qy -= NOTE_SIZE + 2.5;
       }
     }
