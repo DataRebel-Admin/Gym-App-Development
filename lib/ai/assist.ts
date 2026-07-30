@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { applySafetyGuardrail, SAFETY_FALLBACK } from "@/lib/ai-guardrail";
 import { aiConfigured, callModel } from "./provider";
 import { isFeatureEnabled } from "@/lib/features/service";
+import { getContentLocale } from "@/lib/i18n/content-locale";
 import { getSurface } from "./surfaces/registry";
 import type { AiRole } from "./surfaces/base";
 import type { AssistantAnswer, AssistantProposal, AssistantResult } from "./types";
@@ -139,8 +140,9 @@ export async function runSurfaceAssistant(
     };
   }
 
+  // Antwoordtaal = de taal van de lezer (UI-voorkeur), niet die van de sportschool.
   const built = await surface.build({
-    user: { ...input.user, locale: tenant.locale },
+    user: { ...input.user, locale: await getContentLocale(tenant.locale) },
     tenantName: tenant.name,
     ref: input.ref ?? null,
   });

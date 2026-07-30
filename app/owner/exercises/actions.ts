@@ -16,10 +16,15 @@ import {
   type LibraryPreview,
 } from "@/lib/exercise";
 import { buildLibraryWhere, myLibraryEquipmentSlugs } from "@/lib/exercise-library/search";
-import { machineTypeFromLibrary, pickJsonName } from "@/lib/exercise-library/mapping";
+import {
+  datasetLocalePreference,
+  machineTypeFromLibrary,
+  pickJsonName,
+} from "@/lib/exercise-library/mapping";
 import { OWN_EXERCISE_WHERE } from "@/lib/exercise-library/source";
 import { formatExerciseName } from "@/lib/exercise-name";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getContentLocale } from "@/lib/i18n/content-locale";
 import {
   EXERCISE_TYPE_KEYS,
   DEFAULT_EXERCISE_TYPE,
@@ -106,7 +111,7 @@ export async function catalogPreview(
   await requirePermission("exercises:manage");
   if (!catalogId) return null;
   const tenant = await getCurrentTenant();
-  return getCatalogPreview(catalogId, tenant?.locale ?? "NL");
+  return getCatalogPreview(catalogId, await getContentLocale(tenant?.locale));
 }
 
 const bulkAddSchema = z.object({
@@ -195,7 +200,8 @@ export async function bulkAddCatalogToGym(
 
   const data = catalogRows.map((c) => ({
     tenantId: owner.tenantId,
-    name: c.name,
+    // Zelfde weergavenaam als de losse add en het normalisatiescript.
+    name: formatExerciseName(c.name),
     targetMuscle: c.target,
     catalogId: c.id,
     exerciseType: inferExerciseType(c),
@@ -238,7 +244,7 @@ export async function libraryPreview(
   await requirePermission("exercises:manage");
   if (!libraryId) return null;
   const tenant = await getCurrentTenant();
-  return getLibraryPreview(libraryId, tenant?.locale ?? "NL");
+  return getLibraryPreview(libraryId, await getContentLocale(tenant?.locale));
 }
 
 const bulkAddLibrarySchema = z.object({
@@ -323,8 +329,15 @@ export async function bulkAddLibraryToGym(
   const muscles = muscleIds.length
     ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
     : [];
+  // Spier-snapshot in `Exercise.targetMuscle`: Nederlands (anatomie is wél vertaald,
+  // in tegenstelling tot de oefeningnaam). Elke nl-naam is herleidbaar door
+  // `resolveRegion`, zodat de spier-heatmap blijft kleuren — zie
+  // `tests/library-lookups-nl.test.ts`.
+  const musclePref = datasetLocalePreference(
+    await getContentLocale((await getCurrentTenant())?.locale)
+  );
   const muscleName = new Map(
-    muscles.map((m) => [m.id, pickJsonName(m.names, ["en"]) ?? m.id.replace(/_/g, " ")])
+    muscles.map((m) => [m.id, pickJsonName(m.names, musclePref) ?? m.id.replace(/_/g, " ")])
   );
 
   const machineByType = new Map<string, string>();

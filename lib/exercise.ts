@@ -5,7 +5,7 @@ import {
   datasetLocalePreference,
   pickLibraryText,
   pickJsonName,
-  LIBRARY_BODY_PART_LABEL,
+  bodyPartLabel,
   LIBRARY_CATEGORY_LABEL,
   LIBRARY_DIFFICULTY_LABEL,
 } from "@/lib/exercise-library/mapping";
@@ -41,8 +41,10 @@ export function deriveDifficulty(
  *
  * De catalogus is de bron van waarheid voor media, spiergroepen en (meertalige)
  * instructies; de tenant-`Exercise` mag naam/beschrijving overschrijven (whitelabel).
- * Taalkeuze volgt `tenant.locale` met EN-fallback (de dataset heeft en/es/it/tr en
- * — waar al vertaald — nl; NL/FY vallen terug op en).
+ * De `locale`-parameter is de **UI-taal van de lezer** (`getContentLocale` in
+ * lib/i18n/content-locale.ts, met `tenant.locale` als vangnet) — niet de taal van
+ * de sportschool. Zowel de bibliotheek als de klassieke catalogus is volledig naar
+ * het Nederlands vertaald; ontbreekt een taal, dan is en de terugval.
  */
 
 const LANG_PREF: Record<Locale, string[]> = {
@@ -187,9 +189,7 @@ export async function getExerciseDetail(
         : lib.isBodyweight
           ? "Lichaamsgewicht"
           : null,
-      bodyPart: lib.bodyPart
-        ? (LIBRARY_BODY_PART_LABEL[lib.bodyPart] ?? lib.bodyPart)
-        : null,
+      bodyPart: bodyPartLabel(lib.bodyPart),
       category: LIBRARY_CATEGORY_LABEL[lib.category] ?? lib.category,
       difficulty:
         (lib.difficulty &&
@@ -271,7 +271,7 @@ export async function getExerciseDetail(
     primaryMuscle: ex.targetMuscle?.trim() || cat.target || cat.muscleGroup || null,
     secondaryMuscles: cat.secondaryMuscles ?? [],
     equipment: cat.equipment ?? null,
-    bodyPart: cat.bodyPart ?? null,
+    bodyPart: bodyPartLabel(cat.bodyPart),
     category: cat.category ?? null,
     difficulty: deriveDifficulty(cat.equipment ?? null, cat.category ?? null),
     instructionLang: steps?.lang ?? text?.lang ?? null,
@@ -380,7 +380,7 @@ export async function getLibraryPreview(
     name: text?.name ?? lib.id,
     imageUrl: images[0] ?? null,
     gifUrl: null,
-    bodyPart: lib.bodyPart ? (LIBRARY_BODY_PART_LABEL[lib.bodyPart] ?? lib.bodyPart) : null,
+    bodyPart: bodyPartLabel(lib.bodyPart),
     equipment: equip
       ? (pickJsonName(equip.names, dsPref) ?? equip.id.replace(/_/g, " "))
       : lib.isBodyweight

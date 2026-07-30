@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireMember, getExerciseProgress } from "@/lib/member";
 import { getExerciseDetail, getAlternativeExercises } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getContentLocale } from "@/lib/i18n/content-locale";
 import { isAiEnabled } from "@/lib/ai/enabled";
 import { ProgressLineChart } from "@/components/charts/progress-line-chart.lazy";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
@@ -26,7 +27,7 @@ export async function generateMetadata({
   const { id } = await params;
   const tenant = await getCurrentTenant();
   const detail = tenant
-    ? await getExerciseDetail(id, tenant.id, tenant.locale ?? "NL")
+    ? await getExerciseDetail(id, tenant.id, await getContentLocale(tenant.locale))
     : null;
   return { title: detail ? `${detail.name} | Oefening` : "Oefening" };
 }
@@ -39,9 +40,10 @@ export default async function ExerciseProgressPage({
   const { id } = await params;
   const member = await requireMember();
   const tenant = await getCurrentTenant();
+  const contentLocale = await getContentLocale(tenant?.locale);
   const [progress, detail, alternatives] = await Promise.all([
     getExerciseProgress(member.id, member.tenantId, id),
-    getExerciseDetail(id, member.tenantId, tenant?.locale ?? "NL"),
+    getExerciseDetail(id, member.tenantId, contentLocale),
     getAlternativeExercises(member.tenantId, id),
   ]);
   if (!progress) notFound();

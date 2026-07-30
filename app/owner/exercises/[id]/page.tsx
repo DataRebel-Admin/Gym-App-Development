@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { requireTenantUser } from "@/lib/staff";
 import { getExerciseDetail } from "@/lib/exercise";
 import { getCurrentTenant } from "@/lib/tenant";
+import { getContentLocale } from "@/lib/i18n/content-locale";
 import { isAiEnabled } from "@/lib/ai/enabled";
 import { ExerciseDetailView } from "@/components/member/exercise-detail-view";
 import { ExerciseAssistant } from "@/components/ai/exercise-assistant";
@@ -18,7 +19,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const [user, tenant] = await Promise.all([requireTenantUser(), getCurrentTenant()]);
-  const detail = await getExerciseDetail(id, user.tenantId, tenant?.locale ?? "NL");
+  const detail = await getExerciseDetail(
+    id,
+    user.tenantId,
+    await getContentLocale(tenant?.locale)
+  );
   return { title: detail ? `${detail.name} | Oefening` : "Oefening" };
 }
 
@@ -36,7 +41,11 @@ export default async function OwnerExerciseDetailPage({
 }) {
   const { id } = await params;
   const [user, tenant] = await Promise.all([requireTenantUser(), getCurrentTenant()]);
-  const detail = await getExerciseDetail(id, user.tenantId, tenant?.locale ?? "NL");
+  const detail = await getExerciseDetail(
+    id,
+    user.tenantId,
+    await getContentLocale(tenant?.locale)
+  );
   if (!detail) notFound();
 
   // AI-oefeningassistent: alleen als de AI-module beschikbaar is (flag + owner-toggle).
