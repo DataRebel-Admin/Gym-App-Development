@@ -407,7 +407,7 @@ async function seedTenant(spec: TenantSpec) {
           kind: "SERVICE",
           performedAt: ago(100),
           action: "Kabels gecontroleerd en gesmeerd",
-          note: "Lichte slijtage aan de linkerkabel — bij volgende beurt vervangen.",
+          note: "Lichte slijtage aan de linkerkabel, bij volgende beurt vervangen.",
           performedByName: "Externe monteur",
           cost: 85.5,
           usageAtService: 480,
@@ -510,7 +510,7 @@ async function seedTenant(spec: TenantSpec) {
               ? catalogIdByName.get(e.catalogName.toLowerCase()) ?? null
               : null,
           exerciseType: e.exerciseType ?? library?.exerciseType ?? "strength",
-          description: `${displayName} — gericht op ${e.targetMuscle.toLowerCase()}.`,
+          description: `${displayName}: gericht op ${e.targetMuscle.toLowerCase()}.`,
         },
       });
       return { key: e.name, row };
@@ -880,7 +880,7 @@ async function seedCoaching(slug: string) {
           memberId: duco.id,
           authorId: coach.id,
           pinned: true,
-          body: "Doel: 6 kg afvallen vóór de zomer. Focus op techniek bij de squat — knieën naar buiten. Blessuregevoelige onderrug, dus deadlift voorlopig vermijden.",
+          body: "Doel: 6 kg afvallen vóór de zomer. Focus op techniek bij de squat: knieën naar buiten. Blessuregevoelige onderrug, dus deadlift voorlopig vermijden.",
           createdAt: new Date(Date.now() - 60 * DAY_MS),
         },
         {
@@ -940,7 +940,7 @@ async function seedProgress(slug: string) {
             i === 0
               ? "Nulmeting bij intake."
               : i === weeks.length - 1
-                ? "Mooie progressie — doel bijna gehaald!"
+                ? "Mooie progressie, doel bijna gehaald!"
                 : null,
         };
       }),
@@ -1025,7 +1025,7 @@ async function seedFrameworks(slug: string) {
       tenantId: tenant.id,
       name: "Standaardkader",
       description:
-        "Ruime kaders voor ervaren leden — bijna vrij samenstellen, de coach kijkt mee.",
+        "Ruime kaders voor ervaren leden: bijna vrij samenstellen, de coach kijkt mee.",
       isDefault: true,
       minDays: 2,
       maxDays: 5,
@@ -1190,12 +1190,12 @@ async function main() {
     templates: [
       {
         name: "Beginner Full Body",
-        description: "Rustige start voor het hele lichaam — geschikt voor iedereen.",
-        coachNote: "Techniek boven gewicht — bouw rustig op deze eerste weken.",
+        description: "Rustige start voor het hele lichaam, geschikt voor iedereen.",
+        coachNote: "Techniek boven gewicht. Bouw rustig op deze eerste weken.",
         goal: "health",
         days: [
           {
-            name: "Dag 1 — Onderlichaam",
+            name: "Dag 1: Onderlichaam",
             notes: "Warm goed op met 5 min cardio.",
             items: [
               { exercise: "Beenpers", sets: 3, reps: 12, restSeconds: 60, weightKg: 40, tempo: "3-1-1" },
@@ -1204,7 +1204,7 @@ async function main() {
             ],
           },
           {
-            name: "Dag 2 — Bovenlichaam",
+            name: "Dag 2: Bovenlichaam",
             items: [
               { exercise: "Bankdrukken", sets: 3, reps: 10, restSeconds: 75, weightKg: 30, tempo: "2-0-2" },
               { exercise: "Lat pulldown", sets: 3, reps: 10, restSeconds: 60 },
@@ -1234,7 +1234,7 @@ async function main() {
       },
       {
         name: "Mobiliteit & Herstel",
-        description: "Soepeler bewegen en spanning loslaten — ideaal op een rustdag.",
+        description: "Soepeler bewegen en spanning loslaten, ideaal op een rustdag.",
         goal: "mobility",
         days: [
           {
@@ -1377,11 +1377,14 @@ async function main() {
   });
 
   // Tenant 2 — compacte tweede sportschool (verifieert isolatie + theming).
+  // `locale` is de standaardtaal van de sportschool, géén dwang: de UI én de
+  // oefeningteksten volgen de taalvoorkeur van het lid (cookie/`User.locale` →
+  // `getContentLocale`). Beide demo-tenants staan daarom op NL.
   await seedTenant({
     slug: "ironhouse",
     name: "IronHouse Amsterdam",
     accentColor: "#2563EB", // blauw i.p.v. oranje
-    locale: Locale.EN,
+    locale: Locale.NL,
     contact: {
       addressLine: "Ironlaan 88",
       postalCode: "1017 CD",
@@ -1436,7 +1439,7 @@ async function main() {
   // Toegewezen schema's zodat de member-views data tonen.
   // Duco: gepersonaliseerd schema (badge "Aangepast" + vergelijking).
   const ducoClone = await seedAssignment("gymrebel", "duco@gymrebel.nl", "Beginner Full Body", {
-    trainerMessage: "Welkom Duco! Dit is je startschema — vragen? App me gerust.",
+    trainerMessage: "Welkom Duco! Dit is je startschema. Vragen? App me gerust.",
   });
   if (ducoClone) await personalizeClone(ducoClone);
   // Lisa: standaard kopie van hetzelfde schema (badge "Standaard").
@@ -1511,7 +1514,7 @@ async function seedDefects(slug: string) {
       reportedById: members[0].id,
       severity: "UNSAFE",
       symptom: "cable",
-      description: "De kabel rafelt bij de bovenste katrol — dit vertrouw ik niet.",
+      description: "De kabel rafelt bij de bovenste katrol. Dit vertrouw ik niet.",
       createdAt: ago(1),
     },
   });
@@ -1570,7 +1573,7 @@ async function seedDefects(slug: string) {
       symptom: "upholstery",
       status: "RESOLVED",
       description: "Scheurtje in de zitting.",
-      resolutionNote: "Zitting opnieuw bekleed — weer als nieuw.",
+      resolutionNote: "Zitting opnieuw bekleed, weer als nieuw.",
       resolvedAt: ago(6),
       acknowledgedAt: ago(13),
       digestedAt: ago(13),
