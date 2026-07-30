@@ -21,8 +21,9 @@
     "blob:copy": "node scripts/blob-copy-container.mjs",
     "library:import": "tsx scripts/import-library.ts",
     "library:translate": "tsx scripts/translate-library.ts",
-    "data:import": "node scripts/import-exercises.mjs",
+    "data:import": "node scripts/import-exercises.mjs && npm run data:names",
     "data:link": "node scripts/link-catalog.mjs",
+    "data:names": "tsx scripts/normalize-catalog-names.ts",
     "audit:prune": "node scripts/prune-audit.mjs",
     "i18n:report": "node scripts/i18n-report.mjs",
     "icons:generate": "node scripts/generate-app-icons.mjs"

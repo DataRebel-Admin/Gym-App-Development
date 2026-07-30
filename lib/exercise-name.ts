@@ -1,51 +1,46 @@
 /**
- * Nette weergavenaam voor een catalogus-oefening.
+ * Nette weergavenaam voor een oefening uit de aanvullende collectie
+ * (`ExerciseCatalog`, de oudere dataset).
  *
- * De externe dataset levert namen in kleine letters ("cable lat pulldown full
- * range of motion"). Deze pure helper title-cased ze — met verbindingswoorden in
- * kleine letters (behalve als eerste woord) — zodat een opgeslagen `Exercise.name`
- * er verzorgd uitziet. Bewust puur (géén `server-only`, idioom `exercise-types.ts`)
- * zodat zowel de seed (`prisma/seed.ts`) als de owner-catalogus-add
- * (`app/owner/exercises/actions.ts`) exact dezelfde naam produceren.
+ * De dataset levert namen volledig in kleine letters ("lever calf press"), wat
+ * naast de bibliotheek goedkoop oogt. Twee regels:
  *
- * Voorbeeld: "cable lat pulldown full range of motion" → "Cable Lat Pulldown Full
- * Range of Motion"; "push-up" → "Push-Up".
+ *  1. **Elk woord een hoofdletter** — óók na `-` en `/` ("3/4 sit-up" → "3/4
+ *     Sit-Up"), maar nooit na een apostrof ("Farmer's Walk", niet "Farmer'S
+ *     Walk"). Bewust géén kleine verbindingswoorden ("Full Range Of Motion"):
+ *     vastgelegd door de eigenaar — álle woorden met een hoofdletter.
+ *  2. **`lever` → `Machine`, alleen als eerste woord.** De dataset gebruikt het
+ *     als voorvoegsel voor apparaat-oefeningen ("lever chest press"), maar
+ *     "back lever" en "front lever" zijn calisthenics-houdingen — die mogen
+ *     nooit "Machine" worden.
+ *
+ * Bewust puur (géén `server-only`, idioom `exercise-types.ts`) zodat de seed
+ * (`prisma/seed.ts`), de owner-catalogus-add (`app/owner/exercises/actions.ts`)
+ * en het normalisatiescript (`npm run data:names`) exact dezelfde naam
+ * produceren. **Idempotent**: bestaande hoofdletters blijven staan, dus een
+ * tweede toepassing verandert niets.
  */
 
-const MINOR_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "at",
-  "for",
-  "in",
-  "of",
-  "on",
-  "or",
-  "per",
-  "the",
-  "to",
-  "vs",
-  "with",
-]);
+/** Afkortingen die volledig in kapitalen horen (klein in de dataset). */
+const ACRONYMS = new Set(["ez", "jm", "pov", "amrap", "rdl", "ghr", "tv"]);
 
-function capitalizeSegment(segment: string): string {
-  if (!segment) return segment;
-  return segment.charAt(0).toUpperCase() + segment.slice(1);
+/** Elk woord een hoofdletter; hoofdletters die er al staan blijven staan. */
+export function titleCaseExerciseName(name: string): string {
+  return name.replace(/[A-Za-z]+/g, (word, offset: number, full: string) => {
+    // Apostrof-suffix ('s) hoort klein te blijven.
+    const prev = offset > 0 ? full[offset - 1] : "";
+    if (prev === "'" || prev === "’") return word;
+    if (ACRONYMS.has(word.toLowerCase())) return word.toUpperCase();
+    // Al een hoofdletter erin → met rust laten (idempotent, respecteert handwerk).
+    if (/[A-Z]/.test(word)) return word;
+    return word[0].toUpperCase() + word.slice(1);
+  });
 }
 
-/** Formatteer een (lowercase) catalogusnaam naar een nette weergavenaam. */
+/** Formatteer een catalogusnaam naar de weergavenaam die we opslaan/tonen. */
 export function formatExerciseName(raw: string): string {
-  const trimmed = raw.trim();
+  const trimmed = raw.trim().replace(/\s+/g, " ");
   if (!trimmed) return trimmed;
-
-  return trimmed
-    .split(/\s+/)
-    .map((word, index) => {
-      const lower = word.toLowerCase();
-      if (index !== 0 && MINOR_WORDS.has(lower)) return lower;
-      // Koppelteken-woorden krijgen per deel een hoofdletter ("push-up" → "Push-Up").
-      return lower.split("-").map(capitalizeSegment).join("-");
-    })
-    .join(" ");
+  // Alleen het voorvoegsel: "back lever"/"front lever" blijven ongemoeid.
+  return titleCaseExerciseName(trimmed.replace(/^lever\b/i, "Machine"));
 }
