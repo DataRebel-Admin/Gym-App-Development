@@ -14,6 +14,11 @@ import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
 import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { isTrainingGoal } from "@/lib/training-goals";
 import { parseBadges } from "@/lib/schema-badges";
+import {
+  parseTemplateReps,
+  pickJsonName,
+  trainingGoalFromLibrary,
+} from "@/lib/exercise-library/mapping";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
 import {
   snapshotOf,
@@ -201,6 +206,182 @@ export async function createTemplate(formData: FormData) {
     metadata: { name: created.name },
   });
   redirect(`/owner/schemas/templates/${created.id}`);
+}
+
+/** Shape van één dag in `LibraryWorkoutTemplate.days` (verbatim bundel-Json). */
+type LibraryTemplateDay = {
+  name_en?: string;
+  name_de?: string;
+  name_es?: string;
+  exercises?: {
+    exercise_id: string;
+    sets?: number;
+    reps?: string;
+    rest_seconds?: number;
+    notes_en?: string;
+  }[];
+};
+
+/** RepDB-doel → badge-key (lib/schema-badges.ts) voor het geïmporteerde schema. */
+function badgeForLibraryGoal(goal: string): string | null {
+  switch (goal) {
+    case "strength":
+      return "strength";
+    case "hypertrophy":
+      return "hypertrophy";
+    case "endurance":
+      return "conditioning";
+    case "mobility":
+      return "mobility";
+    case "rehabilitation":
+      return "rehab";
+    case "power":
+      return "intense";
+    default:
+      return null;
+  }
+}
+
+/**
+ * Neem een RepDB-voorbeeldschema over als eigen library-WorkoutTemplate:
+ * ontbrekende bibliotheek-oefeningen worden eerst als tenant-Exercise toegevoegd,
+ * daarna worden dagen + items relationeel opgebouwd (reps-notaties als "8-12"/
+ * "AMRAP" gaan mee als notitie). Idempotent via `libraryTemplateId` — nogmaals
+ * klikken opent het bestaande schema. Daarna gewoon bewerkbaar in de editor.
+ */
+export async function importLibraryTemplate(formData: FormData) {
+  const owner = await requirePermission("schemas:manage");
+  const libraryTemplateId = String(formData.get("libraryTemplateId") ?? "");
+  if (!libraryTemplateId) return;
+
+  // Al overgenomen? Dan daarheen (geen duplicaat).
+  const already = await prisma.workoutTemplate.findFirst({
+    where: { tenantId: owner.tenantId, libraryTemplateId },
+    select: { id: true },
+  });
+  if (already) redirect(`/owner/schemas/templates/${already.id}`);
+
+  const source = await prisma.libraryWorkoutTemplate.findFirst({
+    where: { id: libraryTemplateId, retiredAt: null },
+  });
+  if (!source) return;
+  const days = (source.days as LibraryTemplateDay[] | null) ?? [];
+
+  // 1) Zorg dat elke gebruikte bibliotheek-oefening als tenant-Exercise bestaat.
+  const slugs = [
+    ...new Set(days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id))),
+  ];
+  const existing = await prisma.exercise.findMany({
+    where: { tenantId: owner.tenantId, libraryId: { in: slugs } },
+    select: { id: true, libraryId: true },
+  });
+  const bySlug = new Map(existing.map((e) => [e.libraryId as string, e.id]));
+  const missing = slugs.filter((s) => !bySlug.has(s));
+  if (missing.length > 0) {
+    const libRows = await prisma.libraryExercise.findMany({
+      where: { id: { in: missing } },
+      select: {
+        id: true,
+        primaryMuscles: true,
+        exerciseType: true,
+        texts: { where: { locale: "en" }, select: { name: true } },
+      },
+    });
+    const muscleIds = [...new Set(libRows.map((l) => l.primaryMuscles[0]).filter(Boolean))];
+    const muscles = muscleIds.length
+      ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
+      : [];
+    const muscleName = new Map(
+      muscles.map((m) => [m.id, pickJsonName(m.names, ["en"]) ?? m.id.replace(/_/g, " ")])
+    );
+    await prisma.exercise.createMany({
+      data: libRows.map((l) => ({
+        tenantId: owner.tenantId,
+        name: l.texts[0]?.name ?? l.id,
+        targetMuscle: l.primaryMuscles[0]
+          ? (muscleName.get(l.primaryMuscles[0]) ?? null)
+          : null,
+        libraryId: l.id,
+        exerciseType: l.exerciseType,
+      })),
+      skipDuplicates: true,
+    });
+    const created = await prisma.exercise.findMany({
+      where: { tenantId: owner.tenantId, libraryId: { in: missing } },
+      select: { id: true, libraryId: true },
+    });
+    for (const e of created) bySlug.set(e.libraryId as string, e.id);
+  }
+
+  // 2) Schema + dagen + items in één transactie.
+  const name = pickJsonName(source.names, ["nl", "en"]) ?? source.id;
+  const description = pickJsonName(source.descriptions, ["nl", "en"]);
+  const badges = [
+    source.difficulty === "beginner" ? "beginner" : null,
+    badgeForLibraryGoal(source.goal),
+  ].filter((b): b is string => Boolean(b));
+
+  const templateId = await prisma.$transaction(async (tx) => {
+    const template = await tx.workoutTemplate.create({
+      data: {
+        tenantId: owner.tenantId,
+        name,
+        description,
+        isLibrary: true,
+        kind: "SCHEMA",
+        goal: trainingGoalFromLibrary(source.goal),
+        badges,
+        libraryTemplateId: source.id,
+      },
+    });
+    for (const [dayIndex, day] of days.entries()) {
+      const createdDay = await tx.workoutDay.create({
+        data: {
+          tenantId: owner.tenantId,
+          templateId: template.id,
+          order: dayIndex,
+          name: day.name_en?.trim() || `Dag ${dayIndex + 1}`,
+        },
+      });
+      const items = (day.exercises ?? []).flatMap((e, order) => {
+        const exerciseId = bySlug.get(e.exercise_id);
+        if (!exerciseId) return [];
+        const parsed = parseTemplateReps(e.reps ?? "");
+        const notes = [parsed.note, e.notes_en?.trim() || null]
+          .filter(Boolean)
+          .join(" · ");
+        return [
+          {
+            tenantId: owner.tenantId,
+            templateId: template.id,
+            dayId: createdDay.id,
+            exerciseId,
+            order,
+            sets: e.sets ?? 3,
+            reps: parsed.reps ?? 10,
+            restSeconds: e.rest_seconds ?? 60,
+            notes: notes || null,
+          },
+        ];
+      });
+      if (items.length > 0) {
+        await tx.workoutExerciseItem.createMany({ data: items });
+      }
+    }
+    return template.id;
+  });
+
+  await audit("schema.library.import", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: templateId,
+    metadata: { name, source: source.id },
+  });
+
+  revalidatePath("/owner/schemas/templates");
+  revalidatePath("/owner/exercises");
+  redirect(`/owner/schemas/templates/${templateId}`);
 }
 
 export async function deleteTemplate(formData: FormData) {

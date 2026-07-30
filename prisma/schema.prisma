@@ -1374,6 +1374,8 @@ model LibraryWorkoutTemplate {
   datasetVersion   String
   retiredAt        DateTime?
   updatedAt        DateTime  @updatedAt
+
+  imports WorkoutTemplate[]
 }
 
 // Aanvraag van een sporter voor een (nieuw/aangepast) trainingsschema. Tenant-
@@ -1514,9 +1516,13 @@ model WorkoutTemplate {
   // Vrij toewijsbare badges (keys uit lib/schema-badges.ts) — visuele labels
   // zoals ⭐ Beginner, 🔥 Spieropbouw, ⚡ Intensief. Meegekloond naar lid-schema's.
   badges      String[]  @default([])
+  // Herkomst-koppeling wanneer dit schema is overgenomen uit een RepDB-
+  // voorbeeldschema (LibraryWorkoutTemplate) — maakt de import idempotent.
+  libraryTemplateId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  libraryTemplate  LibraryWorkoutTemplate? @relation(fields: [libraryTemplateId], references: [id], onDelete: SetNull)
   tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   days             WorkoutDay[]
   items            WorkoutExerciseItem[]

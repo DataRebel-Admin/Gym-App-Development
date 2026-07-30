@@ -268,6 +268,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft schema '${s(meta, "name") ?? ""}' gepubliceerd`.trim(),
   },
+  "schema.library.import": {
+    category: "schemas", label: "Voorbeeldschema overgenomen", icon: "📚", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft voorbeeldschema '${s(meta, "name") ?? ""}' uit de bibliotheek overgenomen`.trim(),
+  },
   "schema.schedule": {
     category: "schemas", label: "Schema ingepland", icon: "🕒", tone: "neutral",
     sentence: ({ actor, meta }) => {

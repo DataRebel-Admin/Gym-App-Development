@@ -150,6 +150,22 @@ export const LIBRARY_GOAL_LABEL: Record<string, string> = {
   core: "Core",
 };
 
+/**
+ * Vertaal de vrije reps-notatie van een RepDB-voorbeeldschema ("5", "8-12",
+ * "AMRAP", "30s", "10/leg") naar onze integer-kolom + een notitie voor de rest.
+ * Regel: leidend getal → reps-kolom; alles wat informatie verliest gaat als
+ * notitie mee (het item blijft daardoor volledig leesbaar voor het lid).
+ */
+export function parseTemplateReps(reps: string): { reps: number | null; note: string | null } {
+  const trimmed = reps.trim();
+  const range = /^(\d+)\s*-\s*(\d+)$/.exec(trimmed);
+  if (range) return { reps: Number(range[1]), note: `${range[1]}–${range[2]} herhalingen` };
+  if (/^\d+$/.test(trimmed)) return { reps: Number(trimmed), note: null };
+  const leading = /^(\d+)/.exec(trimmed);
+  if (leading) return { reps: Number(leading[1]), note: trimmed };
+  return { reps: null, note: trimmed }; // bv. "AMRAP"
+}
+
 /** Naam uit een {locale: naam}-Json (LibraryMuscle/LibraryEquipment.names). */
 export function pickJsonName(
   names: unknown,

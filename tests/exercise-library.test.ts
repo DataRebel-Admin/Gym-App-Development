@@ -16,6 +16,7 @@ import {
   datasetLocalePreference,
   pickLibraryText,
   trainingGoalFromLibrary,
+  parseTemplateReps,
   pickJsonName,
 } from "../lib/exercise-library/mapping";
 import { exerciseSourceOf } from "../lib/exercise-library/source";
@@ -112,6 +113,14 @@ test("pickJsonName leest {locale: naam} defensief", () => {
   assert.equal(pickJsonName({ en: "Biceps" }, ["nl"]), "Biceps");
   assert.equal(pickJsonName(null, ["en"]), null);
   assert.equal(pickJsonName("raar", ["en"]), null);
+});
+
+test("parseTemplateReps: getal, bereik, tijd, AMRAP", () => {
+  assert.deepEqual(parseTemplateReps("5"), { reps: 5, note: null });
+  assert.deepEqual(parseTemplateReps("8-12"), { reps: 8, note: "8–12 herhalingen" });
+  assert.deepEqual(parseTemplateReps("30s"), { reps: 30, note: "30s" });
+  assert.deepEqual(parseTemplateReps("10/leg"), { reps: 10, note: "10/leg" });
+  assert.deepEqual(parseTemplateReps("AMRAP"), { reps: null, note: "AMRAP" });
 });
 
 // --- source -----------------------------------------------------------------
