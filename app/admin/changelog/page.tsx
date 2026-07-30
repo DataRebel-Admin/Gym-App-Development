@@ -13,7 +13,7 @@ export default async function AdminChangelogPage() {
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Wijzigingslogboek"
-        description="Nieuwe functies en verbeteringen in GymRebel — het platformbrede releaseoverzicht."
+        description="Nieuwe functies en verbeteringen in GymRebel: het platformbrede releaseoverzicht."
       />
       <ChangelogTimeline />
     </div>

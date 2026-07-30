@@ -30,7 +30,7 @@ export const SCHEMA_BLUEPRINTS: SchemaBlueprint[] = [
   {
     key: "fullbody",
     label: "Full body",
-    description: "Één training voor het hele lichaam — ideaal 2–3× per week.",
+    description: "Één training voor het hele lichaam, ideaal 2–3× per week.",
     icon: Dumbbell,
     days: ["Full body A", "Full body B", "Full body C"],
   },
@@ -44,7 +44,7 @@ export const SCHEMA_BLUEPRINTS: SchemaBlueprint[] = [
   {
     key: "ppl",
     label: "Push / Pull / Legs",
-    description: "Duwen, trekken en benen — de klassieke driedeling.",
+    description: "Duwen, trekken en benen: de klassieke driedeling.",
     icon: Dumbbell,
     days: ["Push", "Pull", "Legs"],
   },

@@ -58,7 +58,7 @@ export const GROUP_TYPES: Record<GroupTypeKey, GroupTypeDef> = {
     icon: Layers,
     tone: "bg-fuchsia-50 text-fuchsia-600",
     description:
-      "Drie of meer oefeningen aaneengesloten zonder rust — een 'ultraset'. Hoge intensiteit.",
+      "Drie of meer oefeningen aaneengesloten zonder rust, een 'ultraset'. Hoge intensiteit.",
     minItems: 3,
     hasRounds: true,
     hasTimeCap: false,
@@ -82,7 +82,7 @@ export const GROUP_TYPES: Record<GroupTypeKey, GroupTypeDef> = {
     icon: Timer,
     tone: "bg-orange-50 text-orange-600",
     description:
-      "As Many Rounds As Possible — zoveel mogelijk rondes binnen een tijdslimiet.",
+      "As Many Rounds As Possible: zoveel mogelijk rondes binnen een tijdslimiet.",
     minItems: 2,
     hasRounds: false,
     hasTimeCap: true,

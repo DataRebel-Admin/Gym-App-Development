@@ -145,7 +145,7 @@ export async function StaffDashboard({
           <p className="mt-1 text-sm text-neutral-500">
             {activeMembersToday > 0
               ? `${activeMembersToday} ${activeMembersToday === 1 ? "lid heeft" : "leden hebben"} vandaag al getraind.`
-              : "Nog geen trainingen vandaag — tijd om je leden te activeren."}
+              : "Nog geen trainingen vandaag. Tijd om je leden te activeren."}
           </p>
         </div>
       </section>

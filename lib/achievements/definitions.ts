@@ -136,9 +136,9 @@ export function scopeOf(def: AchievementDef): AchievementScope {
 export const ACHIEVEMENTS: AchievementDef[] = [
   // --- Training (aantal voltooide trainingen) ---
   { key: "training.first", category: "training", rarity: "bronze", title: "Eerste training", description: "Je allereerste training voltooid. Het begin van je reis.", icon: Dumbbell, metric: "totalWorkouts", threshold: 1, unit: "trainingen", passport: true },
-  { key: "training.count_10", category: "training", rarity: "bronze", title: "10 trainingen", description: "Tien trainingen op de teller — de gewoonte groeit.", icon: Dumbbell, metric: "totalWorkouts", threshold: 10, unit: "trainingen" },
+  { key: "training.count_10", category: "training", rarity: "bronze", title: "10 trainingen", description: "Tien trainingen op de teller. De gewoonte groeit.", icon: Dumbbell, metric: "totalWorkouts", threshold: 10, unit: "trainingen" },
   { key: "training.count_50", category: "training", rarity: "silver", title: "50 trainingen", description: "Vijftig trainingen voltooid. Serieuze toewijding.", icon: Medal, metric: "totalWorkouts", threshold: 50, unit: "trainingen", passport: true },
-  { key: "training.count_100", category: "training", rarity: "gold", title: "100 trainingen", description: "Honderd trainingen — je bent een vaste waarde.", icon: Award, metric: "totalWorkouts", threshold: 100, unit: "trainingen", passport: true },
+  { key: "training.count_100", category: "training", rarity: "gold", title: "100 trainingen", description: "Honderd trainingen. Je bent een vaste waarde.", icon: Award, metric: "totalWorkouts", threshold: 100, unit: "trainingen", passport: true },
   { key: "training.count_250", category: "training", rarity: "platinum", title: "250 trainingen", description: "Tweehonderdvijftig trainingen. Indrukwekkend volhouden.", icon: Crown, metric: "totalWorkouts", threshold: 250, unit: "trainingen" },
   { key: "training.count_500", category: "training", rarity: "diamond", title: "500 trainingen", description: "Vijfhonderd trainingen. Een ware veteraan.", icon: Gem, metric: "totalWorkouts", threshold: 500, unit: "trainingen", passport: true },
   // LOCATION-scope: telt alleen trainingen op één vestiging en is per vestiging
@@ -160,7 +160,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: "strength.first_pr", category: "strength", rarity: "bronze", title: "Eerste PR", description: "Je eerste persoonlijk record gezet.", icon: Trophy, metric: "prCount", threshold: 1, unit: "PR's", passport: true },
   { key: "strength.volume_100", category: "strength", rarity: "bronze", title: "100 kg verplaatst", description: "In totaal 100 kg verplaatst.", icon: Dumbbell, metric: "totalVolume", threshold: 100, unit: "kg" },
   { key: "strength.volume_1000", category: "strength", rarity: "silver", title: "1.000 kg verplaatst", description: "Duizend kilo totaal volume getild.", icon: Dumbbell, metric: "totalVolume", threshold: 1000, unit: "kg" },
-  { key: "strength.volume_10000", category: "strength", rarity: "gold", title: "10.000 kg verplaatst", description: "Tienduizend kilo totaal — dat telt op.", icon: Award, metric: "totalVolume", threshold: 10000, unit: "kg" },
+  { key: "strength.volume_10000", category: "strength", rarity: "gold", title: "10.000 kg verplaatst", description: "Tienduizend kilo totaal. Dat telt op.", icon: Award, metric: "totalVolume", threshold: 10000, unit: "kg" },
   { key: "strength.volume_100000", category: "strength", rarity: "platinum", title: "100.000 kg verplaatst", description: "Honderdduizend kilo totaal volume.", icon: Crown, metric: "totalVolume", threshold: 100000, unit: "kg" },
   { key: "strength.volume_1000000", category: "strength", rarity: "legendary", title: "1.000.000 kg verplaatst", description: "Een miljoen kilo verplaatst. Ongeëvenaard.", icon: Gem, metric: "totalVolume", threshold: 1000000, unit: "kg" },
   { key: "strength.squat_100", category: "strength", rarity: "gold", title: "100 kg squat", description: "Je eerste squat met 100 kg.", icon: Dumbbell, metric: "maxSquatKg", threshold: 100, unit: "kg" },

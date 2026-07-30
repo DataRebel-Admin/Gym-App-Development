@@ -33,7 +33,7 @@ export default async function MaintenancePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Onderhoud</h1>
           <p className="text-sm text-neutral-500">
-            Houd je apparatuur veilig en op tijd onderhouden — automatisch gesignaleerd op
+            Houd je apparatuur veilig en op tijd onderhouden, automatisch gesignaleerd op
             gebruik en tijd.
           </p>
         </div>

@@ -34,7 +34,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 
 function secret(): string {
   const s = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
-  if (!s) throw new Error("AUTH_SECRET ontbreekt — vereist voor passkeys.");
+  if (!s) throw new Error("AUTH_SECRET ontbreekt, vereist voor passkeys.");
   return s;
 }
 function sign(body: string): string {

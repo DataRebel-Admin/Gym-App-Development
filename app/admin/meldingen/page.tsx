@@ -67,7 +67,7 @@ export default async function AdminMeldingenPage({
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Meldingen"
-        description="Problemen, feedback en vragen over de app — van leden én sportscholen, in één inbox."
+        description="Problemen, feedback en vragen over de app, van leden én sportscholen, in één inbox."
       />
 
       {/* Tellers: piek na een release zie je hier direct. */}

@@ -92,7 +92,7 @@ export default async function SecurityPage() {
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Toegangssleutels (passkeys)</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Log in met Face ID, Touch ID of je vingerafdruk — zonder wachtwoord.
+            Log in met Face ID, Touch ID of je vingerafdruk, zonder wachtwoord.
           </p>
         </div>
         <Passkeys passkeys={passkeyRows} />

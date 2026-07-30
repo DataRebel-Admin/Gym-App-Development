@@ -18,7 +18,7 @@ const TTL_MS = 5 * 60 * 1000; // 5 minuten — ruim genoeg om een code in te tik
 
 function secret(): string {
   const s = process.env.AUTH_SECRET;
-  if (!s) throw new Error("AUTH_SECRET ontbreekt — vereist voor login-challenges.");
+  if (!s) throw new Error("AUTH_SECRET ontbreekt, vereist voor login-challenges.");
   return s;
 }
 

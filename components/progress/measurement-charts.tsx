@@ -95,7 +95,7 @@ export function MeasurementCharts({
 
       {data.length < 2 ? (
         <p className="py-12 text-center text-sm text-neutral-400">
-          Te weinig data voor deze periode — leg meer metingen vast.
+          Te weinig data voor deze periode. Leg meer metingen vast.
         </p>
       ) : (
         <ResponsiveContainer width="100%" height={260}>

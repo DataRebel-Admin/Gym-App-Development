@@ -68,9 +68,9 @@ export default async function LocationDetailPage({
           title={location.name}
           description={
             location.isDefault
-              ? "Hoofdvestiging — vangnet van de locatie-resolutie, niet archiveerbaar."
+              ? "Hoofdvestiging: vangnet van de locatie-resolutie, niet archiveerbaar."
               : location.archivedAt
-                ? "Gearchiveerd — telt niet meer mee in pickers en analytics-scope."
+                ? "Gearchiveerd: telt niet meer mee in pickers en analytics-scope."
                 : "Vestiging van je organisatie."
           }
           action={
@@ -102,13 +102,13 @@ export default async function LocationDetailPage({
       <section className="flex max-w-2xl flex-col gap-3">
         <h2 className="text-lg font-semibold text-neutral-900">Medewerker-toegang</h2>
         <p className="text-sm text-neutral-500">
-          Een medewerker ziet uitsluitend de vestigingen waaraan hij gekoppeld is — zonder
+          Een medewerker ziet uitsluitend de vestigingen waaraan hij gekoppeld is. Zonder
           koppelingen ziet hij níéts (anders dan de coach-koppeling, die een extra lens is).
         </p>
         <Card className="divide-y divide-border p-0">
           {staff.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
-              Nog geen medewerkers — nodig ze uit via{" "}
+              Nog geen medewerkers. Nodig ze uit via{" "}
               <Link href="/owner/staff" className="text-accent underline">
                 Medewerkers
               </Link>

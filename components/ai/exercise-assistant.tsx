@@ -23,7 +23,7 @@ export function ExerciseAssistant({
           <Sparkles className="size-4 text-accent" /> Vraag de AI-assistent
         </p>
         <p className="mt-0.5 text-xs text-neutral-500">
-          Uitleg, alternatieven en techniek — geen medisch advies.
+          Uitleg, alternatieven en techniek. Geen medisch advies.
         </p>
       </div>
       <AssistantPanel

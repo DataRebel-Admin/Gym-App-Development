@@ -69,7 +69,7 @@ export default async function MemberGymPage() {
 
   // Vestiging-gegevens winnen; lege velden vallen terug op de organisatie.
   const gym = {
-    name: multiLocation && homeDetails ? `${tenant.name} — ${homeDetails.name}` : tenant.name,
+    name: multiLocation && homeDetails ? `${tenant.name} · ${homeDetails.name}` : tenant.name,
     logoUrl: tenant.logoUrl,
     addressLine: homeDetails?.addressLine ?? tenant.addressLine,
     postalCode: homeDetails?.postalCode ?? tenant.postalCode,

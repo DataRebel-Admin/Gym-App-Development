@@ -88,7 +88,7 @@ export default async function MembersPage() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-neutral-500">
-        Wijs leden een schema toe en zie in één oogopslag wie wat heeft — en hoe lang al.
+        Wijs leden een schema toe en zie in één oogopslag wie wat heeft, en hoe lang al.
       </p>
       <MemberSchemaTable rows={rows} />
     </div>

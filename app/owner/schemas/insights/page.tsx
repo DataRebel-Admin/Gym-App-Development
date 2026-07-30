@@ -31,7 +31,7 @@ export default async function CoachInsightsPage() {
       <div className="grid gap-5 md:grid-cols-2">
         <Card
           title="Vaakst aangepaste oefeningen"
-          hint="Oefeningen die leden het meest afwijken van de master — kandidaat om de master bij te stellen."
+          hint="Oefeningen die leden het meest afwijken van de master, kandidaat om de master bij te stellen."
         >
           {insights.topOverriddenExercises.length === 0 ? (
             <p className="text-sm text-neutral-500">Nog geen aanpassingen.</p>

@@ -18,7 +18,7 @@ export default async function TrainingGoalsPage() {
     <div className="flex flex-col gap-6 lg:gap-8">
       <AccountPageHeader
         title="Mijn doelen"
-        description="Waar wil jij aan werken? Kies één of meer doelen — we stemmen je ervaring hierop af. Je kunt dit altijd aanpassen."
+        description="Waar wil jij aan werken? Kies één of meer doelen. We stemmen je ervaring hierop af. Je kunt dit altijd aanpassen."
       />
 
       <section className="rounded-2xl border border-border bg-surface-1 p-5">

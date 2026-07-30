@@ -185,7 +185,7 @@ export function CustomExerciseForm({
               defaultValue={exercise?.difficulty ?? ""}
               className={inputClass}
             >
-              <option value="">— Kies —</option>
+              <option value="">(Kies)</option>
               {EXERCISE_DIFFICULTIES.map((d) => (
                 <option key={d} value={d}>
                   {EXERCISE_DIFFICULTY_LABELS[d]}

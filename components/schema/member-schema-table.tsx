@@ -202,7 +202,7 @@ export function MemberSchemaTable({ rows }: { rows: MemberSchemaRow[] }) {
                       ) : null}
                     </span>
                   ) : (
-                    <span className="text-neutral-400">— geen —</span>
+                    <span className="text-neutral-400">(geen)</span>
                   )}
                 </td>
                 <td className="px-4 py-2 text-neutral-600">

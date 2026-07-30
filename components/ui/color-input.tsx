@@ -54,7 +54,7 @@ export function ColorInput({
       <p aria-live="polite" className="min-h-0">
         {lowContrast ? (
           <span className="text-xs font-normal text-amber-600">
-            Deze kleur is vrij licht — als tekstkleur op een witte achtergrond kan
+            Deze kleur is vrij licht. Als tekstkleur op een witte achtergrond kan
             hij lastig leesbaar zijn. Knoppen passen de tekstkleur automatisch aan.
           </span>
         ) : null}

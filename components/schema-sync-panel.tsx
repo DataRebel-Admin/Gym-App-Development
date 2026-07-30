@@ -33,7 +33,7 @@ export function SchemaSyncPanel({
         </h3>
         <p className="text-sm text-neutral-600">
           De master is bijgewerkt sinds dit schema werd toegewezen. Kies wat je
-          overneemt — persoonlijke aanpassingen van dit lid blijven behouden.
+          overneemt. Persoonlijke aanpassingen van dit lid blijven behouden.
         </p>
       </div>
 
@@ -63,7 +63,7 @@ export function SchemaSyncPanel({
         </ul>
       ) : (
         <p className="text-sm text-neutral-600">
-          Structurele wijzigingen (dagen/notities) — neem ze in één keer over met
+          Structurele wijzigingen (dagen/notities): neem ze in één keer over met
           &quot;Alle synchroniseren&quot;.
         </p>
       )}

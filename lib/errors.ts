@@ -66,7 +66,7 @@ export const ERROR_PRESETS: Record<ErrorCode, ErrorPreset> = {
     kicker: "Er ging iets mis",
     title: "Er ging iets mis",
     description:
-      "Er is een onverwachte fout opgetreden aan onze kant. Probeer het zo opnieuw — gaat het daarna nog mis, dan kijken wij ernaar.",
+      "Er is een onverwachte fout opgetreden aan onze kant. Probeer het zo opnieuw. Gaat het daarna nog mis, dan kijken wij ernaar.",
     tone: "danger",
     actions: { retry: true, back: true, report: true },
   },

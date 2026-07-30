@@ -39,7 +39,7 @@ const DIFFICULTY_TONE: Record<string, BadgeTone> = {
 /** Algemene techniek-tips (generiek — niet per oefening; veiligheidsmelding blijft leidend). */
 const GENERAL_TIPS = [
   "Warm op met een paar lichtere sets voordat je zwaar gaat.",
-  "Beweeg gecontroleerd — vermijd zwiepen of momentum.",
+  "Beweeg gecontroleerd, vermijd zwiepen of momentum.",
   "Houd je core aangespannen en je rug in een neutrale houding.",
   "Adem uit tijdens de inspanning, adem in bij het zakken.",
 ];
@@ -140,7 +140,7 @@ export function ExerciseDetailView({
           <div className="relative aspect-video w-full">
             <iframe
               src={video.embedUrl}
-              title={`Video — ${detail.name}`}
+              title={`Video: ${detail.name}`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="absolute inset-0 h-full w-full"

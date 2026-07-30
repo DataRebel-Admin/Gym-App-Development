@@ -41,7 +41,7 @@ export default async function MemberProgressPage() {
             <p className="text-3xl">📏</p>
             <p className="mt-2 font-semibold text-neutral-900">Nog geen metingen</p>
             <p className="mt-1 text-sm text-neutral-500">
-              Je trainer legt je lichaamsmetingen vast — ze verschijnen hier zodra dat gebeurt.
+              Je trainer legt je lichaamsmetingen vast. Ze verschijnen hier zodra dat gebeurt.
               Zelf je voortgang vastleggen met foto&apos;s kan hieronder.
             </p>
           </div>

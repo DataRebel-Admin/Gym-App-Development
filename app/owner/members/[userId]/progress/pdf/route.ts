@@ -195,7 +195,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       heading("Doelen");
       for (const g of goals) {
         ensure(16);
-        const pct = g.percent != null ? ` (${g.percent}%${g.achieved ? " — behaald" : ""})` : "";
+        const pct = g.percent != null ? ` (${g.percent}%${g.achieved ? ", behaald" : ""})` : "";
         text(GOAL_METRIC_LABEL[g.metric], M, y, 10, font, GRAY);
         text(
           `${formatMetric(g.metricKey, g.current)} → ${formatMetric(g.metricKey, g.targetValue)}${pct}`,

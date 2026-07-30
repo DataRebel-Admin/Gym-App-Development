@@ -320,7 +320,7 @@ function ReportDetail({
                 <span className="text-xs text-neutral-500">
                   {DATE_FMT.format(new Date(entry.at))}
                 </span>{" "}
-                — {entry.label}
+                · {entry.label}
                 {entry.actor ? (
                   <span className="text-neutral-500"> · {entry.actor}</span>
                 ) : null}

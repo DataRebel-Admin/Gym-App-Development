@@ -14,7 +14,7 @@ export type AssistantLauncherProps = AssistantPanelProps & {
  */
 export function AssistantLauncher({
   title,
-  subtitle = "Geen medisch advies — bij twijfel: vraag een trainer.",
+  subtitle = "Geen medisch advies. Bij twijfel: vraag een trainer.",
   ...panelProps
 }: AssistantLauncherProps) {
   const [open, setOpen] = useState(false);

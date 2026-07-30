@@ -57,11 +57,11 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "improved",
-        text: "Eén inlogscherm voor iedereen: de app herkent je sportschool aan je e-mailadres. Train je bij meerdere sportscholen, dan kies je na het inloggen bij welke — ook de e-mail-loginlink werkt per sportschool.",
+        text: "Eén inlogscherm voor iedereen: de app herkent je sportschool aan je e-mailadres. Train je bij meerdere sportscholen, dan kies je na het inloggen bij welke. Ook de e-mail-loginlink werkt per sportschool.",
       },
       {
         type: "improved",
-        text: "Accountinstellingen zijn opnieuw ingedeeld als overzichtelijke hub, zodat je alles sneller vindt — juist op mobiel.",
+        text: "Accountinstellingen zijn opnieuw ingedeeld als overzichtelijke hub, zodat je alles sneller vindt, juist op mobiel.",
       },
       {
         type: "improved",
@@ -69,7 +69,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "improved",
-        text: "Je account verwijderen regel je nu volledig zelf: na een bedenktijd van 30 dagen wordt alles automatisch en definitief verwijderd — tot die tijd kun je annuleren.",
+        text: "Je account verwijderen regel je nu volledig zelf: na een bedenktijd van 30 dagen wordt alles automatisch en definitief verwijderd. Tot die tijd kun je annuleren.",
       },
     ],
   },
@@ -82,7 +82,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       {
         type: "improved",
-        text: "Engels en Frysk zijn nu volledig doorgevoerd in de trofeeën- en onderhoudsschermen, de menu-onderdelen en de meldingen bij formulieren — een Engels- of Friestalige sportschool ziet daar geen Nederlands meer.",
+        text: "Engels en Frysk zijn nu volledig doorgevoerd in de trofeeën- en onderhoudsschermen, de menu-onderdelen en de meldingen bij formulieren. Een Engels- of Friestalige sportschool ziet daar geen Nederlands meer.",
       },
       {
         type: "improved",
@@ -103,7 +103,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "improved",
-        text: "E-mailmeldingen staan voortaan standaard uit — behalve voor een nieuw schema. Elke categorie zet je zelf aan onder Meldingen, zodat je inbox rustig blijft.",
+        text: "E-mailmeldingen staan voortaan standaard uit, behalve voor een nieuw schema. Elke categorie zet je zelf aan onder Meldingen, zodat je inbox rustig blijft.",
       },
       {
         type: "improved",
@@ -120,7 +120,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-07-04",
     title: "Meertalig & je persoonlijke AI-coach",
     summary:
-      "De app spreekt nu drie talen en krijgt er een slimme assistent bij — plus meer grip op je training en apparatuur.",
+      "De app spreekt nu drie talen en krijgt er een slimme assistent bij, plus meer grip op je training en apparatuur.",
     changes: [
       {
         type: "new",
@@ -128,7 +128,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "new",
-        text: "AI Coach & Assistent: uitleg bij oefeningen, alternatieven en een samenvatting van de voortgang van een lid. De AI stelt alleen voor — jij bevestigt met één klik voordat er iets wijzigt.",
+        text: "AI Coach & Assistent: uitleg bij oefeningen, alternatieven en een samenvatting van de voortgang van een lid. De AI stelt alleen voor, jij bevestigt met één klik voordat er iets wijzigt.",
       },
       {
         type: "new",
@@ -136,7 +136,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "new",
-        text: "QR-codes van al je apparaten in één keer downloaden als printklare A4-pagina of los bestand — in je eigen huisstijl. En je ziet nu hoe vaak elke apparaat-QR gescand wordt.",
+        text: "QR-codes van al je apparaten in één keer downloaden als printklare A4-pagina of los bestand, in je eigen huisstijl. En je ziet nu hoe vaak elke apparaat-QR gescand wordt.",
       },
       {
         type: "improved",
@@ -174,7 +174,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: "2026-06-28",
     title: "Trofeeën, mijlpalen & Gym Passport",
     summary:
-      "Een motivatielaag die je leden beloont voor hun inzet — optioneel, per sportschool aan te zetten.",
+      "Een motivatielaag die je leden beloont voor hun inzet, optioneel per sportschool aan te zetten.",
     changes: [
       {
         type: "new",
@@ -199,7 +199,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       {
         type: "new",
-        text: "Medewerkers (coaches) toevoegen met een rechtenmatrix — bepaal per persoon wat hij of zij mag zien en beheren.",
+        text: "Medewerkers (coaches) toevoegen met een rechtenmatrix: bepaal per persoon wat hij of zij mag zien en beheren.",
       },
       {
         type: "new",
@@ -220,7 +220,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       {
         type: "new",
-        text: "Volledige levenscyclus voor toegewezen schema's: opslaan als concept, inplannen voor later of direct publiceren — met een persoonlijke boodschap aan het lid.",
+        text: "Volledige levenscyclus voor toegewezen schema's: opslaan als concept, inplannen voor later of direct publiceren, met een persoonlijke boodschap aan het lid.",
       },
       {
         type: "new",
@@ -249,7 +249,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
       {
         type: "new",
-        text: "Oefeningstypes met slimme velden: hardlopen vraagt om afstand en tijd, planken om duur — nooit meer irrelevante invoer.",
+        text: "Oefeningstypes met slimme velden: hardlopen vraagt om afstand en tijd, planken om duur. Nooit meer irrelevante invoer.",
       },
       {
         type: "new",

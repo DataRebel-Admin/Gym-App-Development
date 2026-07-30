@@ -183,7 +183,7 @@ export function ProfileForm({ user }: { user: Profile }) {
         </form>
         {emailState.error ? <p className="text-xs text-red-600">{emailState.error}</p> : null}
         {emailState.ok ? (
-          <p className="text-xs text-green-600">Verificatielink verstuurd — check je nieuwe inbox.</p>
+          <p className="text-xs text-green-600">Verificatielink verstuurd. Check je nieuwe inbox.</p>
         ) : null}
       </section>
     </div>

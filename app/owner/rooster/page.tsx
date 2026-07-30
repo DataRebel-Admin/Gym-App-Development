@@ -95,7 +95,7 @@ export default async function RoosterPage() {
                     {s.groupClass.name}
                   </span>{" "}
                   <span className="text-neutral-500">
-                    — {formatSessionStart(s.startsAt)}{" "}
+                    · {formatSessionStart(s.startsAt)}{" "}
                     ({formatTimeRange(s.startsAt, s.endsAt)})
                   </span>
                 </span>

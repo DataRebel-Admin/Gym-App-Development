@@ -37,7 +37,7 @@ export function MoodInsightCard({ insight }: { insight: MemberMoodInsight }) {
             <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
               <span className="text-base leading-none">⚠️</span>
               <span>
-                {insight.concernStreak} zware trainingen op rij — overweeg contact op te nemen
+                {insight.concernStreak} zware trainingen op rij, overweeg contact op te nemen
                 of het schema bij te sturen.
               </span>
             </div>

@@ -107,7 +107,7 @@ export default async function TrainerRunPage({
         </Link>
         <h1 className="mt-2 text-lg font-semibold text-neutral-900">Workout draaien</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Voor <span className="font-medium text-neutral-800">{memberLabel}</span> — de
+          Voor <span className="font-medium text-neutral-800">{memberLabel}</span>: de
           resultaten tellen als training van het lid.
         </p>
       </div>

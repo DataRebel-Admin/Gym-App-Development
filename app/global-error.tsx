@@ -107,7 +107,7 @@ export default function GlobalError({
               Er ging iets mis
             </h1>
             <p className="mt-3 max-w-sm text-base leading-relaxed text-neutral-500">
-              Er is een onverwachte fout opgetreden. Probeer het opnieuw — blijft
+              Er is een onverwachte fout opgetreden. Probeer het opnieuw. Blijft
               het misgaan, dan kijken wij ernaar.
             </p>
 
@@ -138,11 +138,11 @@ export default function GlobalError({
               className="mt-4 text-sm font-medium text-neutral-500 underline-offset-4 hover:underline disabled:no-underline disabled:opacity-70"
             >
               {reportState === "sent"
-                ? "Bedankt — melding verstuurd ✓"
+                ? "Bedankt, melding verstuurd ✓"
                 : reportState === "busy"
                   ? "Versturen…"
                   : reportState === "failed"
-                    ? "Versturen mislukt — probeer nogmaals"
+                    ? "Versturen mislukt, probeer nogmaals"
                     : "Dit werkt niet? Meld het probleem"}
             </button>
           </div>

@@ -185,7 +185,7 @@ export default async function AdminDashboard() {
           <Card>
             <CardContent className="flex items-center gap-3 text-sm text-neutral-600">
               <span className="text-xl">✅</span>
-              Alles onder controle — geen openstaande signalen.
+              Alles onder controle, geen openstaande signalen.
             </CardContent>
           </Card>
         ) : (

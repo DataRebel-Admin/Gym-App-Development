@@ -96,9 +96,9 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
           {state === "unsupported"
             ? "Niet beschikbaar in deze browser of nog niet geconfigureerd."
             : state === "denied"
-              ? "Geblokkeerd — sta meldingen toe in je browserinstellingen."
+              ? "Geblokkeerd. Sta meldingen toe in je browserinstellingen."
               : state === "on"
-                ? "Ingeschakeld — je ontvangt pushmeldingen op dit apparaat."
+                ? "Ingeschakeld. Je ontvangt pushmeldingen op dit apparaat."
                 : "Ontvang meldingen ook als de app gesloten is."}
         </p>
       </div>

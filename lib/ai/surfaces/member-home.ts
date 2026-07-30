@@ -44,7 +44,7 @@ export const memberHomeSurface: Surface = {
     const system = [
       baseSystemPreamble(tenantName, user.locale),
       "",
-      "CONTEXT — beschikbare apparatuur:",
+      "CONTEXT (beschikbare apparatuur):",
       machineList,
       "",
       `Beschikbare oefeningen: ${exerciseList}`,

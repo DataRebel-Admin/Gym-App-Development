@@ -64,7 +64,7 @@ export function FullscreenButton({ className }: { className?: string }) {
     if (!ok) {
       error("Volledig scherm is niet beschikbaar in deze weergave.");
     } else if (!wasFullscreen) {
-      toast("Volledig scherm — druk op Esc om te verlaten.");
+      toast("Volledig scherm. Druk op Esc om te verlaten.");
     }
   }
 

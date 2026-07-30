@@ -140,7 +140,7 @@ export async function linkReportDuplicate(
     prisma.appReport.findUnique({ where: { id: duplicateOfId } }),
   ]);
   if (!report) return { error: "Melding niet gevonden" };
-  if (!original) return { error: "Origineel niet gevonden — controleer het ID" };
+  if (!original) return { error: "Origineel niet gevonden, controleer het ID" };
 
   await prisma.appReport.update({
     where: { id },

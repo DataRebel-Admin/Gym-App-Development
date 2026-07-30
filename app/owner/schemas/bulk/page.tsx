@@ -50,7 +50,7 @@ export default async function BulkPage() {
         <h2 className="text-sm font-semibold text-neutral-900">Bulkwijzigingen</h2>
         <p className="text-sm text-neutral-500">
           Pas in één keer een wijziging toe op de actieve schema&apos;s van meerdere
-          leden — bijvoorbeeld gewicht +5 kg of een extra oefening. Persoonlijke
+          leden, bijvoorbeeld gewicht +5 kg of een extra oefening. Persoonlijke
           schema&apos;s blijven behouden; de master-templates worden niet gewijzigd.
         </p>
       </div>

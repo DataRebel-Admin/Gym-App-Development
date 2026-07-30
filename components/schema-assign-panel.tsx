@@ -292,5 +292,5 @@ function summarize(r: AssignChunkResult): string {
   if (r.reassigned) parts.push(`${r.reassigned} opnieuw toegewezen`);
   if (r.scheduled) parts.push(`${r.scheduled} ingepland`);
   if (r.drafted) parts.push(`${r.drafted} als concept klaargezet`);
-  return parts.length ? `Gelukt — ${parts.join(", ")}.` : "Geen wijzigingen.";
+  return parts.length ? `Gelukt: ${parts.join(", ")}.` : "Geen wijzigingen.";
 }

@@ -34,7 +34,7 @@ export function BackgroundParallaxToggle({ initialEnabled }: { initialEnabled: b
           <p className="mt-0.5 text-sm text-neutral-500">
             De gekleurde achtergrond beweegt subtiel mee met je cursor. Zet je dit
             uit, dan blijft de achtergrond stil staan. Geldt op dit apparaat, en
-            alleen op een computer met muis — op telefoon en tablet beweegt de
+            alleen op een computer met muis. Op telefoon en tablet beweegt de
             achtergrond sowieso niet mee.
           </p>
         </div>

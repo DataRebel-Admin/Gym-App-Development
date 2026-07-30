@@ -130,7 +130,7 @@ export function AdminQrExport({
             onChange={(e) => chooseTenant(e.target.value)}
             className="w-full sm:w-64"
           >
-            <option value="">— Kies een sportschool —</option>
+            <option value="">(Kies een sportschool)</option>
             <option value="all">Alle sportscholen (gebundeld)</option>
             {tenants.map((t) => (
               <option key={t.id} value={t.id}>

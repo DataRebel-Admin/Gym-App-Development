@@ -10,7 +10,7 @@ export const FORBIDDEN_WORDS = [
 ];
 
 export const SAFETY_FALLBACK =
-  "Hier kan ik je niet mee helpen — raadpleeg hiervoor een professional " +
+  "Hier kan ik je niet mee helpen. Raadpleeg hiervoor een professional " +
   "(je trainer, fysiotherapeut of arts). Bij pijn of twijfel: stop met de " +
   "oefening en vraag advies.";
 

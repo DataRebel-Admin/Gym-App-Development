@@ -40,7 +40,7 @@ export default async function LocationsPage() {
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Vestigingen"
-        description="Fysieke locaties van je organisatie — apparaten, lessen en trainingen worden per vestiging geregistreerd."
+        description="Fysieke locaties van je organisatie. Apparaten, lessen en trainingen worden per vestiging geregistreerd."
         action={
           <Link
             href="/owner/locations/new"

@@ -235,7 +235,7 @@ export function ReportDefectModal({
               {(machines ?? []).map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
-                  {m.locationName ? ` — ${m.locationName}` : ""}
+                  {m.locationName ? ` · ${m.locationName}` : ""}
                 </option>
               ))}
               <option value={OTHER}>{t("form.machineOther")}</option>

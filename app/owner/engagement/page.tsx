@@ -58,7 +58,7 @@ export default async function EngagementPage({
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-neutral-900">Betrokkenheid</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            Mijlpalen, streaks en activiteit van je leden — speel in op motivatie.
+            Mijlpalen, streaks en activiteit van je leden. Speel in op motivatie.
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-full border border-border bg-surface-1 p-1 text-sm">

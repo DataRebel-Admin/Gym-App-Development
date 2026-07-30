@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   if (format === "pdf") {
     const pdf = await buildAuditPdf(logs, {
-      title: "Audit log — platform",
+      title: "Audit log: platform",
       tenantName,
       showTenant: true,
     });

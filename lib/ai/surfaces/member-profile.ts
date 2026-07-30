@@ -73,7 +73,7 @@ export const memberProfileSurface: Surface = {
     const system = [
       baseSystemPreamble(tenantName, user.locale),
       "",
-      `CONTEXT — voortgang van lid "${member.name ?? member.email}" (alle cijfers zijn afgeleid; geen medische data):`,
+      `CONTEXT: voortgang van lid "${member.name ?? member.email}" (alle cijfers zijn afgeleid; geen medische data):`,
       `Trainingen: ${stats.totalWorkouts} totaal, ${stats.workoutsThisWeek} deze week (weekdoel ${stats.weeklyGoal}), ${stats.workoutsThisMonth} deze maand.`,
       `Streak: ${stats.currentStreakWeeks} weken (langste ${stats.longestStreakWeeks}). Laatste sessie: ${fmtDate(stats.lastSessionAt)}.`,
       `Volume deze week: ${Math.round(stats.thisWeekVolume)} (totaal ${Math.round(stats.totalVolume)}).`,

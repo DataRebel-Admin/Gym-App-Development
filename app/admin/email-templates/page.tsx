@@ -32,7 +32,7 @@ export default async function EmailTemplatesPage() {
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="E-mailtemplates"
-        description="Beheer alle systeemmails: bewerk de inhoud, preview met de huisstijl van een sportschool, verstuur een testmail en publiceer — zonder herdeploy. De gebrande koptekst, footer en kleuren worden per tenant automatisch toegevoegd."
+        description="Beheer alle systeemmails: bewerk de inhoud, preview met de huisstijl van een sportschool, verstuur een testmail en publiceer, zonder herdeploy. De gebrande koptekst, footer en kleuren worden per tenant automatisch toegevoegd."
       />
 
       {/* Mobiel: kaarten */}

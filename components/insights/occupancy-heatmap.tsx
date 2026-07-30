@@ -95,7 +95,7 @@ export function OccupancyHeatmap({
                           key={`${loc.id}-${dayKey}-${h}`}
                           title={
                             count > 0
-                              ? `${t(dayKey)} ${h}:00 — ${t("cellVisits", { count })}`
+                              ? `${t(dayKey)} ${h}:00 · ${t("cellVisits", { count })}`
                               : undefined
                           }
                           className={`aspect-square rounded-[4px] bg-surface-2${

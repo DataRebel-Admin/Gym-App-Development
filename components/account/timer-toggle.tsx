@@ -35,7 +35,7 @@ export function TimerPreferenceToggle({ initialDisabled }: { initialDisabled: bo
           <p className="text-sm font-semibold text-neutral-900">Rusttimers gebruiken</p>
           <p className="mt-0.5 text-sm text-neutral-500">
             Start automatisch een rusttimer na elke set. Zet je dit uit, dan starten
-            nieuwe trainingen zonder timers — je kunt het per training alsnog aanzetten.
+            nieuwe trainingen zonder timers. Je kunt het per training alsnog aanzetten.
           </p>
         </div>
       </div>

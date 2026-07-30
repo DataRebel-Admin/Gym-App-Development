@@ -259,7 +259,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardData> {
       icon: "🔑",
       title: "Tenants zonder beheerder",
       count: noAdminCount,
-      detail: "Geen actieve tenant-admin — niemand kan de gym beheren.",
+      detail: "Geen actieve tenant-admin. Niemand kan de gym beheren.",
       href: "/admin/tenants",
     });
   if (failed7 > 0)
@@ -309,7 +309,7 @@ export async function getAdminDashboard(): Promise<AdminDashboardData> {
       icon: "🌱",
       title: "Lege tenants",
       count: emptyCount,
-      detail: "Aangemaakt maar nog zonder leden — onboarding nodig.",
+      detail: "Aangemaakt maar nog zonder leden, onboarding nodig.",
       href: "/admin/tenants",
     });
 

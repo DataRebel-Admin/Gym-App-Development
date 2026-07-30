@@ -54,7 +54,7 @@ export function validateTemplate(opts: {
   for (const p of def.placeholders) {
     if (p.required && !used.has(p.token)) {
       warnings.push(
-        `Verplichte placeholder {{${p.token}}} (${p.label}) ontbreekt — de mail mist mogelijk een belangrijke link.`
+        `Verplichte placeholder {{${p.token}}} (${p.label}) ontbreekt. De mail mist mogelijk een belangrijke link.`
       );
     }
   }
@@ -64,7 +64,7 @@ export function validateTemplate(opts: {
   const closeCount = (bodyHtml.match(/\}\}/g) ?? []).length;
   if (openCount !== closeCount) {
     warnings.push(
-      "Ongebalanceerde accolades — controleer of elke {{placeholder}} netjes geopend en gesloten is."
+      "Ongebalanceerde accolades. Controleer of elke {{placeholder}} netjes geopend en gesloten is."
     );
   }
 

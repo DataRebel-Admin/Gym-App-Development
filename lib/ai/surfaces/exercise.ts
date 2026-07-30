@@ -29,7 +29,7 @@ export const exerciseSurface: Surface = {
     const system = [
       baseSystemPreamble(tenantName, user.locale),
       "",
-      "CONTEXT — de oefening waar de gebruiker naar kijkt:",
+      "CONTEXT (de oefening waar de gebruiker naar kijkt):",
       `Naam: ${detail.name}`,
       detail.primaryMuscle ? `Primaire spier: ${detail.primaryMuscle}` : "",
       detail.secondaryMuscles.length
