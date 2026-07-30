@@ -49,7 +49,7 @@ export const MUSCLE_REGIONS: Record<MuscleRegion, MuscleRegionMeta> = {
   obliques: { region: "obliques", label: "Schuine buik", views: ["front"] },
   // De gevendorde body-dataset heeft geen aparte trapezius-polygoon aan de
   // voorkant (alleen in POSTERIOR) → de spier is enkel via het achteraanzicht
-  // benaderbaar op de heatmap. Vgl. de lats-kanttekening.
+  // benaderbaar op de heatmap. Vgl. REGION_SHARED_POLYGON voor lats.
   traps: { region: "traps", label: "Trapezius", views: ["back"] },
   lats: { region: "lats", label: "Lats", views: ["back"] },
   upperBack: { region: "upperBack", label: "Bovenrug", views: ["back"] },
@@ -65,6 +65,36 @@ export const MUSCLE_REGIONS: Record<MuscleRegion, MuscleRegionMeta> = {
 export const MUSCLE_REGION_ORDER: MuscleRegion[] = Object.keys(
   MUSCLE_REGIONS
 ) as MuscleRegion[];
+
+/**
+ * Regio's zónder eigen polygoon in de gevendorde body-dataset, met de polygoon
+ * waarop ze méékleuren.
+ *
+ * De MIT-dataset (react-body-highlighter) vat de lats samen in één
+ * upper-back-vorm, terwijl de RepDB-bibliotheek `latissimus_dorsi` wél apart
+ * onderscheidt. Zonder deze koppeling zou lat pulldown- en roeivolume nergens op
+ * de figuur oplichten. De geometrie blijft ongemoeid — die is gegenereerd uit de
+ * MIT-bron (zie components/muscle/body-model-data.ts) en wordt niet met de hand
+ * gesplitst; de polygoon draagt dus méérdere spieren en kleurt op de zwaarst
+ * belaste ervan (som zou hetzelfde oppervlak dubbel tellen).
+ *
+ * Een test dwingt af dat élke regio zichtbaar is: eigen polygoon óf hier gekoppeld.
+ */
+export const REGION_SHARED_POLYGON: Partial<Record<MuscleRegion, MuscleRegion>> = {
+  lats: "upperBack",
+};
+
+/**
+ * Alle regio's die op de polygonen van `region` worden weergegeven — `region`
+ * zelf eerst, daarna de meeliftende regio's. Gebruikt door de heatmap voor kleur,
+ * `aria-label` en het detailpaneel.
+ */
+export function regionsOnPolygon(region: MuscleRegion): MuscleRegion[] {
+  const shared = MUSCLE_REGION_ORDER.filter(
+    (r) => REGION_SHARED_POLYGON[r] === region
+  );
+  return [region, ...shared];
+}
 
 /**
  * Ruwe spier-labels (uit catalogus of eigen oefening, lowercase) → regio.
@@ -138,6 +168,54 @@ const RAW_TO_REGION: Record<string, MuscleRegion> = {
   gastrocnemius: "calves",
   ankles: "calves",
   "ankle stabilizers": "calves",
+
+  // --- Weergavenamen van de bibliotheek (LibraryMuscle.names.en) -------------
+  // De slugs resolven al via de regels hierboven; deze vier en-namen wijken
+  // dáárvan af en komen als vrij label mee in `Exercise.targetMuscle` (gezet bij
+  // het toevoegen aan een sportschool). Zonder deze regels vallen ze stil weg.
+  "side delts": "shoulders", // lateral_deltoid
+  "glute medius": "glutes", // gluteus_medius
+  "deep core": "abs", // transverse_abdominis
+  serratus: "obliques", // serratus_anterior
+
+  // --- Nederlandse labels ---------------------------------------------------
+  // De UI is Nederlands: bij een eigen oefening typt de sportschool "Borst" of
+  // "Bilspieren" in `targetMuscle`/`muscleGroups`. Alleen ondubbelzinnige
+  // anatomische termen staan hier — "benen"/"bovenbenen"/"hele lichaam" dekken
+  // meerdere regio's en worden bewust niet gegokt (liever geen kleur dan de
+  // verkeerde spier oplichten).
+  borst: "chest",
+  schouders: "shoulders",
+  onderarmen: "forearms",
+  buik: "abs",
+  "schuine buik": "obliques",
+  bovenrug: "upperBack",
+  onderrug: "lowerBack",
+  bilspieren: "glutes",
+  bilen: "glutes",
+  latissimus: "lats",
+  kuiten: "calves",
+  adductoren: "adductors",
+  binnenbeen: "adductors",
+  buitenbeen: "adductors",
+
+  // --- Nederlandse weergavenamen van de bibliotheek (LibraryMuscle.names.nl) --
+  // Tegenhanger van de en-namen hierboven: sinds de lookups een `nl`-naam hebben
+  // (lib/translate/library-lookups-nl.ts) belandt de Nederlandse variant als vrij
+  // label in `Exercise.targetMuscle`. Zonder deze regels zou de heatmap stil
+  // stoppen met kleuren; `tests/library-lookups-nl.test.ts` dwingt de dekking af.
+  abductoren: "adductors",
+  "voorste deltoïden": "shoulders",
+  "middelste deltoïden": "shoulders",
+  "achterste deltoïden": "shoulders",
+  onderarmstrekkers: "forearms",
+  onderarmbuigers: "forearms",
+  "middelste bilspier": "glutes",
+  heupbuigers: "quads", // zoals "hip flexors"
+  "schuine buikspieren": "obliques",
+  buikspieren: "abs",
+  "diepe buikspieren": "abs",
+  rhomboïden: "upperBack",
 };
 
 /** Normaliseer één ruw spier-label naar een regio (of null als onbekend/n.v.t.).
@@ -147,6 +225,75 @@ export function resolveRegion(raw: string | null | undefined): MuscleRegion | nu
   if (!raw) return null;
   const key = raw.trim().toLowerCase().replace(/_/g, " ");
   return RAW_TO_REGION[key] ?? null;
+}
+
+// --- Set-volume per regio (telregel) ---------------------------------------
+//
+// Puur en getest, zodat de heatmap-telling verifieerbaar is zonder database.
+// De server-laag (lib/muscle-analysis.ts) levert alleen de rijen aan.
+
+/** Spier-relevante velden van een tenant-`Exercise`, 3-weg (bibliotheek/klassiek/eigen). */
+export type ExerciseMuscleInfo = {
+  targetMuscle: string | null;
+  muscleGroups: string[];
+  catalog: {
+    target: string | null;
+    muscleGroup: string | null;
+    secondaryMuscles: string[];
+  } | null;
+  library: {
+    primaryMuscles: string[];
+    secondaryMuscles: string[];
+  } | null;
+};
+
+/**
+ * Primaire spieren van een oefening. Bij een bibliotheek-oefening (RepDB) zijn
+ * de gecureerde slugs leidend — dáár staan er vaak meerdere (een squat =
+ * quadriceps + bilspieren) en die tellen allemaal vol. `targetMuscle` is bij zo'n
+ * oefening slechts één afgeleide weergavenaam. Anders: eigen `targetMuscle` wint
+ * van de klassieke catalogus.
+ */
+export function primaryMuscleRaws(ex: ExerciseMuscleInfo): string[] {
+  const lib = ex.library?.primaryMuscles ?? [];
+  if (lib.length > 0) return lib;
+  const single = ex.targetMuscle ?? ex.catalog?.target ?? ex.catalog?.muscleGroup ?? null;
+  return single ? [single] : [];
+}
+
+/** Secundaire spieren (bibliotheek + catalogus + eigen extra spiergroepen). */
+export function secondaryMuscleRaws(ex: ExerciseMuscleInfo): string[] {
+  return [
+    ...(ex.library?.secondaryMuscles ?? []),
+    ...(ex.catalog?.secondaryMuscles ?? []),
+    ...(ex.muscleGroups ?? []),
+  ];
+}
+
+/**
+ * Verdeel `sets` van één oefening over de spierregio's: primair vol, secundair
+ * half. Per oefening telt elke regio maximaal één keer — een regio die al
+ * primair geraakt is krijgt geen halve secundaire bonus erbovenop. Muteert
+ * `acc` in-place (opteller over alle oefeningen van een schema/periode).
+ */
+export function accumulateMuscleVolume(
+  acc: Map<MuscleRegion, number>,
+  ex: ExerciseMuscleInfo,
+  sets: number
+): void {
+  const seen = new Set<MuscleRegion>();
+  for (const raw of primaryMuscleRaws(ex)) {
+    const region = resolveRegion(raw);
+    if (!region || seen.has(region)) continue;
+    seen.add(region);
+    acc.set(region, (acc.get(region) ?? 0) + sets);
+  }
+  for (const raw of secondaryMuscleRaws(ex)) {
+    const region = resolveRegion(raw);
+    if (!region || seen.has(region)) continue;
+    seen.add(region);
+    acc.set(region, (acc.get(region) ?? 0) + sets * 0.5);
+  }
 }
 
 // --- Volume-niveaus (heatmap-kleuren) --------------------------------------

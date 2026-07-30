@@ -4,9 +4,10 @@ import { prisma } from "@/lib/db";
 import {
   MUSCLE_REGIONS,
   MUSCLE_REGION_ORDER,
+  accumulateMuscleVolume,
   levelForWeeklySets,
-  resolveRegion,
   type BodyView,
+  type ExerciseMuscleInfo,
   type MuscleLevel,
   type MuscleRegion,
 } from "@/lib/muscle-map";
@@ -19,60 +20,25 @@ import {
  * - **Echt getraind**: set-volume per regio uit de laatste 28 dagen
  *   (`PerformanceEntry`), teruggerekend naar een weekgemiddelde (÷4).
  *
- * De primaire spier (`target`/`targetMuscle`) telt vol mee; secundaire spieren
- * (`secondaryMuscles`/`muscleGroups`) tellen half (0.5) — een gangbare weging.
- * Tenant-scoped via expliciete `tenantId` (zoals lib/member-stats.ts).
+ * De primaire spier(en) tellen vol mee; secundaire spieren tellen half (0.5) —
+ * een gangbare weging. Tenant-scoped via expliciete `tenantId` (zoals
+ * lib/member-stats.ts).
+ *
+ * De telregel zelf (bron-bewust, primair vol / secundair half) is puur en getest:
+ * `accumulateMuscleVolume` in lib/muscle-map.ts.
  */
 
-/** Selectie van spier-relevante velden op een oefening (catalogus + eigen). */
+/** Selectie van spier-relevante velden op een oefening (bibliotheek + catalogus + eigen). */
 const exerciseMuscleSelect = {
   targetMuscle: true,
   muscleGroups: true,
   catalog: {
     select: { target: true, muscleGroup: true, secondaryMuscles: true },
   },
+  library: {
+    select: { primaryMuscles: true, secondaryMuscles: true },
+  },
 } as const;
-
-type ExerciseMuscleInfo = {
-  targetMuscle: string | null;
-  muscleGroups: string[];
-  catalog: {
-    target: string | null;
-    muscleGroup: string | null;
-    secondaryMuscles: string[];
-  } | null;
-};
-
-/** Primaire spier van een oefening (eigen `targetMuscle` wint van catalogus). */
-function primaryRaw(ex: ExerciseMuscleInfo): string | null {
-  return ex.targetMuscle ?? ex.catalog?.target ?? ex.catalog?.muscleGroup ?? null;
-}
-
-/** Secundaire spieren van een oefening (catalogus + eigen extra spiergroepen). */
-function secondaryRaws(ex: ExerciseMuscleInfo): string[] {
-  return [...(ex.catalog?.secondaryMuscles ?? []), ...(ex.muscleGroups ?? [])];
-}
-
-/**
- * Verdeel `sets` van één oefening over de spierregio's: primair vol, secundair
- * half. Muteert `acc` in-place.
- */
-function accumulate(
-  acc: Map<MuscleRegion, number>,
-  ex: ExerciseMuscleInfo,
-  sets: number
-) {
-  const primary = resolveRegion(primaryRaw(ex));
-  if (primary) acc.set(primary, (acc.get(primary) ?? 0) + sets);
-
-  const seen = new Set<MuscleRegion>(primary ? [primary] : []);
-  for (const raw of secondaryRaws(ex)) {
-    const region = resolveRegion(raw);
-    if (!region || seen.has(region)) continue; // niet dubbel tellen per oefening
-    seen.add(region);
-    acc.set(region, (acc.get(region) ?? 0) + sets * 0.5);
-  }
-}
 
 export type RegionAnalysis = {
   region: MuscleRegion;
@@ -162,13 +128,13 @@ async function computeMuscleAnalysis(
   // Plan: som van sets over alle items (aanname: schema 1×/week).
   const plan = new Map<MuscleRegion, number>();
   for (const it of template?.items ?? []) {
-    accumulate(plan, it.exercise, it.sets);
+    accumulateMuscleVolume(plan, it.exercise, it.sets);
   }
 
   // Echt getraind: elke PerformanceEntry = één set, over 28 dagen → ÷4 = week.
   const actual = new Map<MuscleRegion, number>();
   for (const e of entries) {
-    accumulate(actual, e.exercise, 1);
+    accumulateMuscleVolume(actual, e.exercise, 1);
   }
 
   const regions: RegionAnalysis[] = MUSCLE_REGION_ORDER.map((region) => {
