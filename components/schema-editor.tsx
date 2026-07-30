@@ -17,6 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { saveSchema, type SchemaSaveState } from "@/app/owner/schemas/actions";
+import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
 import Link from "next/link";
 import { Info, TrendingDown, X } from "@/components/ui/icons";
 import {
@@ -73,8 +74,8 @@ export type AvailableExercise = {
   name: string;
   targetMuscle: string | null;
   exerciseType: string;
-  /** Herkomst: "standaard" (catalogus) of "eigen" (tenant-oefening). */
-  source: "standaard" | "eigen";
+  /** Herkomst: "standaard" (bibliotheek), "klassiek" (oude catalogus) of "eigen". */
+  source: ExerciseSource;
   /** Thumbnail (catalogus of eigen media) — voor een preview die het lid nabootst. */
   thumbUrl: string | null;
   /** Machine-naam (indien gekoppeld) — het lid ziet die ook. */
@@ -186,16 +187,14 @@ function ParamInput({
   );
 }
 
-/** Kleine herkomst-badge: Standaard (catalogus) of Eigen (tenant-oefening). */
-function SourceBadge({ source }: { source: "standaard" | "eigen" }) {
-  const eigen = source === "eigen";
+/** Kleine herkomst-badge: Standaard (bibliotheek), Klassiek (oud) of Eigen. */
+function SourceBadge({ source }: { source: ExerciseSource }) {
+  const meta = EXERCISE_SOURCE_META[source];
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-        eigen ? "bg-accent-soft text-accent" : "bg-neutral-100 text-neutral-500"
-      }`}
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.tone}`}
     >
-      {eigen ? "Eigen" : "Standaard"}
+      {meta.label}
     </span>
   );
 }
@@ -225,7 +224,7 @@ function SortableRow({
   onCopyRestToDay,
 }: {
   item: EditorItem;
-  source?: "standaard" | "eigen";
+  source?: ExerciseSource;
   dayKeys: { key: string; name: string }[];
   currentDayKey: string;
   showMemberNote: boolean;

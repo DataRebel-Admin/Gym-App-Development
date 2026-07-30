@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { requirePermission } from "@/lib/staff";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
+import { getPickerExercises } from "@/lib/exercise-picker";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { SchemaDiffView } from "@/components/schema-compare";
@@ -95,29 +96,7 @@ export default async function MemberSchemaPage({
       })
     : null;
 
-  const exerciseRows = await prisma.exercise.findMany({
-    where: { tenantId: owner.tenantId, archivedAt: null },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      targetMuscle: true,
-      catalogId: true,
-      exerciseType: true,
-      imageUrls: true,
-      machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
-    },
-  });
-  const exercises = exerciseRows.map((e) => ({
-    id: e.id,
-    name: e.name,
-    targetMuscle: e.targetMuscle,
-    exerciseType: e.exerciseType,
-    source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
-    thumbUrl: e.catalog?.imageUrl ?? e.catalog?.gifUrl ?? e.imageUrls[0] ?? null,
-    machineName: e.machine?.name ?? null,
-  }));
+  const exercises = await getPickerExercises(owner.tenantId);
 
   // Naam-map (incl. gearchiveerde) voor de diff-weergaven.
   const allExercises = await prisma.exercise.findMany({

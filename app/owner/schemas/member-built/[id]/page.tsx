@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { SchemaEditor, type EditorDay } from "@/components/schema-editor";
+import { getPickerExercises } from "@/lib/exercise-picker";
 import { Badge } from "@/components/ui/badge";
 import { itemToInputValues } from "@/lib/exercise-params";
 import { pickGroupFields } from "@/lib/exercise-groups";
@@ -42,29 +43,7 @@ export default async function MemberBuiltReviewDetail({
   const meta = MEMBER_STATUS_META[status];
   const canReview = status === "IN_REVIEW";
 
-  const exerciseRows = await prisma.exercise.findMany({
-    where: { tenantId: owner.tenantId, archivedAt: null },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      targetMuscle: true,
-      catalogId: true,
-      exerciseType: true,
-      imageUrls: true,
-      machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
-    },
-  });
-  const exercises = exerciseRows.map((e) => ({
-    id: e.id,
-    name: e.name,
-    targetMuscle: e.targetMuscle,
-    exerciseType: e.exerciseType,
-    source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
-    thumbUrl: e.catalog?.imageUrl ?? e.catalog?.gifUrl ?? e.imageUrls[0] ?? null,
-    machineName: e.machine?.name ?? null,
-  }));
+  const exercises = await getPickerExercises(owner.tenantId);
   const dayTemplates = await getDayTemplateOptions(owner.tenantId);
 
   const initialDays: EditorDay[] = assignment.template.days.map((d) => ({

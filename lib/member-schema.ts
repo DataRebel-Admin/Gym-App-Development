@@ -3,6 +3,7 @@ import { forbidden } from "next/navigation";
 import type { MemberSchemaMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { FrameworkLimits } from "@/lib/member-schema-constraints";
+import { getPickerExercises, type PickerExercise } from "@/lib/exercise-picker";
 
 /**
  * Serverlogica voor zelf-gebouwde lid-schema's. Bouwt voort op requireMember()
@@ -11,15 +12,7 @@ import type { FrameworkLimits } from "@/lib/member-schema-constraints";
  */
 
 /** Beschikbare oefening voor de lid-builder (mobile picker + preview). */
-export type MemberExercise = {
-  id: string;
-  name: string;
-  targetMuscle: string | null;
-  exerciseType: string;
-  source: "standaard" | "eigen";
-  thumbUrl: string | null;
-  machineName: string | null;
-};
+export type MemberExercise = PickerExercise;
 
 /** Lees de controle-modus van de sportschool. */
 export async function getMemberSchemaMode(tenantId: string): Promise<MemberSchemaMode> {
@@ -100,29 +93,7 @@ export async function getMemberSchemaForEdit(id: string, memberId: string, tenan
 
 /** Beschikbare (niet-gearchiveerde) oefeningen van de tenant voor de builder-picker. */
 export async function getMemberExercises(tenantId: string): Promise<MemberExercise[]> {
-  const rows = await prisma.exercise.findMany({
-    where: { tenantId, archivedAt: null },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      targetMuscle: true,
-      catalogId: true,
-      exerciseType: true,
-      imageUrls: true,
-      machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
-    },
-  });
-  return rows.map((e) => ({
-    id: e.id,
-    name: e.name,
-    targetMuscle: e.targetMuscle,
-    exerciseType: e.exerciseType,
-    source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
-    thumbUrl: e.catalog?.imageUrl ?? e.catalog?.gifUrl ?? e.imageUrls[0] ?? null,
-    machineName: e.machine?.name ?? null,
-  }));
+  return getPickerExercises(tenantId);
 }
 
 /** Library-templates die de owner heeft vrijgegeven als lid-startsjabloon. */

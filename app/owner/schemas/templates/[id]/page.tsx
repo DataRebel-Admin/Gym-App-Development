@@ -10,6 +10,7 @@ import { SchemaAssignPanel } from "@/components/schema-assign-panel";
 import { SchemaAssignmentOverview } from "@/components/schema-assignment-overview";
 import { getAssignmentsForTemplate, toOverviewRows } from "@/lib/schema-assignments";
 import { getDayTemplateOptions } from "@/lib/day-templates";
+import { getPickerExercises } from "@/lib/exercise-picker";
 import { itemToInputValues } from "@/lib/exercise-params";
 import { pickGroupFields } from "@/lib/exercise-groups";
 import { getMasterSuggestions } from "@/lib/coach-insights";
@@ -54,29 +55,7 @@ export default async function TemplateEditPage({
   });
   if (!template) notFound();
 
-  const exerciseRows = await prisma.exercise.findMany({
-    where: { tenantId: owner.tenantId, archivedAt: null },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      targetMuscle: true,
-      catalogId: true,
-      exerciseType: true,
-      imageUrls: true,
-      machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
-    },
-  });
-  const exercises = exerciseRows.map((e) => ({
-    id: e.id,
-    name: e.name,
-    targetMuscle: e.targetMuscle,
-    exerciseType: e.exerciseType,
-    source: e.catalogId ? ("standaard" as const) : ("eigen" as const),
-    thumbUrl: e.catalog?.imageUrl ?? e.catalog?.gifUrl ?? e.imageUrls[0] ?? null,
-    machineName: e.machine?.name ?? null,
-  }));
+  const exercises = await getPickerExercises(owner.tenantId);
 
   const members = await prisma.user.findMany({
     where: { tenantId: owner.tenantId, role: "TENANT_MEMBER", archivedAt: null, active: true },

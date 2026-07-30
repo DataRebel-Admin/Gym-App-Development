@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MemberSchemaMode, MemberSchemaStatus } from "@prisma/client";
+import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
 import {
   NO_GROUP,
   serializeEditorDay,
@@ -147,15 +148,13 @@ function ParamInput({
   );
 }
 
-function SourceBadge({ source }: { source: "standaard" | "eigen" }) {
-  const eigen = source === "eigen";
+function SourceBadge({ source }: { source: ExerciseSource }) {
+  const meta = EXERCISE_SOURCE_META[source];
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-        eigen ? "bg-accent-soft text-accent" : "bg-neutral-100 text-neutral-500"
-      }`}
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.tone}`}
     >
-      {eigen ? "Eigen" : "Standaard"}
+      {meta.label}
     </span>
   );
 }
@@ -181,7 +180,7 @@ function ItemCard({
   onCopyTo,
 }: {
   item: EditorItem;
-  source?: "standaard" | "eigen";
+  source?: ExerciseSource;
   limits: FrameworkLimits | null;
   dayKeys: { key: string; name: string }[];
   currentDayKey: string;

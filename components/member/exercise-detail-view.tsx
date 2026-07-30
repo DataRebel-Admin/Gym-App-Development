@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Markdown from "react-markdown";
 import type { ExerciseDetail, ExerciseAlternative } from "@/lib/exercise";
+import { EXERCISE_SOURCE_META } from "@/lib/exercise-library/source";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { toEmbedUrl } from "@/lib/video";
-import { Dumbbell, Target, MapPin, Activity, ChevronRight, Sparkles } from "@/components/ui/icons";
+import { Dumbbell, Target, MapPin, Activity, ChevronRight, Sparkles, Flame } from "@/components/ui/icons";
 
 const PROSE =
   "prose prose-sm prose-neutral max-w-none text-neutral-700 [&_h2]:mt-0 [&_h2]:text-base [&_h2]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5";
@@ -26,6 +27,7 @@ const LANG_LABEL: Record<string, string> = {
   it: "Italiaans",
   tr: "Turks",
   nl: "Nederlands",
+  de: "Duits",
 };
 
 const DIFFICULTY_TONE: Record<string, BadgeTone> = {
@@ -90,11 +92,13 @@ export function ExerciseDetailView({
     (m): m is string => Boolean(m)
   );
   const showLangNote = detail.instructionLang && detail.instructionLang !== "nl";
-  const media = detail.gifUrl ?? detail.imageUrl;
+  // Bibliotheek: loopende animatie wint; anders gif (klassiek) of still.
+  const media = detail.animationUrl ?? detail.gifUrl ?? detail.imageUrl;
   const extraImages = detail.images.filter((img) => img !== media);
   const video = toEmbedUrl(detail.videoUrl);
   const hasExecution =
     detail.steps.length > 0 || detail.instructionsText || detail.executionMd;
+  const sourceMeta = EXERCISE_SOURCE_META[detail.source];
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,6 +168,13 @@ export function ExerciseDetailView({
               {detail.category}
             </Badge>
           ) : null}
+          {sourceMeta.showBadge ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${sourceMeta.tone}`}
+            >
+              {sourceMeta.label}
+            </span>
+          ) : null}
         </div>
         <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-neutral-900">
           {detail.name}
@@ -185,10 +196,51 @@ export function ExerciseDetailView({
           <InfoCard icon={<MapPin className="size-4" />} label="Lichaamsdeel" value={detail.bodyPart} />
         ) : null}
         <InfoCard icon={<Activity className="size-4" />} label="Niveau" value={detail.difficulty} />
+        {detail.met != null ? (
+          <InfoCard
+            icon={<Flame className="size-4" />}
+            label="Intensiteit"
+            value={`MET ${detail.met}`}
+          />
+        ) : null}
       </div>
 
-      {/* Spiergroep-chips */}
-      {muscles.length > 0 ? (
+      {/* Getrainde spieren: anatomische diagrammen (bibliotheek) of chips */}
+      {detail.muscleDiagrams.length > 0 ? (
+        <div>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Getrainde spieren
+          </p>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {detail.muscleDiagrams.map((m, i) => (
+              <figure
+                key={`${m.name}-${i}`}
+                className={`w-24 shrink-0 overflow-hidden rounded-2xl border p-1.5 text-center ${
+                  i === 0 ? "border-accent/40 bg-accent-soft/40" : "border-border bg-surface-1"
+                }`}
+              >
+                {m.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={m.imageUrl}
+                    alt={m.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-24 w-full object-contain"
+                  />
+                ) : (
+                  <span className="flex h-24 items-center justify-center text-neutral-300">
+                    <Target className="size-6" />
+                  </span>
+                )}
+                <figcaption className="mt-1 truncate text-[11px] font-medium capitalize text-neutral-600">
+                  {m.name}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      ) : muscles.length > 0 ? (
         <div>
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
             Getrainde spieren
@@ -243,8 +295,22 @@ export function ExerciseDetailView({
         </section>
       ) : null}
 
-      {/* Coachingtips: eigen tekst indien aanwezig, anders generieke tips */}
-      {detail.coachingTipsMd ? (
+      {/* Coachingtips: per-oefening tips (bibliotheek) > eigen tekst > generiek */}
+      {detail.tips.length > 0 ? (
+        <section className="rounded-3xl border border-border bg-surface-1 p-5">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
+            <Sparkles className="size-4 text-accent" /> Coachingtips
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {detail.tips.map((tip, i) => (
+              <li key={i} className="flex gap-2 text-sm text-neutral-600">
+                <span className="text-accent">•</span>
+                <span>{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : detail.coachingTipsMd ? (
         <section className="rounded-3xl border border-border bg-surface-1 p-5">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-900">
             <Sparkles className="size-4 text-accent" /> Coachingtips
