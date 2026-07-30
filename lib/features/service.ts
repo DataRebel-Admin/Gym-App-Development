@@ -33,6 +33,8 @@ export type FeatureFlagRow = {
   enabled: boolean;
   /** `true` als de waarde uit de DB komt; `false` = code-default (nooit gewijzigd). */
   overridden: boolean;
+  /** Verouderde terugvaloptie → aparte sectie in de beheer-UI. */
+  deprecated: boolean;
   updatedAt: string | null;
   updatedByEmail: string | null;
 };
@@ -100,6 +102,7 @@ export async function getFeatureFlagRows(
       icon: def.icon,
       enabled: row ? row.enabled : def.defaultEnabled,
       overridden: Boolean(row),
+      deprecated: Boolean(def.deprecated),
       updatedAt: row ? row.updatedAt.toISOString() : null,
       updatedByEmail: row?.updatedByEmail ?? null,
     };

@@ -887,7 +887,15 @@
       "loading": "Loading…",
       "secondaryMuscles": "Secondary muscles",
       "instructions": "How to perform",
-      "consultProfessional": "Unsure about the technique? Always consult a professional."
+      "consultProfessional": "Unsure about the technique? Always consult a professional.",
+      "libraryCount": "{count} exercises in the library. Select several (or all results) and add them to your gym in one go.",
+      "filterDifficulty": "Level",
+      "filterGoal": "Goal",
+      "badgeClassic": "Classic",
+      "tips": "Coach tips",
+      "legacyTitle": "Classic catalog (deprecated)",
+      "legacyMatches": "{count} {count, plural, one {result} other {results}}",
+      "legacyHint": "Fallback option: these exercises come from the old catalog and are no longer updated. Use them only when something is not yet in the new library — they stay clearly marked as Classic."
     },
     "audit": {
       "metaTitle": "Audit logs",

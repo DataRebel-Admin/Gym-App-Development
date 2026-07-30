@@ -12,7 +12,12 @@
  * zijn vrije strings in het `FeatureFlag`-model.
  */
 
-export type FeatureKey = "maintenance" | "group_classes" | "ai" | "defects";
+export type FeatureKey =
+  | "maintenance"
+  | "group_classes"
+  | "ai"
+  | "defects"
+  | "exercise_legacy_catalog";
 
 export type FeatureDef = {
   key: FeatureKey;
@@ -29,6 +34,11 @@ export type FeatureDef = {
    * blijft de fijnmazige sub-toggle binnen de gym.
    */
   defaultEnabled: boolean;
+  /**
+   * Verouderde functionaliteit die alleen als terugvaloptie bestaat. Wordt in
+   * de beheer-UI in een aparte sectie getoond en nooit prominent aangeboden.
+   */
+  deprecated?: boolean;
 };
 
 export const FEATURES: Record<FeatureKey, FeatureDef> = {
@@ -63,6 +73,15 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
       "Leden melden defecte apparaten aan de sportschool; trainers/beheer behandelen ze per vestiging. Een gevaarlijk defect zet het apparaat direct buiten gebruik.",
     icon: "🚧",
     defaultEnabled: true,
+  },
+  exercise_legacy_catalog: {
+    key: "exercise_legacy_catalog",
+    name: "Klassieke oefeningen-catalogus",
+    description:
+      "Terugvaloptie: de verouderde oefeningen-catalogus blijft doorzoekbaar naast de nieuwe bibliotheek (geoormerkt als 'Klassiek'). Al toegevoegde klassieke oefeningen blijven altijd werken — deze schakelaar bepaalt alleen of er nieuwe uit toegevoegd kunnen worden.",
+    icon: "🗄️",
+    defaultEnabled: true,
+    deprecated: true,
   },
 };
 

@@ -887,7 +887,15 @@
       "loading": "Laden…",
       "secondaryMuscles": "Hulpspieren",
       "instructions": "Uitvoering",
-      "consultProfessional": "Twijfel je over de uitvoering? Raadpleeg altijd een professional."
+      "consultProfessional": "Twijfel je over de uitvoering? Raadpleeg altijd een professional.",
+      "libraryCount": "{count} oefeningen in de bibliotheek. Selecteer er meerdere (of alle resultaten) en voeg ze in één keer toe aan jouw sportschool.",
+      "filterDifficulty": "Niveau",
+      "filterGoal": "Doel",
+      "badgeClassic": "Klassiek",
+      "tips": "Coach-tips",
+      "legacyTitle": "Klassieke catalogus (verouderd)",
+      "legacyMatches": "{count} {count, plural, one {resultaat} other {resultaten}}",
+      "legacyHint": "Terugvaloptie: deze oefeningen komen uit de oude catalogus en worden niet meer bijgewerkt. Gebruik ze alleen als iets nog niet in de nieuwe bibliotheek staat — ze blijven duidelijk gemarkeerd als Klassiek."
     },
     "audit": {
       "metaTitle": "Audit logs",

@@ -9,8 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { buttonClasses } from "@/components/ui/button-classes";
 import type { CatalogFilter } from "@/lib/catalog";
-import type { CatalogPreview } from "@/lib/exercise";
-import { bulkAddCatalogToGym, catalogPreview, removeCatalogExerciseFromGym } from "./actions";
+import type { LibraryFilter } from "@/lib/exercise-library/search";
+import type { CatalogPreview, LibraryPreview } from "@/lib/exercise";
+import {
+  bulkAddCatalogToGym,
+  bulkAddLibraryToGym,
+  catalogPreview,
+  libraryPreview,
+  removeCatalogExerciseFromGym,
+  removeLibraryExerciseFromGym,
+} from "./actions";
 import { ExerciseTypeSelect } from "./exercise-type-select";
 
 export type CatalogGridItem = {
@@ -26,41 +34,51 @@ export type CatalogGridItem = {
   exerciseType?: string;
 };
 
+/** Welke globale bron dit grid toont — bepaalt actions + herkomst-badge. */
+export type GridSource = "library" | "catalog";
+
+/** Preview-shape van de modal: catalogus-basis + optionele bibliotheek-extra's. */
+type GridPreview = CatalogPreview & Partial<Pick<LibraryPreview, "tips" | "animationUrl" | "met">>;
+
 /**
- * Catalogus-grid met bulk-selectie: vink meerdere oefeningen aan (of selecteer
+ * Oefeningen-grid met bulk-selectie: vink meerdere oefeningen aan (of selecteer
  * alle resultaten van het filter, ook over pagina's heen) en voeg ze in één keer
  * toe aan de sportschool. Reeds-toegevoegde oefeningen tonen hun status + een
- * verwijder-knop.
+ * verwijder-knop. Gedeeld door de bibliotheek (source="library", standaardbron)
+ * en de klassieke catalogus (source="catalog", geoormerkte terugvaloptie).
  */
 export function CatalogBulkGrid({
   items,
   total,
   filter,
+  source = "catalog",
 }: {
   items: CatalogGridItem[];
   total: number;
-  filter: CatalogFilter;
+  filter: CatalogFilter | LibraryFilter;
+  source?: GridSource;
 }) {
   const router = useRouter();
   const t = useTranslations("owner.exercises");
+  const isLibrary = source === "library";
   const [pending, start] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allMatching, setAllMatching] = useState(false);
   const [autoMachine, setAutoMachine] = useState(true);
   const [result, setResult] = useState<{ added: number; skipped: number } | null>(null);
 
-  // Detail-preview: klik op een kaart opent een modal met gif/spiergroepen/
+  // Detail-preview: klik op een kaart opent een modal met beeld/spiergroepen/
   // instructies (lui geladen via de server-action). Selecteren gebeurt apart
   // via het vinkje linksboven.
   const [detailItem, setDetailItem] = useState<CatalogGridItem | null>(null);
-  const [detail, setDetail] = useState<CatalogPreview | null>(null);
+  const [detail, setDetail] = useState<GridPreview | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
   function openDetail(item: CatalogGridItem) {
     setDetailItem(item);
     setDetail(null);
     setDetailLoading(true);
-    catalogPreview(item.id)
+    (isLibrary ? libraryPreview(item.id) : catalogPreview(item.id))
       .then((p) => setDetail(p))
       .finally(() => setDetailLoading(false));
   }
@@ -100,9 +118,13 @@ export function CatalogBulkGrid({
 
   function add() {
     start(async () => {
-      const res = allMatching
-        ? await bulkAddCatalogToGym({ allMatchingFilter: true, filter, autoMachine })
-        : await bulkAddCatalogToGym({ catalogIds: [...selected], autoMachine });
+      const res = isLibrary
+        ? allMatching
+          ? await bulkAddLibraryToGym({ allMatchingFilter: true, filter, autoMachine })
+          : await bulkAddLibraryToGym({ libraryIds: [...selected], autoMachine })
+        : allMatching
+          ? await bulkAddCatalogToGym({ allMatchingFilter: true, filter, autoMachine })
+          : await bulkAddCatalogToGym({ catalogIds: [...selected], autoMachine });
       setResult(res);
       setSelected(new Set());
       setAllMatching(false);
@@ -222,7 +244,11 @@ export function CatalogBulkGrid({
                   >
                     {item.name}
                   </button>
-                  <Badge tone="neutral">{t("badgeStandard")}</Badge>
+                  {isLibrary ? (
+                    <Badge tone="neutral">{t("badgeStandard")}</Badge>
+                  ) : (
+                    <Badge tone="warning">{t("badgeClassic")}</Badge>
+                  )}
                 </div>
                 <p className="text-xs capitalize text-neutral-500">
                   {item.bodyPart} · {item.equipment} · {item.target}
@@ -238,8 +264,12 @@ export function CatalogBulkGrid({
                         />
                       </div>
                     ) : null}
-                    <form action={removeCatalogExerciseFromGym}>
-                      <input type="hidden" name="catalogId" value={item.id} />
+                    <form action={isLibrary ? removeLibraryExerciseFromGym : removeCatalogExerciseFromGym}>
+                      <input
+                        type="hidden"
+                        name={isLibrary ? "libraryId" : "catalogId"}
+                        value={item.id}
+                      />
                       <button type="submit" className="text-xs text-neutral-400 hover:text-red-600">
                         {t("removeFromGym")}
                       </button>
@@ -307,9 +337,10 @@ export function CatalogBulkGrid({
         ) : (
           <div className="flex flex-col gap-4">
             <div className="overflow-hidden rounded-xl bg-neutral-50">
+              {/* Bibliotheek: animatie wint van still; klassiek: gif wint. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={detail.gifUrl || detail.imageUrl || detailItem?.imageUrl}
+                src={detail.animationUrl || detail.gifUrl || detail.imageUrl || detailItem?.imageUrl}
                 alt={detail.name}
                 loading="lazy"
                 className="mx-auto max-h-64 w-full object-contain"
@@ -353,6 +384,19 @@ export function CatalogBulkGrid({
                 <p className="mt-1 whitespace-pre-line text-sm text-neutral-700">
                   {detail.instructionsText}
                 </p>
+              </div>
+            ) : null}
+
+            {detail.tips && detail.tips.length > 0 ? (
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                  {t("tips")}
+                </h3>
+                <ul className="mt-1 flex list-disc flex-col gap-1.5 pl-5 text-sm text-neutral-700">
+                  {detail.tips.map((tip, i) => (
+                    <li key={i}>{tip}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
 

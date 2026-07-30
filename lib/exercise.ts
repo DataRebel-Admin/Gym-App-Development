@@ -1,6 +1,22 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import type { Locale, Prisma } from "@prisma/client";
+import {
+  datasetLocalePreference,
+  pickLibraryText,
+  pickJsonName,
+  LIBRARY_BODY_PART_LABEL,
+  LIBRARY_CATEGORY_LABEL,
+  LIBRARY_DIFFICULTY_LABEL,
+} from "@/lib/exercise-library/mapping";
+import {
+  libraryImageKeys,
+  libraryAnimationKey,
+  libraryMediaUrl,
+  muscleImageKey,
+  equipmentImageKey,
+} from "@/lib/exercise-library/media";
+import type { ExerciseSource } from "@/lib/exercise-library/source";
 
 export type Difficulty = "Beginner" | "Gemiddeld" | "Gevorderd";
 
@@ -92,13 +108,24 @@ export type ExerciseDetail = {
   difficulty: Difficulty;
   /** Taalcode waaruit de instructie komt (bv. "nl" of "en") — null als er geen is. */
   instructionLang: string | null;
-  /** Of de gegevens uit de globale catalogus komen. */
+  /** Of de gegevens uit een globale bron komen (bibliotheek óf oude catalogus). */
   fromCatalog: boolean;
-  /** Herkomst-label: "standaard" (catalogus) of "eigen" (tenant-oefening). */
-  source: "standaard" | "eigen";
+  /** Herkomst: "standaard" (bibliotheek), "klassiek" (oude catalogus) of "eigen". */
+  source: ExerciseSource;
+  /** Coach-tips per stap (alleen bibliotheek; leeg bij klassiek/eigen). */
+  tips: string[];
+  /** Loopende animatie (WebP) — alleen bibliotheek-oefeningen mét animatie. */
+  animationUrl: string | null;
+  /** MET-waarde voor calorie-schatting (kcal/min ≈ met × kg × 0.0175). */
+  met: number | null;
+  /** Anatomische spierdiagrammen (primair eerst) — alleen bibliotheek. */
+  muscleDiagrams: { name: string; imageUrl: string | null }[];
+  /** Materiaal-icoon — alleen bibliotheek. */
+  equipmentIconUrl: string | null;
 };
 
-/** Volledige weergave-data van één tenant-oefening, verrijkt met de catalogus. */
+/** Volledige weergave-data van één tenant-oefening, verrijkt met de bron
+ *  (bibliotheek → klassieke catalogus → eigen content). */
 export async function getExerciseDetail(
   exerciseId: string,
   tenantId: string,
@@ -106,9 +133,81 @@ export async function getExerciseDetail(
 ): Promise<ExerciseDetail | null> {
   const ex = await prisma.exercise.findFirst({
     where: { id: exerciseId, tenantId },
-    include: { catalog: true },
+    include: { catalog: true, library: { include: { texts: true } } },
   });
   if (!ex) return null;
+
+  // --- Bibliotheek (RepDB) — dé standaardbron -----------------------------
+  if (ex.library) {
+    const lib = ex.library;
+    const dsPref = datasetLocalePreference(locale);
+    const libText = pickLibraryText(lib.texts, dsPref);
+
+    const muscleIds = [...lib.primaryMuscles, ...lib.secondaryMuscles];
+    const [muscles, equip] = await Promise.all([
+      muscleIds.length
+        ? prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
+        : Promise.resolve([]),
+      lib.equipmentSlug
+        ? prisma.libraryEquipment.findUnique({ where: { id: lib.equipmentSlug } })
+        : Promise.resolve(null),
+    ]);
+    const muscleById = new Map(muscles.map((m) => [m.id, m]));
+    const muscleName = (id: string) =>
+      pickJsonName(muscleById.get(id)?.names, dsPref) ?? id.replace(/_/g, " ");
+    const orderedMuscles = [...lib.primaryMuscles, ...lib.secondaryMuscles]
+      .map((id) => muscleById.get(id))
+      .filter((m): m is NonNullable<typeof m> => Boolean(m));
+
+    const images = libraryImageKeys(lib)
+      .map((k) => libraryMediaUrl(k))
+      .filter((u): u is string => Boolean(u));
+
+    return {
+      id: ex.id,
+      name: ex.name?.trim() || libText?.name || "Oefening",
+      description: ex.description ?? libText?.description ?? null,
+      imageUrl: images[0] ?? null,
+      gifUrl: null,
+      images,
+      videoUrl: null,
+      steps: libText?.instructions ?? [],
+      instructionsText: null,
+      executionMd: null,
+      coachingTipsMd: null,
+      commonMistakesMd: null,
+      notesMd: null,
+      tags: lib.tags,
+      primaryMuscle:
+        ex.targetMuscle?.trim() ||
+        (lib.primaryMuscles[0] ? muscleName(lib.primaryMuscles[0]) : null),
+      secondaryMuscles: lib.secondaryMuscles.map(muscleName),
+      equipment: equip
+        ? (pickJsonName(equip.names, dsPref) ?? equip.id.replace(/_/g, " "))
+        : lib.isBodyweight
+          ? "Lichaamsgewicht"
+          : null,
+      bodyPart: lib.bodyPart
+        ? (LIBRARY_BODY_PART_LABEL[lib.bodyPart] ?? lib.bodyPart)
+        : null,
+      category: LIBRARY_CATEGORY_LABEL[lib.category] ?? lib.category,
+      difficulty:
+        (lib.difficulty &&
+          (LIBRARY_DIFFICULTY_LABEL[lib.difficulty] as Difficulty)) ||
+        "Gemiddeld",
+      instructionLang: libText?.locale ?? null,
+      fromCatalog: true,
+      source: "standaard",
+      tips: libText?.tips ?? [],
+      animationUrl: libraryMediaUrl(libraryAnimationKey(lib)),
+      met: lib.met ?? null,
+      muscleDiagrams: orderedMuscles.map((m) => ({
+        name: pickJsonName(m.names, dsPref) ?? m.id.replace(/_/g, " "),
+        imageUrl: libraryMediaUrl(muscleImageKey(m.image)),
+      })),
+      equipmentIconUrl: equip ? libraryMediaUrl(equipmentImageKey(equip.image)) : null,
+    };
+  }
 
   const cat = ex.catalog;
   const pref = LANG_PREF[locale] ?? ["en"];
@@ -146,6 +245,11 @@ export async function getExerciseDetail(
       instructionLang: ex.executionMd ? "nl" : null,
       fromCatalog: false,
       source: "eigen",
+      tips: [],
+      animationUrl: null,
+      met: null,
+      muscleDiagrams: [],
+      equipmentIconUrl: null,
     };
   }
 
@@ -172,7 +276,12 @@ export async function getExerciseDetail(
     difficulty: deriveDifficulty(cat.equipment ?? null, cat.category ?? null),
     instructionLang: steps?.lang ?? text?.lang ?? null,
     fromCatalog: true,
-    source: "standaard",
+    source: "klassiek",
+    tips: [],
+    animationUrl: null,
+    met: null,
+    muscleDiagrams: [],
+    equipmentIconUrl: null,
   };
 }
 
@@ -225,6 +334,78 @@ export async function getCatalogPreview(
   };
 }
 
+/** Lichte weergave-data van één bibliotheek-oefening (nog niet toegevoegd) —
+ *  voor de owner-detail-preview in de bibliotheek-grid. Spiegel van
+ *  {@link getCatalogPreview} voor de nieuwe bron. */
+export type LibraryPreview = CatalogPreview & {
+  tips: string[];
+  animationUrl: string | null;
+  goals: string[];
+  mechanic: string | null;
+  forceType: string | null;
+  isBodyweight: boolean;
+  met: number | null;
+};
+
+export async function getLibraryPreview(
+  libraryId: string,
+  locale: Locale
+): Promise<LibraryPreview | null> {
+  const lib = await prisma.libraryExercise.findUnique({
+    where: { id: libraryId },
+    include: { texts: true },
+  });
+  if (!lib) return null;
+
+  const dsPref = datasetLocalePreference(locale);
+  const text = pickLibraryText(lib.texts, dsPref);
+  const muscleIds = [...lib.primaryMuscles, ...lib.secondaryMuscles];
+  const [muscles, equip] = await Promise.all([
+    muscleIds.length
+      ? prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
+      : Promise.resolve([]),
+    lib.equipmentSlug
+      ? prisma.libraryEquipment.findUnique({ where: { id: lib.equipmentSlug } })
+      : Promise.resolve(null),
+  ]);
+  const muscleById = new Map(muscles.map((m) => [m.id, m]));
+  const muscleName = (id: string) =>
+    pickJsonName(muscleById.get(id)?.names, dsPref) ?? id.replace(/_/g, " ");
+  const images = libraryImageKeys(lib)
+    .map((k) => libraryMediaUrl(k))
+    .filter((u): u is string => Boolean(u));
+
+  return {
+    id: lib.id,
+    name: text?.name ?? lib.id,
+    imageUrl: images[0] ?? null,
+    gifUrl: null,
+    bodyPart: lib.bodyPart ? (LIBRARY_BODY_PART_LABEL[lib.bodyPart] ?? lib.bodyPart) : null,
+    equipment: equip
+      ? (pickJsonName(equip.names, dsPref) ?? equip.id.replace(/_/g, " "))
+      : lib.isBodyweight
+        ? "Lichaamsgewicht"
+        : null,
+    target: lib.primaryMuscles[0] ? muscleName(lib.primaryMuscles[0]) : null,
+    category: LIBRARY_CATEGORY_LABEL[lib.category] ?? lib.category,
+    primaryMuscle: lib.primaryMuscles[0] ? muscleName(lib.primaryMuscles[0]) : null,
+    secondaryMuscles: lib.secondaryMuscles.map(muscleName),
+    steps: text?.instructions ?? [],
+    instructionsText: text?.description ?? null,
+    instructionLang: text?.locale ?? null,
+    difficulty:
+      (lib.difficulty && (LIBRARY_DIFFICULTY_LABEL[lib.difficulty] as Difficulty)) ||
+      "Gemiddeld",
+    tips: text?.tips ?? [],
+    animationUrl: libraryMediaUrl(libraryAnimationKey(lib)),
+    goals: lib.goals,
+    mechanic: lib.mechanic,
+    forceType: lib.forceType,
+    isBodyweight: lib.isBodyweight,
+    met: lib.met ?? null,
+  };
+}
+
 export type ExerciseAlternative = {
   id: string;
   name: string;
@@ -232,10 +413,23 @@ export type ExerciseAlternative = {
   equipment: string | null;
 };
 
+/** Eerste beschikbare bibliotheek-thumb als absolute URL (of null). */
+function libraryThumb(lib: {
+  id: string;
+  imageAlias: string | null;
+  images: unknown;
+} | null): string | null {
+  if (!lib) return null;
+  const key = libraryImageKeys(lib)[0];
+  return key ? libraryMediaUrl(key) : null;
+}
+
 /**
- * Alternatieve oefeningen binnen dezelfde tenant die dezelfde spiergroep trainen
- * (zelfde catalogus-`target` of `muscleGroup`). Data-gedekt — géén verzonnen
- * suggesties. Eigen oefeningen zonder catalogus-koppeling vallen buiten de match.
+ * Alternatieve oefeningen binnen dezelfde tenant. Bibliotheek-oefeningen
+ * gebruiken de gecureerde RepDB-`relations` (type "alternative"), aangevuld met
+ * spiergroep-overlap als de gym die alternatieven (nog) niet heeft toegevoegd.
+ * Klassieke oefeningen houden de bestaande target/muscleGroup-match. Data-gedekt
+ * — géén verzonnen suggesties. Eigen oefeningen vallen buiten de match.
  */
 export async function getAlternativeExercises(
   tenantId: string,
@@ -244,8 +438,78 @@ export async function getAlternativeExercises(
 ): Promise<ExerciseAlternative[]> {
   const src = await prisma.exercise.findFirst({
     where: { id: exerciseId, tenantId },
-    select: { catalog: { select: { target: true, muscleGroup: true } } },
+    select: {
+      libraryId: true,
+      library: { select: { primaryMuscles: true } },
+      catalog: { select: { target: true, muscleGroup: true } },
+    },
   });
+
+  // --- Bibliotheek: eerst échte relaties, dan spier-overlap ----------------
+  if (src?.libraryId) {
+    const rels = await prisma.libraryRelation.findMany({
+      where: { fromId: src.libraryId, type: "alternative" },
+      select: { toId: true },
+    });
+    const relTargets = rels.map((r) => r.toId);
+
+    const librarySelect = {
+      id: true,
+      name: true,
+      library: {
+        select: { id: true, imageAlias: true, images: true, equipmentSlug: true },
+      },
+    } satisfies Prisma.ExerciseSelect;
+
+    const byRelation = relTargets.length
+      ? await prisma.exercise.findMany({
+          where: { tenantId, id: { not: exerciseId }, libraryId: { in: relTargets } },
+          select: librarySelect,
+          take,
+        })
+      : [];
+
+    let rows = byRelation;
+    if (rows.length < take && (src.library?.primaryMuscles.length ?? 0) > 0) {
+      const extra = await prisma.exercise.findMany({
+        where: {
+          tenantId,
+          id: { not: exerciseId, notIn: rows.map((r) => r.id) },
+          libraryId: { not: null, notIn: relTargets.length ? relTargets : undefined },
+          library: {
+            is: {
+              primaryMuscles: { hasSome: src.library?.primaryMuscles ?? [] },
+              retiredAt: null,
+            },
+          },
+        },
+        select: librarySelect,
+        take: take - rows.length,
+      });
+      rows = [...rows, ...extra];
+    }
+
+    const equipSlugs = [
+      ...new Set(rows.map((r) => r.library?.equipmentSlug).filter((s): s is string => Boolean(s))),
+    ];
+    const equips = equipSlugs.length
+      ? await prisma.libraryEquipment.findMany({ where: { id: { in: equipSlugs } } })
+      : [];
+    const equipName = new Map(
+      equips.map((e) => [e.id, pickJsonName(e.names, ["en"]) ?? e.id.replace(/_/g, " ")])
+    );
+
+    return rows.map((o) => ({
+      id: o.id,
+      name: o.name,
+      thumbUrl: libraryThumb(o.library),
+      equipment: o.library?.equipmentSlug
+        ? (equipName.get(o.library.equipmentSlug) ?? null)
+        : null,
+    }));
+  }
+
+  // --- Klassieke catalogus: bestaande target/muscleGroup-match -------------
   const target = src?.catalog?.target ?? null;
   const muscleGroup = src?.catalog?.muscleGroup ?? null;
   if (!target && !muscleGroup) return [];

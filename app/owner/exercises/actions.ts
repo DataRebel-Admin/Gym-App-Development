@@ -9,7 +9,14 @@ import { uploadExerciseImage } from "@/lib/blob";
 import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
 import { suggestMachineType } from "@/lib/machine";
 import { buildCatalogWhere, myEquipmentValues } from "@/lib/catalog";
-import { getCatalogPreview, type CatalogPreview } from "@/lib/exercise";
+import {
+  getCatalogPreview,
+  getLibraryPreview,
+  type CatalogPreview,
+  type LibraryPreview,
+} from "@/lib/exercise";
+import { buildLibraryWhere, myLibraryEquipmentSlugs } from "@/lib/exercise-library/search";
+import { machineTypeFromLibrary, pickJsonName } from "@/lib/exercise-library/mapping";
 import { formatExerciseName } from "@/lib/exercise-name";
 import { getCurrentTenant } from "@/lib/tenant";
 import {
@@ -217,6 +224,185 @@ export async function bulkAddCatalogToGym(
   revalidatePath("/owner/exercises");
   revalidatePath("/member/exercises");
   return { added, skipped };
+}
+
+// ---------------------------------------------------------------------------
+// Oefeningen-bibliotheek (RepDB) — spiegel van de catalogus-actions hierboven.
+// ---------------------------------------------------------------------------
+
+/** Detail-preview van één bibliotheek-oefening voor de grid-modal. */
+export async function libraryPreview(
+  libraryId: string
+): Promise<LibraryPreview | null> {
+  await requirePermission("exercises:manage");
+  if (!libraryId) return null;
+  const tenant = await getCurrentTenant();
+  return getLibraryPreview(libraryId, tenant?.locale ?? "NL");
+}
+
+const bulkAddLibrarySchema = z.object({
+  libraryIds: z.array(z.string().min(1)).max(5000).optional(),
+  allMatchingFilter: z.boolean().optional(),
+  filter: z
+    .object({
+      q: z.string().optional(),
+      bodyPart: z.string().optional(),
+      equipment: z.string().optional(),
+      difficulty: z.string().optional(),
+      goal: z.string().optional(),
+      onlyMyEquipment: z.boolean().optional(),
+    })
+    .optional(),
+  autoMachine: z.boolean().optional(),
+});
+
+export type BulkAddLibraryInput = z.infer<typeof bulkAddLibrarySchema>;
+
+/**
+ * Voeg meerdere bibliotheek-oefeningen tegelijk toe (zelfde twee modi als
+ * {@link bulkAddCatalogToGym}). Naam/spier komen uit de Engelse tekst-rij;
+ * het oefeningstype is al bij import afgeleid. Optioneel auto-koppelen aan een
+ * passende machine via het materiaal-tag-afgeleide machinetype.
+ */
+export async function bulkAddLibraryToGym(
+  input: BulkAddLibraryInput
+): Promise<BulkAddCatalogResult> {
+  const owner = await requirePermission("exercises:manage");
+  const parsed = bulkAddLibrarySchema.safeParse(input);
+  if (!parsed.success) return { added: 0, skipped: 0 };
+  const { libraryIds, allMatchingFilter, filter, autoMachine } = parsed.data;
+
+  // 1) Doel-ids bepalen (expliciete selectie óf alle filter-resultaten).
+  let ids: string[];
+  if (allMatchingFilter && filter) {
+    const myEquipment = filter.onlyMyEquipment
+      ? await myLibraryEquipmentSlugs(owner.tenantId)
+      : null;
+    const rows = await prisma.libraryExercise.findMany({
+      where: buildLibraryWhere(filter, myEquipment),
+      select: { id: true },
+      take: 5000,
+    });
+    ids = rows.map((r) => r.id);
+  } else {
+    ids = [...new Set(libraryIds ?? [])].slice(0, 5000);
+  }
+  if (ids.length === 0) return { added: 0, skipped: 0 };
+
+  // 2) Reeds toegevoegd? Overslaan.
+  const existing = await prisma.exercise.findMany({
+    where: { tenantId: owner.tenantId, libraryId: { in: ids } },
+    select: { libraryId: true },
+  });
+  const existingSet = new Set(existing.map((e) => e.libraryId));
+  const toAddIds = ids.filter((id) => !existingSet.has(id));
+  const skipped = ids.length - toAddIds.length;
+  if (toAddIds.length === 0) {
+    revalidatePath("/owner/exercises");
+    return { added: 0, skipped };
+  }
+
+  // 3) Bibliotheek-velden + optionele machine-koppeling.
+  const [libRows, equipment] = await Promise.all([
+    prisma.libraryExercise.findMany({
+      where: { id: { in: toAddIds } },
+      select: {
+        id: true,
+        primaryMuscles: true,
+        equipmentSlug: true,
+        exerciseType: true,
+        texts: { where: { locale: "en" }, select: { name: true } },
+      },
+    }),
+    prisma.libraryEquipment.findMany({ select: { id: true, tags: true } }),
+  ]);
+  const equipTags = new Map(equipment.map((e) => [e.id, e.tags]));
+
+  const muscleIds = [...new Set(libRows.flatMap((l) => l.primaryMuscles[0] ?? []))];
+  const muscles = muscleIds.length
+    ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
+    : [];
+  const muscleName = new Map(
+    muscles.map((m) => [m.id, pickJsonName(m.names, ["en"]) ?? m.id.replace(/_/g, " ")])
+  );
+
+  const machineByType = new Map<string, string>();
+  if (autoMachine) {
+    const machines = await prisma.machine.findMany({
+      where: { tenantId: owner.tenantId },
+      select: { id: true, type: true },
+    });
+    for (const m of machines) {
+      if (!machineByType.has(m.type)) machineByType.set(m.type, m.id);
+    }
+  }
+
+  const data = libRows.map((l) => ({
+    tenantId: owner.tenantId,
+    name: l.texts[0]?.name ?? l.id,
+    targetMuscle: l.primaryMuscles[0]
+      ? (muscleName.get(l.primaryMuscles[0]) ?? null)
+      : null,
+    libraryId: l.id,
+    exerciseType: l.exerciseType,
+    machineId: autoMachine
+      ? (machineByType.get(
+          machineTypeFromLibrary(l.equipmentSlug, equipTags.get(l.equipmentSlug ?? "") ?? [])
+        ) ?? null)
+      : null,
+  }));
+
+  // 4) Batched insert.
+  let added = 0;
+  const CHUNK = 500;
+  for (let i = 0; i < data.length; i += CHUNK) {
+    const res = await prisma.exercise.createMany({
+      data: data.slice(i, i + CHUNK),
+      skipDuplicates: true,
+    });
+    added += res.count;
+  }
+
+  await audit("exercise.import", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Exercise",
+    metadata: { count: added, skipped, source: "library" },
+  });
+
+  revalidatePath("/owner/exercises");
+  revalidatePath("/member/exercises");
+  return { added, skipped };
+}
+
+/** Verwijder een eerder toegevoegde bibliotheek-oefening uit de sportschool. */
+export async function removeLibraryExerciseFromGym(formData: FormData) {
+  const owner = await requirePermission("exercises:manage");
+  const libraryId = String(formData.get("libraryId") ?? "");
+  if (!libraryId) return;
+
+  const existing = await prisma.exercise.findFirst({
+    where: { tenantId: owner.tenantId, libraryId },
+    select: { id: true, name: true },
+  });
+
+  // deleteMany scoped op tenant; faalt stil als de oefening in een schema zit
+  // (FK) — dat is acceptabel, de owner haalt 'm dan eerst uit het schema.
+  const result = await prisma.exercise
+    .deleteMany({ where: { tenantId: owner.tenantId, libraryId } })
+    .catch(() => null);
+
+  if (result && result.count > 0 && existing) {
+    await audit("exercise.remove", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "Exercise",
+      targetId: existing.id,
+      metadata: { name: existing.name, source: "library" },
+    });
+  }
+
+  revalidatePath("/owner/exercises");
 }
 
 /** Verwijder een eerder toegevoegde catalogus-oefening uit de sportschool. */

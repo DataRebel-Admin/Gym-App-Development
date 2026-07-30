@@ -125,7 +125,8 @@ function FeatureCard({ tenantId, row }: { tenantId: string; row: FeatureFlagRow 
   );
 }
 
-/** Lijst van feature-kaarten met toggle + bevestiging voor één tenant. */
+/** Lijst van feature-kaarten met toggle + bevestiging voor één tenant.
+ *  Verouderde terugvalopties staan onderaan in een eigen, gedempte sectie. */
 export function FeatureFlagsManager({
   tenantId,
   rows,
@@ -133,11 +134,31 @@ export function FeatureFlagsManager({
   tenantId: string;
   rows: FeatureFlagRow[];
 }) {
+  const current = rows.filter((r) => !r.deprecated);
+  const deprecated = rows.filter((r) => r.deprecated);
   return (
     <div className="flex flex-col gap-3">
-      {rows.map((row) => (
+      {current.map((row) => (
         <FeatureCard key={row.key} tenantId={tenantId} row={row} />
       ))}
+      {deprecated.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-700">
+              Verouderd / terugval
+            </h2>
+            <p className="mt-0.5 text-xs text-neutral-500">
+              Oude functionaliteit die alleen als vangnet beschikbaar blijft —
+              niet prominent in de app, duidelijk geoormerkt.
+            </p>
+          </div>
+          {deprecated.map((row) => (
+            <div key={row.key} className="opacity-80">
+              <FeatureCard tenantId={tenantId} row={row} />
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
