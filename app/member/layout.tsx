@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { areClassesEnabled } from "@/lib/classes";
 import { getMemberSchemaMode } from "@/lib/member-schema";
+import { hasActiveCoachSchema } from "@/lib/member";
 import { getUserTenants } from "@/lib/tenants";
 import { getUserBadge } from "@/lib/account";
 import { getNotificationOverview } from "@/lib/notifications";
@@ -32,6 +33,11 @@ export default async function MemberLayout({
   // Drawer-ingang "Zelf schema samenstellen" alleen als de tenant het aan heeft.
   const canBuildSchema = tenant
     ? (await getMemberSchemaMode(tenant.id)) !== "DISABLED"
+    : false;
+  // Drawer-ingang "Aanpassing vragen" alleen als er een coach-schema ligt om aan
+  // te passen (een zelfgebouwd schema past het lid zelf aan).
+  const canRequestChange = session.user.tenantId
+    ? await hasActiveCoachSchema(session.user.id, session.user.tenantId)
     : false;
   const badge = await getUserBadge(session.user.id);
   const notifications = await getNotificationOverview(session.user.id);
@@ -81,6 +87,7 @@ export default async function MemberLayout({
             currentSlug={tenant?.slug ?? null}
             showAchievements={achievementUi.visible}
             showSchemaBuilder={canBuildSchema}
+            showSchemaChange={canRequestChange}
           />
         </div>
       </header>

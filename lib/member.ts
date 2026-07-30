@@ -1,7 +1,9 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { redirect, unauthorized, forbidden } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { EXERCISE_THUMB_RELATIONS } from "@/lib/exercise-thumb";
 
 /** Vereist een ingelogde TENANT_MEMBER; retourneert de session-user met een
  *  gegarandeerd niet-null `tenantId`. Niet ingelogd → premium 401; verkeerde
@@ -12,6 +14,43 @@ export async function requireMember() {
   if (session.user.role !== "TENANT_MEMBER") forbidden();
   if (!session.user.tenantId) redirect("/login");
   return { ...session.user, tenantId: session.user.tenantId };
+}
+
+/**
+ * DÉ zichtbaarheidsregel voor een toegewezen schema — één bron van waarheid voor
+ * `getAssignedSchema` én de lichte checks (`hasActiveCoachSchema`). Nooit ergens
+ * anders opnieuw uitschrijven: wie de poort (`availableFrom`) of het verlopen
+ * (`endDate`) vergeet, laat een verborgen of verlopen schema tóch meetellen.
+ */
+function activeAssignmentWhere(
+  memberId: string,
+  tenantId: string,
+  now: Date
+): Prisma.AssignedWorkoutWhereInput {
+  return {
+    tenantId,
+    userId: memberId,
+    status: "PUBLISHED",
+    OR: [{ availableFrom: null }, { availableFrom: { lte: now } }],
+    AND: [{ OR: [{ endDate: null }, { endDate: { gte: now } }] }],
+  };
+}
+
+/**
+ * Heeft dit lid een actief schema dat door een coach is toegewezen? Bepaalt of
+ * "aanpassing vragen" zinvol is (een zelfgebouwd schema past het lid zelf aan,
+ * en zonder schema valt er niets aan te passen). Bewust een lichte `select` —
+ * dit draait in de member-layout voor het menu.
+ */
+export async function hasActiveCoachSchema(
+  memberId: string,
+  tenantId: string
+): Promise<boolean> {
+  const row = await prisma.assignedWorkout.findFirst({
+    where: { ...activeAssignmentWhere(memberId, tenantId, new Date()), origin: "COACH" },
+    select: { id: true },
+  });
+  return row !== null;
 }
 
 /**
@@ -30,7 +69,10 @@ export async function getAssignedSchema(memberId: string, tenantId: string) {
       exercise: {
         include: {
           machine: true,
-          catalog: { select: { gifUrl: true, imageUrl: true } },
+          // Bron-bewust beeld (bibliotheek → klassiek → eigen): de bibliotheek
+          // is de standaardbron, dus `catalog` alléén levert bijna nooit een
+          // afbeelding op. Gebruikt door het schema-overzicht en de PDF.
+          ...EXERCISE_THUMB_RELATIONS,
         },
       },
     },
@@ -38,13 +80,7 @@ export async function getAssignedSchema(memberId: string, tenantId: string) {
 
   const now = new Date();
   return prisma.assignedWorkout.findFirst({
-    where: {
-      tenantId,
-      userId: memberId,
-      status: "PUBLISHED",
-      OR: [{ availableFrom: null }, { availableFrom: { lte: now } }],
-      AND: [{ OR: [{ endDate: null }, { endDate: { gte: now } }] }],
-    },
+    where: activeAssignmentWhere(memberId, tenantId, now),
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
     include: {
       template: {

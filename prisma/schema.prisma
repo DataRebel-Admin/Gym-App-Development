@@ -126,6 +126,15 @@ enum MemberSchemaStatus {
   PAUSED
 }
 
+// Soort schema-aanvraag. Een aanpassing van het lopende schema is iets anders dan
+// een compleet nieuw schema: ander formulier (geen doel/startdatum maar "wat wil
+// je anders?"), andere coach-actie (bestaand schema bijwerken i.p.v. bouwen) en de
+// twee blokkeren elkaar niet (zie canSubmitRequest in lib/schema-requests.ts).
+enum SchemaRequestKind {
+  NEW_SCHEMA // (eerste of vervangend) volledig trainingsschema
+  CHANGE // aanpassing van het huidige schema
+}
+
 // Doel van een schema-aanvraag door een sporter.
 enum SchemaRequestGoal {
   MUSCLE // spiermassa opbouwen
@@ -1387,9 +1396,10 @@ model SchemaRequest {
   id                   String              @id @default(cuid())
   tenantId             String
   userId               String // sporter die de aanvraag indient
-  goal                 SchemaRequestGoal
-  description          String?             @db.Text // vrije toelichting op het doel
-  preferredStart       DateTime? // gewenste startdatum (optioneel)
+  kind                 SchemaRequestKind   @default(NEW_SCHEMA)
+  goal                 SchemaRequestGoal? // NULL bij kind CHANGE (een aanpassing heeft geen doel-keuze)
+  description          String?             @db.Text // doel-toelichting, of bij CHANGE: wat er anders moet
+  preferredStart       DateTime? // gewenste startdatum (optioneel, alleen NEW_SCHEMA)
   notes                String?             @db.Text // extra opmerkingen
   status               SchemaRequestStatus @default(NEW)
   handledById          String? // User.id van de owner/admin die de aanvraag oppakte

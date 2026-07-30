@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
+import type { SchemaRequestKind } from "@prisma/client";
 import { submitRequest, type RequestFormState } from "@/app/member/requests/actions";
 import { GOAL_OPTIONS } from "@/lib/schema-requests";
 import { Check } from "@/components/ui/icons";
@@ -10,11 +11,21 @@ const fieldClass =
   "w-full rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-sm text-neutral-900 outline-none focus:border-accent";
 
 /**
- * Compact aanvraagformulier voor een (nieuw/aangepast) trainingsschema. Toont na
- * verzending een nette succesmelding; bij een lopende aanvraag of fout een
- * duidelijke melding van de server-action.
+ * Aanvraagformulier voor een trainingsschema, in twee gedaanten (`kind`):
+ * - `NEW_SCHEMA` — doel + toelichting + gewenste startdatum;
+ * - `CHANGE` — alleen "wat wil je aanpassen?" (verplicht), want een aanpassing van
+ *   het lopende schema vraagt niet opnieuw om een doel of startdatum.
+ *
+ * Toont na verzending een nette succesmelding; bij een lopende aanvraag van
+ * hetzelfde type of een fout een duidelijke melding van de server-action.
  */
-export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
+export function SchemaRequestForm({
+  kind,
+  canSubmit,
+}: {
+  kind: SchemaRequestKind;
+  canSubmit: boolean;
+}) {
   const t = useTranslations("member.requests");
   const tr = useTranslations("requests");
   const [state, formAction, pending] = useActionState<RequestFormState, FormData>(
@@ -22,6 +33,7 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
     {}
   );
   const [goal, setGoal] = useState<string>("MUSCLE");
+  const isChange = kind === "CHANGE";
 
   if (state.ok) {
     return (
@@ -31,7 +43,9 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
         </span>
         <div>
           <p className="font-display font-bold text-neutral-900">{t("successTitle")}</p>
-          <p className="mt-0.5 text-sm text-neutral-600">{t("successBody")}</p>
+          <p className="mt-0.5 text-sm text-neutral-600">
+            {isChange ? t("changeSuccessBody") : t("successBody")}
+          </p>
         </div>
       </div>
     );
@@ -40,37 +54,56 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
   if (!canSubmit) {
     return (
       <div className="rounded-2xl border border-border bg-surface-1 px-4 py-4 text-sm text-neutral-600">
-        {t("alreadyPending")}
+        {isChange ? t("changeAlreadyPending") : t("alreadyPending")}
       </div>
     );
   }
 
   return (
     <form action={formAction} className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-4">
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        {t("goalLabel")}
-        <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className={fieldClass}>
-          {GOAL_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{tr(`goal${o.value}`)}</option>
-          ))}
-        </select>
-      </label>
+      <input type="hidden" name="kind" value={kind} />
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        {t("descLabel")}
-        <textarea
-          name="description"
-          rows={3}
-          maxLength={2000}
-          placeholder={t("descPlaceholder")}
-          className={fieldClass}
-        />
-      </label>
+      {isChange ? (
+        <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+          {t("changeDescLabel")}
+          <textarea
+            name="description"
+            rows={4}
+            required
+            minLength={5}
+            maxLength={2000}
+            placeholder={t("changeDescPlaceholder")}
+            className={fieldClass}
+          />
+        </label>
+      ) : (
+        <>
+          <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+            {t("goalLabel")}
+            <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className={fieldClass}>
+              {GOAL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{tr(`goal${o.value}`)}</option>
+              ))}
+            </select>
+          </label>
 
-      <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
-        {t("startLabel")} <span className="font-normal text-neutral-400">{t("optional")}</span>
-        <input type="date" name="preferredStart" className={fieldClass} />
-      </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+            {t("descLabel")}
+            <textarea
+              name="description"
+              rows={3}
+              maxLength={2000}
+              placeholder={t("descPlaceholder")}
+              className={fieldClass}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
+            {t("startLabel")} <span className="font-normal text-neutral-400">{t("optional")}</span>
+            <input type="date" name="preferredStart" className={fieldClass} />
+          </label>
+        </>
+      )}
 
       <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
         {t("notesLabel")} <span className="font-normal text-neutral-400">{t("optional")}</span>
@@ -90,7 +123,7 @@ export function SchemaRequestForm({ canSubmit }: { canSubmit: boolean }) {
         disabled={pending}
         className="rounded-xl bg-accent px-5 py-3 text-sm font-bold text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? t("submitting") : t("submit")}
+        {pending ? t("submitting") : isChange ? t("changeSubmit") : t("submit")}
       </button>
     </form>
   );

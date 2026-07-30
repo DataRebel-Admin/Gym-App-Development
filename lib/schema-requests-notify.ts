@@ -29,12 +29,16 @@ export async function notifyRequestSubmitted(opts: {
     const req = await prisma.schemaRequest.findFirst({
       where: { id: opts.requestId, tenantId: opts.tenantId },
       select: {
+        kind: true,
         goal: true,
         description: true,
         user: { select: { id: true, name: true, email: true, notificationPrefs: true, locale: true } },
       },
     });
     if (!req) return;
+    // Een aanpassingsverzoek is een andere vraag aan de coach dan "bouw een nieuw
+    // schema" — titel, tekst en e-mail verschillen dus per type.
+    const isChange = req.kind === "CHANGE";
 
     const branding = await loadTenantBranding(opts.tenantId);
     const memberName = req.user.name ?? req.user.email;
@@ -68,14 +72,23 @@ export async function notifyRequestSubmitted(opts: {
       try {
         // Alles in de taal van deze coach/eigenaar.
         const t = await getTranslations({ locale: localeFromEnum(o.locale) });
-        const goalLabel = t(`requests.goal${req.goal}`);
+        const goalLabel = req.goal ? t(`requests.goal${req.goal}`) : null;
         if (prefAllows(o.notificationPrefs, "schemas", "inApp")) {
           await createInAppNotification({
             userId: o.id,
             tenantId: opts.tenantId,
             category: "schemas",
-            title: t("notifications.schemaRequest.newTitle"),
-            body: t("notifications.schemaRequest.newBody", { member: memberName }),
+            title: t(
+              isChange
+                ? "notifications.schemaRequest.changeTitle"
+                : "notifications.schemaRequest.newTitle"
+            ),
+            body: t(
+              isChange
+                ? "notifications.schemaRequest.changeBody"
+                : "notifications.schemaRequest.newBody",
+              { member: memberName }
+            ),
             link: "/owner/requests",
           });
         }
@@ -86,6 +99,7 @@ export async function notifyRequestSubmitted(opts: {
               branding,
               recipientName: o.name,
               memberName,
+              kind: req.kind,
               goalLabel,
               description: req.description,
               manageUrl,
@@ -107,7 +121,11 @@ export async function notifyRequestSubmitted(opts: {
         tenantId: opts.tenantId,
         category: "schemas",
         title: t("notifications.schemaRequest.receivedTitle"),
-        body: t("notifications.schemaRequest.receivedBody"),
+        body: t(
+          isChange
+            ? "notifications.schemaRequest.receivedChangeBody"
+            : "notifications.schemaRequest.receivedBody"
+        ),
         link: "/member/requests",
       });
     }

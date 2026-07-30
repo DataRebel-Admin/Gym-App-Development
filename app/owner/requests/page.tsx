@@ -9,6 +9,7 @@ import { setRequestStatus } from "./actions";
 import { fmtDate } from "@/lib/schema-status";
 import {
   REQUEST_STATUS_META,
+  REQUEST_KIND_META,
   REQUEST_FILTERS,
   type RequestFilter,
 } from "@/lib/schema-requests";
@@ -83,6 +84,7 @@ export default async function OwnerRequestsPage({
     select: {
       id: true,
       userId: true,
+      kind: true,
       goal: true,
       description: true,
       notes: true,
@@ -136,15 +138,22 @@ export default async function OwnerRequestsPage({
         <ul className="flex max-w-3xl flex-col gap-3">
           {requests.map((r) => {
             const meta = REQUEST_STATUS_META[r.status];
+            const kindMeta = REQUEST_KIND_META[r.kind];
+            const isChange = r.kind === "CHANGE";
             return (
               <li key={r.id} className="flex flex-col gap-3 rounded-2xl border border-border p-4">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-semibold text-neutral-900">
                     {r.user.name ?? r.user.email}
                   </span>
+                  {/* Aanvraagtype vóór de status: het bepaalt wat je moet doen —
+                      een schema bouwen of het lopende schema bijwerken. */}
+                  <Badge tone={kindMeta.tone}>{tr(`kind${r.kind}`)}</Badge>
                   <Badge tone={meta.tone}>{tr(`status${r.status}`)}</Badge>
                   <span className="text-xs text-neutral-500">
-                    {t("goalDate", { goal: tr(`goal${r.goal}`), date: fmtDate(r.createdAt) })}
+                    {r.goal
+                      ? t("goalDate", { goal: tr(`goal${r.goal}`), date: fmtDate(r.createdAt) })
+                      : fmtDate(r.createdAt)}
                     {r.preferredStart ? t("startDate", { date: fmtDate(r.preferredStart) }) : ""}
                   </span>
                 </div>
@@ -164,7 +173,7 @@ export default async function OwnerRequestsPage({
                     href={`/owner/schemas/members/${r.userId}`}
                     className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground hover:opacity-90"
                   >
-                    {t("createSchema")}
+                    {isChange ? t("adjustSchema") : t("createSchema")}
                   </Link>
                   {r.status === "NEW" ? (
                     <StatusButton id={r.id} status="IN_PROGRESS" label={t("takeInProgress")} />

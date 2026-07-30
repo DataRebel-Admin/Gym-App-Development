@@ -1,5 +1,5 @@
 import "server-only";
-import type { Locale } from "@prisma/client";
+import type { Locale, SchemaRequestKind } from "@prisma/client";
 import { getTranslations } from "next-intl/server";
 import type { EmailBranding } from "@/lib/email/branding";
 import { localeFromEnum } from "@/lib/i18n/config";
@@ -64,7 +64,7 @@ function textFrame(
   return [
     body.trim(),
     "",
-    "—",
+    "--",
     branding.name,
     contact || null,
     reason,
@@ -203,7 +203,10 @@ export async function schemaRequestReceivedMessage(opts: {
   branding: EmailBranding;
   recipientName?: string | null;
   memberName: string;
-  goalLabel: string;
+  /** Nieuw schema of aanpassing van het lopende schema — bepaalt kop/tekst/subject. */
+  kind?: SchemaRequestKind;
+  /** NULL bij een aanpassingsverzoek (dat kiest geen doel). */
+  goalLabel?: string | null;
   description?: string | null;
   manageUrl: string;
   locale?: Locale | null;
@@ -215,29 +218,49 @@ export async function schemaRequestReceivedMessage(opts: {
   const reason = t("schemaRequestReceived.reason", { gym: branding.name });
   const g = greetingText(t, recipientName);
   const noteBlock = description?.trim() ? `\n\n"${description.trim()}"` : "";
+  // Een aanpassing heeft geen doel om te noemen; de eigen tekstvariant vertelt de
+  // coach dat het om het lópende schema gaat (andere actie dan iets nieuws bouwen).
+  const isChange = opts.kind === "CHANGE";
+  const heading = t(
+    isChange ? "schemaRequestReceived.headingChange" : "schemaRequestReceived.heading"
+  );
+  const bodyText = isChange
+    ? t("schemaRequestReceived.bodyChange", { member: memberName })
+    : t("schemaRequestReceived.body", { member: memberName, goal: goalLabel ?? "" });
+  const bodyHtml = isChange
+    ? t("schemaRequestReceived.bodyChange", { member: strong(memberName) })
+    : t("schemaRequestReceived.body", {
+        member: strong(memberName),
+        goal: strong(goalLabel ?? ""),
+      });
   const contentHtml = [
-    emailHeading(t("schemaRequestReceived.heading")),
+    emailHeading(heading),
     emailParagraph(escapeHtml(g)),
-    emailParagraph(t("schemaRequestReceived.body", { member: strong(memberName), goal: strong(goalLabel) })),
+    emailParagraph(bodyHtml),
     description?.trim() ? emailParagraph(`"${escapeHtml(description.trim())}"`) : "",
     emailButton(manageUrl, t("schemaRequestReceived.btn"), branding),
     emailLinkFallback(manageUrl),
   ].join("");
   return {
-    subject: t("schemaRequestReceived.subject", { member: memberName }),
+    subject: t(
+      isChange ? "schemaRequestReceived.subjectChange" : "schemaRequestReceived.subject",
+      { member: memberName }
+    ),
     html: renderEmailLayout({
       branding,
-      preheader: t("schemaRequestReceived.preheader", { member: memberName, goal: goalLabel }),
+      preheader: isChange
+        ? t("schemaRequestReceived.preheaderChange", { member: memberName })
+        : t("schemaRequestReceived.preheader", {
+            member: memberName,
+            goal: goalLabel ?? "",
+          }),
       contentHtml,
       reason,
       footerNote,
     }),
     text: textFrame(
       branding,
-      `${t("schemaRequestReceived.heading")}\n\n${g}\n\n${t("schemaRequestReceived.body", {
-        member: memberName,
-        goal: goalLabel,
-      })}${noteBlock}\n\n${manageUrl}`,
+      `${heading}\n\n${g}\n\n${bodyText}${noteBlock}\n\n${manageUrl}`,
       reason,
       footerNote
     ),
@@ -414,9 +437,9 @@ export async function achievementEarnedMessage(opts: {
     emailParagraph(escapeHtml(g)),
     emailParagraph(t("achievementEarned.body", { title: strong(title), rarity: escapeHtml(rarityLabel) })),
     emailInfoCard(
-      `<p style="margin:0;font-size:15px;color:#1f2937"><strong>${escapeHtml(
+      `<p class="dm-text" style="margin:0;font-size:15px;color:#1f2937"><strong>${escapeHtml(
         title
-      )}</strong></p><p style="margin:6px 0 0;font-size:14px;color:#6b7280">${escapeHtml(
+      )}</strong></p><p class="dm-muted" style="margin:6px 0 0;font-size:14px;color:#6b7280">${escapeHtml(
         description
       )}</p>`
     ),
@@ -466,7 +489,7 @@ export async function maintenanceAlertMessage(opts: {
     emailHeading(headline),
     emailParagraph(escapeHtml(g)),
     emailParagraph(intro),
-    detail?.trim() ? emailInfoCard(`<p style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
+    detail?.trim() ? emailInfoCard(`<p class="dm-text" style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
     emailButton(manageUrl, t("maintenanceAlert.btn"), branding),
     emailLinkFallback(manageUrl),
   ].join("");
@@ -474,7 +497,7 @@ export async function maintenanceAlertMessage(opts: {
     subject: `${headline}: ${machineName}`,
     html: renderEmailLayout({
       branding,
-      preheader: `${machineName} — ${headline.toLowerCase()}.`,
+      preheader: `${machineName}: ${headline.toLowerCase()}.`,
       contentHtml,
       reason,
       footerNote,
@@ -518,7 +541,7 @@ export async function defectAlertMessage(opts: {
     emailHeading(headline),
     emailParagraph(escapeHtml(g)),
     emailParagraph(intro),
-    detail?.trim() ? emailInfoCard(`<p style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
+    detail?.trim() ? emailInfoCard(`<p class="dm-text" style="margin:0;font-size:14px;color:#1f2937">${escapeHtml(detail.trim())}</p>`) : "",
     emailButton(manageUrl, t("defectAlert.btn"), branding),
     emailLinkFallback(manageUrl),
   ].join("");
@@ -526,7 +549,7 @@ export async function defectAlertMessage(opts: {
     subject: `${headline}: ${machineName}`,
     html: renderEmailLayout({
       branding,
-      preheader: `${machineName} — ${headline.toLowerCase()}.`,
+      preheader: `${machineName}: ${headline.toLowerCase()}.`,
       contentHtml,
       reason,
       footerNote,
@@ -583,9 +606,9 @@ export async function supportRequestMessage(opts: {
   const reason = `Je ontvangt deze e-mail omdat een sportschooleigenaar via het contactformulier van ${branding.name} een bericht heeft verstuurd.`;
 
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:2px 12px 2px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
+    `<tr><td class="dm-muted" style="padding:2px 12px 2px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
       label
-    )}</td><td style="padding:2px 0;font-size:14px;color:#1f2937">${escapeHtml(value)}</td></tr>`;
+    )}</td><td class="dm-text" style="padding:2px 0;font-size:14px;color:#1f2937">${escapeHtml(value)}</td></tr>`;
 
   const details = emailInfoCard(
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%">
@@ -683,9 +706,9 @@ export async function reportAlertMessage(opts: {
     "Je ontvangt deze e-mail omdat er een urgente app-melding is binnengekomen.";
 
   const row = (label: string, value: string) =>
-    `<tr><td style="padding:2px 12px 2px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
+    `<tr><td class="dm-muted" style="padding:2px 12px 2px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
       label
-    )}</td><td style="padding:2px 0;font-size:14px;color:#1f2937">${escapeHtml(value)}</td></tr>`;
+    )}</td><td class="dm-text" style="padding:2px 0;font-size:14px;color:#1f2937">${escapeHtml(value)}</td></tr>`;
 
   const details = emailInfoCard(
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%">
@@ -713,7 +736,7 @@ export async function reportAlertMessage(opts: {
     subject: `${opts.reason === "blocker" ? "[BLOCKER]" : "[PIEK]"} App-melding ${report.ref}: ${report.title}`,
     html: renderEmailLayout({
       branding,
-      preheader: `${report.ref} — ${report.title}`,
+      preheader: `${report.ref}: ${report.title}`,
       contentHtml,
       reason,
     }),
@@ -754,11 +777,11 @@ export async function reportDigestMessage(opts: {
   const items = reports
     .map(
       (r) =>
-        `<tr><td style="padding:6px 12px 6px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
+        `<tr><td class="dm-muted" style="padding:6px 12px 6px 0;font-size:13px;color:#6b7280;white-space:nowrap;vertical-align:top">${escapeHtml(
           r.ref
-        )}</td><td style="padding:6px 0;font-size:14px;color:#1f2937"><strong>[${escapeHtml(
+        )}</td><td class="dm-text" style="padding:6px 0;font-size:14px;color:#1f2937"><strong>[${escapeHtml(
           r.type
-        )}]</strong> ${escapeHtml(r.title)}<br><span style="font-size:12px;color:#6b7280">${escapeHtml(
+        )}]</strong> ${escapeHtml(r.title)}<br><span class="dm-muted" style="font-size:12px;color:#6b7280">${escapeHtml(
           [r.origin, r.tenantName, r.platform, r.appVersion].filter(Boolean).join(" · ")
         )}</span></td></tr>`
     )
