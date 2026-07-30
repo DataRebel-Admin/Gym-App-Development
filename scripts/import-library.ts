@@ -136,6 +136,25 @@ function namesJson(rec: { name_en: string; name_de?: string; name_es?: string })
   return out;
 }
 
+/**
+ * Zelfde namen-Json, maar met de **bestaande Nederlandse naam behouden**. De
+ * bundel levert alleen en/de/es; `nl` is handwerk uit
+ * `lib/translate/library-lookups-nl.ts` (script `library:lookups`). Zonder deze
+ * merge zou elke re-import die curatie stil wegvagen — het lookup-equivalent van
+ * `origin: "manual"` bij de oefeningteksten.
+ */
+function namesJsonKeepNl(
+  rec: { name_en: string; name_de?: string; name_es?: string },
+  existing: Prisma.JsonValue | undefined
+): Prisma.InputJsonValue {
+  const out = namesJson(rec) as Record<string, string>;
+  const nl =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? (existing as Record<string, string>).nl
+      : undefined;
+  return nl?.trim() ? { ...out, nl } : out;
+}
+
 async function inChunks<T>(items: T[], fn: (chunk: T[]) => Promise<void>) {
   for (let i = 0; i < items.length; i += CHUNK) {
     await fn(items.slice(i, i + CHUNK));
@@ -183,6 +202,15 @@ async function main() {
   );
 
   // --- Spieren & materiaal (kleine lookups) --------------------------------
+  // Bestaande namen eerst inlezen: de handmatig gecureerde `nl` moet een
+  // re-import overleven (zie `namesJsonKeepNl`).
+  const [existingMuscles, existingEquipment] = await Promise.all([
+    prisma.libraryMuscle.findMany({ select: { id: true, names: true } }),
+    prisma.libraryEquipment.findMany({ select: { id: true, names: true } }),
+  ]);
+  const muscleNames = new Map(existingMuscles.map((m) => [m.id, m.names]));
+  const equipmentNames = new Map(existingEquipment.map((e) => [e.id, e.names]));
+
   for (const [id, m] of Object.entries(bundle.muscles)) {
     await prisma.libraryMuscle.upsert({
       where: { id },
@@ -197,7 +225,7 @@ async function main() {
       update: {
         region: m.region,
         nameScientific: m.name_scientific ?? null,
-        names: namesJson(m),
+        names: namesJsonKeepNl(m, muscleNames.get(id)),
         synonyms: m.synonyms ?? [],
         image: m.image ?? null,
       },
@@ -216,7 +244,7 @@ async function main() {
         image: e.image ?? null,
       },
       update: {
-        names: namesJson(e),
+        names: namesJsonKeepNl(e, equipmentNames.get(id)),
         tags: e.tags ?? [],
         synonyms: e.synonyms ?? [],
         image: e.image ?? null,
