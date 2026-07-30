@@ -366,7 +366,17 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
 
 Een externe dataset van **1.324 oefeningen** (rijke metadata, thumbnail + animatie,
 meertalige instructies) is dé bron van waarheid voor oefening-content. Media staat op
-**Azure Blob** (`datarebel`/`exercise-media`, publieke blob-read); metadata in Postgres.
+**Azure Blob** (`datarebel`/**`exercise-media-legacy`**, publieke blob-read); metadata in
+Postgres.
+
+> **Deze dataset is VEROUDERD.** Er komt een nieuwe oefeningen-bibliotheek naast (eigen
+> tabel, eigen container, eigen import); deze blijft bestaan als **terugvaloptie** en wordt
+> in de UI geoormerkt. De container is daarom omgenoemd naar `exercise-media-legacy`
+> (Azure kán niet hernoemen → copy + delete, zie `npm run blob:copy` /
+> `scripts/blob-copy-container.mjs`) en de 1.324 `image_url`/`gif_url`-waarden zijn
+> mee-herschreven. De naam `exercise-media` is daarmee vrij voor de nieuwe set.
+> **Les hieruit**: de nieuwe tabel slaat een *relatieve* blob-key op + een basis-URL uit
+> env, zodat een containerwissel geen data-migratie meer is.
 
 - **`ExerciseCatalog`** (`@@map("exercise_catalog")`) = globaal, **géén `tenantId`/RLS**
   (zoals Tenant/Auth-tabellen). Velden: category/bodyPart/equipment/target/muscleGroup/
