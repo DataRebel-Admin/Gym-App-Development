@@ -17,6 +17,8 @@ import { getMasterSuggestions } from "@/lib/coach-insights";
 import { SchemaSuggestions } from "@/components/schema-suggestions";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmButton } from "@/components/ui/confirm-button";
+import { schemaImage } from "@/lib/schema-image";
+import { SchemaImageForm } from "./schema-image-form";
 
 export async function generateMetadata({
   params,
@@ -70,6 +72,18 @@ export default async function TemplateEditPage({
   const dayTemplates = isSchema ? await getDayTemplateOptions(owner.tenantId) : [];
   const suggestions = isSchema ? await getMasterSuggestions(owner.tenantId, template.id) : [];
 
+  // Beeld + herkomst: de form legt uit wáár het huidige beeld vandaan komt, zodat
+  // "geen eigen foto" niet als een fout leest maar als een bewuste terugval.
+  const tenant = await getCurrentTenant();
+  const cover = schemaImage(template, { logoUrl: tenant?.logoUrl ?? null });
+  const coverSource = template.imageUrl
+    ? "own"
+    : cover?.kind === "photo"
+      ? "library"
+      : cover
+        ? "logo"
+        : "none";
+
   const initialDays: EditorDay[] = template.days.map((d) => ({
     key: d.id,
     name: d.name,
@@ -113,6 +127,22 @@ export default async function TemplateEditPage({
         availableExercises={exercises}
         dayTemplates={dayTemplates}
       />
+
+      <section className="flex max-w-3xl flex-col gap-4 rounded-2xl border border-border p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Afbeelding</h2>
+          <p className="text-sm text-neutral-500">
+            Het beeld dat leden bij dit schema zien, in de bibliotheek en op hun eigen
+            schemapagina.
+          </p>
+        </div>
+        <SchemaImageForm
+          templateId={template.id}
+          image={cover}
+          hasOwnImage={Boolean(template.imageUrl)}
+          source={coverSource}
+        />
+      </section>
 
       {isSchema ? (
         <>

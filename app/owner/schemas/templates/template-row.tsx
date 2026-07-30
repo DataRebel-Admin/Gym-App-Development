@@ -5,10 +5,18 @@ import type { WorkoutTemplate } from "@prisma/client";
 import { duplicateTemplate } from "../actions";
 import { GoalBadge } from "@/components/schema/goal-badge";
 import { SchemaBadges } from "@/components/schema/schema-badges";
+import { SchemaCover } from "@/components/schema/schema-cover";
+import type { SchemaImage } from "@/lib/schema-image";
 
 type TemplateRow = WorkoutTemplate & { _count: { items: number } };
 
-export function TemplateRow({ template }: { template: TemplateRow }) {
+export function TemplateRow({
+  template,
+  image,
+}: {
+  template: TemplateRow;
+  image: SchemaImage | null;
+}) {
   const router = useRouter();
   const href = `/owner/schemas/templates/${template.id}`;
 
@@ -26,10 +34,18 @@ export function TemplateRow({ template }: { template: TemplateRow }) {
       className="cursor-pointer border-t border-neutral-100 hover:bg-neutral-50 focus:bg-neutral-50 focus:outline-none"
     >
       <td className="px-4 py-2 font-medium text-neutral-900">
-        <div className="flex flex-wrap items-center gap-2">
-          <span>{template.name}</span>
-          <GoalBadge goal={template.goal} size="xs" />
-          <SchemaBadges badges={template.badges} size="xs" max={3} />
+        <div className="flex items-center gap-3">
+          <SchemaCover
+            image={image}
+            alt={template.name}
+            aspect={false}
+            className="h-10 w-15 shrink-0 rounded-lg"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <span>{template.name}</span>
+            <GoalBadge goal={template.goal} size="xs" />
+            <SchemaBadges badges={template.badges} size="xs" max={3} />
+          </div>
         </div>
       </td>
       <td className="px-4 py-2 text-neutral-700">{template._count.items}</td>

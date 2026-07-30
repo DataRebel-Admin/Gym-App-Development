@@ -15,10 +15,16 @@ import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { isTrainingGoal } from "@/lib/training-goals";
 import { parseBadges } from "@/lib/schema-badges";
 import {
+  datasetLocalePreference,
   parseTemplateReps,
   pickJsonName,
   trainingGoalFromLibrary,
 } from "@/lib/exercise-library/mapping";
+import { exerciseThumbUrl } from "@/lib/exercise-thumb";
+import { uploadSchemaImage, SCHEMA_IMAGE_MAX_BYTES } from "@/lib/blob";
+import { coverUrlForCopy } from "@/lib/schema-image";
+import { getCurrentTenant } from "@/lib/tenant";
+import { getContentLocale } from "@/lib/i18n/content-locale";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
 import {
   snapshotOf,
@@ -127,7 +133,18 @@ export async function saveSchema(
   await prisma.$transaction([
     prisma.workoutTemplate.update({
       where: { id: template.id },
-      data: { name, description: description || null, coachNote: coachNote || null, validityWeeks, goal, badges },
+      data: {
+        name,
+        description: description || null,
+        // De schema-notitie hoort bij het programma (elk lid met dit schema leest
+        // dezelfde tekst) en is dus alleen op een library-template te bewerken.
+        // Op een persoonlijke kopie blijft de meegekloonde notitie staan — de
+        // client stuurt 'm daar niet mee, dus zonder deze regel zou 'ie wissen.
+        coachNote: template.isLibrary ? coachNote || null : template.coachNote,
+        validityWeeks,
+        goal,
+        badges,
+      },
     }),
     // Items en dagen volledig vervangen (items cascaden via day-FK, maar we
     // ruimen expliciet op voor items zonder dag).
@@ -291,8 +308,13 @@ export async function importLibraryTemplate(formData: FormData) {
     const muscles = muscleIds.length
       ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
       : [];
+    // Spier-snapshot in het Nederlands (anatomie is vertaald; de oefeningnaam
+    // blijft Engels). Zelfde regel als `bulkAddLibraryToGym`.
+    const musclePref = datasetLocalePreference(
+      await getContentLocale((await getCurrentTenant())?.locale)
+    );
     const muscleName = new Map(
-      muscles.map((m) => [m.id, pickJsonName(m.names, ["en"]) ?? m.id.replace(/_/g, " ")])
+      muscles.map((m) => [m.id, pickJsonName(m.names, musclePref) ?? m.id.replace(/_/g, " ")])
     );
     await prisma.exercise.createMany({
       data: libRows.map((l) => ({
@@ -384,6 +406,108 @@ export async function importLibraryTemplate(formData: FormData) {
   redirect(`/owner/schemas/templates/${templateId}`);
 }
 
+/** Eén oefening in de voorbeeld-preview (geserialiseerd, client-veilig). */
+export type LibraryTemplatePreviewExercise = {
+  libraryId: string;
+  name: string;
+  sets: number | null;
+  /** Ruwe RepDB-notatie ("5", "8-12", "AMRAP", "30s") — leest prettiger dan de
+   *  geparste integer die de import in de kolom zet. */
+  reps: string | null;
+  restSeconds: number | null;
+  notes: string | null;
+  thumbUrl: string | null;
+  /** Staat de oefening al in deze sportschool? (false = wordt bij overnemen toegevoegd) */
+  inGym: boolean;
+};
+
+/** Volledige inhoud van een bibliotheek-voorbeeldschema, voor de detailmodal. */
+export type LibraryTemplatePreview = {
+  id: string;
+  name: string;
+  description: string | null;
+  goal: string;
+  difficulty: string;
+  frequencyPerWeek: number | null;
+  days: { name: string; exercises: LibraryTemplatePreviewExercise[] }[];
+  exerciseCount: number;
+  /** Aantal unieke oefeningen dat overnemen aan de sportschool toevoegt. */
+  newExerciseCount: number;
+};
+
+/**
+ * Lui geladen inhoud van een voorbeeldschema (klik op de kaart) — dezelfde
+ * bron/velden als {@link importLibraryTemplate}, maar zonder iets te schrijven.
+ * Oefeningnamen komen bewust uit de **en**-tekstrij (naamsbeleid: oefening-
+ * namen worden niet vertaald), net als bij de import en de owner-grid.
+ */
+export async function libraryTemplatePreview(
+  libraryTemplateId: string
+): Promise<LibraryTemplatePreview | null> {
+  const owner = await requirePermission("schemas:manage");
+  if (!libraryTemplateId) return null;
+
+  const source = await prisma.libraryWorkoutTemplate.findFirst({
+    where: { id: libraryTemplateId, retiredAt: null },
+  });
+  if (!source) return null;
+  const days = (source.days as LibraryTemplateDay[] | null) ?? [];
+  const slugs = [
+    ...new Set(days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id))),
+  ];
+
+  const [libRows, owned] = await Promise.all([
+    slugs.length > 0
+      ? prisma.libraryExercise.findMany({
+          where: { id: { in: slugs } },
+          select: {
+            id: true,
+            imageAlias: true,
+            images: true,
+            texts: { where: { locale: "en" }, select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+    slugs.length > 0
+      ? prisma.exercise.findMany({
+          where: { tenantId: owner.tenantId, libraryId: { in: slugs } },
+          select: { libraryId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const byId = new Map(libRows.map((l) => [l.id, l]));
+  const inGym = new Set(owned.map((e) => e.libraryId as string));
+
+  const previewDays = days.map((day, i) => ({
+    name: day.name_en?.trim() || `Dag ${i + 1}`,
+    exercises: (day.exercises ?? []).map((e) => {
+      const lib = byId.get(e.exercise_id);
+      return {
+        libraryId: e.exercise_id,
+        name: lib?.texts[0]?.name ?? e.exercise_id.replace(/-/g, " "),
+        sets: e.sets ?? null,
+        reps: e.reps?.trim() || null,
+        restSeconds: e.rest_seconds ?? null,
+        notes: e.notes_en?.trim() || null,
+        thumbUrl: lib ? exerciseThumbUrl({ library: lib }) : null,
+        inGym: inGym.has(e.exercise_id),
+      };
+    }),
+  }));
+
+  return {
+    id: source.id,
+    name: pickJsonName(source.names, ["nl", "en"]) ?? source.id,
+    description: pickJsonName(source.descriptions, ["nl", "en"]),
+    goal: source.goal,
+    difficulty: source.difficulty,
+    frequencyPerWeek: source.frequencyPerWeek,
+    days: previewDays,
+    exerciseCount: previewDays.reduce((sum, d) => sum + d.exercises.length, 0),
+    newExerciseCount: slugs.filter((s) => !inGym.has(s)).length,
+  };
+}
+
 export async function deleteTemplate(formData: FormData) {
   const owner = await requirePermission("schemas:manage");
   const id = String(formData.get("id") ?? "");
@@ -415,6 +539,8 @@ type SourceTemplate = {
   validityWeeks: number | null;
   goal: string | null;
   badges: string[];
+  imageUrl: string | null;
+  libraryTemplateId: string | null;
   updatedAt: Date;
   days: {
     order: number;
@@ -501,6 +627,7 @@ async function cloneToAssignment(
       validityWeeks: source.validityWeeks,
       goal: source.goal,
       badges: source.badges,
+      imageUrl: coverUrlForCopy(source),
       isLibrary: false,
     },
   });
@@ -801,6 +928,7 @@ export async function duplicateTemplate(formData: FormData) {
         validityWeeks: source.validityWeeks,
         goal: source.goal,
         badges: source.badges,
+        imageUrl: coverUrlForCopy(source),
         isLibrary: true,
       },
     });
@@ -1548,6 +1676,67 @@ export async function setTemplateMemberVisible(formData: FormData) {
   revalidatePath(`/owner/schemas/templates/${id}`);
 }
 
+export type SchemaImageState = { error?: string; ok?: boolean };
+
+/**
+ * Zet of verwijder de eigen omslagfoto van een schema. Verwijderen zet het veld
+ * terug op NULL — het schema valt dan weer terug op de foto van zijn
+ * herkomst-voorbeeldschema of op het sportschoollogo (lib/schema-image.ts), dus
+ * "geen afbeelding" bestaat niet als eindtoestand.
+ *
+ * Faalt zacht met een boodschap i.p.v. te throwen: een mislukte upload mag het
+ * schema niet stukmaken.
+ */
+export async function setTemplateImage(
+  _prev: SchemaImageState,
+  formData: FormData
+): Promise<SchemaImageState> {
+  const owner = await requirePermission("schemas:manage");
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Onbekend schema." };
+
+  const remove = formData.get("remove") === "true";
+  let imageUrl: string | null = null;
+
+  if (!remove) {
+    const file = formData.get("image");
+    if (!(file instanceof File) || file.size === 0) {
+      return { error: "Kies eerst een afbeelding." };
+    }
+    if (!file.type.startsWith("image/")) {
+      return { error: "Alleen afbeeldingen (JPG, PNG of WebP)." };
+    }
+    if (file.size > SCHEMA_IMAGE_MAX_BYTES) {
+      return { error: "De afbeelding is groter dan 5 MB." };
+    }
+    const tenant = await getCurrentTenant();
+    imageUrl = await uploadSchemaImage(file, tenant?.slug ?? owner.tenantId);
+    if (!imageUrl) return { error: "Uploaden is niet gelukt. Probeer het opnieuw." };
+  }
+
+  const { count } = await prisma.workoutTemplate.updateMany({
+    where: { id, tenantId: owner.tenantId, isLibrary: true },
+    data: { imageUrl },
+  });
+  if (count === 0) return { error: "Schema niet gevonden." };
+
+  const template = await prisma.workoutTemplate.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: { name: true },
+  });
+  await audit("schema.image.set", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "WorkoutTemplate",
+    targetId: id,
+    metadata: { name: template?.name, removed: remove },
+  });
+
+  revalidatePath(`/owner/schemas/templates/${id}`);
+  revalidatePath("/owner/schemas/templates");
+  return { ok: true };
+}
+
 // --- Zelf-gebouwde lid-schema's: coach-review ------------------------------
 
 const reviewSchema = z.object({
@@ -1585,12 +1774,17 @@ export async function reviewMemberSchema(formData: FormData) {
   const approved = decision === "approve" || decision === "approve_activate";
   const note = reviewNote?.trim() || null;
 
+  // Herbeoordeling van een schema waarmee het lid al traint: dat blijft live
+  // (zichtbaarheid `status` = PUBLISHED). Goedkeuren zet het dus terug op ACTIVE
+  // i.p.v. APPROVED — anders zou het lid moeten "activeren" wat al draait.
+  const wasLive = assignment.status === "PUBLISHED";
+
   if (approved) {
     await prisma.$transaction(async (tx) => {
       await tx.assignedWorkout.update({
         where: { id: assignment.id },
         data: {
-          memberStatus: "APPROVED",
+          memberStatus: wasLive ? "ACTIVE" : "APPROVED",
           reviewedAt: new Date(),
           reviewedById: owner.id,
           reviewNote: note,
@@ -1619,6 +1813,8 @@ export async function reviewMemberSchema(formData: FormData) {
       }
     });
   } else {
+    // Afwijzen raakt `status` bewust niet: een lopend schema blijft draaien (we
+    // halen niemands training weg), het lid ziet de reden en past het aan.
     await prisma.assignedWorkout.update({
       where: { id: assignment.id },
       data: {

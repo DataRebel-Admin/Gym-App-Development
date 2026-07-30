@@ -1533,6 +1533,11 @@ model WorkoutTemplate {
   // Vrij toewijsbare badges (keys uit lib/schema-badges.ts) — visuele labels
   // zoals ⭐ Beginner, 🔥 Spieropbouw, ⚡ Intensief. Meegekloond naar lid-schema's.
   badges      String[]  @default([])
+  // Eigen omslagfoto van de sportschool (Vercel Blob-URL of data-URL, zie
+  // lib/blob.ts). NULL = geen eigen beeld; `schemaImage` (lib/schema-image.ts)
+  // valt dan terug op de foto van het herkomst-voorbeeldschema en daarna op het
+  // sportschoollogo. Wordt meegekloond naar het lid-schema.
+  imageUrl    String?
   // Herkomst-koppeling wanneer dit schema is overgenomen uit een RepDB-
   // voorbeeldschema (LibraryWorkoutTemplate) — maakt de import idempotent.
   libraryTemplateId String?
