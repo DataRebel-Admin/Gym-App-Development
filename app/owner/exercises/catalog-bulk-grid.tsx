@@ -247,7 +247,7 @@ export function CatalogBulkGrid({
                   {isLibrary ? (
                     <Badge tone="neutral">{t("badgeStandard")}</Badge>
                   ) : (
-                    <Badge tone="warning">{t("badgeClassic")}</Badge>
+                    <Badge tone="info">{t("badgeClassic")}</Badge>
                   )}
                 </div>
                 <p className="text-xs capitalize text-neutral-500">
