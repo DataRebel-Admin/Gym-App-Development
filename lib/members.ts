@@ -42,7 +42,6 @@ export function deriveInviteStatus(
 export type MemberListOptions = {
   q?: string;
   status?: InviteStatus;
-  role?: Role;
   /** Beperk tot leden die door deze coach worden begeleid ("Mijn leden"). */
   coachId?: string;
   sort?: "name" | "created" | "status";
@@ -69,6 +68,11 @@ const STATUS_ORDER: Record<InviteStatus, number> = {
  * Leden van een tenant met afgeleide uitnodigingsstatus, gepagineerd op DB-niveau
  * (schaalt naar duizenden leden). Let op: een status-filter werkt binnen de pagina
  * (de status is afgeleid en niet DB-queryable).
+ *
+ * **Uitsluitend `TENANT_MEMBER`.** De ledenlijst is de sporters-administratie;
+ * het gym-team (`TENANT_ADMIN` + `TENANT_STAFF`) hoort op `/owner/staff`. Eerder
+ * stonden beheerders hier tússen de leden, waardoor "Nieuw lid toevoegen" een
+ * rolkeuze had en een beheerder in de ledentellingen meeliep.
  */
 export async function listMembers(
   tenantId: string,
@@ -76,9 +80,8 @@ export async function listMembers(
 ): Promise<MemberListResult> {
   const where: Prisma.UserWhereInput = {
     tenantId,
-    role: { in: ["TENANT_ADMIN", "TENANT_MEMBER"] },
+    role: "TENANT_MEMBER",
     ...(opts.includeArchived ? {} : { archivedAt: null }),
-    ...(opts.role ? { role: opts.role } : {}),
     ...(opts.coachId ? { assignedCoaches: { some: { tenantId, coachId: opts.coachId } } } : {}),
     ...(opts.q
       ? {

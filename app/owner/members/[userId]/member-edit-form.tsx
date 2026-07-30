@@ -31,7 +31,7 @@ export function MemberEditForm({
       </Field>
       <Field
         label="Lidnummer"
-        hint="Eigen klant-/lidnummer uit je administratie — uniek binnen de sportschool."
+        hint="Eigen klant-/lidnummer uit je administratie, uniek binnen de sportschool."
       >
         <Input
           name="memberNumber"
@@ -40,9 +40,16 @@ export function MemberEditForm({
           maxLength={60}
         />
       </Field>
-      <Field label="Rol">
+      {/* De enige plek waar een sporter naar het team promoveert. Kies je hier
+          medewerker of beheerder, dan verdwijnt de persoon uit de ledenlijst en
+          verschijnt hij bij Medewerkers (daar staan ook de rechten). */}
+      <Field
+        label="Rol"
+        hint="Medewerker of beheerder? Dan verhuist deze persoon naar Medewerkers."
+      >
         <Select name="role" defaultValue={member.role}>
           <option value="TENANT_MEMBER">Lid</option>
+          <option value="TENANT_STAFF">Medewerker</option>
           <option value="TENANT_ADMIN">Beheerder</option>
         </Select>
       </Field>

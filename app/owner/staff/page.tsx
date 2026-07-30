@@ -12,7 +12,7 @@ import {
 } from "@/lib/rbac";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, Select } from "@/components/ui/field";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { SectionHeading } from "@/components/ui/section-heading";
@@ -22,6 +22,7 @@ import { PermissionMatrix } from "@/components/staff/permission-matrix";
 import {
   inviteMember,
   setMemberActive,
+  setMemberRole,
   deleteMember,
   resendInvite,
   resendMemberInviteById,
@@ -50,14 +51,17 @@ export default async function OwnerStaffPage() {
   const owner = await requireOwner();
   const t = await getTranslations("owner.staff");
 
-  const [staff, pendingInvites, locations] = await Promise.all([
+  // Het gym-team: beheerders én medewerkers. De ledenlijst (/owner/members) is
+  // puur voor sporters, dus beheerders worden hier beheerd.
+  const [team, pendingInvites, locations] = await Promise.all([
     prisma.user.findMany({
-      where: { tenantId: owner.tenantId, role: "TENANT_STAFF" },
+      where: { tenantId: owner.tenantId, role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] } },
       orderBy: { name: "asc" },
       select: {
         id: true,
         email: true,
         name: true,
+        role: true,
         active: true,
         emailVerified: true,
         permissions: true,
@@ -68,7 +72,14 @@ export default async function OwnerStaffPage() {
     getTenantLocations(owner.tenantId),
   ]);
 
-  const staffInvites = pendingInvites.filter((i) => i.role === "TENANT_STAFF");
+  // Beheerders bovenaan (zij bepalen de rechten van de rest), daarna op naam.
+  const staff = [...team].sort((a, b) =>
+    a.role === b.role ? 0 : a.role === "TENANT_ADMIN" ? -1 : 1
+  );
+
+  const staffInvites = pendingInvites.filter(
+    (i) => i.role === "TENANT_STAFF" || i.role === "TENANT_ADMIN"
+  );
 
   // Uitnodigingsstatus per medewerker.
   const invitations = await prisma.invitation.findMany({
@@ -84,13 +95,18 @@ export default async function OwnerStaffPage() {
         description={t("desc")}
       />
 
-      {/* Medewerker uitnodigen */}
+      {/* Teamlid uitnodigen (medewerker of beheerder) */}
       <Card className="flex flex-col gap-3 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("inviteStaff")}</h2>
         <form action={inviteMember} className="flex flex-wrap items-end gap-3">
-          <input type="hidden" name="role" value="TENANT_STAFF" />
           <Field label={t("emailLabel")} className="w-full sm:w-80">
             <Input name="email" type="email" required placeholder={t("emailPlaceholder")} />
+          </Field>
+          <Field label={t("roleLabel")} className="w-full sm:w-44">
+            <Select name="role" defaultValue="TENANT_STAFF">
+              <option value="TENANT_STAFF">{t("roleStaff")}</option>
+              <option value="TENANT_ADMIN">{t("roleAdmin")}</option>
+            </Select>
           </Field>
           <button type="submit" className={buttonClasses({ size: "md" })}>
             {t("sendInvite")}
@@ -123,6 +139,8 @@ export default async function OwnerStaffPage() {
           {staff.map((s) => {
             const status = deriveInviteStatus(s, inviteByEmail.get(s.email));
             const canInvite = status !== "GEACTIVEERD";
+            const isAdmin = s.role === "TENANT_ADMIN";
+            const self = s.id === owner.id;
             const enabled = [
               ...getEffectivePermissions(
                 "TENANT_STAFF",
@@ -138,10 +156,28 @@ export default async function OwnerStaffPage() {
                       <p className="truncate font-medium text-neutral-900">{s.name ?? s.email}</p>
                       <p className="truncate text-xs text-neutral-500">{s.email}</p>
                     </div>
+                    <Badge tone={isAdmin ? "accent" : "neutral"}>
+                      {isAdmin ? t("roleAdmin") : t("roleStaff")}
+                    </Badge>
                     <Badge tone={STATUS_TONE[status]}>{t(`status${status}`)}</Badge>
                     {!s.active ? <Badge tone="warning">{t("deactivated")}</Badge> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Rol wisselen: beheerder ↔ medewerker, of terug naar de
+                        ledenlijst. Niet op jezelf (dat sluit je buiten). */}
+                    {!self ? (
+                      <form action={setMemberRole} className="flex items-center gap-1">
+                        <input type="hidden" name="userId" value={s.id} />
+                        <Select name="role" defaultValue={s.role} fieldSize="xs" className="w-36">
+                          <option value="TENANT_STAFF">{t("roleStaff")}</option>
+                          <option value="TENANT_ADMIN">{t("roleAdmin")}</option>
+                          <option value="TENANT_MEMBER">{t("roleMember")}</option>
+                        </Select>
+                        <button type="submit" className={rowBtn}>{t("ok")}</button>
+                      </form>
+                    ) : (
+                      <span className="text-xs text-neutral-400">{t("you")}</span>
+                    )}
                     {canInvite ? (
                       <form action={resendInvite}>
                         <input type="hidden" name="userId" value={s.id} />
@@ -150,24 +186,40 @@ export default async function OwnerStaffPage() {
                         </button>
                       </form>
                     ) : null}
-                    <form action={setMemberActive}>
-                      <input type="hidden" name="userId" value={s.id} />
-                      <input type="hidden" name="active" value={s.active ? "false" : "true"} />
-                      <button type="submit" className={rowBtn}>
-                        {s.active ? t("deactivate") : t("activate")}
-                      </button>
-                    </form>
-                    <ConfirmButton
-                      action={deleteMember}
-                      fields={{ userId: s.id }}
-                      label={t("remove")}
-                      triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                      title={t("removeTitle")}
-                      message={t("removeMessage", { name: s.name ?? s.email })}
-                    />
+                    {/* Deactiveren/verwijderen doen op jezelf toch niets (de
+                        actions weigeren dat) — dan ook geen knop tonen. */}
+                    {!self ? (
+                      <>
+                        <form action={setMemberActive}>
+                          <input type="hidden" name="userId" value={s.id} />
+                          <input type="hidden" name="active" value={s.active ? "false" : "true"} />
+                          <button type="submit" className={rowBtn}>
+                            {s.active ? t("deactivate") : t("activate")}
+                          </button>
+                        </form>
+                        <ConfirmButton
+                          action={deleteMember}
+                          fields={{ userId: s.id }}
+                          label={t("remove")}
+                          triggerClassName="rounded-lg border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                          title={t("removeTitle")}
+                          message={t("removeMessage", { name: s.name ?? s.email })}
+                        />
+                      </>
+                    ) : null}
                   </div>
                 </div>
 
+                {/* Een beheerder heeft per definitie alle rechten op álle
+                    vestigingen (lib/rbac.ts + lib/location-scope.ts), dus geen
+                    rechtenmatrix en geen vestiging-chips: die zouden suggereren
+                    dat je er iets aan kunt afdoen. */}
+                {isAdmin ? (
+                  <p className="rounded-xl bg-surface-2 px-4 py-3 text-xs text-neutral-600">
+                    {t("adminFullAccess")}
+                  </p>
+                ) : (
+                  <>
                 {/* Vestiging-toegang (RESTRICTIEF, fail-closed): klik een chip om
                     te (ont)koppelen — zonder koppelingen ziet de medewerker níéts. */}
                 <div>
@@ -208,6 +260,8 @@ export default async function OwnerStaffPage() {
                   </h3>
                   <PermissionMatrix userId={s.id} enabled={enabled} action={setStaffPermissions} />
                 </div>
+                  </>
+                )}
               </Card>
             );
           })}

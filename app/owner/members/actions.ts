@@ -13,6 +13,13 @@ import { notifyInApp } from "@/lib/notifications";
 
 const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_STAFF", "TENANT_MEMBER"]);
 
+/**
+ * Rollen die op **`/owner/staff`** thuishoren (het gym-team). `/owner/members` is
+ * puur de sportersadministratie: daar wordt niets anders dan `TENANT_MEMBER`
+ * aangemaakt. Zie `listMembers` (lib/members.ts).
+ */
+const TEAM_ROLES = ["TENANT_ADMIN", "TENANT_STAFF"] as const;
+
 async function origin(): Promise<string> {
   const h = await headers();
   const host = h.get("host") ?? "localhost:3001";
@@ -20,7 +27,12 @@ async function origin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-const inviteSchema = z.object({ email: z.string().trim().email(), role: tenantRole });
+const inviteSchema = z.object({
+  email: z.string().trim().email(),
+  // Enige aanroeper is /owner/staff: hier worden alleen teamleden uitgenodigd.
+  // Een lid komt via `addMember` in de ledenadministratie.
+  role: z.enum(TEAM_ROLES),
+});
 
 export async function inviteMember(formData: FormData) {
   const owner = await requireOwner();
@@ -37,10 +49,17 @@ export async function inviteMember(formData: FormData) {
   });
   if (existing) return;
 
-  await createInvitation({ tenantId: owner.tenantId, email, role, invitedById: owner.id, origin: await origin() });
-  await audit("user.invite", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email, role } });
+  const delivery = await createInvitation({
+    tenantId: owner.tenantId,
+    email,
+    role,
+    invitedById: owner.id,
+    origin: await origin(),
+    actor: owner,
+  });
+  await audit("user.invite", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email, role, delivery } });
 
-  revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }
 
 export async function revokeMemberInvite(formData: FormData) {
@@ -49,7 +68,9 @@ export async function revokeMemberInvite(formData: FormData) {
   if (!id) return;
   await prisma.invitation.deleteMany({ where: { id, tenantId: owner.tenantId } });
   await audit("user.invite.revoke", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", targetId: id });
+  // Beide lijsten tonen uitstaande uitnodigingen (leden resp. teamleden).
   revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }
 
 /** (Her)verstuur een uitstaande uitnodiging op basis van haar id (gescoped op tenant). */
@@ -64,12 +85,25 @@ export async function resendMemberInviteById(formData: FormData) {
   });
   if (!inv) return;
 
-  await createInvitation({ tenantId: owner.tenantId, email: inv.email, role: inv.role, invitedById: owner.id, origin: await origin() });
-  await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", targetId: id, metadata: { email: inv.email } });
+  const delivery = await createInvitation({
+    tenantId: owner.tenantId,
+    email: inv.email,
+    role: inv.role,
+    invitedById: owner.id,
+    origin: await origin(),
+    actor: owner,
+  });
+  await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", targetId: id, metadata: { email: inv.email, delivery } });
 
   revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }
 
+/**
+ * Rol wisselen binnen het team (`/owner/staff`). Kiest de eigenaar hier "Lid",
+ * dan verhuist de persoon naar de ledenlijst — vandaar dat beide pagina's
+ * gerevalideerd worden.
+ */
 export async function setMemberRole(formData: FormData) {
   const owner = await requireOwner();
   const parsed = z
@@ -77,6 +111,9 @@ export async function setMemberRole(formData: FormData) {
     .safeParse({ userId: formData.get("userId"), role: formData.get("role") });
   if (!parsed.success) return;
   const { userId, role } = parsed.data;
+  // Een eigenaar mag zichzelf niet degraderen: dat sluit 'm uit z'n eigen
+  // beheeromgeving (zelfde bescherming als setMemberActive/deleteMember).
+  if (userId === owner.id) return;
 
   const res = await prisma.user.updateMany({
     where: { id: userId, tenantId: owner.tenantId },
@@ -86,6 +123,7 @@ export async function setMemberRole(formData: FormData) {
     await audit("user.role.change", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId, metadata: { role } });
   }
   revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }
 
 export async function setMemberActive(formData: FormData) {
@@ -103,7 +141,9 @@ export async function setMemberActive(formData: FormData) {
   if (res.count > 0) {
     await audit(active ? "user.activate" : "user.deactivate", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId });
   }
+  // Gedeeld door de leden- en de medewerkerslijst.
   revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }
 
 export async function deleteMember(formData: FormData) {
@@ -116,13 +156,13 @@ export async function deleteMember(formData: FormData) {
     await audit("user.delete", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId });
   }
   revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }
 
 const addSchema = z.object({
   email: z.string().trim().email(),
   name: z.string().trim().max(120).optional().or(z.literal("")),
   memberNumber: z.string().trim().max(60).optional().or(z.literal("")),
-  role: tenantRole,
 });
 
 /** Is dit lidnummer al in gebruik binnen de tenant (optioneel excl. één user)? */
@@ -138,22 +178,39 @@ async function memberNumberTaken(tenantId: string, memberNumber: string, exclude
   return clash !== null;
 }
 
-export type MemberFormState = { error?: string };
+export type MemberFormState = {
+  error?: string;
+  /** Bevestiging na een geslaagde toevoeging (incl. bezorgstatus van de uitnodiging). */
+  notice?: string;
+  noticeTone?: "success" | "warning";
+};
 
-/** Lid handmatig toevoegen (zonder uitnodiging). */
+/**
+ * Lid handmatig toevoegen. Standaard gaat de uitnodiging er direct achteraan
+ * (checkbox "Direct uitnodigen", vooraf aangevinkt) — zonder die mail heeft het
+ * lid geen enkele manier om binnen te komen en blijft de rij op
+ * "Niet uitgenodigd" staan tot iemand het handmatig alsnog doet.
+ *
+ * De uitnodiging is **best-effort**: mislukt de mail, dan blijft het lid gewoon
+ * bestaan en meldt de UI dat het uitnodigen nog moet gebeuren (knop "Uitnodigen"
+ * in de ledenlijst). Een mailstoring mag een ledenadministratie nooit blokkeren.
+ */
 export async function addMember(
   _prev: MemberFormState,
   formData: FormData
 ): Promise<MemberFormState> {
   const owner = await requireOwner();
+  const invite = formData.get("invite") === "1";
   const parsed = addSchema.safeParse({
     email: formData.get("email"),
     name: formData.get("name") || "",
     memberNumber: formData.get("memberNumber") || "",
-    role: formData.get("role"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
-  const { email, name, memberNumber, role } = parsed.data;
+  const { email, name, memberNumber } = parsed.data;
+  // Hier ontstaan uitsluitend sporters. Beheerders en medewerkers nodig je uit
+  // op /owner/staff — de rol komt dus niet uit het formulier.
+  const role = "TENANT_MEMBER" as const;
 
   const existing = await prisma.user.findUnique({
     where: { tenantId_email: { tenantId: owner.tenantId, email } },
@@ -180,8 +237,33 @@ export async function addMember(
   });
   await audit("user.create", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: user.id, metadata: { email, role } });
 
+  let notice = `${email} is toegevoegd. Er is nog geen uitnodiging verstuurd.`;
+  let noticeTone: "success" | "warning" = "warning";
+  if (invite) {
+    try {
+      const delivery = await createInvitation({
+        tenantId: owner.tenantId,
+        email,
+        role,
+        invitedById: owner.id,
+        origin: await origin(),
+        actor: owner,
+      });
+      await audit("user.invite", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email, role, delivery, onCreate: true } });
+      if (delivery === "sent") {
+        notice = `${email} is toegevoegd en heeft een uitnodiging ontvangen.`;
+        noticeTone = "success";
+      } else {
+        notice = `${email} is toegevoegd, maar de uitnodigingsmail ging niet de deur uit. Verstuur hem opnieuw via de knop Uitnodigen.`;
+      }
+    } catch (err) {
+      console.error(`[members] uitnodiging bij toevoegen mislukt voor ${email}:`, err);
+      notice = `${email} is toegevoegd, maar het uitnodigen is mislukt. Gebruik de knop Uitnodigen in de ledenlijst.`;
+    }
+  }
+
   revalidatePath("/owner/members");
-  return {};
+  return { notice, noticeTone };
 }
 
 const editSchema = z.object({
@@ -210,9 +292,11 @@ export async function editMember(
 
   const current = await prisma.user.findFirst({
     where: { id: userId, tenantId: owner.tenantId },
-    select: { email: true },
+    select: { email: true, role: true },
   });
   if (!current) return { error: "Lid niet gevonden" };
+  // Zelf-degradatie zou de eigenaar uit z'n eigen beheeromgeving zetten.
+  const nextRole = userId === owner.id ? current.role : role;
 
   const emailChanged = email !== current.email.toLowerCase();
   if (emailChanged) {
@@ -232,7 +316,7 @@ export async function editMember(
     data: {
       name: name || null,
       memberNumber: memberNumber || null,
-      role,
+      role: nextRole,
       email,
       // Een openstaand zelf-service-wijzigingsverzoek naar het oude adres vervalt.
       ...(emailChanged
@@ -240,7 +324,13 @@ export async function editMember(
         : {}),
     },
   });
-  await audit("user.update", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId, metadata: { name, role } });
+  await audit("user.update", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId, metadata: { name, role: nextRole } });
+  if (nextRole !== current.role) {
+    await audit("user.role.change", {
+      actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId,
+      oldValue: { role: current.role }, newValue: { role: nextRole }, metadata: { role: nextRole },
+    });
+  }
   if (emailChanged) {
     await audit("user.email.change", {
       actor: owner,
@@ -255,6 +345,8 @@ export async function editMember(
 
   revalidatePath("/owner/members");
   revalidatePath(`/owner/members/${userId}`);
+  // Wordt het een teamrol, dan verhuist de persoon naar de medewerkerspagina.
+  if (nextRole !== current.role) revalidatePath("/owner/staff");
   return {};
 }
 
@@ -408,8 +500,16 @@ export async function resendInvite(formData: FormData) {
   });
   if (!user) return;
 
-  await createInvitation({ tenantId: owner.tenantId, email: user.email, role: user.role, invitedById: owner.id, origin: await origin() });
-  await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email: user.email } });
+  const delivery = await createInvitation({
+    tenantId: owner.tenantId,
+    email: user.email,
+    role: user.role,
+    invitedById: owner.id,
+    origin: await origin(),
+    actor: owner,
+  });
+  await audit("user.invite.resend", { actor: owner, tenantId: owner.tenantId, targetType: "Invitation", metadata: { email: user.email, delivery } });
 
   revalidatePath("/owner/members");
+  revalidatePath("/owner/staff");
 }

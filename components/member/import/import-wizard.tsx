@@ -413,7 +413,7 @@ function MappingStep({
                         onChange={(e) => setColumn(i, (e.target.value || null) as ImportFieldKey | null)}
                         className="h-9 w-52 py-1"
                       >
-                        <option value="">— Negeren —</option>
+                        <option value="">(Negeren)</option>
                         {IMPORT_FIELDS.map((f) => (
                           <option key={f.key} value={f.key}>
                             {f.label}
@@ -519,7 +519,7 @@ function ValidationStep({
         </div>
       ) : (
         <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-700">
-          ✓ Geen problemen gevonden — alle regels zijn klaar om te importeren.
+          ✓ Geen problemen gevonden. Alle regels zijn klaar om te importeren.
         </p>
       )}
 
@@ -557,7 +557,7 @@ function PreviewStep({
       <div>
         <h2 className="text-base font-semibold text-neutral-900">Preview</h2>
         <p className="text-sm text-neutral-500">
-          Uit <strong>{fileName}</strong> — een voorbeeld van de eerste records die geïmporteerd worden.
+          Uit <strong>{fileName}</strong>: een voorbeeld van de eerste records die geïmporteerd worden.
         </p>
       </div>
 
@@ -577,7 +577,6 @@ function PreviewStep({
               <Th>Telefoon</Th>
               <Th>Geboortedatum</Th>
               <Th>Lidnummer</Th>
-              <Th>Rol</Th>
             </tr>
           </Thead>
           <Tbody>
@@ -590,11 +589,6 @@ function PreviewStep({
                 <Td className="text-neutral-500">{row.values.phone || "—"}</Td>
                 <Td className="text-neutral-500">{row.values.birthDate || "—"}</Td>
                 <Td className="text-neutral-500">{row.values.memberNumber || "—"}</Td>
-                <Td>
-                  <Badge tone={row.values.role === "TENANT_ADMIN" ? "accent" : "neutral"}>
-                    {row.values.role === "TENANT_ADMIN" ? "Beheerder" : "Lid"}
-                  </Badge>
-                </Td>
               </Tr>
             ))}
           </Tbody>
@@ -707,6 +701,7 @@ function InviteSection({ members }: { members: { email: string; name: string }[]
   const [selected, setSelected] = useState<Set<string>>(() => new Set(members.map((m) => m.email)));
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState<number | null>(null);
+  const [notDelivered, setNotDelivered] = useState(0);
 
   const toggle = (email: string) => {
     setSelected((prev) => {
@@ -724,12 +719,25 @@ function InviteSection({ members }: { members: { email: string; name: string }[]
     try {
       const res = await sendImportInvites(emails);
       setSentCount(res.invited);
+      setNotDelivered(res.notDelivered);
     } finally {
       setSending(false);
     }
   };
 
   if (sentCount !== null) {
+    // Aangemaakt is niet hetzelfde als bezorgd: zonder mailtransport (of met
+    // uitgaande mail uit) staat de uitnodiging klaar zonder dat er iets weggaat.
+    if (notDelivered > 0) {
+      return (
+        <div className="rounded-xl bg-amber-50 px-4 py-4 text-sm text-amber-800">
+          ⚠ {sentCount} uitnodiging{sentCount === 1 ? "" : "en"} aangemaakt, maar {notDelivered}{" "}
+          e-mail{notDelivered === 1 ? "" : "s"} is niet verstuurd. Er is geen mailtransport
+          ingesteld of uitgaande mail staat uit. Vraag de beheerder dit te controleren en stuur
+          de uitnodigingen daarna opnieuw.
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl bg-green-50 px-4 py-4 text-sm text-green-700">
         ✓ {sentCount} uitnodiging{sentCount === 1 ? "" : "en"} verzonden. De nieuwe leden ontvangen

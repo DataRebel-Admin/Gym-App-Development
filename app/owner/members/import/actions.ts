@@ -97,7 +97,8 @@ export async function importMembersChunk(rows: ImportRowInput[]): Promise<ChunkR
       birthDate: r.birthDate ? new Date(`${r.birthDate}T00:00:00.000Z`) : null,
       gender: r.gender,
       memberNumber,
-      role: r.role,
+      // Een import levert altijd sporters op; teamleden lopen via /owner/staff.
+      role: "TENANT_MEMBER",
       active: true,
     });
     createdEmails.push(r.email);
@@ -125,7 +126,12 @@ export async function logImport(summary: { created: number; skipped: number }) {
   revalidatePath("/owner/members");
 }
 
-export type InviteResult = { invited: number; failed: number };
+export type InviteResult = {
+  invited: number;
+  failed: number;
+  /** Uitnodiging aangemaakt, maar er ging géén mail de deur uit (geen transport / mail gepauzeerd). */
+  notDelivered: number;
+};
 
 /**
  * Verstuurt uitnodigingen voor een geselecteerde set zojuist geïmporteerde
@@ -135,7 +141,7 @@ export type InviteResult = { invited: number; failed: number };
 export async function sendImportInvites(emails: string[]): Promise<InviteResult> {
   const owner = await requireOwner();
   const parsed = z.array(z.string().trim().toLowerCase().email()).max(2000).safeParse(emails);
-  if (!parsed.success) return { invited: 0, failed: emails.length };
+  if (!parsed.success) return { invited: 0, failed: emails.length, notDelivered: 0 };
 
   // Alleen e-mails die echt als lid in deze tenant bestaan.
   const unique = [...new Set(parsed.data)];
@@ -147,16 +153,19 @@ export async function sendImportInvites(emails: string[]): Promise<InviteResult>
   const base = await origin();
   let invited = 0;
   let failed = 0;
+  let notDelivered = 0;
   for (const m of members) {
     try {
-      await createInvitation({
+      const delivery = await createInvitation({
         tenantId: owner.tenantId,
         email: m.email,
         role: m.role,
         invitedById: owner.id,
         origin: base,
+        actor: owner,
       });
       invited++;
+      if (delivery === "logged") notDelivered++;
     } catch (err) {
       failed++;
       console.error(`[member-import] uitnodiging mislukt voor ${m.email}:`, err);
@@ -168,10 +177,10 @@ export async function sendImportInvites(emails: string[]): Promise<InviteResult>
       actor: owner,
       tenantId: owner.tenantId,
       targetType: "Invitation",
-      metadata: { email: `${invited} nieuwe leden` },
+      metadata: { email: `${invited} nieuwe leden`, notDelivered },
     });
   }
 
   revalidatePath("/owner/members");
-  return { invited, failed };
+  return { invited, failed, notDelivered };
 }

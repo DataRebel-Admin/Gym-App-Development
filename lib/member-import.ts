@@ -7,6 +7,12 @@ import { z } from "zod";
  * kolom-herkenning, parsers en validatie. Eén bron van waarheid.
  */
 
+/**
+ * Let op: **géén `role`**. De bulk-import maakt uitsluitend sporters
+ * (`TENANT_MEMBER`) aan; beheerders en medewerkers nodig je uit op
+ * `/owner/staff`. Een "rol"-kolom in het bronbestand zou stilzwijgend
+ * beheerders kunnen aanmaken.
+ */
 export type ImportFieldKey =
   | "firstName"
   | "lastName"
@@ -14,8 +20,7 @@ export type ImportFieldKey =
   | "phone"
   | "birthDate"
   | "gender"
-  | "memberNumber"
-  | "role";
+  | "memberNumber";
 
 export type ImportField = {
   key: ImportFieldKey;
@@ -77,13 +82,6 @@ export const IMPORT_FIELDS: ImportField[] = [
     required: false,
     aliases: ["lidnummer", "lidnr", "member number", "membernumber", "member id", "memberid", "nummer"],
     example: "FP-00123",
-  },
-  {
-    key: "role",
-    label: "Rol",
-    required: false,
-    aliases: ["rol", "role", "type", "soort"],
-    example: "lid",
   },
 ];
 
@@ -211,16 +209,6 @@ export function parseBirthDate(raw: string): string | null {
   return date.toISOString().slice(0, 10);
 }
 
-export type RoleValue = "TENANT_ADMIN" | "TENANT_MEMBER";
-
-export function parseRole(raw: string): RoleValue {
-  const v = raw.trim().toLowerCase();
-  if (["admin", "beheerder", "tenant_admin", "owner", "eigenaar", "manager"].includes(v)) {
-    return "TENANT_ADMIN";
-  }
-  return "TENANT_MEMBER";
-}
-
 // --- Validatie ---------------------------------------------------------------
 
 /** Eén rij ruwe celwaarden (één per bron-kolom). */
@@ -235,7 +223,6 @@ export type ImportValues = {
   birthDate: string; // ISO `jjjj-mm-dd` of ""
   gender: GenderValue;
   memberNumber: string;
-  role: RoleValue;
 };
 
 export type RowIssue = { field: ImportFieldKey | "row"; message: string };
@@ -286,7 +273,6 @@ export function validateRows(
     const rawBirth = cell(row, mapping, "birthDate").trim();
     const rawGender = cell(row, mapping, "gender").trim();
     const rawMember = cell(row, mapping, "memberNumber").trim();
-    const rawRole = cell(row, mapping, "role").trim();
 
     // Lege regel: alle gemapte cellen leeg → overslaan, geen fout.
     const allEmpty = [rawFirst, rawLast, rawEmail, rawPhone, rawBirth, rawGender, rawMember].every(
@@ -297,7 +283,7 @@ export function validateRows(
         rowNumber,
         values: emptyValues(),
         errors: [],
-        warnings: [{ field: "row", message: "Lege regel — overgeslagen" }],
+        warnings: [{ field: "row", message: "Lege regel, overgeslagen" }],
         skipped: true,
       };
     }
@@ -327,7 +313,7 @@ export function validateRows(
     if (rawBirth !== "") {
       const parsed = parseBirthDate(rawBirth);
       if (parsed === null) {
-        warnings.push({ field: "birthDate", message: `Onleesbare datum "${rawBirth}" — genegeerd` });
+        warnings.push({ field: "birthDate", message: `Onleesbare datum "${rawBirth}", genegeerd` });
       } else {
         birthDate = parsed;
       }
@@ -338,7 +324,7 @@ export function validateRows(
     if (rawGender !== "") {
       const parsed = parseGender(rawGender);
       if (parsed === null) {
-        warnings.push({ field: "gender", message: `Onbekend geslacht "${rawGender}" — genegeerd` });
+        warnings.push({ field: "gender", message: `Onbekend geslacht "${rawGender}", genegeerd` });
       } else {
         gender = parsed;
       }
@@ -369,7 +355,6 @@ export function validateRows(
       birthDate,
       gender,
       memberNumber: rawMember,
-      role: parseRole(rawRole),
     };
 
     return { rowNumber, values, errors, warnings, skipped: errors.length > 0 };
@@ -385,7 +370,6 @@ function emptyValues(): ImportValues {
     birthDate: "",
     gender: "ONBEKEND",
     memberNumber: "",
-    role: "TENANT_MEMBER",
   };
 }
 
@@ -428,7 +412,6 @@ export const importRowSchema = z.object({
     .or(z.literal("")),
   gender: z.enum(["MAN", "VROUW", "NON_BINAIR", "ONBEKEND"]),
   memberNumber: z.string().trim().max(60),
-  role: z.enum(["TENANT_ADMIN", "TENANT_MEMBER"]),
 });
 
 export type ImportRowInput = z.infer<typeof importRowSchema>;

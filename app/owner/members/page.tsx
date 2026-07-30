@@ -27,7 +27,6 @@ import { listPendingInvitations } from "@/lib/invitation";
 import { PendingInvitationsTable } from "@/components/invitations/pending-invitations-table";
 import { MemberAddForm } from "./member-add-form";
 import {
-  setMemberRole,
   setMemberActive,
   deleteMember,
   archiveMember,
@@ -36,12 +35,6 @@ import {
   resendMemberInviteById,
   revokeMemberInvite,
 } from "./actions";
-
-const ROLE_KEY: Record<string, "roleAdmin" | "roleStaff" | "roleMember"> = {
-  TENANT_ADMIN: "roleAdmin",
-  TENANT_STAFF: "roleStaff",
-  TENANT_MEMBER: "roleMember",
-};
 
 const STATUS_TONE: Record<InviteStatus, BadgeTone> = {
   GEACTIVEERD: "success",
@@ -90,11 +83,13 @@ export default async function OwnerMembersPage({
     coachId: mineOnly ? me.id : undefined,
     page: Math.max(1, Number(sp.page ?? "1") || 1),
   };
-  const [{ rows: members, page, totalPages }, pendingInvites] = await Promise.all([
+  const [{ rows: members, page, totalPages }, allPendingInvites] = await Promise.all([
     listMembers(me.tenantId, opts),
     // Medewerkers hoeven geen uitstaande uitnodigingen te zien (administratief).
     isAdmin ? listPendingInvitations({ tenantId: me.tenantId }) : Promise.resolve([]),
   ]);
+  // Alleen leden-uitnodigingen: die voor het team staan op /owner/staff.
+  const pendingInvites = allPendingInvites.filter((i) => i.role === "TENANT_MEMBER");
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -218,17 +213,10 @@ export default async function OwnerMembersPage({
                   <Badge tone="warning" className="mt-2">{t("deactivated")}</Badge>
                 ) : null}
                 {isAdmin ? (
-                  <>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <MemberRoleForm id={m.id} role={m.role} />
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <MemberActions m={m} self={self} canInvite={canInvite} />
-                    </div>
-                  </>
-                ) : (
-                  <Badge tone="neutral" className="mt-3">{ROLE_KEY[m.role] ? t(ROLE_KEY[m.role]) : m.role}</Badge>
-                )}
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <MemberActions m={m} self={self} canInvite={canInvite} />
+                  </div>
+                ) : null}
               </div>
             );
           })
@@ -242,14 +230,13 @@ export default async function OwnerMembersPage({
             <tr>
               <Th>{t("colMember")}</Th>
               <Th>{t("colStatus")}</Th>
-              <Th>{t("colRole")}</Th>
               {isAdmin ? <Th className="text-right">{t("colActions")}</Th> : null}
             </tr>
           </Thead>
           <Tbody>
             {members.length === 0 ? (
               <Tr>
-                <Td colSpan={isAdmin ? 4 : 3} className="py-8 text-center text-neutral-500">
+                <Td colSpan={isAdmin ? 3 : 2} className="py-8 text-center text-neutral-500">
                   {t("noMembers")}
                 </Td>
               </Tr>
@@ -282,13 +269,6 @@ export default async function OwnerMembersPage({
                       <Badge tone={STATUS_TONE[m.inviteStatus]}>
                         {t(`status${m.inviteStatus}`)}
                       </Badge>
-                    </Td>
-                    <Td>
-                      {isAdmin ? (
-                        <MemberRoleForm id={m.id} role={m.role} />
-                      ) : (
-                        <Badge tone="neutral">{ROLE_KEY[m.role] ? t(ROLE_KEY[m.role]) : m.role}</Badge>
-                      )}
                     </Td>
                     {isAdmin ? (
                       <Td>
@@ -338,20 +318,6 @@ type MemberActionRow = {
   archivedAt: Date | null;
   inviteStatus: InviteStatus;
 };
-
-function MemberRoleForm({ id, role }: { id: string; role: string }) {
-  const t = useTranslations("owner.members");
-  return (
-    <form action={setMemberRole} className="flex items-center gap-1">
-      <input type="hidden" name="userId" value={id} />
-      <Select name="role" defaultValue={role} className="h-8 w-32 py-1 text-xs">
-        <option value="TENANT_ADMIN">{t("roleAdmin")}</option>
-        <option value="TENANT_MEMBER">{t("roleMember")}</option>
-      </Select>
-      <button type="submit" className={rowBtn}>{t("ok")}</button>
-    </form>
-  );
-}
 
 function MemberActions({
   m,
