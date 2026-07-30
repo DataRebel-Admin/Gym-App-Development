@@ -328,6 +328,7 @@ export default async function MemberSchemaPage({
               initialValidityWeeks={primaryTemplate.validityWeeks}
               initialGoal={primaryTemplate.goal}
               initialBadges={primaryTemplate.badges}
+              showCoachNote={false}
               showMemberNote
               initialDays={primaryTemplate.days.map<EditorDay>((d) => ({
                 key: d.id,

@@ -96,7 +96,7 @@ export function SchemaDiffView({
     <div className="flex flex-col gap-3">
       {diff.coachNoteChanged ? (
         <p className="text-sm text-neutral-600">
-          <Badge tone="accent">Coach-notitie</Badge> <span className="ml-1">gewijzigd</span>
+          <Badge tone="accent">Schema-notitie</Badge> <span className="ml-1">gewijzigd</span>
         </p>
       ) : null}
       {daysWithChanges.map((d) => (

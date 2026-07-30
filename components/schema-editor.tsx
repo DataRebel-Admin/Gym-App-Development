@@ -41,12 +41,13 @@ import {
   DEFAULT_GROUP_ROUNDS,
   DEFAULT_GROUP_REST_SECONDS,
   DEFAULT_AMRAP_SECONDS,
-  REST_PRESETS_SECONDS,
   type GroupTypeKey,
   type GroupFields,
 } from "@/lib/exercise-groups";
+import { RestPicker, isRestField } from "@/components/schema/rest-picker";
 import { trainingGoalOptions } from "@/lib/training-goals";
 import { schemaBadgeOptions, parseBadges } from "@/lib/schema-badges";
+import { selectOnFocus } from "@/lib/select-on-focus";
 
 export type EditorItem = {
   key: string;
@@ -56,7 +57,12 @@ export type EditorItem = {
   exerciseType: string;
   /** Invoerwaarden per veld-id (input-eenheid: min/km/…); leeg = niet ingevuld. */
   values: InputValues;
-  /** Algemene opmerking (zichtbaar voor elk lid). */
+  /**
+   * Algemene opmerking (zichtbaar voor elk lid). **Niet meer te bewerken in de
+   * editor** — de coach schrijft alleen de per-lid notitie (`memberNote`).
+   * Blijft hier staan zodat bestaande opmerkingen bij het opslaan bewaard blijven
+   * (en in de preview/PDF/checklist gewoon meegaan).
+   */
   notes: string;
   /** Per-lid coach-boodschap (alleen op lid-schema's; leeg = geen). */
   memberNote: string;
@@ -120,14 +126,6 @@ function fieldLabel(field: ParamField): string {
   return `${field.label.toLowerCase()}${unit}`;
 }
 
-/** Compacte "mm:ss"/"Ns"-weergave voor een rust-preset. */
-function restPresetLabel(sec: number): string {
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return s === 0 ? `${m}m` : `${m}m${s}`;
-}
-
 /** Eén dynamisch invoerveld in de editor-rij (compact). */
 function ParamInput({
   field,
@@ -166,6 +164,7 @@ function ParamInput({
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value)}
+          {...selectOnFocus}
           className="w-20 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent"
         />
       </label>
@@ -181,6 +180,7 @@ function ParamInput({
         step={field.step ?? (field.kind === "float" ? 0.5 : 1)}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        {...selectOnFocus}
         className={numClass}
       />
     </label>
@@ -241,7 +241,7 @@ function SortableRow({
   const otherDays = dayKeys.filter((d) => d.key !== currentDayKey);
   const type = getExerciseType(item.exerciseType);
   const TypeIcon = type.icon;
-  const hasRestField = type.targetFields.some((f) => f.column === "restSeconds");
+  const restField = type.targetFields.find(isRestField);
 
   function setValue(fieldId: string, v: string) {
     onChange(item.key, { values: { ...item.values, [fieldId]: v } });
@@ -312,9 +312,9 @@ function SortableRow({
         <button type="button" onClick={() => onRemove(item.key)} className="text-neutral-400 hover:text-red-600" aria-label="Verwijder">✕</button>
       </div>
 
-      {/* Dynamische, type-specifieke doelvelden */}
+      {/* Dynamische, type-specifieke doelvelden (rust: zie de RestPicker) */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-6">
-        {type.targetFields.map((field) => (
+        {type.targetFields.filter((f) => !isRestField(f)).map((field) => (
           <ParamInput
             key={field.id}
             field={field}
@@ -324,46 +324,26 @@ function SortableRow({
         ))}
       </div>
 
-      {/* Rust-presets + kopieer naar hele dag (alleen bij types met een rustveld) */}
-      {hasRestField ? (
-        <div className="flex flex-wrap items-center gap-1.5 pl-6 text-[11px] text-neutral-500">
-          <span className="text-neutral-400">Rust:</span>
-          {REST_PRESETS_SECONDS.map((sec) => {
-            const active = (item.values.restSeconds ?? "") === String(sec);
-            return (
-              <button
-                key={sec}
-                type="button"
-                onClick={() => setValue("restSeconds", String(sec))}
-                aria-pressed={active}
-                className={`rounded-full border px-2 py-0.5 font-medium transition-colors ${
-                  active
-                    ? "border-transparent bg-accent-soft text-accent"
-                    : "border-border text-neutral-500 hover:bg-surface-2"
-                }`}
-              >
-                {restPresetLabel(sec)}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => onCopyRestToDay(item.values.restSeconds ?? "")}
-            className="rounded-full border border-dashed border-border px-2 py-0.5 text-neutral-500 hover:bg-surface-2"
-            title="Zet deze rust op alle oefeningen in deze dag"
+      {/* Rust-chips + kopieer naar hele dag (alleen bij types met een rustveld) */}
+      {restField ? (
+        <div className="pl-6">
+          <RestPicker
+            value={item.values.restSeconds ?? ""}
+            min={restField.min}
+            max={restField.max}
+            onChange={(v) => setValue("restSeconds", v)}
           >
-            → alle in dag
-          </button>
+            <button
+              type="button"
+              onClick={() => onCopyRestToDay(item.values.restSeconds ?? "")}
+              className="rounded-full border border-dashed border-border px-2 py-0.5 text-neutral-500 hover:bg-surface-2"
+              title="Zet deze rust op alle oefeningen in deze dag"
+            >
+              → alle in dag
+            </button>
+          </RestPicker>
         </div>
       ) : null}
-
-      <input
-        type="text"
-        value={item.notes}
-        onChange={(e) => onChange(item.key, { notes: e.target.value })}
-        placeholder="Opmerking (optioneel, zichtbaar voor elk lid)…"
-        className="w-full rounded-md border border-border bg-transparent px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent"
-      />
 
       {showMemberNote ? (
         <input
@@ -399,6 +379,7 @@ function SortableRow({
               onChange={(e) =>
                 onChange(item.key, { dropsetCount: clampDropsetCount(Number(e.target.value)) ?? 1 })
               }
+              {...selectOnFocus}
               className="w-12 rounded-md border border-border px-1.5 py-0.5 text-xs outline-none focus:border-accent"
             />
           </label>
@@ -456,6 +437,7 @@ function GroupHeader({
               max={50}
               value={fields.groupRounds ?? DEFAULT_GROUP_ROUNDS}
               onChange={(e) => onChange({ groupRounds: clampRounds(Number(e.target.value)) })}
+              {...selectOnFocus}
               className="w-14 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
             />
           </label>
@@ -472,6 +454,7 @@ function GroupHeader({
                 const m = Number(e.target.value);
                 onChange({ groupTimeCapSeconds: Number.isFinite(m) && m > 0 ? Math.round(m * 60) : null });
               }}
+              {...selectOnFocus}
               className="w-16 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
             />
           </label>
@@ -487,6 +470,7 @@ function GroupHeader({
               const n = Number(e.target.value);
               onChange({ groupRestSeconds: Number.isFinite(n) ? Math.max(0, Math.round(n)) : null });
             }}
+            {...selectOnFocus}
             className="w-16 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
           />
         </label>
@@ -608,7 +592,7 @@ function DayCard({
       {/* Groepeer-werkbalk (verschijnt bij ≥2 selecties in deze dag) */}
       {selectedInDay >= 2 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-accent-soft bg-accent-soft/40 px-3 py-2 text-xs">
-          <span className="font-medium text-accent">{selectedInDay} geselecteerd — groepeer als:</span>
+          <span className="font-medium text-accent">{selectedInDay} geselecteerd, groepeer als:</span>
           {groupTypeOptions().map((o) => (
             <button
               key={o.value}
@@ -669,7 +653,7 @@ function DayCard({
         </SortableContext>
       </DndContext>
       {day.items.length === 0 ? (
-        <p className="text-sm text-neutral-500">Nog geen oefeningen — zoek hieronder.</p>
+        <p className="text-sm text-neutral-500">Nog geen oefeningen. Zoek hieronder.</p>
       ) : null}
 
       <div className="relative">
@@ -750,6 +734,7 @@ export function SchemaEditor({
   initialGoal = null,
   initialBadges = [],
   showValidity = true,
+  showCoachNote = true,
   showMemberNote = false,
   initialDays,
   availableExercises,
@@ -767,6 +752,13 @@ export function SchemaEditor({
   initialBadges?: string[];
   /** Toon het geldigheid-veld (uit voor dag-templates). */
   showValidity?: boolean;
+  /**
+   * Toon de schema-notitie als bewerkbaar veld. De notitie hoort bij het
+   * programma (elk lid dat het schema krijgt leest dezelfde tekst), dus alleen
+   * aan op een library-template. Op een persoonlijke kopie toont de editor 'm
+   * alleen-lezen en negeert `saveSchema` de waarde.
+   */
+  showCoachNote?: boolean;
   /** Toon het per-lid notitie-veld (aan bij het bewerken van een lid-schema). */
   showMemberNote?: boolean;
   initialDays: EditorDay[];
@@ -1002,10 +994,26 @@ export function SchemaEditor({
           Beschrijving
           <textarea name="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-neutral-700">
-          Coach-notitie (zichtbaar voor het lid)
-          <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
-        </label>
+        {showCoachNote ? (
+          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+            Schema-notitie (zichtbaar voor elk lid met dit schema)
+            <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
+          </label>
+        ) : coachNote.trim() ? (
+          // Alleen-lezen: de notitie komt uit de template en geldt voor elk lid dat
+          // dit schema krijgt. Bewerken doe je op de template zelf; voor dit lid is
+          // de notitie per oefening (✎) de persoonlijke boodschap.
+          <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface-1 px-3 py-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              Schema-notitie uit de template
+            </span>
+            <p className="text-sm text-neutral-700">{coachNote}</p>
+            <span className="text-xs text-neutral-400">
+              Geldt voor elk lid met dit schema. Bewerken kan op de template; voor
+              dit lid gebruik je de notitie per oefening.
+            </span>
+          </div>
+        ) : null}
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
           Trainingsdoel
           <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent">
@@ -1130,7 +1138,7 @@ export function SchemaEditor({
         </div>
       </form>
 
-      <aside className="h-fit rounded-2xl border border-border bg-surface-1 p-5 lg:sticky lg:top-6">
+      <aside className="h-fit min-w-0 rounded-2xl border border-border bg-surface-1 p-5 lg:sticky lg:top-6">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">Live voorbeeld</p>
         <p className="text-[11px] text-neutral-400">Zo ziet het lid dit schema.</p>
         <h3 className="mt-2 text-lg font-semibold text-neutral-900">{name || "Naamloos schema"}</h3>
@@ -1154,9 +1162,9 @@ export function SchemaEditor({
                     return (
                       <li
                         key={it.key}
-                        className="flex items-center rounded-xl border border-border bg-surface-1"
+                        className="flex items-center overflow-hidden rounded-xl border border-border bg-surface-1"
                       >
-                        <div className="flex flex-1 items-center gap-3 px-3 py-2.5">
+                        <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
                           {real && it.groupId ? (
                             <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-bold text-violet-600">
                               {groupPositionLabel(it.groupOrder)}

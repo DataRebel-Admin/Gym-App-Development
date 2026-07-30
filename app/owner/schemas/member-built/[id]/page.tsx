@@ -76,6 +76,11 @@ export default async function MemberBuiltReviewDetail({
             {assignment.template.name}
           </h2>
           <Badge tone={meta.tone}>{meta.label}</Badge>
+          {/* Een lid mag z'n eigen schema blijven bewerken; bij een herziening
+              traint het er ondertussen gewoon mee door. */}
+          {assignment.status === "PUBLISHED" && status !== "ACTIVE" ? (
+            <Badge tone="success">Lid traint hier nu mee</Badge>
+          ) : null}
         </div>
         <p className="mt-1 text-sm text-neutral-500">
           Door {assignment.user.name ?? assignment.user.email}
@@ -152,6 +157,7 @@ export default async function MemberBuiltReviewDetail({
           initialValidityWeeks={assignment.template.validityWeeks}
           initialGoal={assignment.template.goal}
           initialBadges={assignment.template.badges}
+          showCoachNote={false}
           showMemberNote
           initialDays={initialDays}
           availableExercises={exercises}
