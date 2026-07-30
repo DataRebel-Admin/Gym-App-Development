@@ -87,6 +87,7 @@ export default async function MemberDetailPage({
         archivedAt: true,
         createdAt: true,
         emailVerified: true,
+        memberNumber: true,
       },
     }),
     prisma.tenant.findUnique({
@@ -172,7 +173,15 @@ export default async function MemberDetailPage({
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">Gegevens</h2>
         {isAdmin ? (
-          <MemberEditForm member={{ id: member.id, name: member.name, role: member.role }} />
+          <MemberEditForm
+            member={{
+              id: member.id,
+              name: member.name,
+              email: member.email,
+              role: member.role,
+              memberNumber: member.memberNumber,
+            }}
+          />
         ) : (
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <div>
@@ -182,6 +191,10 @@ export default async function MemberDetailPage({
             <div>
               <dt className="text-neutral-500">E-mail</dt>
               <dd className="font-medium text-neutral-900">{member.email}</dd>
+            </div>
+            <div>
+              <dt className="text-neutral-500">Lidnummer</dt>
+              <dd className="font-medium text-neutral-900">{member.memberNumber ?? "—"}</dd>
             </div>
           </dl>
         )}

@@ -121,8 +121,22 @@ export async function deleteMember(formData: FormData) {
 const addSchema = z.object({
   email: z.string().trim().email(),
   name: z.string().trim().max(120).optional().or(z.literal("")),
+  memberNumber: z.string().trim().max(60).optional().or(z.literal("")),
   role: tenantRole,
 });
+
+/** Is dit lidnummer al in gebruik binnen de tenant (optioneel excl. één user)? */
+async function memberNumberTaken(tenantId: string, memberNumber: string, excludeUserId?: string) {
+  const clash = await prisma.user.findFirst({
+    where: {
+      tenantId,
+      memberNumber,
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    },
+    select: { id: true },
+  });
+  return clash !== null;
+}
 
 export type MemberFormState = { error?: string };
 
@@ -135,10 +149,11 @@ export async function addMember(
   const parsed = addSchema.safeParse({
     email: formData.get("email"),
     name: formData.get("name") || "",
+    memberNumber: formData.get("memberNumber") || "",
     role: formData.get("role"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
-  const { email, name, role } = parsed.data;
+  const { email, name, memberNumber, role } = parsed.data;
 
   const existing = await prisma.user.findUnique({
     where: { tenantId_email: { tenantId: owner.tenantId, email } },
@@ -146,11 +161,16 @@ export async function addMember(
   });
   if (existing) return { error: "Dit e-mailadres bestaat al in deze sportschool" };
 
+  if (memberNumber && (await memberNumberTaken(owner.tenantId, memberNumber))) {
+    return { error: "Dit lidnummer is al in gebruik in deze sportschool" };
+  }
+
   const user = await prisma.user.create({
     data: {
       tenantId: owner.tenantId,
       email,
       name: name || null,
+      memberNumber: memberNumber || null,
       role,
       active: true,
       // Thuisvestiging: de actieve vestiging van de admin (device-cookie),
@@ -166,7 +186,9 @@ export async function addMember(
 
 const editSchema = z.object({
   userId: z.string().min(1),
+  email: z.string().trim().email(),
   name: z.string().trim().max(120).optional().or(z.literal("")),
+  memberNumber: z.string().trim().max(60).optional().or(z.literal("")),
   role: tenantRole,
 });
 
@@ -177,18 +199,59 @@ export async function editMember(
   const owner = await requireOwner();
   const parsed = editSchema.safeParse({
     userId: formData.get("userId"),
+    email: formData.get("email"),
     name: formData.get("name") || "",
+    memberNumber: formData.get("memberNumber") || "",
     role: formData.get("role"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer" };
-  const { userId, name, role } = parsed.data;
+  const { userId, name, memberNumber, role } = parsed.data;
+  const email = parsed.data.email.toLowerCase();
 
-  const res = await prisma.user.updateMany({
+  const current = await prisma.user.findFirst({
     where: { id: userId, tenantId: owner.tenantId },
-    data: { name: name || null, role },
+    select: { email: true },
   });
-  if (res.count === 0) return { error: "Lid niet gevonden" };
+  if (!current) return { error: "Lid niet gevonden" };
+
+  const emailChanged = email !== current.email.toLowerCase();
+  if (emailChanged) {
+    const clash = await prisma.user.findUnique({
+      where: { tenantId_email: { tenantId: owner.tenantId, email } },
+      select: { id: true },
+    });
+    if (clash) return { error: "Dit e-mailadres is al in gebruik in deze sportschool" };
+  }
+
+  if (memberNumber && (await memberNumberTaken(owner.tenantId, memberNumber, userId))) {
+    return { error: "Dit lidnummer is al in gebruik in deze sportschool" };
+  }
+
+  await prisma.user.updateMany({
+    where: { id: userId, tenantId: owner.tenantId },
+    data: {
+      name: name || null,
+      memberNumber: memberNumber || null,
+      role,
+      email,
+      // Een openstaand zelf-service-wijzigingsverzoek naar het oude adres vervalt.
+      ...(emailChanged
+        ? { pendingEmail: null, emailChangeToken: null, emailChangeExpires: null }
+        : {}),
+    },
+  });
   await audit("user.update", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId, metadata: { name, role } });
+  if (emailChanged) {
+    await audit("user.email.change", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      targetType: "User",
+      targetId: userId,
+      oldValue: { email: current.email },
+      newValue: { email },
+      metadata: { newEmail: email },
+    });
+  }
 
   revalidatePath("/owner/members");
   revalidatePath(`/owner/members/${userId}`);

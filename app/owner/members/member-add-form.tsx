@@ -24,6 +24,9 @@ export function MemberAddForm() {
       <Field label="E-mail" className="w-full sm:w-64" required>
         <Input type="email" name="email" required placeholder="naam@voorbeeld.nl" />
       </Field>
+      <Field label="Lidnummer" className="w-full sm:w-40">
+        <Input name="memberNumber" placeholder="Bijv. FP-00123" maxLength={60} />
+      </Field>
       <Field label="Rol" className="w-full sm:w-40">
         <Select name="role" defaultValue="TENANT_MEMBER">
           <option value="TENANT_MEMBER">Lid</option>

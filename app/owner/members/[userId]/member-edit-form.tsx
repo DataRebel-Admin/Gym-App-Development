@@ -10,7 +10,13 @@ const initial: MemberFormState = {};
 export function MemberEditForm({
   member,
 }: {
-  member: { id: string; name: string | null; role: string };
+  member: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    memberNumber: string | null;
+  };
 }) {
   const [state, formAction, pending] = useActionState(editMember, initial);
 
@@ -19,6 +25,20 @@ export function MemberEditForm({
       <input type="hidden" name="userId" value={member.id} />
       <Field label="Naam">
         <Input name="name" defaultValue={member.name ?? ""} placeholder="Voor- en achternaam" />
+      </Field>
+      <Field label="E-mailadres" hint="Het lid logt voortaan in met dit adres.">
+        <Input name="email" type="email" required defaultValue={member.email} placeholder="naam@voorbeeld.nl" />
+      </Field>
+      <Field
+        label="Lidnummer"
+        hint="Eigen klant-/lidnummer uit je administratie — uniek binnen de sportschool."
+      >
+        <Input
+          name="memberNumber"
+          defaultValue={member.memberNumber ?? ""}
+          placeholder="Bijv. FP-00123"
+          maxLength={60}
+        />
       </Field>
       <Field label="Rol">
         <Select name="role" defaultValue={member.role}>
