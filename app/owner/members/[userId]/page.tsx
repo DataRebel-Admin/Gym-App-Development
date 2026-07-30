@@ -251,7 +251,13 @@ export default async function MemberDetailPage({
           {isAdmin && assignable.length > 0 ? (
             <form action={assignCoach} className="flex flex-wrap items-center gap-2">
               <input type="hidden" name="memberId" value={member.id} />
-              <Select name="coachId" defaultValue="" className="h-9 w-full py-1 text-sm sm:w-64" required>
+              <Select
+                name="coachId"
+                defaultValue=""
+                fieldSize="sm"
+                className="w-full sm:w-64"
+                required
+              >
                 <option value="" disabled>
                   Kies een coach…
                 </option>
