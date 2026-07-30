@@ -73,6 +73,13 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   `DATABASE_URL` + `DIRECT_URL` staan in `.env`.
 - **Seed-config**: staat in `prisma.config.ts` onder `migrations.seed` (niet in
   `package.json#prisma`). Draaien met `npm run db:seed`.
+- **Seed-guard tegen dataverlies**: `seedTenant()` (prisma/seed.ts) reset per tenant
+  destructief (`deleteMany` in FK-volgorde) vóór het opnieuw opbouwen — dat overschreef
+  ooit een handmatig via de app toegewezen schema. `assertNoManualAssignments()` checkt
+  daarom vóór elke reset op `AssignedWorkout`-rijen met `assignedById != null` of
+  `origin: MEMBER` (velden die uitsluitend de app zet, nooit de seed zelf) en gooit een
+  harde fout als die bestaan. Override met `SEED_FORCE=1 npm run db:seed` als je zeker
+  weet dat een tenant alleen demodata bevat.
 - **Trainings-sessiemodel heet `WorkoutSession`** (niet `Session`) om botsing met het
   Auth.js `Session`-model (prompt 03) te voorkomen. `PerformanceEntry.session` →
   `WorkoutSession`.
@@ -998,10 +1005,11 @@ team met herkomst-onderscheid; automatisch meegestuurde technische context.
   `notFound()` in `app/admin/layout.tsx` als defense-in-depth. Het admin-gebied
   lijkt daardoor niet te bestaan.
 - **Notificaties `lib/reports/`**: `notify.ts` (BLOCKER-opschaling & piek →
-  Slack `REPORTS_SLACK_WEBHOOK_URL`, anders e-mail naar `getSupportEmail()`;
-  RESOLVED → melder alléén bij `contactAllowed`, in-app categorie `system` +
-  gebrande mail in eigen taal), `slack.ts`, `github.ts` (`GITHUB_TOKEN` +
-  `GITHUB_REPO`, issue zonder melder-PII → `externalRef`). Composers
+  e-mail naar `getSupportEmail()`; RESOLVED → melder alléén bij
+  `contactAllowed`, in-app categorie `system` + gebrande mail in eigen taal),
+  `github.ts` (`GITHUB_TOKEN` + `GITHUB_REPO`, issue zonder melder-PII →
+  `externalRef`). **Geen Slack** — bewust verwijderd, niet herintroduceren;
+  team-alerts gaan per e-mail. Composers
   `reportAlertMessage`/`reportDigestMessage`/`reportResolvedMessage` in
   lib/email/messages.ts. Alles best-effort.
 - **Crons** (vercel.json): `reports-digest` (dagelijks 8u, skip bij 0) en

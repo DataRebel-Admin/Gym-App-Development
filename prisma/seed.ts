@@ -186,6 +186,29 @@ function contactData(contact: TenantContactSpec | undefined) {
   };
 }
 
+/**
+ * Weigert de destructieve reset hieronder als er sinds de laatste seed-run
+ * *echte* schema-toewijzingen zijn bijgekomen — bv. een owner/staff die via de
+ * app handmatig een schema toewees, of een lid dat er zelf een indiende.
+ * Betrouwbaar signaal: `assignedById` en `origin: MEMBER` worden UITSLUITEND
+ * door de app gezet (app/owner/schemas/actions.ts); `seedAssignment()` hieronder
+ * laat beide op hun default staan. Overschrijf met `SEED_FORCE=1` als je zeker
+ * weet dat de tenant alleen demodata bevat (bv. een verse database).
+ */
+async function assertNoManualAssignments(tenantId: string, tenantLabel: string) {
+  if (process.env.SEED_FORCE === "1") return;
+  const manual = await prisma.assignedWorkout.count({
+    where: { tenantId, OR: [{ assignedById: { not: null } }, { origin: "MEMBER" }] },
+  });
+  if (manual === 0) return;
+  throw new Error(
+    `Seed geweigerd: tenant "${tenantLabel}" heeft ${manual} handmatig(e) schema-` +
+      `toewijzing(en) die niet door dit seedscript zijn aangemaakt — een db:seed ` +
+      `zou die onherstelbaar verwijderen. Zet SEED_FORCE=1 als je zeker weet dat dit ` +
+      `alleen demodata is, of verwijder/verplaats de betreffende toewijzing(en) eerst.`
+  );
+}
+
 async function seedTenant(spec: TenantSpec) {
   const contact = contactData(spec.contact);
   const tenant = await prisma.tenant.upsert({
@@ -200,6 +223,8 @@ async function seedTenant(spec: TenantSpec) {
       ...contact,
     },
   });
+
+  await assertNoManualAssignments(tenant.id, spec.name);
 
   // Idempotent: ruim bestaande child-data op in FK-volgorde.
   await prisma.classEnrollment.deleteMany({ where: { tenantId: tenant.id } });

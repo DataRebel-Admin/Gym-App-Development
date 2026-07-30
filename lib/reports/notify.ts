@@ -11,7 +11,6 @@ import {
 } from "@/lib/email/messages";
 import { getSupportEmail } from "@/lib/platform-settings";
 import { notifyInApp } from "@/lib/notifications";
-import { sendSlackMessage, slackConfigured } from "@/lib/reports/slack";
 import { formatReportRef } from "@/lib/report-context";
 import { reportOrigin } from "@/lib/report-query";
 
@@ -44,8 +43,8 @@ async function toSummary(report: AppReport): Promise<ReportEmailSummary> {
 
 /**
  * Direct signaal naar het dev-team: BLOCKER-severity of een piek (≥3 meldingen
- * binnen een uur op dezelfde route). Slack eerst; niet geconfigureerd of
- * mislukt → e-mail naar het support-/dev-adres. Nooit hard falen.
+ * binnen een uur op dezelfde route). E-mail naar het support-/dev-adres.
+ * Nooit hard falen.
  */
 export async function notifyDevTeamImmediate(
   report: AppReport,
@@ -54,21 +53,6 @@ export async function notifyDevTeamImmediate(
   try {
     const summary = await toSummary(report);
     const inboxUrl = `${ORIGIN()}/admin/meldingen`;
-
-    if (slackConfigured()) {
-      const head =
-        reason === "blocker" ? "🚨 *BLOCKER-melding*" : "📈 *Piek op één route*";
-      const lines = [
-        `${head} — ${summary.ref}`,
-        `*${summary.title}* (${summary.type} · ${summary.severity})`,
-        [summary.origin, summary.tenantName, summary.route, summary.appVersion, summary.platform]
-          .filter(Boolean)
-          .join(" · "),
-        inboxUrl,
-      ];
-      const sent = await sendSlackMessage(lines.join("\n"));
-      if (sent) return;
-    }
 
     const message = await reportAlertMessage({
       branding: resolveEmailBranding(null),

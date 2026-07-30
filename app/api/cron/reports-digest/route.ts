@@ -5,7 +5,6 @@ import { sendEmail } from "@/lib/email/send";
 import { resolveEmailBranding } from "@/lib/email/branding";
 import { reportDigestMessage, type ReportEmailSummary } from "@/lib/email/messages";
 import { getSupportEmail } from "@/lib/platform-settings";
-import { sendSlackMessage, slackConfigured } from "@/lib/reports/slack";
 import { formatReportRef } from "@/lib/report-context";
 import { reportOrigin } from "@/lib/report-query";
 
@@ -60,19 +59,6 @@ export async function GET(req: Request) {
     process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app";
   const inboxUrl = `${origin}/admin/meldingen`;
 
-  let slackSent = false;
-  if (slackConfigured()) {
-    const lines = [
-      `🗞️ *Meldingen-digest* — ${summaries.length} nieuw in 24 uur`,
-      ...summaries
-        .slice(0, 15)
-        .map((s) => `• ${s.ref} [${s.type}] ${s.title}`),
-      summaries.length > 15 ? `… en ${summaries.length - 15} meer` : null,
-      inboxUrl,
-    ].filter((line): line is string => line !== null);
-    slackSent = await sendSlackMessage(lines.join("\n"));
-  }
-
   const message = await reportDigestMessage({
     branding: resolveEmailBranding(null),
     reports: summaries,
@@ -82,7 +68,6 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     reports: reports.length,
-    slack: slackSent,
     email: emailDelivery,
   });
 }
