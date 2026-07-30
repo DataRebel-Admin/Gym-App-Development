@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:rls": "prisma db execute --file prisma/sql/rls.sql --schema prisma/schema.prisma",
+    "db:heal-locations": "node scripts/heal-default-locations.mjs",
     "media:upload": "node scripts/upload-media.mjs",
     "data:import": "node scripts/import-exercises.mjs",
     "data:link": "node scripts/link-catalog.mjs",

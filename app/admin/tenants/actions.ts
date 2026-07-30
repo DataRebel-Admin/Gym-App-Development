@@ -50,8 +50,17 @@ export async function createTenant(
   const clash = await prisma.tenant.findUnique({ where: { slug } });
   if (clash) return { error: `Slug '${slug}' bestaat al` };
 
-  const tenant = await prisma.tenant.create({
-    data: { slug, name, locale, accentColor: accentColor || null },
+  // Tenant + default-vestiging in één transactie: élke tenant heeft minstens één
+  // vestiging (invariant van de vestigingen-architectuur — machines, sessies en
+  // rooster vereisen een locationId; zie lib/locations.ts getDefaultLocationId).
+  const tenant = await prisma.$transaction(async (tx) => {
+    const created = await tx.tenant.create({
+      data: { slug, name, locale, accentColor: accentColor || null },
+    });
+    await tx.location.create({
+      data: { tenantId: created.id, name: "Hoofdvestiging", isDefault: true },
+    });
+    return created;
   });
   await audit("tenant.create", {
     actor: admin,
