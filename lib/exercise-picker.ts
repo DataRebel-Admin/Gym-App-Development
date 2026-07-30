@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { exerciseSourceOf, type ExerciseSource } from "@/lib/exercise-library/source";
-import { libraryImageKeys, libraryMediaUrl } from "@/lib/exercise-library/media";
+import { exerciseThumbUrl, EXERCISE_THUMB_SELECT } from "@/lib/exercise-thumb";
 
 /**
  * Eén canonieke query + mapping voor "alle beschikbare oefeningen van de tenant"
@@ -30,10 +30,8 @@ export async function getPickerExercises(tenantId: string): Promise<PickerExerci
       catalogId: true,
       libraryId: true,
       exerciseType: true,
-      imageUrls: true,
       machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
-      library: { select: { id: true, imageAlias: true, images: true } },
+      ...EXERCISE_THUMB_SELECT,
     },
   });
   return rows.map((e) => ({
@@ -42,12 +40,7 @@ export async function getPickerExercises(tenantId: string): Promise<PickerExerci
     targetMuscle: e.targetMuscle,
     exerciseType: e.exerciseType,
     source: exerciseSourceOf(e),
-    thumbUrl:
-      (e.library ? libraryMediaUrl(libraryImageKeys(e.library)[0] ?? null) : null) ??
-      e.catalog?.imageUrl ??
-      e.catalog?.gifUrl ??
-      e.imageUrls[0] ??
-      null,
+    thumbUrl: exerciseThumbUrl(e),
     machineName: e.machine?.name ?? null,
   }));
 }

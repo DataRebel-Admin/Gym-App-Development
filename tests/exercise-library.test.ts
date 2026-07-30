@@ -8,7 +8,9 @@ import {
   parseImageVariants,
   muscleImageKey,
   equipmentImageKey,
+  libraryMediaBaseUrl,
 } from "../lib/exercise-library/media";
+import { exerciseThumbUrl } from "../lib/exercise-thumb";
 import {
   inferLibraryExerciseType,
   machineTypeFromLibrary,
@@ -18,6 +20,7 @@ import {
   trainingGoalFromLibrary,
   parseTemplateReps,
   pickJsonName,
+  bodyPartLabel,
 } from "../lib/exercise-library/mapping";
 import { exerciseSourceOf, OWN_EXERCISE_WHERE } from "../lib/exercise-library/source";
 import { resolveRegion } from "../lib/muscle-map";
@@ -70,6 +73,22 @@ test("oefeningstype-inferentie: specifiek wint van generiek", () => {
   assert.equal(inferLibraryExerciseType({ category: "strength", bodyPart: "core" }), "core");
   assert.equal(inferLibraryExerciseType({ category: "plyometrics" }), "functional");
   assert.equal(inferLibraryExerciseType({ category: "olympic" }), "strength");
+});
+
+test("lichaamsdeel-label: bibliotheek en klassieke catalogus geven hetzelfde label", () => {
+  // Beide bronnen komen in één lijst voor (leden-oefeningen) → één chip per
+  // lichaamsdeel, anders staat "upper legs" náást "Bovenbenen".
+  assert.equal(bodyPartLabel("upper_legs"), "Bovenbenen");
+  assert.equal(bodyPartLabel("upper legs"), "Bovenbenen");
+  assert.equal(bodyPartLabel("Upper Legs"), "Bovenbenen");
+  assert.equal(bodyPartLabel("full_body"), "Hele lichaam");
+  // Legacy-eigen termen: "waist" valt samen met bibliotheek-"core".
+  assert.equal(bodyPartLabel("waist"), bodyPartLabel("core"));
+  assert.equal(bodyPartLabel("cardio"), "Cardio");
+  // Onbekende waarde blijft leesbaar (nooit een lege chip), leeg blijft null.
+  assert.equal(bodyPartLabel("iets nieuws"), "iets nieuws");
+  assert.equal(bodyPartLabel(null), null);
+  assert.equal(bodyPartLabel("  "), null);
 });
 
 test("machinetype uit materiaal-tags", () => {
@@ -152,6 +171,38 @@ test("OWN_EXERCISE_WHERE matcht precies de rijen die 'eigen' zijn", () => {
     rows.filter((r) => exerciseSourceOf(r) === "eigen").map((r) => r.name)
   );
   assert.deepEqual(rows.filter(matches).map((r) => r.name), ["Rowing"]);
+});
+
+// --- thumbnails (3-weg, bron-bewust) ---------------------------------------
+
+// Dezelfde valkuil als OWN_EXERCISE_WHERE: sinds de bibliotheek dé standaardbron
+// is, levert een losse `catalog`-check bij bijna elke oefening géén beeld op.
+// `exerciseThumbUrl` is dé lookup — pickers, schema-overzicht én de PDF delen 'm.
+test("exerciseThumbUrl: bibliotheek wint van klassiek, klassiek van eigen", () => {
+  const libRow = {
+    library: { id: "bench-press", imageAlias: null, images: { classic: ["start", "peak"] } },
+    catalog: { imageUrl: "https://cdn/oud.jpg", gifUrl: null },
+    imageUrls: ["https://blob/eigen.png"],
+  };
+  assert.equal(
+    exerciseThumbUrl(libRow),
+    `${libraryMediaBaseUrl()}/images/classic/bench-press-start.webp`
+  );
+
+  // Klassiek: imageUrl vóór gifUrl.
+  assert.equal(
+    exerciseThumbUrl({ library: null, catalog: { imageUrl: "a.jpg", gifUrl: "b.gif" } }),
+    "a.jpg"
+  );
+  assert.equal(
+    exerciseThumbUrl({ catalog: { imageUrl: null, gifUrl: "b.gif" } }),
+    "b.gif"
+  );
+
+  // Eigen oefening: eerste upload. Zonder bron: null (geen beeld-kolom in de PDF).
+  assert.equal(exerciseThumbUrl({ imageUrls: ["x.png", "y.png"] }), "x.png");
+  assert.equal(exerciseThumbUrl({}), null);
+  assert.equal(exerciseThumbUrl({ library: null, catalog: null, imageUrls: [] }), null);
 });
 
 // --- muscle-map: RepDB-slugs ------------------------------------------------
