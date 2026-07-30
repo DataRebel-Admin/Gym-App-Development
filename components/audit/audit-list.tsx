@@ -21,6 +21,7 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
 const toneDot: Record<BadgeTone, string> = {
   neutral: "bg-neutral-400",
   accent: "bg-accent",
+  info: "bg-sky-500",
   success: "bg-green-500",
   warning: "bg-amber-500",
   danger: "bg-red-500",

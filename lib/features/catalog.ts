@@ -76,10 +76,10 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
   },
   exercise_legacy_catalog: {
     key: "exercise_legacy_catalog",
-    name: "Klassieke oefeningen-catalogus",
+    name: "Aanvullende oefeningen-collectie",
     description:
-      "Terugvaloptie: de verouderde oefeningen-catalogus blijft doorzoekbaar naast de nieuwe bibliotheek (geoormerkt als 'Klassiek'). Al toegevoegde klassieke oefeningen blijven altijd werken — deze schakelaar bepaalt alleen of er nieuwe uit toegevoegd kunnen worden.",
-    icon: "🗄️",
+      "De oudere oefeningen-collectie blijft doorzoekbaar naast de bibliotheek (geoormerkt als 'Aanvullend'). Al toegevoegde oefeningen blijven altijd werken. Deze schakelaar bepaalt alleen of er nieuwe uit toegevoegd kunnen worden.",
+    icon: "➕",
     defaultEnabled: true,
     deprecated: true,
   },

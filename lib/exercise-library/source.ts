@@ -3,8 +3,11 @@
 //
 // Drie bronnen, afgeleid uit welke FK op de tenant-`Exercise` gevuld is:
 //   "standaard" — LibraryExercise (RepDB, libraryId) — dé actuele bibliotheek
-//   "klassiek"  — ExerciseCatalog (catalogId) — VEROUDERDE terugvaloptie,
-//                 alleen vindbaar met feature-flag `exercise_legacy_catalog`
+//   "klassiek"  — ExerciseCatalog (catalogId) — de oudere collectie, naar de
+//                 gebruiker toe "Aanvullend": ze worden nog gebruikt, dus geen
+//                 afstotelijk "verouderd"-label. Nieuwe toevoegingen zijn wel
+//                 gegate op feature-flag `exercise_legacy_catalog`.
+//                 (De sleutel blijft `klassiek` — interne naam, niet zichtbaar.)
 //   "eigen"     — geen van beide: door de tenant zelf gebouwde oefening
 
 export type ExerciseSource = "standaard" | "eigen" | "klassiek";
@@ -34,8 +37,8 @@ export const EXERCISE_SOURCE_META: Record<ExerciseSource, ExerciseSourceMeta> = 
   },
   klassiek: {
     key: "klassiek",
-    label: "Klassiek",
-    tone: "bg-amber-50 text-amber-700",
+    label: "Aanvullend",
+    tone: "bg-sky-50 text-sky-700",
     showBadge: true,
   },
 };

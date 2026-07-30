@@ -145,11 +145,11 @@ export function FeatureFlagsManager({
         <div className="mt-4 flex flex-col gap-3">
           <div>
             <h2 className="text-sm font-semibold text-neutral-700">
-              Verouderd / terugval
+              Aanvullende modules
             </h2>
             <p className="mt-0.5 text-xs text-neutral-500">
-              Oude functionaliteit die alleen als vangnet beschikbaar blijft —
-              niet prominent in de app, duidelijk geoormerkt.
+              Oudere functionaliteit die als aanvulling beschikbaar blijft, niet
+              prominent in de app, duidelijk geoormerkt.
             </p>
           </div>
           {deprecated.map((row) => (

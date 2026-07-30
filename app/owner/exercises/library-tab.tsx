@@ -11,11 +11,14 @@ import {
 import { buildCatalogWhere } from "@/lib/catalog";
 import { libraryImageKeys, libraryMediaUrl } from "@/lib/exercise-library/media";
 import {
+  datasetLocalePreference,
   pickJsonName,
   LIBRARY_BODY_PART_LABEL,
   LIBRARY_DIFFICULTY_LABEL,
   LIBRARY_GOAL_LABEL,
 } from "@/lib/exercise-library/mapping";
+import { getCurrentTenant } from "@/lib/tenant";
+import { getContentLocale } from "@/lib/i18n/content-locale";
 import { CatalogBulkGrid, type CatalogGridItem } from "./catalog-bulk-grid";
 
 const PAGE_SIZE = 24;
@@ -52,9 +55,13 @@ function buildQuery(
 
 /**
  * Standaard-tab: de oefeningen-bibliotheek (RepDB) als primaire bron, met —
- * indien de superadmin-flag `exercise_legacy_catalog` aan staat — de verouderde
- * catalogus als ingeklapte, duidelijk geoormerkte terugval-sectie eronder.
- * Nooit gemengd in één lijst; klassiek sorteert altijd achteraan.
+ * indien de superadmin-flag `exercise_legacy_catalog` aan staat — de oudere
+ * collectie als ingeklapte, geoormerkte sectie "Aanvullende oefeningen" eronder.
+ * Nooit gemengd in één lijst; aanvullend sorteert altijd achteraan.
+ *
+ * De sectie is vindbaar via een knop bovenaan (mét treffer-teller, springt naar
+ * `#klassiek`) — de sectie zelf blijft onderaan staan zodat de bibliotheek de
+ * etalage blijft. Zonder aanvullende treffers verdwijnen knop én sectie.
  */
 export async function LibraryTab({
   tenantId,
@@ -65,6 +72,10 @@ export async function LibraryTab({
 }) {
   const t = await getTranslations("owner.exercises");
   const page = Math.max(1, Number(sp.page ?? "1") || 1);
+  // Spier- en materiaallabels volgen de taal van de lezer; de oefeningnaam blijft
+  // bewust de en-tekstrij (naamsbeleid: oefeningnamen worden niet vertaald).
+  const tenant = await getCurrentTenant();
+  const dsPref = datasetLocalePreference(await getContentLocale(tenant?.locale));
 
   const filter: LibraryFilter = {
     q: sp.q || undefined,
@@ -97,10 +108,10 @@ export async function LibraryTab({
   ]);
 
   const equipName = new Map(
-    allEquipment.map((e) => [e.id, pickJsonName(e.names, ["en"]) ?? e.id.replace(/_/g, " ")])
+    allEquipment.map((e) => [e.id, pickJsonName(e.names, dsPref) ?? e.id.replace(/_/g, " ")])
   );
   const muscleName = new Map(
-    allMuscles.map((m) => [m.id, pickJsonName(m.names, ["en"]) ?? m.id.replace(/_/g, " ")])
+    allMuscles.map((m) => [m.id, pickJsonName(m.names, dsPref) ?? m.id.replace(/_/g, " ")])
   );
   const byLibraryId = new Map(existing.map((e) => [e.libraryId, e]));
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -131,15 +142,37 @@ export async function LibraryTab({
 
   // --- Klassieke terugval (feature-flag, alleen op zoekterm) ---------------
   const legacyEnabled = await isFeatureEnabled(tenantId, "exercise_legacy_catalog");
-  const legacy = legacyEnabled ? await loadLegacySection(tenantId, sp) : null;
-  const legacyAutoOpen = Boolean(
-    filter.q && total < LEGACY_AUTO_OPEN_BELOW && (legacy?.total ?? 0) > 0
-  );
-  const legacyOpen = sp.lopen === "1" || legacyAutoOpen;
+  const loaded = legacyEnabled ? await loadLegacySection(tenantId, sp) : null;
+  // Geen klassieke treffers → geen dode sectie en geen knop.
+  const legacy = loaded && loaded.total > 0 ? loaded : null;
+  const legacyAutoOpen = Boolean(filter.q && total < LEGACY_AUTO_OPEN_BELOW && legacy);
+  // `lopen=0` is de expliciete tegenhanger van de auto-open: de knop kan de
+  // sectie ook dichtklappen als een schrale zoekopdracht 'm opende.
+  const legacyOpen = sp.lopen === "1" || (legacyAutoOpen && sp.lopen !== "0");
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-sm text-neutral-500">{t("libraryCount", { count: total })}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-neutral-500">{t("libraryCount", { count: total })}</p>
+        {legacy ? (
+          <Link
+            href={
+              legacyOpen
+                ? `/owner/exercises${buildQuery(sp, { lopen: "0" })}`
+                : `/owner/exercises${buildQuery(sp, { lopen: "1" })}#klassiek`
+            }
+            aria-expanded={legacyOpen}
+            aria-controls="klassiek"
+            className="inline-flex items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-800 transition-colors hover:bg-sky-100"
+          >
+            <span aria-hidden>➕</span>
+            {legacyOpen ? t("legacyHide") : t("legacyShow")}
+            <span className="rounded-full bg-sky-200/70 px-2 py-0.5 text-xs font-semibold tabular-nums text-sky-900">
+              {legacy.total}
+            </span>
+          </Link>
+        ) : null}
+      </div>
 
       {/* Filters (GET-form) */}
       <form method="get" className="flex flex-wrap items-end gap-3">
@@ -239,16 +272,17 @@ export async function LibraryTab({
         </div>
       ) : null}
 
-      {/* Klassieke catalogus — verouderde terugvaloptie, nooit dominant. */}
+      {/* Aanvullende oefeningen (oudere collectie) — nooit dominant. */}
       {legacy ? (
         <details
+          id="klassiek"
           open={legacyOpen}
-          className="mt-2 rounded-2xl border border-dashed border-amber-300/70 bg-amber-50/40 open:bg-transparent"
+          className="mt-2 scroll-mt-6 rounded-2xl border border-dashed border-sky-300/70 bg-sky-50/40 open:bg-transparent"
         >
           <summary className="cursor-pointer select-none px-4 py-3 text-sm text-neutral-600 hover:text-neutral-900">
             <span className="font-medium">{t("legacyTitle")}</span>{" "}
             <span className="text-neutral-400">
-              — {t("legacyMatches", { count: legacy.total })}
+              · {t("legacyMatches", { count: legacy.total })}
             </span>
           </summary>
           <div className="flex flex-col gap-4 px-4 pb-4">
