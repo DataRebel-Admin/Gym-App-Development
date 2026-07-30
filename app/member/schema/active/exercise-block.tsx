@@ -7,6 +7,7 @@ import { m } from "motion/react";
 import { cn } from "@/lib/cn";
 import { Dumbbell, Trophy, Plus, Minus, RotateCcw, ChevronRight } from "@/components/ui/icons";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
+import { selectOnFocus } from "@/lib/select-on-focus";
 import type { ActiveExercise, SetValue } from "./active-session";
 
 /** Compacte weergave "100 kg × 10". Bodyweight (0 kg) toont alleen reps. */
@@ -56,6 +57,7 @@ export function BigStepper({
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
+          {...selectOnFocus}
           className="w-full min-w-0 rounded-xl border border-border bg-surface-0 px-1 py-2 text-center font-display text-xl font-bold leading-none tabular-nums text-neutral-900 outline-none placeholder:font-bold placeholder:text-neutral-300 focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
         />
         <button

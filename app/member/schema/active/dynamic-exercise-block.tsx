@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { ChevronRight, Check, Plus } from "@/components/ui/icons";
 import { getExerciseType, type ParamField } from "@/lib/exercise-types";
+import { selectOnFocus } from "@/lib/select-on-focus";
 import type { ActiveExercise, DynRow } from "./active-session";
 
 /** Eén log-veld (mobile-first) voor de live training.
@@ -44,6 +45,7 @@ export function LogField({
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value)}
+          {...selectOnFocus}
           className="rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-sm text-neutral-900 outline-none focus:border-accent"
         />
       ) : (
@@ -55,6 +57,7 @@ export function LogField({
           value={value}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value)}
+          {...selectOnFocus}
           className="rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-center font-display text-lg font-bold tabular-nums text-neutral-900 outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
         />
       )}

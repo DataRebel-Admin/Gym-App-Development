@@ -5,6 +5,7 @@ import { bulkEditChunk, type BulkOp, type BulkResult } from "@/app/owner/schemas
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Search, Check, Users } from "@/components/ui/icons";
+import { selectOnFocus } from "@/lib/select-on-focus";
 
 type Member = { id: string; name: string | null; email: string; schemaName: string | null };
 type Exercise = { id: string; name: string };
@@ -227,13 +228,13 @@ export function SchemaBulkPanel({
         {opType === "weightDelta" ? (
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
             Gewicht aanpassen (kg, ± toegestaan)
-            <input type="number" step={0.5} value={delta} onChange={(e) => setDelta(e.target.value)} className={inputClass} />
+            <input type="number" step={0.5} value={delta} onChange={(e) => setDelta(e.target.value)} {...selectOnFocus} className={inputClass} />
           </label>
         ) : null}
         {opType === "setRest" ? (
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
             Rusttijd (seconden)
-            <input type="number" min={0} value={restSeconds} onChange={(e) => setRestSeconds(e.target.value)} className={inputClass} />
+            <input type="number" min={0} value={restSeconds} onChange={(e) => setRestSeconds(e.target.value)} {...selectOnFocus} className={inputClass} />
           </label>
         ) : null}
         {showScope ? (
@@ -261,13 +262,13 @@ export function SchemaBulkPanel({
         {opType === "addExercise" ? (
           <div className="grid grid-cols-3 gap-2 sm:col-span-2">
             <label className="flex flex-col gap-1 text-sm text-neutral-700">sets
-              <input type="number" min={1} value={sets} onChange={(e) => setSets(e.target.value)} className={inputClass} />
+              <input type="number" min={1} value={sets} onChange={(e) => setSets(e.target.value)} {...selectOnFocus} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-neutral-700">reps
-              <input type="number" min={1} value={reps} onChange={(e) => setReps(e.target.value)} className={inputClass} />
+              <input type="number" min={1} value={reps} onChange={(e) => setReps(e.target.value)} {...selectOnFocus} className={inputClass} />
             </label>
             <label className="flex flex-col gap-1 text-sm text-neutral-700">rust (s)
-              <input type="number" min={0} value={restSeconds} onChange={(e) => setRestSeconds(e.target.value)} className={inputClass} />
+              <input type="number" min={0} value={restSeconds} onChange={(e) => setRestSeconds(e.target.value)} {...selectOnFocus} className={inputClass} />
             </label>
           </div>
         ) : null}
@@ -288,7 +289,7 @@ export function SchemaBulkPanel({
           <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
             <Check className="size-4 shrink-0" />
             <span>
-              Gelukt — {result.updated} bijgewerkt
+              Gelukt: {result.updated} bijgewerkt
               {result.skipped > 0 ? `, ${result.skipped} overgeslagen (geen match)` : ""}.
             </span>
           </div>

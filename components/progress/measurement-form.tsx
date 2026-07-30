@@ -13,6 +13,7 @@ import {
   type MetricKey,
 } from "@/lib/measurement-meta";
 import type { MeasurementRow } from "@/lib/measurements";
+import { selectOnFocus } from "@/lib/select-on-focus";
 import type { MeasurementFormState } from "@/app/owner/members/[userId]/progress/actions";
 
 const SOURCES = ["MANUAL", "INBODY", "TANITA", "EVOLT", "GARMIN", "APPLE_HEALTH", "GOOGLE_FIT"];
@@ -37,6 +38,7 @@ function NumberField({ def, initial }: { def: MetricDef; initial?: number | null
         step={def.integer ? 1 : 0.1}
         inputMode="decimal"
         placeholder="—"
+        {...selectOnFocus}
         className="rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-base tabular-nums text-neutral-900 outline-none focus:border-accent"
       />
     </label>
