@@ -91,16 +91,20 @@ function button(hrefToken: string, label: string): string {
 </table>`;
 }
 
+// De `dm-*`-klassen haken in op de dark-mode-regels in lib/email/layout.ts, net
+// als de bouwstenen in lib/email/components.ts. Template-HTML zónder deze
+// klassen (bv. door de Superadmin geschreven) wordt daar door de brede
+// `.dm-card h1/p/td`-vangnetregel opgevangen.
 function heading(text: string): string {
-  return `<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:${INK}">${text}</h1>`;
+  return `<h1 class="dm-text" style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:${INK}">${text}</h1>`;
 }
 
 function paragraph(html: string): string {
-  return `<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:${INK}">${html}</p>`;
+  return `<p class="dm-text" style="margin:0 0 16px;font-size:16px;line-height:1.6;color:${INK}">${html}</p>`;
 }
 
 function muted(html: string): string {
-  return `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${MUTED}">${html}</p>`;
+  return `<p class="dm-muted" style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${MUTED}">${html}</p>`;
 }
 
 const P_FIRSTNAME: PlaceholderDef = {
@@ -130,7 +134,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       ),
       button("loginLink", "Inloggen"),
       muted(
-        "Heb je geen inloglink aangevraagd? Dan kun je deze e-mail negeren — er gebeurt niets."
+        "Heb je geen inloglink aangevraagd? Dan kun je deze e-mail negeren, er gebeurt niets."
       ),
     ].join("\n"),
     localizedContent: {
@@ -145,7 +149,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
             "Click the button below to log in securely. The link works once and expires after a short time."
           ),
           button("loginLink", "Log in"),
-          muted("Didn't request a login link? You can ignore this email — nothing will happen."),
+          muted("Didn't request a login link? You can ignore this email, nothing will happen."),
         ].join("\n"),
       },
       FY: {
@@ -159,7 +163,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
             "Klik op de knop hjirûnder om feilich yn te loggen. De link is ienris te brûken en ferrint nei koarte tiid."
           ),
           button("loginLink", "Ynlogge"),
-          muted("Hast gjin ynloglink oanfrege? Dan meist dizze e-mail negearje — der bart neat."),
+          muted("Hast gjin ynloglink oanfrege? Dan meist dizze e-mail negearje, der bart neat."),
         ].join("\n"),
       },
     },
@@ -229,7 +233,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       { token: "loginLink", label: "Inloglink", sample: "https://gymrebel.app/login", required: true },
     ],
     defaultSubject: "Welkom bij {{gymName}}",
-    defaultPreheader: "Je account is geactiveerd — log in om te beginnen.",
+    defaultPreheader: "Je account is geactiveerd. Log in om te beginnen.",
     defaultBodyHtml: [
       heading("Welkom bij {{gymName}}!"),
       paragraph("Hoi {{firstName}},"),
@@ -241,7 +245,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
     localizedContent: {
       EN: {
         subject: "Welcome to {{gymName}}",
-        preheader: "Your account is active — log in to get started.",
+        preheader: "Your account is active. Log in to get started.",
         reason: "You're receiving this email because your account at {{gymName}} was just activated.",
         bodyHtml: [
           heading("Welcome to {{gymName}}!"),
@@ -254,7 +258,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       },
       FY: {
         subject: "Wolkom by {{gymName}}",
-        preheader: "Dyn account is aktyf — log yn om te begjinnen.",
+        preheader: "Dyn account is aktyf. Log yn om te begjinnen.",
         reason: "Do krigest dizze e-mail omdat dyn account by {{gymName}} krekt aktivearre is.",
         bodyHtml: [
           heading("Wolkom by {{gymName}}!"),
@@ -290,7 +294,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
       ),
       button("resetLink", "Nieuw wachtwoord kiezen"),
       muted(
-        "Heb je dit niet aangevraagd? Negeer deze e-mail — je wachtwoord blijft dan ongewijzigd."
+        "Heb je dit niet aangevraagd? Negeer deze e-mail, je wachtwoord blijft dan ongewijzigd."
       ),
     ].join("\n"),
     localizedContent: {
@@ -306,7 +310,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
             "A request was made to reset the password of your account at <strong>{{gymName}}</strong>. Click the button below to choose a new password. The link works once and expires after 1 hour."
           ),
           button("resetLink", "Choose a new password"),
-          muted("Didn't request this? Ignore this email — your password will stay the same."),
+          muted("Didn't request this? Ignore this email, your password will stay the same."),
         ].join("\n"),
       },
       FY: {
@@ -321,7 +325,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
             "Der is frege om it wachtwurd fan dyn account by <strong>{{gymName}}</strong> opnij yn te stellen. Klik op de knop hjirûnder om in nij wachtwurd te kiezen. De link is ienris te brûken en ferrint nei 1 oere."
           ),
           button("resetLink", "Nij wachtwurd kieze"),
-          muted("Hast dit net oanfrege? Negearje dizze e-mail — dyn wachtwurd bliuwt dan ûnferoare."),
+          muted("Hast dit net oanfrege? Negearje dizze e-mail, dyn wachtwurd bliuwt dan ûnferoare."),
         ].join("\n"),
       },
     },
@@ -493,7 +497,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
   notification: {
     key: "notification",
     name: "Algemene notificatie",
-    description: "Vrij in te vullen notificatiemail. Nog geen automatische trigger — wel testbaar.",
+    description: "Vrij in te vullen notificatiemail. Nog geen automatische trigger, wel testbaar.",
     reason: "Je ontvangt deze e-mail omdat je een melding hebt bij {{gymName}}.",
     hasTrigger: false,
     placeholders: [
@@ -517,7 +521,7 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateKey, EmailTemplateDef> = {
   system: {
     key: "system",
     name: "Systeemmelding",
-    description: "Technische/platformmelding. Nog geen automatische trigger — wel testbaar.",
+    description: "Technische/platformmelding. Nog geen automatische trigger, wel testbaar.",
     reason: "Je ontvangt deze e-mail omdat er een systeemmelding is voor je {{gymName}}-account.",
     hasTrigger: false,
     placeholders: [

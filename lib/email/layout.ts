@@ -21,12 +21,34 @@ export type LayoutInput = {
   /** Gelokaliseerde "automatisch bericht"-regel. Default: NL. */
   footerNote?: string;
   /**
-   * Forceer de lichte weergave (laat de dark-mode media-query weg). Gebruikt door
-   * de on-screen template-preview zodat die niet meekleurt met de dark-mode van de
-   * browser/OS van de beheerder. Echte verzendingen laten dit weg → auto licht/donker.
+   * Kleurschema. `"auto"` (default, échte verzendingen) = licht, met de
+   * dark-mode-regels achter een media-query. `"light"`/`"dark"` forceren één
+   * weergave zonder media-query — gebruikt door de on-screen template-preview,
+   * zodat die niet meekleurt met het OS van de beheerder én de dark-variant
+   * daadwerkelijk te controleren is.
    */
-  forceLightScheme?: boolean;
+  scheme?: "auto" | "light" | "dark";
 };
+
+/**
+ * Dark-mode-regels. **Alles met `!important`**, want de e-mailinhoud draagt
+ * inline kleuren (verplicht voor Outlook/Gmail) en die winnen anders van een
+ * klasse-regel — precies de bug waardoor donkergrijze tekst op een donkere kaart
+ * belandde (1,2:1). Een `!important`-declaratie uit het <style>-blok verslaat
+ * wél een inline `style`, dus dit is de enige betrouwbare hefboom.
+ *
+ * De brede `.dm-card h1, … p, … td`-regel is bewust vangnet-gedrag: ook door de
+ * Superadmin geschreven template-HTML (die onze klassen niet kent) wordt zo
+ * leesbaar. `<a>` staat er bewust NIET bij — dat zou het knoplabel overschrijven
+ * en daarmee `accentText` op een licht accent slopen.
+ */
+const DARK_RULES = `
+  body,.dm-bg{background:#0b0f17!important}
+  .dm-card{background:#111827!important}
+  .dm-card h1,.dm-card h2,.dm-card h3,.dm-card p,.dm-card td,.dm-card span,.dm-card strong,.dm-card li,.dm-text{color:#e5e7eb!important}
+  .dm-card .dm-muted,.dm-card .dm-muted a,.dm-muted{color:#9ca3af!important}
+  .dm-panel{background:#1f2937!important;border-color:#374151!important}
+  .dm-divider{border-color:#374151!important}`;
 
 /** Header: tenant-logo (of tekst-wordmark) op een accentbalk. */
 function header(branding: EmailBranding): string {
@@ -69,7 +91,7 @@ function footer(branding: EmailBranding, reason: string, footerNote: string): st
 
   const socials =
     branding.socials.length > 0
-      ? `<p style="margin:0 0 10px;font-size:13px;color:#6b7280">${branding.socials
+      ? `<p class="dm-muted" style="margin:0 0 10px;font-size:13px;color:#6b7280">${branding.socials
           .map(
             (s) =>
               `<a href="${escapeHtml(s.url)}" style="color:#6b7280;text-decoration:underline;margin:0 6px">${escapeHtml(
@@ -86,16 +108,16 @@ function footer(branding: EmailBranding, reason: string, footerNote: string): st
       )}</p>
       ${
         contactBits.length
-          ? `<p style="margin:0 0 10px;font-size:13px;line-height:1.6;color:#6b7280">${contactBits.join(
+          ? `<p class="dm-muted" style="margin:0 0 10px;font-size:13px;line-height:1.6;color:#6b7280">${contactBits.join(
               " &middot; "
             )}</p>`
           : ""
       }
       ${socials}
-      <p style="margin:0 0 4px;font-size:12px;line-height:1.5;color:#9ca3af">${escapeHtml(
+      <p class="dm-muted" style="margin:0 0 4px;font-size:12px;line-height:1.5;color:#6b7280">${escapeHtml(
         reason
       )}</p>
-      <p style="margin:0;font-size:12px;line-height:1.5;color:#9ca3af">${escapeHtml(
+      <p class="dm-muted" style="margin:0;font-size:12px;line-height:1.5;color:#6b7280">${escapeHtml(
         footerNote
       )}<br>&copy; ${year} ${escapeHtml(branding.name)}</p>
     </td>
@@ -103,18 +125,19 @@ function footer(branding: EmailBranding, reason: string, footerNote: string): st
 }
 
 export function renderEmailLayout(input: LayoutInput): string {
-  const { branding, preheader, contentHtml, reason, forceLightScheme } = input;
+  const { branding, preheader, contentHtml, reason } = input;
   const footerNote =
-    input.footerNote ?? "Dit is een automatisch gegenereerd bericht — beantwoorden is niet nodig.";
-  const colorScheme = forceLightScheme ? "light" : "light dark";
-  const darkModeCss = forceLightScheme
-    ? ""
-    : `
-  @media (prefers-color-scheme:dark){
-    body,.dm-bg{background:#0b0f17!important}
-    .dm-card{background:#111827!important}
-    .dm-text{color:#f3f4f6!important}
-    .dm-muted{color:#9ca3af!important}
+    input.footerNote ?? "Dit is een automatisch gegenereerd bericht, beantwoorden is niet nodig.";
+  const scheme = input.scheme ?? "auto";
+  const colorScheme =
+    scheme === "auto" ? "light dark" : scheme === "dark" ? "dark" : "light";
+  const darkModeCss =
+    scheme === "light"
+      ? ""
+      : scheme === "dark"
+        ? DARK_RULES
+        : `
+  @media (prefers-color-scheme:dark){${DARK_RULES}
   }`;
   return `<!DOCTYPE html>
 <html lang="${branding.locale.toLowerCase()}" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">

@@ -21,9 +21,9 @@ export type TemplateData = Record<string, string | null | undefined>;
  * tekst per taal gebruiken.
  */
 export const EMAIL_FOOTER_AUTO: Record<Locale, string> = {
-  NL: "Dit is een automatisch gegenereerd bericht — beantwoorden is niet nodig.",
-  EN: "This is an automatically generated message — no reply needed.",
-  FY: "Dit is in automatysk oanmakke berjocht — antwurdzje is net nedich.",
+  NL: "Dit is een automatisch gegenereerd bericht, beantwoorden is niet nodig.",
+  EN: "This is an automatically generated message, no reply needed.",
+  FY: "Dit is in automatysk oanmakke berjocht, antwurdzje is net nedich.",
 };
 
 /**
@@ -92,8 +92,11 @@ export function renderTemplateMessage(opts: {
   reason?: string;
   /** Footer "automatisch bericht"-regel (gelokaliseerd). Default: NL. */
   footerNote?: string;
-  /** On-screen preview: forceer de lichte weergave (geen OS-dark-mode). */
-  forceLightScheme?: boolean;
+  /**
+   * On-screen preview: forceer één weergave (licht óf donker) i.p.v. mee te
+   * kleuren met het OS van de beheerder. Weglaten = `"auto"` (echte verzending).
+   */
+  scheme?: "auto" | "light" | "dark";
 }): EmailMessage {
   const data = { ...buildBrandingData(opts.branding), ...opts.data };
   const subject = renderPlaceholders(opts.subject, data, false);
@@ -107,13 +110,13 @@ export function renderTemplateMessage(opts: {
     contentHtml,
     reason,
     footerNote: opts.footerNote ?? EMAIL_FOOTER_AUTO.NL,
-    forceLightScheme: opts.forceLightScheme,
+    scheme: opts.scheme,
   });
 
   return {
     subject,
     html,
-    text: `${htmlToText(contentHtml)}\n\n—\n${reason}`,
+    text: `${htmlToText(contentHtml)}\n\n--\n${reason}`,
   };
 }
 

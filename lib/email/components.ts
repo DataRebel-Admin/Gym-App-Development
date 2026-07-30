@@ -21,22 +21,24 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// De `dm-*`-klassen haken in op de dark-mode-regels in lib/email/layout.ts. Ze
+// zijn puur additief: zonder dark mode doet de inline kleur hierboven het werk.
 export function emailHeading(text: string): string {
-  return `<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:${INK}">${escapeHtml(
+  return `<h1 class="dm-text" style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:700;color:${INK}">${escapeHtml(
     text
   )}</h1>`;
 }
 
 export function emailParagraph(html: string): string {
-  return `<p style="margin:0 0 16px;font-size:16px;line-height:1.6;color:${INK}">${html}</p>`;
+  return `<p class="dm-text" style="margin:0 0 16px;font-size:16px;line-height:1.6;color:${INK}">${html}</p>`;
 }
 
 export function emailMuted(html: string): string {
-  return `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${MUTED}">${html}</p>`;
+  return `<p class="dm-muted" style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${MUTED}">${html}</p>`;
 }
 
 export function emailDivider(): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:8px 0"><div style="border-top:1px solid #e5e7eb;font-size:1px;line-height:1px">&nbsp;</div></td></tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:8px 0"><div class="dm-divider" style="border-top:1px solid #e5e7eb;font-size:1px;line-height:1px">&nbsp;</div></td></tr></table>`;
 }
 
 /**
@@ -82,7 +84,7 @@ export function emailLinkFallback(url: string): string {
 export function emailInfoCard(html: string): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 16px">
     <tr>
-      <td style="padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;line-height:1.6;color:${INK}">${html}</td>
+      <td class="dm-panel" style="padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;line-height:1.6;color:${INK}">${html}</td>
     </tr>
   </table>`;
 }

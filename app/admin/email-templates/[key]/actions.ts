@@ -91,6 +91,8 @@ export async function renderPreview(input: {
   bodyHtml: string;
   tenantId: string | null;
   useSampleData: boolean;
+  /** Weergave in de preview-iframe: lichte of donkere mailclient. */
+  scheme?: "light" | "dark";
 }): Promise<PreviewResult> {
   await requireSuperadmin();
   if (!isEmailTemplateKey(input.key)) {
@@ -108,9 +110,10 @@ export async function renderPreview(input: {
     footerNote: EMAIL_FOOTER_AUTO[locale],
     branding,
     data: sampleData(def, input.useSampleData),
-    // On-screen preview altijd in de canonieke lichte weergave (niet meekleuren
-    // met de dark-mode van de browser van de beheerder). Testmails blijven auto.
-    forceLightScheme: true,
+    // De preview forceert bewust één weergave i.p.v. mee te kleuren met de
+    // browser/OS van de beheerder — zo is de dark-variant óók te controleren.
+    // Testmails en echte verzendingen blijven "auto".
+    scheme: input.scheme === "dark" ? "dark" : "light",
   });
   return { html: message.html, subject: message.subject };
 }

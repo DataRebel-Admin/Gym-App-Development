@@ -37,9 +37,18 @@ export function luminance(hex: string): number {
   return 0.2126 * linear(c.r) + 0.7152 * linear(c.g) + 0.0722 * linear(c.b);
 }
 
-/** Relatieve luminantie → kies wit of donkergrijs voor maximale leesbaarheid óp deze kleur. */
+/**
+ * Kies wit of donkergrijs als tekstkleur óp deze achtergrond (knoplabel,
+ * e-mailheader, `--tenant-accent-foreground`).
+ *
+ * Wit blijft de voorkeur zolang het comfortabel leesbaar is (≥ 3:1, de
+ * WCAG-grens voor grote tekst en UI-componenten). Pas bij een licht accent
+ * (geel, limoen, lichtgroen) klapt het om naar donkergrijs — dáár leverde de
+ * oude luminantie-grens (0,55) wit-op-geel op, ~1,8:1 en dus onleesbaar.
+ * Donkere en middeldonkere accenten (o.a. het GymRebel-oranje) houden wit.
+ */
 export function readableText(bg: string): string {
-  return luminance(bg) > 0.55 ? "#111827" : "#ffffff";
+  return contrastRatio(bg, "#ffffff") >= 3 ? "#ffffff" : "#111827";
 }
 
 /** WCAG-contrastratio tussen twee hex-kleuren (1..21). */

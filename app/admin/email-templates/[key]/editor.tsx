@@ -99,6 +99,9 @@ export function TemplateEditor({
 
   const [tenantId, setTenantId] = useState<string | null>(tenants[0]?.id ?? null);
   const [device, setDevice] = useState<Device>("desktop");
+  // Lichte of donkere mailclient — de preview forceert het schema (de iframe
+  // volgt anders de dark-mode van de beheerder z'n eigen browser).
+  const [scheme, setScheme] = useState<"light" | "dark">("light");
   const [useSampleData, setUseSampleData] = useState(true);
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -158,6 +161,7 @@ export function TemplateEditor({
           bodyHtml,
           tenantId,
           useSampleData,
+          scheme,
         });
         if (reqId === previewReq.current) setPreviewHtml(res.html);
       } finally {
@@ -166,7 +170,7 @@ export function TemplateEditor({
     }, 400);
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, preheader, bodyHtml, tenantId, useSampleData]);
+  }, [subject, preheader, bodyHtml, tenantId, useSampleData, scheme]);
 
   const insertPlaceholder = useCallback((token: string) => {
     const view = viewRef.current;
@@ -208,7 +212,7 @@ export function TemplateEditor({
       setPublishedAt(new Date().toISOString());
       setPublishOpen(false);
       setPublishNote("");
-      toast.success("Template gepubliceerd — staat nu live.");
+      toast.success("Template gepubliceerd, staat nu live.");
     } else {
       toast.error(res.error ?? "Publiceren mislukt");
     }
@@ -347,7 +351,7 @@ export function TemplateEditor({
                 key={p.token}
                 type="button"
                 onClick={() => insertPlaceholder(p.token)}
-                title={`${p.label} — voorbeeld: ${p.sample || "(leeg)"}`}
+                title={`${p.label}, voorbeeld: ${p.sample || "(leeg)"}`}
                 className="rounded-md border border-border bg-surface-1 px-2 py-0.5 font-mono text-[11px] text-neutral-700 transition-colors hover:border-accent hover:text-accent"
               >
                 {`{{${p.token}}}`}
@@ -386,6 +390,28 @@ export function TemplateEditor({
               ))}
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded-lg bg-surface-2 p-0.5">
+                {(["light", "dark"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setScheme(s)}
+                    title={
+                      s === "light"
+                        ? "Lichte mailclient"
+                        : "Donkere mailclient (dark mode)"
+                    }
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      scheme === s
+                        ? "bg-surface-1 text-neutral-900 shadow-sm"
+                        : "text-neutral-500 hover:text-neutral-900"
+                    )}
+                  >
+                    {s === "light" ? "Licht" : "Donker"}
+                  </button>
+                ))}
+              </div>
               <select
                 value={tenantId ?? ""}
                 onChange={(e) => setTenantId(e.target.value || null)}
@@ -410,14 +436,20 @@ export function TemplateEditor({
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-auto bg-neutral-100 p-3">
+          <div
+            className={cn(
+              "min-h-0 flex-1 overflow-auto p-3 transition-colors",
+              scheme === "dark" ? "bg-neutral-900" : "bg-neutral-100"
+            )}
+          >
             <div className="mx-auto" style={{ width: DEVICE_WIDTH[device], maxWidth: "100%" }}>
               <iframe
                 title="E-mailpreview"
                 srcDoc={previewHtml}
                 sandbox=""
                 className={cn(
-                  "h-[60vh] w-full rounded-lg border border-border bg-white transition-opacity",
+                  "h-[60vh] w-full rounded-lg border border-border transition-opacity",
+                  scheme === "dark" ? "bg-neutral-950" : "bg-white",
                   previewLoading && "opacity-60"
                 )}
               />
