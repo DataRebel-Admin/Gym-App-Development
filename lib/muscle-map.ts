@@ -75,6 +75,7 @@ const RAW_TO_REGION: Record<string, MuscleRegion> = {
   // Borst
   pectorals: "chest",
   chest: "chest",
+  "pectoralis major": "chest",
   "serratus anterior": "obliques",
   // Schouders
   delts: "shoulders",
@@ -84,10 +85,20 @@ const RAW_TO_REGION: Record<string, MuscleRegion> = {
   "side/rear delts": "shoulders",
   "rear delts": "shoulders",
   "rotator cuff": "shoulders",
+  "anterior deltoid": "shoulders",
+  "lateral deltoid": "shoulders",
+  "posterior deltoid": "shoulders",
+  supraspinatus: "shoulders",
   // Armen
   biceps: "biceps",
+  "biceps brachii": "biceps",
+  brachialis: "biceps",
   triceps: "triceps",
+  "triceps brachii": "triceps",
   forearms: "forearms",
+  "forearm extensors": "forearms",
+  "forearm flexors": "forearms",
+  brachioradialis: "forearms",
   "wrist flexors": "forearms",
   "wrist extensors": "forearms",
   wrists: "forearms",
@@ -96,6 +107,8 @@ const RAW_TO_REGION: Record<string, MuscleRegion> = {
   abs: "abs",
   abdominals: "abs",
   core: "abs",
+  "rectus abdominis": "abs",
+  "transverse abdominis": "abs",
   obliques: "obliques",
   // Nek / bovenrug
   traps: "traps",
@@ -108,8 +121,12 @@ const RAW_TO_REGION: Record<string, MuscleRegion> = {
   // Onderrug
   spine: "lowerBack",
   "lower back": "lowerBack",
+  "erector spinae": "lowerBack",
+  "quadratus lumborum": "lowerBack",
   // Onderlichaam
   glutes: "glutes",
+  "gluteus maximus": "glutes",
+  "gluteus medius": "glutes",
   quads: "quads",
   quadriceps: "quads",
   "hip flexors": "quads",
@@ -118,14 +135,17 @@ const RAW_TO_REGION: Record<string, MuscleRegion> = {
   abductors: "adductors",
   calves: "calves",
   soleus: "calves",
+  gastrocnemius: "calves",
   ankles: "calves",
   "ankle stabilizers": "calves",
 };
 
-/** Normaliseer één ruw spier-label naar een regio (of null als onbekend/n.v.t.). */
+/** Normaliseer één ruw spier-label naar een regio (of null als onbekend/n.v.t.).
+ *  Underscores worden als spaties gelezen zodat RepDB-slugs ("biceps_brachii")
+ *  dezelfde tabel raken als vrije labels ("biceps brachii"). */
 export function resolveRegion(raw: string | null | undefined): MuscleRegion | null {
   if (!raw) return null;
-  const key = raw.trim().toLowerCase();
+  const key = raw.trim().toLowerCase().replace(/_/g, " ");
   return RAW_TO_REGION[key] ?? null;
 }
 

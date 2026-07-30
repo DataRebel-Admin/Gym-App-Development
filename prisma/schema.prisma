@@ -1155,7 +1155,11 @@ model Exercise {
   description  String?
   targetMuscle String?
   machineId    String? // nullable: lichaamsgewicht-oefeningen hebben geen machine
-  catalogId    String? // optioneel: link naar de globale ExerciseCatalog (bron van media/instructies)
+  catalogId    String? // VEROUDERD: link naar de oude ExerciseCatalog (terugvaloptie, zie libraryId)
+  libraryId    String? // link naar de nieuwe LibraryExercise (RepDB) — dé standaardbron
+  // Een oefening heeft max. één externe bron: catalogId (klassiek) óf libraryId
+  // (bibliotheek) óf geen van beide (eigen). CHECK-constraint in de migratie
+  // (20260730140000_exercise_library) dwingt dit op DB-niveau af.
 
   // Oefeningstype (code-registry, zie lib/exercise-types.ts) — bepaalt wélke
   // parameters relevant zijn (sets/reps/gewicht vs. tijd/afstand/intensiteit…).
@@ -1182,12 +1186,14 @@ model Exercise {
   tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   machine            Machine?              @relation(fields: [machineId], references: [id], onDelete: SetNull)
   catalog            ExerciseCatalog?      @relation(fields: [catalogId], references: [id], onDelete: SetNull)
+  library            LibraryExercise?      @relation(fields: [libraryId], references: [id], onDelete: SetNull)
   workoutItems       WorkoutExerciseItem[]
   performanceEntries PerformanceEntry[]
 
   @@index([tenantId])
   @@index([machineId])
   @@index([catalogId])
+  @@index([libraryId])
 }
 
 // Globale oefeningen-catalogus (externe dataset, 1.324 records). NIET tenant-scoped
@@ -1215,6 +1221,159 @@ model ExerciseCatalog {
   @@index([equipment])
   @@index([target])
   @@map("exercise_catalog")
+}
+
+// ── Oefeningen-bibliotheek (RepDB) — dé standaard contentbron ────────────────
+// Globale tabellen zoals ExerciseCatalog: géén tenantId/RLS. Gevuld door
+// `npm run library:import` vanuit de privé-container `exercise-source`
+// (commerciële licentie: ruwe bundel mag NIET publiek). Media staat publiek in
+// container `exercise-media` en wordt hier als RELATIEVE key bewaard; de
+// basis-URL komt uit env (LIBRARY_MEDIA_BASE_URL) — een containerwissel is
+// daarmee config i.p.v. datamigratie (les van de legacy-hernoeming).
+// De oude ExerciseCatalog blijft bestaan als geoormerkte terugvaloptie.
+
+model LibraryExercise {
+  id String @id // RepDB-slug (bv. "bench-press") — stabiel over dataset-versies
+
+  // Categorische velden — bewust Strings (geen enums): een nieuwe waarde in een
+  // dataset-update mag geen DB-migratie kosten (idioom Exercise.exerciseType).
+  category   String // cardio|olympic|plyometrics|strength|stretching|strongman
+  forceType  String? // dynamic|pull|push|static
+  mechanic   String? // compound|isolation
+  difficulty String? // beginner|intermediate|advanced
+  bodyPart   String? // back|chest|core|full_body|lower_arms|lower_legs|shoulders|upper_arms|upper_legs
+
+  equipmentSlug         String? // hoofd-materiaal → LibraryEquipment.id
+  additionalEquipment   String[] @default([]) // extra vereist materiaal (slugs)
+  equipmentAlternatives String[] @default([]) // toegestane alternatieven (slugs)
+
+  primaryMuscles   String[] @default([]) // spier-slugs → LibraryMuscle.id
+  secondaryMuscles String[] @default([])
+
+  goals          String[] @default([]) // strength|hypertrophy|endurance|mobility|power|rehabilitation|core
+  tags           String[] @default([])
+  synonyms       String[] @default([]) // alternatieve namen (zoeken/matchen)
+  variationGroup String?
+
+  isUnilateral Boolean @default(false)
+  isBodyweight Boolean @default(false)
+
+  // Metabolic Equivalent of Task — kcal/min ≈ met × lichaamsgewicht(kg) × 0.0175.
+  met Float?
+
+  // Afgeleid oefeningstype (registry lib/exercise-types.ts), bepaald bij import.
+  exerciseType String @default("strength")
+
+  // Welke beeldvarianten bestaan per stijl, bv. {"classic":["start","peak"]} of
+  // {"flat":["main"]} (statische holds). Paden opbouwen via
+  // lib/exercise-library/media.ts; bij `imageAlias` gelden de bestanden van de
+  // alias-slug (bv. "paused-ohp" → "ohp"). Animatie: animations/<slug>.webp.
+  images        Json?
+  animation     Boolean @default(false)
+  animationType String? // motion|two_pose
+  imageAlias    String?
+
+  // Nooit hard verwijderen: verdwijnt een slug uit de bundel dan retired —
+  // gekoppelde tenant-oefeningen en historie blijven werken.
+  retiredAt      DateTime?
+  datasetVersion String // bundel-versie bij laatste import, bv. "1.26"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  texts         LibraryExerciseText[]
+  relationsFrom LibraryRelation[]     @relation("LibraryRelationFrom")
+  relationsTo   LibraryRelation[]     @relation("LibraryRelationTo")
+  exercises     Exercise[]
+
+  @@index([category])
+  @@index([bodyPart])
+  @@index([equipmentSlug])
+  @@index([difficulty])
+}
+
+// Per-taal content van een bibliotheek-oefening. en/de/es komen uit de bundel;
+// het nl-slot wordt later gevuld door de vertaalpipeline (bewust nog niet).
+model LibraryExerciseText {
+  id         String @id @default(cuid())
+  exerciseId String
+  // Kleine-letters ISO-taalcode ("en","de","es", straks "nl") — bewust een String
+  // en niet de Locale-enum: dataset-talen ≠ UI-talen, en een nieuwe taal mag
+  // geen migratie kosten (idioom lib/i18n/config.ts: nieuwe taal = één regel).
+  locale String
+
+  name         String
+  description  String?  @db.Text
+  instructions String[] @default([])
+  tips         String[] @default([])
+
+  // Herkomst: "dataset" (bundel), "machine" (vertaald) of "manual" (handmatig).
+  // Maakt de latere vertaalpipeline idempotent en beschermt handwerk tegen
+  // overschrijven bij een re-import.
+  origin    String   @default("dataset")
+  updatedAt DateTime @updatedAt
+
+  exercise LibraryExercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, locale])
+  @@index([locale])
+}
+
+// Spier-lookup (30 rijen). `names` is bewust Json ({locale: naam}) i.p.v. een
+// child-tabel: kleine, begrensde lookup zonder instructie-content — alleen de
+// oefening-teksten zijn genormaliseerd. Mapping naar onze 16 MuscleRegion's
+// (heatmap) gebeurt in code: lib/muscle-map.ts.
+model LibraryMuscle {
+  id             String   @id // snake-slug, bv. "biceps_brachii"
+  region         String // RepDB-regio (8): back|chest|core|lower_arms|lower_legs|shoulders|upper_arms|upper_legs
+  nameScientific String?
+  names          Json // {en: "Biceps", de: "Bizeps", es: "Bíceps", …}
+  synonyms       String[] @default([])
+  image          String? // bestandsnaam onder muscles/, bv. "biceps-brachii.webp"
+}
+
+// Materiaal-lookup (72 rijen), zelfde Json-namen-afweging als LibraryMuscle.
+model LibraryEquipment {
+  id       String   @id // snake-slug, bv. "barbell"
+  names    Json
+  tags     String[] @default([])
+  synonyms String[] @default([])
+  image    String? // bestandsnaam onder equipment/, bv. "barbell.webp"
+}
+
+// Relaties tussen oefeningen — doel-relatief (zie RepDB-README): op oefening X
+// leest {to: Y, type} als "Y is een <type> van X"; progression_of = Y is de
+// zwaardere opvolger, regression_of = de lichtere terugval, alternative is
+// symmetrisch. Voedt o.a. findAlternatives (échte data i.p.v. heuristiek).
+model LibraryRelation {
+  id     String @id @default(cuid())
+  fromId String
+  toId   String
+  type   String // alternative|progression_of|regression_of
+
+  from LibraryExercise @relation("LibraryRelationFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to   LibraryExercise @relation("LibraryRelationTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@unique([fromId, toId, type])
+  @@index([toId])
+}
+
+// Kant-en-klare workout-templates uit de bundel (15 stuks: PPL, StrongLifts …).
+// `days` blijft verbatim bundel-Json ({name_*, exercises:[{exercise_id, sets,
+// reps, rest_seconds, notes_*}]}) en wordt pas relationeel (WorkoutTemplate →
+// WorkoutDay → WorkoutExerciseItem) bij "kopieer naar mijn schema's" — de
+// owner-action lost dan ook de benodigde tenant-Exercises op.
+model LibraryWorkoutTemplate {
+  id               String    @id // slug, bv. "stronglifts-5x5"
+  goal             String // RepDB-goal; mapping naar lib/training-goals.ts in code
+  difficulty       String // beginner|intermediate|advanced
+  frequencyPerWeek Int?
+  tags             String[]  @default([])
+  names            Json // {locale: naam}
+  descriptions     Json // {locale: omschrijving}
+  days             Json
+  datasetVersion   String
+  retiredAt        DateTime?
+  updatedAt        DateTime  @updatedAt
 }
 
 // Aanvraag van een sporter voor een (nieuw/aangepast) trainingsschema. Tenant-
