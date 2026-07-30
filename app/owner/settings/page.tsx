@@ -2,7 +2,13 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireOwner } from "@/lib/owner";
 import { getTenantFeatures } from "@/lib/features/service";
-import { setAiEnabled, setAchievementsEnabled, setQuotesEnabled, setClassesEnabled } from "./actions";
+import {
+  setAiEnabled,
+  setAchievementsEnabled,
+  setQuotesEnabled,
+  setClassesEnabled,
+  setMemberCanEditAssigned,
+} from "./actions";
 import { TenantContactForm, type ContactInitial } from "@/components/tenant-contact-form";
 import { MemberSchemaModeForm } from "@/components/owner/member-schema-mode-form";
 import { MeasurementFieldsForm } from "@/components/owner/measurement-fields-form";
@@ -39,6 +45,7 @@ export default async function SettingsPage() {
       enabledMeasurementFields: true,
       customQuotes: true,
       memberSchemaMode: true,
+      memberCanEditAssigned: true,
       defectReminderDays: true,
       addressLine: true,
       postalCode: true,
@@ -270,10 +277,47 @@ export default async function SettingsPage() {
 
       <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
         <div>
+          <h2 className="text-sm font-semibold text-neutral-900">
+            Toegewezen schema&apos;s laten aanpassen
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Laat leden het schema aanpassen dat jij hén hebt toegewezen, bijvoorbeeld
+            een oefening ruilen als een apparaat bezet is. Ze bewerken hun eigen versie;
+            jouw sjabloon blijft ongewijzigd en je ziet de aanpassing terug bij het
+            schema. Deze instelling staat los van &ldquo;zelf een schema
+            samenstellen&rdquo;. Momenteel{" "}
+            <span className="font-medium text-neutral-900">
+              {tenant.memberCanEditAssigned ? "aan" : "uit"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <form action={setMemberCanEditAssigned}>
+          <input
+            type="hidden"
+            name="enabled"
+            value={tenant.memberCanEditAssigned ? "false" : "true"}
+          />
+          <button
+            type="submit"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              tenant.memberCanEditAssigned
+                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
+                : "bg-accent text-accent-foreground hover:opacity-90"
+            }`}
+          >
+            {tenant.memberCanEditAssigned ? "Uitschakelen" : "Inschakelen"}
+          </button>
+        </form>
+      </section>
+
+      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
+        <div>
           <h2 className="text-sm font-semibold text-neutral-900">Meetvelden</h2>
           <p className="mt-1 text-sm text-neutral-500">
             Kies welke lichaamsmetingen jouw sportschool gebruikt. Niet-geselecteerde
-            velden verdwijnen uit de formulieren, grafieken en overzichten — voor
+            velden verdwijnen uit de formulieren, grafieken en overzichten, voor
             trainers én leden.
           </p>
         </div>

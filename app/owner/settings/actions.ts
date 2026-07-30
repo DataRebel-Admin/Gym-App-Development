@@ -115,6 +115,39 @@ export async function setMemberSchemaMode(formData: FormData) {
   revalidatePath("/owner/settings");
 }
 
+/**
+ * Mogen leden het schema aanpassen dat hun trainer hén heeft toegewezen? Staat
+ * los van `memberSchemaMode` (zelf bouwen): het lid bewerkt zijn eigen kopie, de
+ * master-template van de coach blijft ongemoeid.
+ */
+export async function setMemberCanEditAssigned(formData: FormData) {
+  const owner = await requireOwner();
+  const enabled = formData.get("enabled") === "true";
+
+  const before = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: { memberCanEditAssigned: true },
+  });
+
+  await prisma.tenant.update({
+    where: { id: owner.tenantId },
+    data: { memberCanEditAssigned: enabled },
+  });
+
+  await audit("tenant.settings.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    oldValue: { memberCanEditAssigned: before?.memberCanEditAssigned ?? null },
+    newValue: { memberCanEditAssigned: enabled },
+    metadata: { setting: "memberCanEditAssigned" },
+  });
+
+  revalidatePath("/owner/settings");
+  revalidatePath("/member/schema");
+}
+
 /** Zet het trofeeën-/achievementssysteem aan of uit voor de tenant van de owner. */
 export async function setAchievementsEnabled(formData: FormData) {
   const owner = await requireOwner();

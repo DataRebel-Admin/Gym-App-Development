@@ -171,6 +171,11 @@ model Tenant {
   achievementsEnabled Boolean @default(false)
   // Mate van controle over zelf-gebouwde lid-schema's (opt-in per sportschool).
   memberSchemaMode MemberSchemaMode @default(DISABLED)
+  // Mag een lid het schema aanpassen dat zijn trainer hém heeft toegewezen? Het
+  // lid bewerkt dan zijn eigen kopie (nooit de master-template); de coach ziet de
+  // wijziging als "persoonlijke aanpassing" via de 3-weg-diff. Staat bewust LOS
+  // van memberSchemaMode (dat gaat over zélf bouwen) en is opt-in.
+  memberCanEditAssigned Boolean @default(false)
   // Motiverende Workout Quotes na een afgeronde training (aan/uit per sportschool).
   quotesEnabled Boolean    @default(true)
   // Lesrooster/aanmelden voor lessen aan of uit voor deze sportschool. Default aan;
