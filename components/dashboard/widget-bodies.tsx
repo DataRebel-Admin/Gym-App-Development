@@ -94,11 +94,13 @@ export function ClassOccupancy({ stats }: { stats: DashboardStats }) {
   }
   return (
     <ul className="flex flex-col gap-3">
-      {stats.classOccupancy.map((c, i) => {
+      {stats.classOccupancy.map((c) => {
         const pct = c.capacity > 0 ? Math.round((c.enrolled / c.capacity) * 100) : 0;
         const full = pct >= 90;
         return (
-          <li key={i} className="flex flex-col gap-1">
+          // Stabiele key i.p.v. de index (idem 0af7bc4): een les is uniek op
+          // starttijd + naam, zodat een herordende lijst geen state verwisselt.
+          <li key={`${c.startsAt}-${c.name}`} className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-neutral-900">{c.name}</span>
               <span className={full ? "font-semibold text-accent" : "text-neutral-500"}>
