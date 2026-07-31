@@ -16,6 +16,8 @@ import { ToastProvider } from "@/components/ui/toast";
 import { FullscreenToggle } from "@/components/fullscreen-toggle";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { ClientErrorRecorder } from "@/components/error/client-error-recorder";
+import { SplashGate } from "@/components/pwa/splash-gate";
+import { DeepLinkHandler } from "@/components/pwa/deep-link-handler";
 import { AppBackground } from "@/components/ui/app-background";
 
 const geistSans = Geist({
@@ -106,6 +108,10 @@ export default async function RootLayout({
                 <FullscreenToggle />
                 <ServiceWorkerRegister />
                 <ClientErrorRecorder />
+                {/* Klikt het native startscherm weg zodra de UI staat; no-op op web. */}
+                <SplashGate />
+                {/* Magic link, uitnodiging of QR die de app opent → juiste pagina. */}
+                <DeepLinkHandler />
               </TenantProvider>
             </ToastProvider>
           </MotionProvider>

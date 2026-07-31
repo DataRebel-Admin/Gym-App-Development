@@ -2,12 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="false">
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
@@ -22,7 +25,52 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+                App Links: https-links naar het app-domein openen rechtstreeks in
+                de app in plaats van in de browser, zonder keuzedialoog. Dekt de
+                magic link, uitnodigingen, wachtwoord-reset en de apparaat-QR's.
+
+                `android:autoVerify` laat Android bij installatie
+                https://<host>/.well-known/assetlinks.json ophalen en de
+                handtekening vergelijken. Zonder de juiste waarden in
+                ANDROID_CERT_FINGERPRINTS mislukt die verificatie stil en openen
+                de links gewoon in de browser: hinderlijk, niet stuk.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="@string/app_link_host" />
+            </intent-filter>
+
         </activity>
+
+        <!--
+            Standaard-uiterlijk van pushmeldingen. Nodig omdat Firebase de melding
+            zélf opbouwt wanneer de app op de achtergrond staat: dan komt de
+            payload uit lib/push-fcm.ts niet langs onze code.
+
+            Het icoon moet een drawable zijn waarvan Android alléén het alfakanaal
+            gebruikt (wit silhouet op transparant, zie `notificationIcon()` in
+            scripts/generate-brand-assets.ts). Een gekleurd icoon wordt anders een
+            egale witte blob in de statusbalk.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_gymrebel" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/ic_launcher_background" />
+        <!--
+            Vangnet-kanaal voor meldingen zonder `channel_id`. De app maakt bij het
+            starten een kanaal per meldingscategorie aan (lib/push-channels.ts);
+            dit is waar een melding belandt die daar niet bij hoort. Zonder deze
+            regel zet Android zulke meldingen in een naamloze bak die de gebruiker
+            in de instellingen als "Overig" terugziet.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/default_notification_channel_id" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -35,7 +83,34 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!--
+        Permissies. Bewust minimaal: elke regel hieronder wordt daadwerkelijk
+        gebruikt. Play toont ze aan de gebruiker en vraagt in de Data safety-
+        vragenlijst om verantwoording, dus niets "voor de zekerheid" toevoegen.
 
+        Niet nodig, bewust afwezig:
+          VIBRATE            komt via manifest-merge uit @capacitor/haptics.
+          READ_MEDIA_IMAGES  foto's kiezen loopt via de systeem-bestandskiezer
+                             (Storage Access Framework), die geen permissie vraagt.
+          ACCESS_*_LOCATION  de vestiging komt uit cookie/profiel, nooit uit GPS.
+          RECORD_AUDIO       de app neemt geen audio op.
+    -->
+
+    <!-- Netwerk: de WebView laadt de gehoste app. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Camera: QR-codes van apparaten scannen (html5-qrcode in de WebView). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Meldingen tonen; Android 13+ vraagt hier expliciet toestemming voor. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+        Camera is een prettige extra, geen installatievereiste: `required="false"`
+        houdt de app installeerbaar op toestellen zonder camera en beperkt de
+        Play-distributie niet onnodig. Zonder camera valt alleen de QR-scanner weg.
+    -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
 </manifest>

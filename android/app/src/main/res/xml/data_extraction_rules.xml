@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Back-up- en overdrachtsbeleid (Android 12+).
+
+    `allowBackup="false"` in de manifest schakelt cloud-back-up al uit; dit bestand
+    dekt daarnaast de overdracht bij het opzetten van een nieuw toestel.
+
+    Waarom alles uitsluiten: de app is een WebView op de gehoste site, dus de
+    lokale opslag bevat vooral **sessiecookies en WebView-state**. Die meekopiëren
+    naar een ander toestel betekent een ingelogde sessie overdragen zonder dat de
+    gebruiker opnieuw authenticeert. Er gaat niets verloren door dit uit te zetten:
+    alle echte gegevens staan server-side en komen na inloggen gewoon terug.
+
+    Zie ook de AVG-onderbouwing: geen persoonsgegevens in ongecontroleerde
+    back-ups buiten de EU-infrastructuur.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

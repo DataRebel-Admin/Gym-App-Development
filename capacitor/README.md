@@ -1,106 +1,109 @@
-# GymRebel op de App Store (iOS via Capacitor)
+# GymRebel als native app (App Store + Play Store)
 
-De iOS-app is een **Capacitor-wrapper** die de gehoste web-app in een WKWebView
-laadt (`server.url` → productie). De app is server-gerenderd (RSC), dus er is
-géén statische bundle — vandaar de remote-URL-aanpak.
+Beide apps zijn **Capacitor-wrappers** die de gehoste web-app in een WebView
+laden (`server.url` → productie). De app is server-gerenderd (RSC + Server
+Actions + Prisma), dus er is géén statische bundle om in te pakken. De afweging
+staat uitgeschreven in [`capacitor.config.ts`](../capacitor.config.ts).
 
-> ⚠️ **Apple-richtlijn 4.2 (minimale functionaliteit).** Een pure "website in een
-> WebView" wordt afgekeurd. De native meerwaarde van deze app zit in: haptics
-> (Taptic Engine), camera-QR-scan (via de WebView), web-push→APNs, en biometrische
-> login (passkeys). Reken op 1–2 afkeurrondes; reageer met deze native-functielijst.
+> **Historie:** Android liep eerder via een Trusted Web Activity (Bubblewrap,
+> map `twa/`). Dat is uitgefaseerd ten gunste van één wrapper-technologie voor
+> beide stores: gedeelde iconen, splash, versiebeheer en plugins. De oude opzet
+> staat in de git-historie.
 
-## Wat al klaar is in de repo (cross-platform)
+## Identiteit (onveranderlijk na publicatie)
 
-- `capacitor.config.ts` — wrapper-config (appId, `server.url`, safe-area-insets), env-overschrijfbaar.
-- `capacitor/www/index.html` — fallback-laadscherm (getoond tot de server laadt).
-- `lib/haptics.ts` — native Taptic Engine op iOS/Android, `navigator.vibrate` als web-fallback. **Al aangesloten** op: celebration-overlay, rusttimer en set-opslaan. (Belangrijk: iOS WKWebView kent géén `navigator.vibrate`, dus zónder deze laag zou er op iOS geen trilfeedback zijn.)
-- PWA-manifest + iconen + passkeys (Fase 1–3).
+| | Waarde |
+|---|---|
+| Bundle ID / package name | `nl.gymrebeltraining.app` |
+| App-naam onder het icoon | GymRebel |
+| Productie-host | `app.gymrebel-training.nl` |
 
-## Vereisten (alleen op macOS)
+Alle drie zijn env-overschrijfbaar (`CAPACITOR_APP_ID`, `CAPACITOR_SERVER_URL`,
+`ANDROID_PACKAGE_NAME`). Het koppelteken uit het websitedomein kan niet in het
+package-id: Android staat daar alleen letters, cijfers en underscores toe.
 
-- **macOS + Xcode** + **CocoaPods** (`sudo gem install cocoapods`).
-- **Apple Developer Program** (€99/jaar).
-- Node + de Capacitor-CLI (staat als devDep: `npx cap ...`).
+## Native meerwaarde (nodig voor Apple-richtlijn 4.2)
 
-## 1. iOS-platform toevoegen (op een Mac)
+Een app die enkel een website toont wordt afgekeurd. Wat deze app native doet:
+
+- **Haptics** via de Taptic Engine ([`lib/haptics.ts`](../lib/haptics.ts)),
+  aangesloten op de rusttimer, het opslaan van een set en de trofee-celebration.
+  iOS-WebViews kennen `navigator.vibrate` niet, dus zónder deze laag zou er op
+  iOS geen trilfeedback zijn.
+- **Camera-QR-scan** bij de apparaten.
+- **Push** via APNs (iOS) en FCM (Android).
+- **Biometrische login** via passkeys en Associated Domains.
+
+Reken op één of twee afkeurrondes; reageer met deze lijst.
+
+## Wat in de repo geregeld is
+
+- `capacitor.config.ts` — appId, remote `server.url`, `errorPath`, splash- en
+  toetsenbordgedrag, ATS en mixed content dicht.
+- `capacitor/www/error.html` — gebrande offlinepagina, herstelt vanzelf zodra het
+  toestel weer online is.
+- `android/` — volledig gegenereerd en gebrand (zie hieronder).
+- `npm run brand:assets` — genereert uit één vectorbron
+  ([`components/brand/logo-art.ts`](../components/brand/logo-art.ts)) de
+  PWA-iconen, favicon, Android-launcher/adaptive/splash **en** de
+  iOS-`Assets.xcassets`. Draai dit na elke `npx cap add`.
+- `npm run ios:plist` — zet de verplichte Info.plist-sleutels (idempotent).
+- Web-kant van push, passkeys, AASA en assetlinks (zie `.env.example`).
+
+## Android
 
 ```bash
-# In de repo, op macOS:
-CAPACITOR_SERVER_URL=https://<jouw-domein> CAPACITOR_APP_ID=app.gymrebel.mobile \
-  npx cap add ios
-npx cap sync ios
-npx cap open ios   # opent Xcode
+npx cap sync android
+npm run brand:assets      # iconen + splash branden
+npx cap open android      # Android Studio
 ```
 
-`cap add ios` genereert de `ios/`-map (Xcode-project). Deze is **niet** op Windows te
-genereren (CocoaPods/Xcode zijn macOS-only) en staat daarom niet in de repo.
+Permissies staan in [`AndroidManifest.xml`](../android/app/src/main/AndroidManifest.xml)
+en zijn bewust minimaal: `INTERNET`, `CAMERA`, `POST_NOTIFICATIONS`. `VIBRATE`
+komt via manifest-merge uit de haptics-plugin. Verder:
 
-## 2. Native plugins installeren (indien nog niet)
+- `network_security_config.xml` — alleen HTTPS, alleen systeem-CA's.
+- `data_extraction_rules.xml` plus `allowBackup=false` — geen sessiecookies in
+  cloud-back-ups of toestel-overdracht.
+- `values-v31/styles.xml` — startscherm voor Android 12+, waar het systeem de
+  splash-drawable negeert.
+- App Links-intent-filter op `@string/app_link_host`, geverifieerd via
+  `/.well-known/assetlinks.json` (vult zich uit `ANDROID_CERT_FINGERPRINTS`).
 
-De web-kant gebruikt al `@capacitor/haptics`, `@capacitor/app`, `@capacitor/status-bar`.
-Voor push heb je extra nodig:
+**Nog te doen:** push werkt pas met een `google-services.json` uit Firebase in
+`android/app/`, én een FCM-verzender aan de serverkant. Die ontbreekt nog:
+[`lib/push.ts`](../lib/push.ts) stuurt vandaag alleen web-push en APNs.
+
+## iOS
+
+`ios/` staat **niet** in de repo en is niet op Windows te genereren: Xcode en
+CocoaPods zijn macOS-only. Op een Mac of macOS-CI-runner:
 
 ```bash
-npm i @capacitor/push-notifications
+npx cap add ios
 npx cap sync ios
+npm run brand:assets      # vult ios/App/App/Assets.xcassets
+npm run ios:plist         # Info.plist-sleutels
+npx cap open ios
 ```
 
-## 3. Info.plist — permissies & app-bound domains
+Daarna in Xcode onder **Signing & Capabilities**. Dit zijn entitlements, geen
+Info.plist-sleutels, dus niet vanuit de repo te scripten:
 
-Voeg in Xcode (of `ios/App/App/Info.plist`) toe:
+- **Push Notifications**
+- **Associated Domains**: `webcredentials:app.gymrebel-training.nl` en
+  `applinks:app.gymrebel-training.nl`
 
-- `NSCameraUsageDescription` — "GymRebel gebruikt de camera om apparaat-QR-codes te scannen." (nodig voor de QR-scanner in de WebView).
-- `NSFaceIDUsageDescription` — "Log in met Face ID." (passkeys/biometrie).
-- **`WKAppBoundDomains`** (array met je domein) — nodig zodat service worker, web-push en passkeys in de WKWebView werken. Zet dan ook `limitsNavigationsToAppBoundDomains: true` in `capacitor.config.ts`.
+En in de productie-env: `APPLE_APP_ID` = `"<TeamID>.nl.gymrebeltraining.app"`,
+plus de APNs-sleutels (`APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_PRIVATE_KEY`,
+`APNS_BUNDLE_ID`). Controleer daarna
+`https://app.gymrebel-training.nl/.well-known/apple-app-site-association`.
 
-## 4. Passkeys in de app (associated domains) — ✅ web-kant klaar
-
-De AASA-route bestaat: `app/.well-known/apple-app-site-association/route.ts` (serveert
-`webcredentials` + `applinks`, env-gedreven). Te doen:
-
-- Zet **`APPLE_APP_ID`** in de productie-env = `"<TeamID>.<bundleId>"` (bv. `ABCDE12345.app.gymrebel.mobile`). Controleer daarna `https://<domein>/.well-known/apple-app-site-association`.
-- Xcode → Signing & Capabilities → **Associated Domains** → `webcredentials:<domein>` én `applinks:<domein>`.
-- Zet **`WEBAUTHN_RP_ID`** (hoofd-`.env`) op een domein dat matcht.
-
-Universal links (magic-link opent de app) werken dan automatisch via de `applinks`-sectie.
-
-## 5. Push (native APNs) — ✅ web-kant klaar
-
-Web-push werkt op iOS alléén in een geïnstalleerde PWA (16.4+), **niet** in de
-Capacitor-WebView. De app gebruikt native **APNs**. De web-kant is gebouwd:
-
-- `@capacitor/push-notifications` + `components/pwa/native-push-register.tsx` (in de
-  member- én owner-layout) registreren het device-token na login.
-- `app/account/native-push-actions.ts` slaat het op (`NativePushToken`-model).
-- `lib/push-apns.ts` (apns2) verstuurt; **aangehaakt in `sendPushToUser`**, dus álle
-  bestaande meldingen (schema's, onderhoud, trofeeën) bereiken automatisch ook iOS.
-
-Te doen aan Apple-kant:
-
-- Xcode → Signing & Capabilities → **Push Notifications** + **Background Modes → Remote notifications**.
-- Apple Developer → Keys → **APNs Auth Key (.p8)** aanmaken; vul de env in:
-  `APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_PRIVATE_KEY` (.p8-inhoud), `APNS_BUNDLE_ID`, `APNS_PRODUCTION`.
-- `npm i @capacitor/push-notifications` staat al; draai `npx cap sync ios`.
-
-> ⚠️ De APNs-verzending is **niet headless te testen** (vereist Apple-credentials +
-> een echt toestel). De code degradeert netjes zonder config en is best-effort.
-
-## 6. Account verwijderen (Apple 5.1.1(v)) — ACTIE VEREIST
-
-Apple eist **in-app account­verwijdering die de gebruiker zélf voltooit**. De
-huidige flow (`/account/privacy`) is een *verzoek* dat een beheerder verwerkt —
-dat wordt waarschijnlijk **afgekeurd**. Vóór iOS-inzending moet dit een echte
-self-service-verwijdering worden. (Zie de losse beslissing hierover.)
-
-## 7. Build, TestFlight & review
-
-- Xcode → selecteer een team, verhoog build-nummer, **Archive** → upload naar **App Store Connect**.
-- Distribueer via **TestFlight**, test op een echt toestel (login, QR, haptics, push).
-- Vul in App Store Connect: **privacy-nutrition-labels** (EU-data, geen tracking), screenshots per device, beschrijving, leeftijdsclassificatie, support-URL, privacybeleid-URL.
-- Dien in voor review.
+> Het app-icoon wordt **zonder alfakanaal** weggeschreven. App Store Connect
+> weigert anders de upload met `ITMS-90717`.
 
 ## Onderhoud
 
-- Web-wijzigingen zijn direct live (de app laadt de gehoste site) — geen nieuwe
-  app-build nodig, behálve bij native wijzigingen (plugins/permissies/icoon).
-- Nieuwe native build: verhoog het build-nummer, `npx cap sync ios`, Archive, upload.
+Web-wijzigingen zijn direct live; de app laadt de gehoste site. Een nieuwe
+store-build is alleen nodig bij native wijzigingen: plugins, permissies, iconen,
+splash of het app-id.

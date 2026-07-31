@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Netwerkbeleid voor de WebView.
+
+    De app praat uitsluitend met de gehoste productie-app over HTTPS. Onversleuteld
+    HTTP is overal geblokkeerd, ook voor subdomeinen en voor eventuele
+    afbeeldings-/mediahosts. Dat sluit aan op `cleartext: false` en
+    `allowMixedContent: false` in capacitor.config.ts, en op de
+    ATS-instellingen aan de iOS-kant.
+
+    Bewust GEEN `<debug-overrides>` met een eigen CA: als je lokaal tegen een
+    dev-server wilt draaien, wijs `CAPACITOR_SERVER_URL` naar een https-tunnel
+    (bijvoorbeeld een Vercel-preview) in plaats van het beleid te versoepelen.
+    Een versoepeling die per ongeluk in een release belandt is precies wat de
+    Play-beveiligingsscan afstraft.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Alleen de CA's van het systeem; geen eigen of gebruiker-CA's. -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

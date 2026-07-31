@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Startscherm voor Android 12 en hoger (API 31+).
+
+    Vanaf Android 12 tekent het systeem het startscherm zélf en negeert het de
+    `android:background`-drawable uit values/styles.xml. Zonder dit bestand zie je
+    op vrijwel elk modern toestel dus niet ons GYMREBEL-startscherm maar het
+    systeemstandaard: het app-icoon op een wit vlak, met een witte flits tegen de
+    donkere huisstijl in.
+
+    Wat het systeem hier wél gebruikt:
+      windowSplashScreenBackground     het achtergrondvlak (Brand Book Black)
+      windowSplashScreenAnimatedIcon   het beeldmerk in het midden
+      postSplashScreenTheme            het thema waar de app na de splash op overgaat
+
+    De oudere drawable-splashes in res/drawable-port-* en -land-* blijven staan
+    voor Android 11 en lager; die worden door `npm run brand:assets` gegenereerd.
+-->
+<resources>
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splashScreenBackground</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+    </style>
+</resources>

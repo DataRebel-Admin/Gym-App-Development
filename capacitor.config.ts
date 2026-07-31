@@ -72,6 +72,56 @@ const config: CapacitorConfig = {
     // debugbare WebView als beveiligingsrisico.
     webContentsDebuggingEnabled: false,
   },
+  plugins: {
+    SplashScreen: {
+      /**
+       * De app laadt een remote URL, dus tussen "activity getekend" en "site
+       * zichtbaar" zit netwerktijd. Zonder splash zie je daar een leeg vlak.
+       *
+       * Bewust `launchAutoHide: true` met een **plafond** van 2 seconden, niet
+       * `false`: bij `false` blijft het startscherm hangen zodra de web-app het
+       * nooit wegklikt, en juist dat scenario bestaat hier. Valt het toestel
+       * terug op de lokale `error.html`, dan heeft die pagina op Android géén
+       * toegang tot Capacitor-plugins en kan hij `hide()` dus niet aanroepen.
+       * Een app die op een startscherm blijft staan leest als vastgelopen en
+       * wordt door beide stores afgekeurd.
+       *
+       * In de praktijk is de web-app meestal sneller: `SplashGate` roept
+       * `hide()` zodra de UI staat (components/pwa/splash-gate.tsx).
+       */
+      launchAutoHide: true,
+      launchShowDuration: 2000,
+      // Gelijk aan het startscherm zelf (Brand Book Black), zodat het overgaan
+      // naar de WebView geen kleurstap geeft.
+      backgroundColor: "#000000",
+      androidSpinnerStyle: "horizontal",
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: false,
+    },
+    PushNotifications: {
+      /**
+       * Wat iOS doet met een melding terwijl de app openstaat. Zonder dit toont
+       * iOS níéts: de melding komt binnen, de listener vuurt, maar de gebruiker
+       * ziet niets. Met `banner` en `sound` gedraagt de app zich zoals een
+       * gebruiker verwacht.
+       *
+       * `badge` staat er bewust niet bij: we houden nergens een ongelezen-teller
+       * bij, dus een badge zou blijven staan tot de gebruiker 'm handmatig wist.
+       *
+       * Android kent deze optie niet; daar vangt de in-app toast in
+       * `native-push-register.tsx` het voorgrondgeval af.
+       */
+      presentationOptions: ["banner", "sound"],
+    },
+    Keyboard: {
+      // Het toetsenbord schuift de WebView niet omhoog maar verkleint 'm: bij het
+      // loggen van een set blijft de knoppenbalk daardoor zichtbaar in plaats van
+      // achter het toetsenbord te verdwijnen.
+      resize: "body",
+      resizeOnFullScreen: true,
+    },
+  },
 };
 
 export default config;

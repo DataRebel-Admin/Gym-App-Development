@@ -4,4 +4,16 @@
     <string name="title_activity_main">GymRebel</string>
     <string name="package_name">nl.gymrebeltraining.app</string>
     <string name="custom_url_scheme">nl.gymrebeltraining.app</string>
+    <!--
+        Host voor de App Links-intent-filter in AndroidManifest.xml. Moet gelijk
+        zijn aan de host van CAPACITOR_SERVER_URL, en op dat domein moet
+        /.well-known/assetlinks.json de handtekening van deze app bevatten.
+    -->
+    <string name="app_link_host">app.gymrebel-training.nl</string>
+    <!--
+        Vangnet-meldingskanaal. Moet exact gelijk zijn aan DEFAULT_PUSH_CHANNEL.id
+        in lib/push-channels.ts: de app maakt het kanaal aan, Firebase verwijst er
+        via deze string naar wanneer het zelf een melding opbouwt.
+    -->
+    <string name="default_notification_channel_id">gymrebel-general</string>
 </resources>

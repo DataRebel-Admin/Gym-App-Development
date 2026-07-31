@@ -1,5 +1,13 @@
 ext {
+    // minSdk 24 = Android 7.0 (2016). Capacitor 8 vereist minimaal 23; 24 dekt
+    // ruim 99% van de actieve toestellen en is de Capacitor-standaard. Verhogen
+    // heeft hier geen functioneel voordeel: de app is een WebView, dus de
+    // ondergrens die er écht toe doet is de Chrome-versie op het toestel, en die
+    // wordt los van het OS bijgewerkt via Play.
     minSdkVersion = 24
+    // Google verhoogt de verplichte targetSdk jaarlijks (rond augustus). Loopt
+    // die deadline af, dan weigert Play nieuwe uploads. Verhogen doe je met
+    // `npx cap update android`, niet met de hand.
     compileSdkVersion = 36
     targetSdkVersion = 36
     androidxActivityVersion = '1.11.0'
