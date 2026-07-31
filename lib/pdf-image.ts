@@ -1,5 +1,6 @@
 import "server-only";
 import type { PDFDocument, PDFImage } from "pdf-lib";
+import { toAbsoluteUrl } from "@/lib/app-url";
 
 /**
  * Externe afbeeldingen in een pdf-lib-document embedden — gedeeld door alle
@@ -46,7 +47,11 @@ export async function embedRemoteImage(
   { maxPx = 160, timeoutMs = 5000 }: EmbedImageOptions = {}
 ): Promise<PDFImage | null> {
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    // Een PDF wordt buiten de request-context opgebouwd, dus `/brand/logo.svg`
+    // bestaat daar niet: eigen paden krijgen de app-origin ervoor.
+    const res = await fetch(toAbsoluteUrl(url) ?? url, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (!res.ok) return null;
     const raw = new Uint8Array(await res.arrayBuffer());
     if (raw.length === 0) return null;

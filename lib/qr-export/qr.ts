@@ -2,6 +2,7 @@ import "server-only";
 import { Resvg } from "@resvg/resvg-js";
 import { qrMatrix } from "./qr-matrix";
 import { renderStyledQrSvg, type QrStyleOptions } from "./qr-style";
+import { toAbsoluteUrl } from "@/lib/app-url";
 
 // Server-side QR-rendering voor de export. Gestyled (accent + afgeronde modules +
 // midden-logo) via de gedeelde, pure renderer in ./qr-style. Foutcorrectie "H"
@@ -21,12 +22,14 @@ export type QrRenderStyle = Omit<QrStyleOptions, "pixelSize">;
  * naar `null`. Model naar `embedLogo` in ./labels-pdf.
  */
 export async function loadLogoDataUri(url: string | null | undefined): Promise<string | null> {
-  if (!url) return null;
+  const target = toAbsoluteUrl(url);
+  if (!target) return null;
   try {
-    const res = await fetch(url);
+    // Eigen paden (`/brand/…`) absoluut maken: deze fetch loopt buiten de pagina.
+    const res = await fetch(target);
     if (!res.ok) return null;
     const ct = res.headers.get("content-type") ?? "";
-    const lower = url.toLowerCase();
+    const lower = target.toLowerCase();
     const mime = ct.startsWith("image/")
       ? ct
       : lower.endsWith(".png")
