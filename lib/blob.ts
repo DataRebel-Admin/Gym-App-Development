@@ -2,9 +2,27 @@ import "server-only";
 import { put } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
 
+/**
+ * Token van de Blob-store.
+ *
+ * Vercel zet bij het koppelen standaard `BLOB_READ_WRITE_TOKEN`, en dát is de
+ * enige naam die `@vercel/blob` zelf kent. Onze store is gekoppeld met het
+ * prefix `GYMBLOB_`, dus zonder deze helper ziet de SDK geen opslag en falen
+ * álle uploads stil. Daarom lezen we beide namen en geven we de token expliciet
+ * mee aan `put()`/`del()`.
+ *
+ * De standaardnaam wint bewust: koppel je de store later opnieuw zónder prefix,
+ * dan werkt dat vanzelf en hoeft hier niets terug.
+ */
+export function blobToken(): string | undefined {
+  return (
+    process.env.BLOB_READ_WRITE_TOKEN || process.env.GYMBLOB_READ_WRITE_TOKEN || undefined
+  );
+}
+
 /** Is Vercel Blob geconfigureerd? (Lokaal vaak niet.) */
 export function blobConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  return Boolean(blobToken());
 }
 
 /**
@@ -21,7 +39,7 @@ export async function uploadMachineImage(
 
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
   const key = `${tenantSlug}/machines/${randomUUID()}.${ext}`;
-  const blob = await put(key, file, { access: "public" });
+  const blob = await put(key, file, { access: "public", token: blobToken() });
   return blob.url;
 }
 
@@ -45,7 +63,7 @@ export async function uploadExerciseImage(
     if (blobConfigured()) {
       const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
       const key = `${tenantSlug}/exercises/${randomUUID()}.${ext}`;
-      const blob = await put(key, file, { access: "public" });
+      const blob = await put(key, file, { access: "public", token: blobToken() });
       return blob.url;
     }
 
@@ -78,7 +96,7 @@ export async function uploadProgressPhoto(
     if (blobConfigured()) {
       const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
       const key = `${tenantSlug}/progress/${randomUUID()}.${ext}`;
-      const blob = await put(key, file, { access: "public" });
+      const blob = await put(key, file, { access: "public", token: blobToken() });
       return blob.url;
     }
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -111,7 +129,7 @@ export async function uploadSchemaImage(
     if (blobConfigured()) {
       const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
       const key = `${tenantSlug}/schemas/${randomUUID()}.${ext}`;
-      const blob = await put(key, file, { access: "public" });
+      const blob = await put(key, file, { access: "public", token: blobToken() });
       return blob.url;
     }
 
@@ -148,7 +166,7 @@ export async function uploadTenantAsset(
     if (blobConfigured()) {
       const ext = file.name.includes(".") ? file.name.split(".").pop() : "png";
       const key = `${tenantSlug}/branding/${kind}-${randomUUID()}.${ext}`;
-      const blob = await put(key, file, { access: "public" });
+      const blob = await put(key, file, { access: "public", token: blobToken() });
       return { url: blob.url };
     }
 
@@ -186,7 +204,7 @@ export async function uploadReportScreenshot(
   try {
     const ext = file.name.includes(".") ? file.name.split(".").pop() : "png";
     const key = `reports/screenshots/${randomUUID()}.${ext}`;
-    const blob = await put(key, file, { access: "public" });
+    const blob = await put(key, file, { access: "public", token: blobToken() });
     return { url: blob.url };
   } catch {
     return { error: "failed" };
@@ -215,7 +233,7 @@ export async function uploadDefectPhoto(
   try {
     const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
     const key = `defects/${tenantId}/${randomUUID()}.${ext}`;
-    const blob = await put(key, file, { access: "public" });
+    const blob = await put(key, file, { access: "public", token: blobToken() });
     return blob.url;
   } catch {
     return null;
@@ -246,7 +264,7 @@ export async function uploadAvatar(
     if (blobConfigured()) {
       const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
       const key = `avatars/${userId}/${randomUUID()}.${ext}`;
-      const blob = await put(key, file, { access: "public" });
+      const blob = await put(key, file, { access: "public", token: blobToken() });
       return { url: blob.url };
     }
 

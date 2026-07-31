@@ -3,7 +3,7 @@ import { del } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { audit } from "@/lib/audit";
-import { blobConfigured } from "@/lib/blob";
+import { blobConfigured, blobToken } from "@/lib/blob";
 import { REPORT_SCREENSHOT_RETENTION_DAYS } from "@/lib/constants";
 
 /**
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
     try {
       const key = report.screenshotKey;
       if (key?.startsWith("https://") && blobConfigured()) {
-        await del(key);
+        await del(key, { token: blobToken() });
       }
       await prisma.appReport.update({
         where: { id: report.id },
