@@ -25,6 +25,29 @@ export default async function PrivacyPage() {
         <ConsentsForm initial={consents} />
       </section>
 
+      {/* Publieke juridische documenten. Beide stores eisen dat de app naar de
+          privacyverklaring linkt; hier staat de gebruiker er ook echt naar te
+          kijken, dus dit is de logische plek. */}
+      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Documenten</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Lees hoe we met je gegevens omgaan en welke cookies we plaatsen.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <a href="/privacy" className={buttonClasses({ variant: "outline" })}>
+            Privacyverklaring
+          </a>
+          <a href="/cookies" className={buttonClasses({ variant: "outline" })}>
+            Cookiebeleid
+          </a>
+          <a href="/support" className={buttonClasses({ variant: "outline" })}>
+            Hulp nodig
+          </a>
+        </div>
+      </section>
+
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Je gegevens downloaden</h2>
