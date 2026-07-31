@@ -7,6 +7,7 @@ import { listDemoAccounts } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { GymRebelMark } from "@/components/brand/gymrebel-logo";
+import { NativePushCleanup } from "@/components/pwa/native-push-cleanup";
 
 export async function generateMetadata() {
   const t = await getTranslations("auth");
@@ -30,6 +31,9 @@ export default async function LoginPage() {
   return (
     // Gecentreerd op de geanimeerde, gebrande pagina-achtergrond (--app-bg).
     <main className="flex flex-1 items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
+      {/* Niemand ingelogd → dit toestel hoort geen pushmeldingen meer te krijgen.
+          No-op op web en zonder bewaard token. */}
+      <NativePushCleanup />
       <Reveal className="grid w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-surface-1 shadow-lg lg:max-w-5xl lg:grid-cols-[1.05fr_1fr]">
         {/* Brand-paneel — whitelabel, gebruikt de tenant-accent. Desktop-only. */}
         <aside className="relative hidden overflow-hidden bg-accent-gradient text-accent-foreground lg:flex lg:min-h-[34rem] lg:flex-col lg:justify-between lg:p-12 xl:p-14">

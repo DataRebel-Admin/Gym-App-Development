@@ -134,6 +134,7 @@ async function deliverToAll(opts: {
           body: delivery.body,
           url: "/owner/defects",
           tag: "defects",
+          category: "defects",
         });
         if (delivered > 0) any = true;
       }
@@ -262,7 +263,7 @@ export async function notifyReporterResolved(opts: {
       });
     }
     if (prefAllows(reporter.notificationPrefs, "defects", "push")) {
-      await sendPushToUser(reporter.id, { title, body, url: link, tag: "defects" });
+      await sendPushToUser(reporter.id, { title, body, url: link, tag: "defects", category: "defects" });
     }
     if (prefAllows(reporter.notificationPrefs, "defects", "email")) {
       const branding = await loadTenantBranding(opts.tenantId);

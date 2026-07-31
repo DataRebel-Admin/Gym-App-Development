@@ -40,3 +40,32 @@ export async function registerNativePushToken(input: {
 
   return { ok: true };
 }
+
+/**
+ * Trek een device-token in. Aangeroepen door de app zodra er niemand meer is
+ * ingelogd (zie `components/pwa/native-push-cleanup.tsx`).
+ *
+ * ## Waarom dit moet
+ *
+ * Het token hoort bij het *toestel*, niet bij de sessie. Zonder intrekken blijft
+ * een uitgelogd toestel meldingen van het vorige account tonen: log uit, geef je
+ * telefoon aan iemand anders en die leest op het vergrendelscherm mee dat jouw
+ * coach een nieuw schema heeft klaargezet.
+ *
+ * ## Waarom er geen sessie vereist is
+ *
+ * Bij uitloggen bestaat de sessie per definitie niet meer, dus een `auth()`-check
+ * zou de opruiming juist onmogelijk maken. Verwijderen op tokenwaarde is veilig:
+ * dat token is een apparaatgeheim dat alleen op dat toestel bekend is, en het
+ * ergste wat een aanvaller met een gegokt token kan doen is meldingen voor
+ * zichzelf uitzetten. Zelfde afweging als bij het afmelden van een web-push-
+ * abonnement.
+ */
+export async function unregisterNativePushToken(token: string): Promise<{ ok: boolean }> {
+  const parsed = z.string().min(1).max(400).safeParse(token);
+  if (!parsed.success) return { ok: false };
+
+  await prisma.nativePushToken.deleteMany({ where: { token: parsed.data } }).catch(() => {});
+
+  return { ok: true };
+}

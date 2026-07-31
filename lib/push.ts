@@ -2,6 +2,8 @@ import "server-only";
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
 import { sendApnsToUser } from "@/lib/push-apns";
+import { sendFcmToUser } from "@/lib/push-fcm";
+import type { PushChannelCategory } from "@/lib/push-channels";
 
 /**
  * Web-push-verzending (VAPID). Centrale, best-effort laag — net als
@@ -42,6 +44,17 @@ export type PushPayload = {
   body: string;
   url?: string;
   tag?: string;
+  /**
+   * Meldingscategorie. Bepaalt op Android in welk **kanaal** de melding valt en
+   * daarmee of hij met geluid binnenkomt of stil in de balk verschijnt (zie
+   * lib/push-channels.ts). Optioneel: zonder categorie gebruikt Android het
+   * standaardkanaal.
+   *
+   * Dit is bewust een apart veld en niet afgeleid uit `tag`: die tags zijn
+   * bedoeld om meldingen te vervangen en lopen niet gelijk met de categorieën
+   * ("achievement" versus "achievements", "schema-assigned" versus "schemas").
+   */
+  category?: PushChannelCategory;
 };
 
 /**
@@ -93,6 +106,15 @@ export async function sendPushToUser(
     delivered += await sendApnsToUser(userId, payload);
   } catch (err) {
     console.error("[push] APNs mislukt:", (err as Error).message);
+  }
+
+  // Native Android (FCM) — idem. Nodig omdat de Capacitor-WebView géén
+  // service-worker-push ontvangt: web-push hierboven bereikt alleen browsers en
+  // geïnstalleerde PWA's, niet de app uit de Play Store.
+  try {
+    delivered += await sendFcmToUser(userId, payload);
+  } catch (err) {
+    console.error("[push] FCM mislukt:", (err as Error).message);
   }
 
   return delivered;

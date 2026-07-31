@@ -83,6 +83,7 @@ export async function notifyAchievementsEarned(opts: {
         body,
         url: "/member/trophies",
         tag: "achievement",
+        category: "achievements",
       });
       if (delivered > 0) channels.push("push");
     }

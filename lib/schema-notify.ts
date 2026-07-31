@@ -106,6 +106,7 @@ export async function notifyAssignmentsPublished(opts: {
           body: t("notifications.schemaAssigned.pushBody"),
           url: "/member/schema",
           tag: "schema-assigned",
+          category: "schemas",
         });
         if (delivered > 0) channels.push("push");
       }

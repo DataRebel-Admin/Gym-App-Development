@@ -136,6 +136,7 @@ async function deliverToAll(opts: {
           body: delivery.body,
           url: "/owner/maintenance",
           tag: "maintenance",
+          category: "maintenance",
         });
         if (delivered > 0) any = true;
       }
