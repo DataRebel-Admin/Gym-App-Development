@@ -21,9 +21,22 @@ export function machineTypeLabel(type: string): string {
   return MACHINE_TYPE_LABELS[type as MachineTypeValue] ?? type;
 }
 
-/** Publieke (productie-)URL die in de QR-code wordt gecodeerd. */
+/**
+ * Basisdomein voor tenant-subdomeinen. `NEXT_PUBLIC_` omdat deze helper bewust
+ * ook in Client Components bruikbaar is (een server-only var zou daar stil
+ * `undefined` opleveren).
+ */
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "gymrebel-training.nl";
+
+/**
+ * Publieke (productie-)URL die in de QR-code wordt gecodeerd.
+ *
+ * ⚠️ Deze URL belandt op **fysiek geprinte** stickers bij de apparaten. Wijzigt
+ * het domein, dan zijn alle eerder geprinte labels dood: houd het oude domein
+ * dan draaiend met een redirect, of print opnieuw via de QR-bulkexport.
+ */
 export function machinePublicUrl(tenantSlug: string, qrToken: string): string {
-  return `https://${tenantSlug}.gymrebel.app/m/${qrToken}`;
+  return `https://${tenantSlug}.${APP_DOMAIN}/m/${qrToken}`;
 }
 
 // Heuristiek: leid een MachineType af uit het vrije equipment-veld van de

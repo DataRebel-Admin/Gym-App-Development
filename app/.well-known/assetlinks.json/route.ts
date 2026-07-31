@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 
 /**
- * Digital Asset Links — koppelt deze website aan de Android TWA-app (Play).
- * Google's TWA verifieert `https://<host>/.well-known/assetlinks.json`; matcht de
- * app-handtekening, dan verdwijnt de URL-balk en mag de app web-push tonen.
+ * Digital Asset Links — koppelt deze website aan de Android-app (Capacitor, Play).
+ * Android verifieert `https://<host>/.well-known/assetlinks.json`; matcht de
+ * app-handtekening, dan gelden **App Links**: links naar dit domein (magic link,
+ * uitnodiging, apparaat-QR) openen rechtstreeks in de app in plaats van in de
+ * browser, zonder keuzedialoog.
  *
- * Waarden komen uit env (bestaan pas ná de eerste build / Play App Signing):
- *   ANDROID_PACKAGE_NAME       bv. app.gymrebel.twa
+ * Waarden komen uit env (de fingerprints bestaan pas ná de eerste build /
+ * Play App Signing):
+ *   ANDROID_PACKAGE_NAME       = CAPACITOR_APP_ID, bv. nl.gymrebeltraining.app
  *   ANDROID_CERT_FINGERPRINTS  komma-gescheiden SHA-256 fingerprints
  *                              (meestal 2: je upload-key én de Play App Signing-key)
  *

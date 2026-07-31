@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>GymRebel</title>
+    <style>
+      :root { --accent: #ff4d00; --bg: #111111; --panel: #1e1e1e; --text: #ffffff; --muted: #a1a1a1; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+        font-family: -apple-system, system-ui, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+      .wrap { display: flex; flex-direction: column; align-items: center; justify-content: center;
+        min-height: 100%; gap: 1.25rem; box-sizing: border-box; text-align: center;
+        padding: calc(env(safe-area-inset-top) + 2rem) 1.5rem calc(env(safe-area-inset-bottom) + 2rem); }
+      .mark { width: 72px; height: 72px; border-radius: 20px; background: var(--accent);
+        display: grid; place-items: center; }
+      .mark svg { width: 46px; height: 46px; fill: #fff; }
+      h1 { font-size: 1.25rem; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+      p { margin: 0; font-size: 0.95rem; line-height: 1.5; color: var(--muted); max-width: 24rem; }
+      .btn { appearance: none; border: 0; cursor: pointer; margin-top: 0.5rem;
+        background: var(--accent); color: #fff; font: inherit; font-weight: 700; font-size: 1rem;
+        padding: 0.9rem 1.75rem; border-radius: 999px; min-height: 48px; text-decoration: none;
+        display: inline-flex; align-items: center; justify-content: center; }
+      .btn:active { opacity: 0.85; }
+      .hint { font-size: 0.8rem; color: #6b6b6b; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Getoond wanneer de WebView de gehoste app niet kan laden: geen netwerk, DNS-fout
+      of server onbereikbaar. Verwezen vanuit `server.errorPath` in capacitor.config.ts.
+
+      Bewust een losstaand bestand zonder afhankelijkheden: op Android heeft deze pagina
+      géén toegang tot Capacitor-plugins, en zonder verbinding is er niets te fetchen.
+
+      ⚠️ De URL hieronder moet gelijk zijn aan `CAPACITOR_SERVER_URL` (capacitor.config.ts).
+      Wijzig je het productiedomein, pas 'm dan hier ook aan.
+    -->
+    <div class="wrap">
+      <div class="mark">
+        <svg viewBox="0 0 512 512" aria-hidden="true">
+          <rect x="150" y="240" width="212" height="32" rx="16" />
+          <rect x="160" y="214" width="24" height="84" rx="10" />
+          <rect x="328" y="214" width="24" height="84" rx="10" />
+          <rect x="116" y="190" width="34" height="132" rx="16" />
+          <rect x="362" y="190" width="34" height="132" rx="16" />
+        </svg>
+      </div>
+      <h1>Geen verbinding</h1>
+      <p>
+        We kunnen GymRebel nu niet laden. Controleer je internetverbinding en
+        probeer het opnieuw.
+      </p>
+      <a class="btn" id="retry" href="https://app.gymrebel-training.nl/">Opnieuw proberen</a>
+      <p class="hint">De app gaat vanzelf verder zodra je weer online bent.</p>
+    </div>
+    <script>
+      // Zodra het toestel weer online is, meteen terug naar de app.
+      var target = document.getElementById("retry").href;
+      window.addEventListener("online", function () {
+        window.location.replace(target);
+      });
+    </script>
+  </body>
+</html>
