@@ -1898,6 +1898,100 @@ sleutels → NL-fallback). Géén Prisma-migratie nodig: `enum Locale {NL,EN,FY}
   account-forms, gedeelde UI-componenten met defaulttekst, en server-side (e-mails
   `lib/email`, PDF `lib/schema-pdf`, zod-validatie, audit-zinnen, `getExerciseDetail`-locale).
 
+### Native apps: App Store + Play Store (Capacitor)
+
+Beide apps zijn **Capacitor-wrappers** rond de gehoste site (`server.url`). De TWA
+voor Android is uitgefaseerd: één wrapper-technologie voor beide stores. Volledige
+operationele handleiding in **`capacitor/README.md`**; publiceerchecklist,
+testplan en store-metadata in **`store/`**.
+
+- **Identiteit (onveranderlijk na publicatie)**: bundle ID/package name
+  `nl.gymrebeltraining.app`, host `app.gymrebel-training.nl`. Het koppelteken uit
+  het websitedomein kán niet in een Android-package-name (alleen letters, cijfers,
+  underscores). Env: `CAPACITOR_APP_ID`, `CAPACITOR_SERVER_URL`,
+  `ANDROID_PACKAGE_NAME`, `NEXT_PUBLIC_APP_DOMAIN`.
+- **GEEN GEBUNDELDE BUILD, EN DAT KAN OOK NIET.** De app draait op RSC + Server
+  Actions + Prisma; er bestaat geen statische `out/` (`output: "export"` sluit
+  server actions en de proxy uit). Gevolg: web-wijzigingen zijn direct live zonder
+  store-review, maar zónder netwerk werkt de app niet. Opgevangen met
+  `server.errorPath` → `capacitor/www/error.html` (gebrand, herstelt bij `online`).
+  Capacitor documenteert `server.url` zelf als "not intended for production".
+- **Apple-richtlijn 4.2** is het reële publicatierisico, niet de techniek. De
+  verdediging is de native laag die er al ligt: haptics, camera-QR, APNs-push,
+  passkeys. Geef de reviewer een **lid**-account, geen owner-account: die ziet dan
+  QR-scannen bij een apparaat in plaats van een desktop-dashboard op een telefoon.
+  De app is als **sporter-app** gepositioneerd (store-teksten/screenshots), maar
+  staff wordt **niet** geblokkeerd — dat zou mobiel zinvolle taken afpakken
+  (defect afhandelen bij het apparaat, aanwezigheid afvinken).
+- **`ios/` staat niet in de repo** en is niet op Windows te genereren (Xcode en
+  CocoaPods zijn macOS-only). Daarom is alles wat iOS raakt een **script** dat na
+  `npx cap add ios` draait: `npm run ios:plist` (Info.plist-sleutels, idempotent)
+  en `npm run brand:assets` (vult `Assets.xcassets`). Capabilities (Push,
+  Associated Domains) zijn entitlements en blijven handwerk in Xcode.
+- **iOS-app-icoon zonder alfakanaal.** resvg levert altijd RGBA; App Store Connect
+  weigert dat met `ITMS-90717`. `pngOpaque()` in de merkgenerator plat het af.
+- **Android-meldingsicoon = alfa-silhouet in `drawable-*`** (`ic_stat_gymrebel`).
+  Android gebruikt alléén het alfakanaal; een gekleurd icoon wordt een witte blob.
+  Bewust drawable en niet mipmap: FCM zoekt een drawable op naam.
+- **Versiebeheer**: `app-version.json` is de enige bron; `npm run version:sync` /
+  `:bump` / `:check` schrijven naar Gradle en Info.plist. Eén buildteller voor
+  beide platforms. **Niet verwarren met `lib/changelog.ts`**, dat een marketing-
+  label voor release notes is en los mag lopen.
+- **Signing** leest uit `android/keystore.properties` of uit env (CI). Zonder die
+  gegevens wordt er géén signingConfig gezet, zodat uploaden zichtbaar faalt in
+  plaats van stil een verkeerd getekend artefact op te leveren. Keystores en
+  `google-services.json` staan in `.gitignore`. `minifyEnabled` blijft **uit**
+  (Capacitor-plugins gaan via reflectie); de debug-build krijgt bewust **geen**
+  `applicationIdSuffix`, want dat breekt App Links-verificatie en FCM.
+
+### Push op alle drie de kanalen (web, APNs, FCM)
+
+`sendPushToUser` (lib/push.ts) bedient **web-push (VAPID) + APNs (iOS) + FCM
+(Android)**. Die derde was er niet, waardoor een Android-app wél een token
+registreerde maar nooit iets ontving: de Capacitor-WebView krijgt géén
+service-worker-push, dus web-push bereikt alleen browsers en geïnstalleerde PWA's.
+
+- **`lib/push-fcm.ts`** spiegelt `push-apns.ts`. **Dependency-vrij**: het
+  access-token is een RS256-JWT via `node:crypto`, gecacht (1 uur). Env
+  `FCM_PROJECT_ID` / `FCM_CLIENT_EMAIL` / `FCM_PRIVATE_KEY`; de app heeft daarnaast
+  `android/app/google-services.json` nodig. Zonder config: nette no-op.
+- **`lib/push-channels.ts`** (puur) = Android-meldingskanalen per
+  `NotificationCategory`, met eigen `importance`: een onveilig apparaat mag
+  onderbreken (4), een trofee niet (2). Zonder expliciete kanalen belandt alles in
+  Androids naamloze "Overig" en kan de gebruiker alleen álles tegelijk uitzetten.
+  **De categorie is een apart veld op `PushPayload`, nooit afgeleid uit `tag`** —
+  die tags lopen niet gelijk met de categorieën ("achievement" vs "achievements").
+  Het vangnet-kanaal moet gelijk blijven aan `default_notification_channel_id` in
+  `strings.xml`; `tests/push-channels.test.ts` bewaakt die driewegkoppeling.
+- **Voorgrond**: iOS via `presentationOptions` (banner+sound), Android via een
+  in-app toast in `native-push-register.tsx`. Zonder dat is een melding tijdens
+  gebruik volledig onzichtbaar.
+- **Token intrekken bij uitloggen** (`native-push-cleanup.tsx`, gemount op
+  `/login`). Het token hoort bij het *toestel*, niet bij de sessie: zonder dit
+  leest iemand die je telefoon leent op het vergrendelscherm mee. Op het
+  loginscherm en niet in de uitlogknop, want uitloggen redirect direct en er zijn
+  meerdere uitwegen (uitlogknop, "log overal uit", verlopen sessie).
+- **Deep links**: `components/pwa/deep-link-handler.tsx` (`appUrlOpen`). Zonder
+  deze listener opent een magic link de app wél, maar op de startpagina in plaats
+  van op de inloglink. Volgt alleen paden binnen de eigen host — een custom scheme
+  (`nl.gymrebeltraining.app://`) kan door elke app op het toestel worden afgevuurd.
+
+### Publieke informatiepagina's (`/privacy`, `/cookies`, `/support`)
+
+Store-vereiste: privacy-URL én support-URL moeten **zonder login** te openen zijn,
+anders wordt de app afgekeurd. Apple accepteert geen `mailto:` als support-URL.
+Gedeelde shell `components/public/info-page.tsx`; bewust **buiten** de
+tenant-huisstijl (platformmerk), want de afzender is GymRebel, niet een sportschool.
+
+- `lib/legal.ts` = bedrijfsgegevens + verwerkerslijst. ⚠️ `LEGAL_ENTITY` staat nog
+  op `TODO` voor adres en KvK; de teksten zijn niet juridisch getoetst.
+- Het cookiebeleid legt vast waaróm er geen toestemmingsbanner is: alle cookies
+  zijn functioneel of een expliciete voorkeur. Voeg je ooit analytics toe, dan is
+  een banner verplicht en moet die pagina mee.
+- **Accountverwijdering voldoet al aan Apple 5.1.1(v)**: self-service op
+  `/account/privacy` + `api/cron/delete-accounts` voert 'm na de bedenktijd
+  automatisch uit. Geen beheerder-tussenstap.
+
 ## RLS-policies toepassen (vastgelegd in prompt 04)
 
 De row-level-security policies staan in `prisma/sql/rls.sql` (buiten `prisma/migrations/`,
