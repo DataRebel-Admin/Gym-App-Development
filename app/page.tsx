@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { buttonClasses } from "@/components/ui/button-classes";
-import { GymRebelLogo } from "@/components/brand/gymrebel-logo";
+import { GymRebelStacked } from "@/components/brand/gymrebel-logo";
+import { GetTheApp } from "@/components/pwa/get-the-app";
 
 export const metadata = { title: "Welkom" };
 
@@ -30,14 +31,17 @@ export default async function Home() {
       {/* Platformmerk (pre-tenant): hier is GymRebel zélf de afzender, dus het
           echte logo i.p.v. een initiaal-tegel. De <h1> blijft staan voor
           screenreaders/SEO; visueel doet het woordmerk het werk. */}
-      <GymRebelLogo className="h-14 w-auto max-w-full text-neutral-900 sm:h-20" />
-      <h1 className="sr-only">GymRebel</h1>
+      <GymRebelStacked className="w-64 max-w-full text-neutral-900 sm:w-80" />
+      <h1 className="sr-only">GymRebel Training</h1>
       <p className="mt-4 max-w-md text-lg text-neutral-500">
         Slimmer trainen in jouw sportschool.
       </p>
       <Link href="/login" className={buttonClasses({ size: "lg", className: "mt-8" })}>
         Inloggen
       </Link>
+      {/* Installeren of downloaden — verbergt zichzelf in de native app, in een
+          reeds geïnstalleerde PWA, en zolang er niets te bieden valt. */}
+      <GetTheApp />
     </main>
   );
 }
