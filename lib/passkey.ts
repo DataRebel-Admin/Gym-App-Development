@@ -8,6 +8,7 @@ import {
   verifyAuthenticationResponse,
 } from "@simplewebauthn/server";
 import { isoBase64URL } from "@simplewebauthn/server/helpers";
+import { appBaseUrl } from "@/lib/app-url";
 import type {
   RegistrationResponseJSON,
   AuthenticationResponseJSON,
@@ -41,12 +42,13 @@ function sign(body: string): string {
   return createHmac("sha256", secret()).update(body).digest("base64url");
 }
 
-/** rpID/origin/rpName. rpID uit AUTH_URL-host; override via WEBAUTHN_RP_ID
- *  (bv. een registrable parent zoals "gymrebel.app" voor whitelabel-subdomeinen). */
+/** rpID/origin/rpName. rpID uit de app-host (lib/app-url.ts, dus `APP_BASE_URL`
+ *  → `AUTH_URL` → `NEXTAUTH_URL`); override via WEBAUTHN_RP_ID (bv. een
+ *  registrable parent zoals "gymrebel-training.com" voor whitelabel-subdomeinen).
+ *  Bewust niet rechtstreeks op AUTH_URL: die mag leegblijven zodat NextAuth de
+ *  origin uit de request afleidt, en dan zou dit stil op localhost uitkomen. */
 export function rpConfig(): { rpID: string; origin: string; rpName: string } {
-  const url = new URL(
-    process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000"
-  );
+  const url = new URL(appBaseUrl());
   return {
     rpID: process.env.WEBAUTHN_RP_ID ?? url.hostname,
     origin: url.origin,

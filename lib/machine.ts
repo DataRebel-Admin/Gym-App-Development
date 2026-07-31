@@ -26,7 +26,7 @@ export function machineTypeLabel(type: string): string {
  * ook in Client Components bruikbaar is (een server-only var zou daar stil
  * `undefined` opleveren).
  */
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "gymrebel-training.nl";
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || "gymrebel-training.com";
 
 /**
  * Publieke (productie-)URL die in de QR-code wordt gecodeerd.

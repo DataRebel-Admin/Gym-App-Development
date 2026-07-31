@@ -16,7 +16,7 @@ staat uitgeschreven in [`capacitor.config.ts`](../capacitor.config.ts).
 |---|---|
 | Bundle ID / package name | `nl.gymrebeltraining.app` |
 | App-naam onder het icoon | GymRebel |
-| Productie-host | `app.gymrebel-training.nl` |
+| Productie-host | `app.gymrebel-training.com` |
 
 Alle drie zijn env-overschrijfbaar (`CAPACITOR_APP_ID`, `CAPACITOR_SERVER_URL`,
 `ANDROID_PACKAGE_NAME`). Het koppelteken uit het websitedomein kan niet in het
@@ -91,13 +91,13 @@ Daarna in Xcode onder **Signing & Capabilities**. Dit zijn entitlements, geen
 Info.plist-sleutels, dus niet vanuit de repo te scripten:
 
 - **Push Notifications**
-- **Associated Domains**: `webcredentials:app.gymrebel-training.nl` en
-  `applinks:app.gymrebel-training.nl`
+- **Associated Domains**: `webcredentials:app.gymrebel-training.com` en
+  `applinks:app.gymrebel-training.com`
 
 En in de productie-env: `APPLE_APP_ID` = `"<TeamID>.nl.gymrebeltraining.app"`,
 plus de APNs-sleutels (`APNS_TEAM_ID`, `APNS_KEY_ID`, `APNS_PRIVATE_KEY`,
 `APNS_BUNDLE_ID`). Controleer daarna
-`https://app.gymrebel-training.nl/.well-known/apple-app-site-association`.
+`https://app.gymrebel-training.com/.well-known/apple-app-site-association`.
 
 > Het app-icoon wordt **zonder alfakanaal** weggeschreven. App Store Connect
 > weigert anders de upload met `ITMS-90717`.

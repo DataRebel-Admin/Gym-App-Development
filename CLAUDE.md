@@ -16,7 +16,7 @@ GymRebel is een multitenant SaaS-app voor sportscholen. Elke sportschool is een 
 ## Architectuur-principes
 
 1. **Multitenant via row-level security** — élke tabel (behalve `Tenant` zelf) heeft `tenantId`. PostgreSQL RLS-policies zorgen dat queries automatisch gefilterd zijn.
-2. **Tenant-resolutie via subdomein** — `fitpower.gymrebel.app` → tenant `fitpower`. In development gebruik `?tenant=fitpower` als query.
+2. **Tenant-resolutie via subdomein** — `fitpower.gymrebel-training.com` → tenant `fitpower`. Het basisdomein zelf (`gymrebel-training.com`, `www.` en de app-host `app.`) is géén tenant. In development gebruik `?tenant=fitpower` als query.
 3. **Twee rollen**: `MEMBER` (sporter) en `OWNER` (sportschooleigenaar). Strikt gescheiden routes: `/app/(member)` en `/app/(owner)`.
 4. **Whitelabel** — elke tenant heeft een eigen `theme`-blob met logo URL, accent-kleur, naam. UI leest deze runtime.
 5. **Mobile-first** — alle member-routes ontwerpen voor 5-inch touch. Desktop is voor owner-routes.
@@ -148,6 +148,25 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
   via `lib/tenant-resolve.ts` en zet `x-tenant-slug` als request-header. Server Components
   lezen die via `lib/tenant.ts` (`getCurrentTenant()`, per-request `cache()`). Client
   Components via `useTenant()` (`components/tenant-provider.tsx`).
+  - **HET BASISDOMEIN IS GÉÉN TENANT.** Een tenant-host heeft per definitie een label
+    méér dan `NEXT_PUBLIC_APP_DOMAIN` (default `gymrebel-training.com`, dezelfde bron als
+    de QR-URL's in `lib/machine.ts`). De oude regel ("≥ 2 labels en het eerste is niet
+    gereserveerd") las het kale domein als slug `gymrebel-training`, dus elke bezoeker van
+    `gymrebel-training.com` kreeg een niet-bestaande tenant mee. `www.` en de app-host
+    `app.` vallen ook af (`RESERVED_LABELS`). Hosts búíten het basisdomein (`*.localhost`
+    in dev, previews) houden de oude label-heuristiek. Tests: `tests/tenant-resolve.test.ts`.
+  - **GÉÉN WILDCARD-DNS — elk tenant-subdomein wordt handmatig aangezet.** Vercel staat
+    `*.gymrebel-training.com` alléén toe via hun eigen nameservers, en de DNS van dat
+    domein hoort bij Cloud86 mét live mail (MX/SPF/DMARC/DKIM). Die zone verhuizen om een
+    wildcard te krijgen weegt niet op tegen het risico dat de mail eruit ligt. **Bij het
+    onboarden van een sportschool horen dus twee DNS-handelingen**: het subdomein
+    `<slug>.gymrebel-training.com` toevoegen in Vercel → Domains, en het getoonde
+    CNAME-target als CNAME `<slug>` in Cloud86 zetten. Vergeet je dat, dan werken de
+    QR-codes van die gym niet (de rest van de app wel — die draait op `app.`).
+    Herzien zodra het aantal tenants de handmatige stap onwerkbaar maakt; de QR-URL's
+    veranderen daar niet van, dus geprinte stickers blijven bij zo'n overstap geldig.
+  - **`Tenant.slug` is na de eerste QR-print onveranderlijk**: die slug staat als
+    subdomein op fysieke stickers bij de apparaten.
 - **Whitelabel theming.** De root-layout injecteert `--tenant-accent` (uit `tenant.accentColor`)
   als inline CSS-var op `<body>`; `bg-accent`/`text-accent` kleuren daardoor per tenant.
   `<html lang>` volgt sinds de i18n-ronde de **UI-locale** (niet `tenant.locale`).
@@ -1665,6 +1684,19 @@ de app. **Whitelabel blijft leidend**: dit is het *platform*merk, geen tenant-hu
   niet. `resolveEmailBranding`, `embedRemoteImage` (PDF) en `loadLogoDataUri` (QR) maken
   een relatief pad daarom absoluut; een al absolute Blob-URL blijft ongemoeid. Zonder dit
   viel het logo van élke tenant met een relatief pad stil weg.
+  - **Keten: `APP_BASE_URL` → `AUTH_URL` → `NEXTAUTH_URL` → `https://app.gymrebel-training.com`.**
+    Schrijf die keten **nergens opnieuw uit** — de crons, `lib/{defects,maintenance,reports}/`
+    en `lib/passkey.ts` (rpID/origin) roepen allemaal `appBaseUrl()` aan.
+  - **`APP_BASE_URL` bestaat omdat `AUTH_URL` géén neutrale instelling is.** NextAuth
+    herschrijft met `reqWithEnvURL()` (next-auth/lib/env.js) de origin van **élke**
+    request naar `AUTH_URL`, óók in de proxy. Stond die op de Vercel-deploy-URL, dan
+    bouwde `proxy.ts` z'n login-redirect met `new URL("/login", nextUrl)` op díé host en
+    werd elke bezoeker van het eigen domein naar `*.vercel.app` gestuurd (zichtbaar aan
+    de cookie `__Secure-authjs.callback-url`). Een vaste waarde botst bovendien met
+    tenant-subdomeinen: een lid op `fitpower.gymrebel-training.com` wordt er bij elke
+    middleware-redirect afgetrokken. In productie mag `AUTH_URL` dus leeg —
+    `trustHost: true` (auth.config.ts) leidt de origin af uit de request — mits
+    `APP_BASE_URL` gezet is.
 - **WAAR HET LOGO WÉL EN NIET MAG.** Alleen waar GymRebel zélf de afzender is:
   `/admin` (superadmin), de pre-tenant landingspagina, login **zonder** tenant, de
   offline-/crashpagina en de PWA-iconen. Een sportschool zónder eigen logo houdt haar
@@ -1906,10 +1938,12 @@ operationele handleiding in **`capacitor/README.md`**; publiceerchecklist,
 testplan en store-metadata in **`store/`**.
 
 - **Identiteit (onveranderlijk na publicatie)**: bundle ID/package name
-  `nl.gymrebeltraining.app`, host `app.gymrebel-training.nl`. Het koppelteken uit
+  `nl.gymrebeltraining.app`, host `app.gymrebel-training.com`. Het koppelteken uit
   het websitedomein kán niet in een Android-package-name (alleen letters, cijfers,
   underscores). Env: `CAPACITOR_APP_ID`, `CAPACITOR_SERVER_URL`,
   `ANDROID_PACKAGE_NAME`, `NEXT_PUBLIC_APP_DOMAIN`.
+  **De `nl.`-prefix blijft**, ook nu het domein `.com` is: een package-name is een
+  reverse-DNS identifier, geen URL, en is onveranderlijk zodra er gepubliceerd is.
 - **GEEN GEBUNDELDE BUILD, EN DAT KAN OOK NIET.** De app draait op RSC + Server
   Actions + Prisma; er bestaat geen statische `out/` (`output: "export"` sluit
   server actions en de proxy uit). Gevolg: web-wijzigingen zijn direct live zonder

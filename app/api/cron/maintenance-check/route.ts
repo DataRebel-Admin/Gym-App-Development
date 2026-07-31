@@ -4,6 +4,7 @@ import { evaluateDueMachines } from "@/lib/maintenance-eval";
 import { notifyMaintenanceThresholds } from "@/lib/maintenance/notify";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { cronAuthorized } from "@/lib/cron-auth";
+import { appBaseUrl } from "@/lib/app-url";
 
 /**
  * Dagelijkse onderhoudscontrole. Evalueert per tenant de gebruik- én
@@ -22,8 +23,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const origin =
-    process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app";
+  const origin = appBaseUrl();
 
   // Alleen tenants met minstens één machine met een onderhoudsregel.
   const tenants = await prisma.tenant.findMany({

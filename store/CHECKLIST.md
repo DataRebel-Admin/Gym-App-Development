@@ -52,7 +52,7 @@ niet. De eerste `bundleRelease` en de eerste `cap add ios` zijn de echte test.
 |---|---|---|
 | ☐ | `LEGAL_ENTITY` invullen in `lib/legal.ts` | Adres en KvK-nummer staan nu op `TODO`; zonder die gegevens voldoet de verklaring niet aan artikel 13 AVG |
 | ☐ | Privacyteksten juridisch laten controleren | Het zijn conceptteksten, geschreven op basis van wat de code doet |
-| ☐ | Overige `gymrebel.app`-verwijzingen omzetten | Cron-fallbacks en e-mailvoorbeelden wijzen nog naar het oude domein |
+| ✅ | Overige `gymrebel.app`-verwijzingen omzetten | Cron-fallbacks lopen nu allemaal via `appBaseUrl()` (lib/app-url.ts); e-mailvoorbeelden, VAPID-subject en afzenderadres staan op `gymrebel-training.com` |
 | ☐ | Optioneel: schema-editor verbergen op kleine schermen | De owner-area is verrassend mobielvriendelijk, maar de drag-and-drop-editor over meerdere dagen werkt niet op een telefoon. Er bestaat niet voor niets een aparte mobiele lid-builder |
 
 **Besloten en afgerond:** de app wordt gepositioneerd als sporter-app in de
@@ -105,7 +105,7 @@ schema van een lid opzoeken tijdens een sessie.
 
 | | Stap |
 |---|---|
-| ☐ | Domein `app.gymrebel-training.nl` live met geldig certificaat |
+| ☐ | Domein `app.gymrebel-training.com` live met geldig certificaat |
 | ☐ | `CAPACITOR_SERVER_URL` en `NEXT_PUBLIC_APP_DOMAIN` in de productie-env |
 | ☐ | Demo-lidaccount met realistische data voor screenshots en review |
 | ☐ | Testplan afgetekend op een fysieke iPhone én een Android-toestel |

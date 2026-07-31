@@ -17,7 +17,7 @@ import type { PushChannelCategory } from "@/lib/push-channels";
  */
 const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY ?? "";
 const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY ?? "";
-const SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:support@gymrebel.app";
+const SUBJECT = process.env.VAPID_SUBJECT ?? "mailto:support@gymrebel-training.com";
 
 let configured = false;
 if (PUBLIC_KEY && PRIVATE_KEY) {

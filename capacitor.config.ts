@@ -35,7 +35,7 @@ const config: CapacitorConfig = {
   // Bundle ID (iOS) / package name (Android). Identiek op beide platforms.
   // ⚠️ ONVERANDERLIJK na de eerste store-publicatie: wijzigen betekent een
   // nieuwe listing zonder reviews, downloads of installaties. Afgeleid van het
-  // websitedomein gymrebel-training.nl; het koppelteken kan niet mee omdat een
+  // websitedomein gymrebel-training.com; het koppelteken kan niet mee omdat een
   // Android-package-name alleen letters, cijfers en underscores toestaat.
   appId: process.env.CAPACITOR_APP_ID || "nl.gymrebeltraining.app",
   // Naam onder het app-icoon. Bewust kort: iOS kapt rond de 12 tekens af.
@@ -45,7 +45,7 @@ const config: CapacitorConfig = {
   // tegen de donkere huisstijl in. Gelijk aan Charcoal uit het Brand Book.
   backgroundColor: "#111111",
   server: {
-    url: process.env.CAPACITOR_SERVER_URL || "https://app.gymrebel-training.nl",
+    url: process.env.CAPACITOR_SERVER_URL || "https://app.gymrebel-training.com",
     // Geen onversleuteld HTTP, ook niet in dev-builds naar een LAN-adres.
     cleartext: false,
     // Lokale fallbackpagina bij een laadfout (server plat, geen netwerk, DNS).

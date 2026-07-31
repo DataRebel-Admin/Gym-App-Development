@@ -56,7 +56,7 @@ export async function sendEmail(opts: {
     const sender = graphSender();
     try {
       const mime = buildMimeMessage({
-        from: sender ?? "no-reply@gymrebel.app",
+        from: sender ?? "no-reply@gymrebel-training.com",
         to,
         subject: message.subject,
         html: message.html,

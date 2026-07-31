@@ -134,16 +134,16 @@ zes, zodat de accentkleur consistent is.
 
 | Veld | Waarde |
 |---|---|
-| Privacybeleid | `https://app.gymrebel-training.nl/privacy` |
-| Cookiebeleid | `https://app.gymrebel-training.nl/cookies` |
-| Support-URL | `https://app.gymrebel-training.nl/support` |
-| Marketing-URL | `https://gymrebel-training.nl` |
-| Contact-e-mail | `support@gymrebel-training.nl` |
+| Privacybeleid | `https://app.gymrebel-training.com/privacy` |
+| Cookiebeleid | `https://app.gymrebel-training.com/cookies` |
+| Support-URL | `https://app.gymrebel-training.com/support` |
+| Marketing-URL | `https://gymrebel-training.com` |
+| Contact-e-mail | `support@gymrebel-training.com` |
 
 > De supportpagina staat bewust in de app zelf, zodat de inzending niet hoeft te
 > wachten op de marketingsite. Beide stores laten je de support-URL later
 > aanpassen **zonder nieuwe app-build**, dus verhuizen naar
-> `gymrebel-training.nl/support` kan op elk moment.
+> `gymrebel-training.com/support` kan op elk moment.
 >
 > Een `mailto:`-link accepteert Apple niet als support-URL; het moet een echte
 > webpagina zijn die zonder account te openen is.

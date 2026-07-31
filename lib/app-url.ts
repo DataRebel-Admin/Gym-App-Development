@@ -5,15 +5,28 @@
  * een push-melding bestaat "/" niet. Binnen de app blijven relatieve paden
  * uiteraard prima.
  *
- * Resolutie: `AUTH_URL` → `NEXTAUTH_URL` → productie-default. Dat is precies de
- * keten die de crons en de meldingen-helpers al gebruiken; deze helper is de
- * gedeelde versie ervan.
+ * Resolutie: `APP_BASE_URL` → `AUTH_URL` → `NEXTAUTH_URL` → productie-default.
+ * De crons en de meldingen-helpers gebruiken deze helper; schrijf die keten
+ * nergens opnieuw uit.
+ *
+ * ⚠️ **`APP_BASE_URL` bestaat omdat `AUTH_URL` géén neutrale bron is.** NextAuth
+ * herschrijft met `reqWithEnvURL()` de origin van élke request naar `AUTH_URL`
+ * (zie next-auth/lib/env.js), dus een vaste waarde daar trekt een bezoeker op
+ * `fitpower.gymrebel-training.com` bij elke middleware-redirect naar die ene
+ * host — funest zodra de tenant-subdomeinen live gaan. Zet `APP_BASE_URL` op de
+ * app-host en laat `AUTH_URL` leeg (`trustHost: true` in auth.config.ts leidt de
+ * origin dan af uit de request), dan blijven e-mails, PDF's en QR-labels tóch
+ * een absolute URL houden.
  */
-const FALLBACK_BASE_URL = "https://app.gymrebel.app";
+const FALLBACK_BASE_URL = "https://app.gymrebel-training.com";
 
-/** Basis-URL zonder afsluitende slash, bijv. `https://app.gymrebel.app`. */
+/** Basis-URL zonder afsluitende slash, bijv. `https://app.gymrebel-training.com`. */
 export function appBaseUrl(): string {
-  const raw = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? FALLBACK_BASE_URL;
+  const raw =
+    process.env.APP_BASE_URL ??
+    process.env.AUTH_URL ??
+    process.env.NEXTAUTH_URL ??
+    FALLBACK_BASE_URL;
   return raw.trim().replace(/\/+$/, "");
 }
 

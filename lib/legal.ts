@@ -21,13 +21,13 @@ export const LEGAL_ENTITY = {
   /** TODO invullen: KvK-nummer (verplicht in de verklaring). */
   cocNumber: "TODO: KvK-nummer",
   /** Algemeen contactadres, ook gebruikt als support-URL in de stores. */
-  email: "support@gymrebel-training.nl",
+  email: "support@gymrebel-training.com",
   /**
    * Privacy-contact. Is er een functionaris voor gegevensbescherming aangesteld,
    * zet dan diens gegevens hier; anders volstaat het algemene adres.
    */
-  privacyEmail: "privacy@gymrebel-training.nl",
-  website: "https://gymrebel-training.nl",
+  privacyEmail: "privacy@gymrebel-training.com",
+  website: "https://gymrebel-training.com",
 } as const;
 
 /** Datum van de laatste inhoudelijke wijziging aan de juridische teksten. */

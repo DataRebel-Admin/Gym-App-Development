@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { runDefectsDigest, cleanupDefects } from "@/lib/defects/digest";
+import { appBaseUrl } from "@/lib/app-url";
 
 /**
  * Dagelijkse defect-taken (zie vercel.json):
@@ -19,9 +20,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const origin = (
-    process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app"
-  ).replace(/\/$/, "");
+  const origin = appBaseUrl();
 
   // Alleen tenants met defectmeldingen.
   const tenants = await prisma.equipmentDefect.groupBy({ by: ["tenantId"] });

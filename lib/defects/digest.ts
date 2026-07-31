@@ -3,9 +3,10 @@ import { del } from "@vercel/blob";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { isFeatureEnabled } from "@/lib/features/service";
-import { blobConfigured } from "@/lib/blob";
+import { blobConfigured, blobToken } from "@/lib/blob";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { OPEN_DEFECT_STATUSES } from "@/lib/defects";
+import { appBaseUrl } from "@/lib/app-url";
 import {
   getDefectRecipients,
   defectRecipientsForLocation,
@@ -28,12 +29,7 @@ const openStatuses = [...OPEN_DEFECT_STATUSES];
  */
 export async function runDefectsDigest(tenantId: string, origin?: string): Promise<number> {
   if (!(await isFeatureEnabled(tenantId, "defects"))) return 0;
-  const resolvedOrigin =
-    origin ??
-    (process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app").replace(
-      /\/$/,
-      ""
-    );
+  const resolvedOrigin = origin ?? appBaseUrl();
 
   const tenant = await prisma.tenant.findFirst({
     where: { id: tenantId, deletedAt: null },
@@ -143,7 +139,7 @@ export async function cleanupDefects(): Promise<{ photos: number; removed: numbe
     try {
       if (blobConfigured()) {
         const urls = defect.photoKeys.filter((k) => /^https?:\/\//.test(k));
-        if (urls.length > 0) await del(urls).catch(() => {});
+        if (urls.length > 0) await del(urls, { token: blobToken() }).catch(() => {});
       }
       await prisma.equipmentDefect.update({
         where: { id: defect.id },

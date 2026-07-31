@@ -18,8 +18,15 @@ import { computeMemberMetrics, computeMetrics, type MemberMetrics } from "@/lib/
 import { loadMemberSessions, type MemberSessionRow } from "@/lib/member-stats";
 import { notifyAchievementsEarned } from "@/lib/achievements/notify";
 import { getHideAchievements } from "@/lib/user-preferences";
+import { appBaseUrl } from "@/lib/app-url";
 
-/** Absolute origin uit de request-headers (voor e-mail-links). */
+/**
+ * Absolute origin uit de request-headers (voor e-mail-links). De request-host
+ * wint bewust: die houdt een link op het tenant-subdomein waar het lid vandaan
+ * komt. Buiten request-scope (seed, script) valt hij terug op `appBaseUrl()` —
+ * niet op een losse `process.env.AUTH_URL`, want die mag in productie leeg zijn
+ * (zie lib/app-url.ts) en leverde dan een lege origin op.
+ */
 async function requestOrigin(): Promise<string> {
   try {
     const h = await headers();
@@ -29,7 +36,7 @@ async function requestOrigin(): Promise<string> {
   } catch {
     /* buiten request-scope (bv. seed) */
   }
-  return (process.env.AUTH_URL ?? "").replace(/\/$/, "");
+  return appBaseUrl();
 }
 
 /**

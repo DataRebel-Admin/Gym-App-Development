@@ -13,12 +13,12 @@ import { getSupportEmail } from "@/lib/platform-settings";
 import { notifyInApp } from "@/lib/notifications";
 import { formatReportRef } from "@/lib/report-context";
 import { reportOrigin } from "@/lib/report-query";
+import { appBaseUrl } from "@/lib/app-url";
 
 // Notificaties rond app-meldingen. Alles best-effort: een falend kanaal
 // breekt de melding/actie nooit (patroon lib/maintenance/notify.ts).
 
-const ORIGIN = () =>
-  process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app";
+const ORIGIN = () => appBaseUrl();
 
 async function toSummary(report: AppReport): Promise<ReportEmailSummary> {
   const tenant = report.tenantId

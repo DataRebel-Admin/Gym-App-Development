@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
 import { cronAuthorized } from "@/lib/cron-auth";
+import { appBaseUrl } from "@/lib/app-url";
 
 /**
  * Geplande publicatie van trainingsschema's. Publiceert toewijzingen met status
@@ -63,7 +64,7 @@ export async function GET(req: Request) {
     byTenant.set(a.tenantId, list);
   }
 
-  const origin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app";
+  const origin = appBaseUrl();
   let notified = 0;
 
   for (const [tenantId, assignmentIds] of byTenant) {

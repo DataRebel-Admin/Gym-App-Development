@@ -15,6 +15,7 @@ import { sendEmail } from "@/lib/email/send";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { maintenanceAlertMessage } from "@/lib/email/messages";
 import type { EmailBranding } from "@/lib/email/branding";
+import { appBaseUrl } from "@/lib/app-url";
 
 type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
@@ -39,9 +40,7 @@ type Recipient = {
 };
 
 function defaultOrigin(): string {
-  return (
-    process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app"
-  ).replace(/\/$/, "");
+  return appBaseUrl();
 }
 
 async function getRecipients(tenantId: string): Promise<Recipient[]> {

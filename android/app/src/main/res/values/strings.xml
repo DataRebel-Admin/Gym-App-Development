@@ -9,7 +9,7 @@
         zijn aan de host van CAPACITOR_SERVER_URL, en op dat domein moet
         /.well-known/assetlinks.json de handtekening van deze app bevatten.
     -->
-    <string name="app_link_host">app.gymrebel-training.nl</string>
+    <string name="app_link_host">app.gymrebel-training.com</string>
     <!--
         Vangnet-meldingskanaal. Moet exact gelijk zijn aan DEFAULT_PUSH_CHANNEL.id
         in lib/push-channels.ts: de app maakt het kanaal aan, Firebase verwijst er

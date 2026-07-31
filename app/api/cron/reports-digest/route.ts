@@ -7,6 +7,7 @@ import { reportDigestMessage, type ReportEmailSummary } from "@/lib/email/messag
 import { getSupportEmail } from "@/lib/platform-settings";
 import { formatReportRef } from "@/lib/report-context";
 import { reportOrigin } from "@/lib/report-query";
+import { appBaseUrl } from "@/lib/app-url";
 
 /**
  * Dagelijkse digest van nieuwe app-meldingen naar het dev-team. Urgente
@@ -55,8 +56,7 @@ export async function GET(req: Request) {
     createdAt: r.createdAt,
   }));
 
-  const origin =
-    process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://app.gymrebel.app";
+  const origin = appBaseUrl();
   const inboxUrl = `${origin}/admin/meldingen`;
 
   const message = await reportDigestMessage({

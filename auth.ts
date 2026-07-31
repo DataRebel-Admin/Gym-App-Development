@@ -88,7 +88,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     Nodemailer({
       // Niet gebruikt in dev omdat we sendVerificationRequest overschrijven.
       server: { host: "localhost", port: 1025 },
-      from: "no-reply@gymrebel.app",
+      from: "no-reply@gymrebel-training.com",
       async sendVerificationRequest({ identifier, url }) {
         const email = identifier.toLowerCase().trim();
         const tenants = await findLoginTenantsForEmail(email);
