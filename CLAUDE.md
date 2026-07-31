@@ -593,9 +593,13 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   beeld op. Selecteer de bronnen met `EXERCISE_THUMB_SELECT` (select-sites) resp.
   `EXERCISE_THUMB_RELATIONS` (include-sites, o.a. `getAssignedSchema`) zodat een call-site de
   bibliotheek niet stil kan vergeten. Gebruikt door de pickers, `/member/exercises`, het
-  schema-overzicht en de schema-PDF; getest in `tests/exercise-library.test.ts`. Nog niet
-  omgezet (catalogus-only, dus blind voor bibliotheek-beeld): `lib/active-session-view.ts`,
-  `lib/exercise-alternatives.ts`, `lib/workout-session-ops.ts`, `app/m/[qrToken]/page.tsx`.
+  schema-overzicht, de schema-PDF en de **volledige actieve-trainingsflow**
+  (`lib/active-session-view.ts` incl. sessie-vervangingen, `lib/exercise-alternatives.ts`,
+  `lib/workout-session-ops.ts`); getest in `tests/exercise-library.test.ts`. In
+  `exercise-alternatives.ts` wordt `catalog` ná de spread bewust overschreven met een
+  rijkere selectie (target/bodyPart/equipment/secondaryMuscles) die de matching nodig heeft.
+  Nog niet omgezet (catalogus-only, dus blind voor bibliotheek-beeld):
+  `app/m/[qrToken]/page.tsx`.
 - **Resolver** `getExerciseDetail` is **3-weg** (bibliotheek → klassiek → eigen), zelfde
   `ExerciseDetail`-shape + nieuw: `tips[]`, `animationUrl`, `met`, `muscleDiagrams[]`,
   `equipmentIconUrl`, `source`. `getAlternativeExercises` gebruikt voor bibliotheek-
@@ -878,8 +882,60 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
   `/member/schema` en `/member/schema/active`. De auto-gestopte sessie **telt normaal mee**
   (duur gecapt). Eenmalige banner op `/member/schema` via `autoStopNotified`
   (`MarkAutoStopSeen`). Botst niet met handmatig afronden/annuleren (alleen `endedAt==null`).
+- **Sets toevoegen én verwijderen (sessie-scoped, blijft staan)**. `SessionOverrides` heeft
+  naast `skipped`/`subs` een derde veld **`setCounts: Record<exerciseId, number>`** (geklemd
+  op 1..`MAX_SESSION_SETS` = 20, de grens van `setInputSchema`) — gekeyed op de **gerenderde**
+  oefening (dus ná een vervanging, net als de log-entries).
+  - **Waarom**: een toegevoegde set leefde alleen in client-state. Was 'ie nog leeg, dan stond
+    er geen `PerformanceEntry` tegenover en verdween 'ie bij de eerste herrender/schermwissel.
+    Nu legt `setSetCount` het aantal vast; `buildActiveSessionView` geeft het door als
+    `ActiveExercise.sessionSets` en de initialisatie rekent
+    `max(groepsrondes ?? sessionSets ?? schema-sets, hoogste gelogde setnummer, 1)` — een
+    gelogde set kan dus nooit verdwijnen, ook niet door een verkeerde teller.
+  - **Verwijderen kan altijd, maar alleen de láátste set** (`removeSessionSet`, setNumber ≥ 2):
+    zo verschuiven de nummers van opgeslagen sets nooit. Eerder was de knop beperkt tot sets
+    *boven* het schema-aantal én ongevinkt — vandaar het "ik kan pas vanaf set 4 verwijderen".
+    De op te ruimen sets worden ook echt gewist (`deleteMany` op `setNumber ≥ n`), anders komt
+    de set bij herladen terug én blijft 'ie in het volume meetellen. Bij een set mét gegevens
+    vraagt de UI eerst om bevestiging (gedeelde modal voor kracht + niet-kracht).
+  - **Een nieuwe set erft de waarden van de voorgaande set** (gewicht/reps resp. de logvelden);
+    dat is bijna altijd de bedoeling en scheelt getik met zweethanden.
+  - Toevoegen/verwijderen zit in beide blokken (`ExerciseBlock`, `DynamicExerciseBlock`) als
+    één knoppenrij onderaan de kaart — bewust géén tweede "−"-badge per set erbij.
+- **Alternatief terugzetten**: `withoutSub` + `revertSubstitution` (ops) draaien een gekozen
+  alternatief terug naar de oorspronkelijke oefening. De op het alternatief gelogde sets
+  **blijven** staan (dat werk is echt gedaan en telt in de historie); alleen de weergave gaat
+  terug. De action retourneert de identiteit + de al gelogde sets van het origineel, zodat de
+  kaart in-place herstelt zonder herladen; de client bewaart daarnaast een snapshot van de
+  oefening van vóór de vervanging (`originalSnapshots`) zodat ook "vorige keer" terugkomt —
+  na een reload is die weg en vult de server de rest aan.
+- **"Training bezig"-balk**: `getRunningSessionStart` (lib/session-timeout.ts, alleen lezen —
+  geen write op elke navigatie) voedt `components/member/active-workout-bar.tsx` vanuit
+  `app/member/layout.tsx`. Op élke member-pagina, met meelopende klok en directe ingang;
+  verbergt zichzelf op `/member/schema/active` (daar staat dezelfde klok al in de
+  voortgangsbalk) en toont een sessie voorbij de 5-uur-grens niet meer.
+  - **STICKY ZIT OP DE WRAPPER, NIET OP DE BALK.** Header + balk plakken samen als één
+    `sticky top-0`-blok in de member-layout. Geef je de balk een eigen `top`-offset, dan moet
+    dat getal exact de headerhoogte raken — die is 61px (`py-3` + de `size-9`-belknop), niet
+    de 3,25rem die je uit de padding zou schatten, dus de balk schoof bij het scrollen deels
+    onder de header en leek te krimpen.
+  - **Achtergrond moet dekkend zijn**: `bg-accent-soft-solid` (nieuw token in globals.css:
+    zelfde tint als `accent-soft` maar gemengd met `--surface-1` i.p.v. `transparent`, licht
+    én donker). `accent-soft` is half-transparant en liet de meescrollende inhoud
+    doorschemeren.
+- **"Niet opgeslagen" bij een set die daarna wél werkte** — drie oorzaken aangepakt:
+  1. `setInputSchema` **weigerde** reps/gewicht buiten bereik (`z.number().int()`), dus een
+     kommagetal uit de stepper (12,5 herhalingen) faalde structureel — óók bij "Opnieuw".
+     Nu `clampedNumber`: afronden/klemmen i.p.v. afwijzen (geverifieerd: 12,5 → 13).
+  2. Twee snelle saves van dezelfde set konden elkaar kruisen → unique-violation (P2002) op
+     `(sessionId, exerciseId, setNumber)`. `writePerformanceEntry` vangt P2002 op en werkt de
+     rij alsnog bij; gedeeld door `upsertSet` én `upsertLog`.
+  3. Client-side `saveWithRetry`: één korte herkansing (600 ms) rond `saveSet`/`saveLog`, zodat
+     een hapering (cold start, wegvallende wifi) geen foutmelding meer oplevert.
+  Een afgewezen save logt nu ook server-side de reden (`console.warn`) — anders is zo'n melding
+  achteraf niet te herleiden.
 - **Tests**: `tests/session-overrides.test.ts` (`node:test` via tsx, `npm test` — geen nieuwe
-  dep). i18n-keys onder `member.active`/`member.schema` (nl+en; fy valt terug op nl).
+  dep). i18n-keys onder `member.active`/`member.schema` (nl+en+fy).
 
 ### Groeperen (supersets/giant/circuit/AMRAP), dropsets & per-lid notitie
 
@@ -1570,6 +1626,65 @@ een gevaarlijke melding blokkeert het apparaat direct.
   ouder dan `AUDIT_RETENTION_DAYS` (default 365) naar `./audit-archive/*.csv` en verwijdert ze.
   In productie als cron-stap draaien (zoals `db:rls`).
 
+### Merk-assets & Brand Book-kleuren (GymRebel zelf)
+
+Het GymRebel-logo (beeldmerk "GR"-halter + woordmerk) en het Brand Book-palet zitten in
+de app. **Whitelabel blijft leidend**: dit is het *platform*merk, geen tenant-huisstijl.
+
+- **Eén bron van waarheid = `components/brand/logo-art.ts`** (puur, ook client — idioom
+  `exercise-types.ts`): `BRAND` (het palet) + de vector-geometrie (`MARK_BARS`,
+  `MARK_MONOGRAM`, `WORDMARK_GYM`, `WORDMARK_REBEL`). Zowel de React-componenten als het
+  generator-script lezen dáár uit, dus een bestand in `public/` kan nooit uit de pas lopen
+  met wat de UI rendert.
+- **React**: `components/brand/gymrebel-logo.tsx` → `GymRebelMark` (alleen het beeldmerk,
+  volgt `currentColor`), `GymRebelWordmark` en `GymRebelLogo` (horizontale lockup).
+  **Inline SVG, geen `<img>`**: het merk moet mee kunnen kleuren met z'n ondergrond
+  (wit op een accent-tegel, charcoal op licht) en een `<img>` erft geen `currentColor`.
+  `tone="mono"` zet óók "REBEL" op `currentColor` — nodig zodra het logo óp het accent
+  staat, want oranje-op-oranje verdwijnt.
+- **Statische bestanden**: `npm run brand:assets` (`scripts/generate-brand-assets.ts`,
+  rasteriseert met het al aanwezige `@resvg/resvg-js`) schrijft `public/brand/*.svg`
+  (mark, horizontale + gestapelde lockup in licht/donker/mono, app-icoon),
+  `public/favicon.svg`, `public/icons/*.png` (PWA + apple-touch, maskable met 80%-veilige
+  zone), `app/favicon.ico` (16/32/48 in één container), het **e-maillogo** en de
+  **Android-iconen**. Idempotent — vervangt het oude `icons:generate` met z'n
+  placeholder-halter.
+- **E-MAILLOGO IS PNG, NOOIT SVG** (`public/brand/gymrebel-logo-email.png`): Gmail en
+  Outlook weigeren SVG in `<img>`. Wit-op-transparant, want `renderEmailLayout` zet de
+  header altijd op een accentbalk (oranje-op-oranje zou wegvallen). 480 px breed = 3× de
+  weergavemaat van 160 px.
+- **Android (Capacitor)**: het script overschrijft `android/app/src/main/res` als die map
+  bestaat — launcher (5 dichtheden), rond icoon, adaptive **foreground** en de splash in
+  alle 11 formaten, plus `values/ic_launcher_background.xml` op Rebel Orange (het
+  adaptive-icon leest die kleurresource, niet de gelijknamige drawable). De foreground
+  beslaat maximaal **58%** van het 108dp-canvas: Android maskeert tot een cirkel van ~66dp
+  en de halter is breed, dus meer betekent afgesneden gewichtschijven. **Draai het script
+  opnieuw na elke `npx cap add android`** — Capacitor zet dan zijn eigen placeholders terug.
+- **URL'S DIE DE APP VERLATEN LOPEN VIA `lib/app-url.ts`** (`appBaseUrl`/`toAbsoluteUrl`,
+  getest in `tests/app-url.test.ts`): in een mailbox of een PDF bestaat `/brand/logo.png`
+  niet. `resolveEmailBranding`, `embedRemoteImage` (PDF) en `loadLogoDataUri` (QR) maken
+  een relatief pad daarom absoluut; een al absolute Blob-URL blijft ongemoeid. Zonder dit
+  viel het logo van élke tenant met een relatief pad stil weg.
+- **WAAR HET LOGO WÉL EN NIET MAG.** Alleen waar GymRebel zélf de afzender is:
+  `/admin` (superadmin), de pre-tenant landingspagina, login **zonder** tenant, de
+  offline-/crashpagina en de PWA-iconen. Een sportschool zónder eigen logo houdt haar
+  **initiaal-tegel** — daar het GymRebel-merk tonen zou de whitelabel-belofte breken
+  (ontwerpprincipe: geen GymRebel-branding hardcoded in de tenant-UI). De demo-tenant
+  `gymrebel` krijgt het logo wél, maar via het gewone `Tenant.logoUrl`-veld (seed).
+- **Palet (Brand Book)**: Rebel Orange `#FF4D00` (default `--tenant-accent`, vervangt het
+  oude `#E84B1F`), Deep Orange `#FF6A1A`, Charcoal `#111111`, Slate `#1E1E1E`, Black
+  `#000000`, White. Het donkere thema mapt die drie neutralen letterlijk op de
+  vlak-hiërarchie: Black = pagina, Charcoal = kaart, Slate = verhoogd. De neutralen zijn
+  bewust **kleurloos** (de eerdere blauwzweem vocht met het oranje).
+  `readableText("#FF4D00")` blijft wit (3,3:1) — getest in `tests/color-contrast.test.ts`.
+- **Whitelabel in e-mail**: een tenant **zonder** eigen logo houdt de tekst-wordmark met
+  háár naam; alleen de platformmail (geen tenant) krijgt het GymRebel-woordmerk. Zelfde
+  regel als in de UI.
+- **Nog open**: het Brand Book schrijft ook typografie voor (Poppins ExtraBold koppen +
+  Inter body) terwijl de app op Geist/Space Grotesk draait. Besluit ligt bij de eigenaar;
+  omzetten is één blok in `app/layout.tsx` (beide staan in `next/font/google`) plus de
+  koppen nalopen op gewicht (ExtraBold is te zwaar onder ~24 px).
+
 ### Paginatitels & favicon (Metadata API)
 
 - **Centraal** via Next's Metadata API. `lib/metadata.ts` (`rootMetadata`) wordt als
@@ -1592,7 +1707,7 @@ huisstijl + verzending blijven gedeeld.
 - **`branding.ts`** — `EmailBranding` + `resolveEmailBranding(tenant)` /
   `loadTenantBranding(tenantId)` / `loadTenantBrandingBySlug(slug)`. Vult uit de
   `Tenant`-velden (logo, accent/secundair, font, naam, contact, socials) met
-  GymRebel-defaults (accent `#e84b1f`). `readableText(hex)` kiest knop-tekstkleur.
+  GymRebel-defaults (accent `#ff4d00`, Rebel Orange). `readableText(hex)` kiest knop-tekstkleur.
   Gebruikt bewust de base `prisma` (Tenant heeft geen RLS).
 - **`layout.ts`** (`renderEmailLayout`) — de centrale HTML-shell: table-based,
   600px, inline CSS, `<style>` met responsive + `prefers-color-scheme:dark`, MSO
