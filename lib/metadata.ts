@@ -62,8 +62,18 @@ export async function rootMetadata(): Promise<Metadata> {
     // iOS "Zet op beginscherm". De PWA-manifest-link wordt door app/manifest.ts
     // automatisch geïnjecteerd; hier alleen de iOS-specifieke meta + apple-touch.
     appleWebApp: { capable: true, statusBarStyle: "default", title: APP_NAME },
-    // Favicon blijft per tenant (tenant-favicon → -logo → app/favicon.ico); de
+    // Favicon blijft per tenant (tenant-favicon → -logo → GymRebel-beeldmerk); de
     // apple-touch-icon is whitelabel-neutraal (één binary, één merk).
-    icons: { icon: icon ?? "/favicon.ico", apple: "/icons/apple-icon-180.png" },
+    // Zonder tenant-icoon serveren we het vector-beeldmerk mét .ico-fallback voor
+    // browsers zonder SVG-favicon-ondersteuning (beide uit `npm run brand:assets`).
+    icons: {
+      icon: icon
+        ? icon
+        : [
+            { url: "/favicon.svg", type: "image/svg+xml" },
+            { url: "/favicon.ico", sizes: "48x48" },
+          ],
+      apple: "/icons/apple-icon-180.png",
+    },
   };
 }

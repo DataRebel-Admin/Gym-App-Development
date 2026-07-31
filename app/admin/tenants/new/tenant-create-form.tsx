@@ -41,7 +41,7 @@ export function TenantCreateForm() {
           <option value="FY">Frysk</option>
         </select>
       </label>
-      <ColorInput name="accentColor" label="Accentkleur (optioneel)" placeholder="#E84B1F" />
+      <ColorInput name="accentColor" label="Accentkleur (optioneel)" placeholder="#FF4D00" />
 
 
       {state.error ? (

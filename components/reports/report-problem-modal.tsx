@@ -232,7 +232,7 @@ export function ReportProblemModal({
                 type="checkbox"
                 checked={anonymous}
                 onChange={(e) => setAnonymous(e.target.checked)}
-                className="size-4 rounded accent-[var(--tenant-accent,#e84b1f)]"
+                className="size-4 rounded accent-[var(--tenant-accent,#ff4d00)]"
               />
               {t("form.anonymous")}
             </label>
@@ -243,7 +243,7 @@ export function ReportProblemModal({
                 type="checkbox"
                 name="contactAllowed"
                 disabled={anonymous}
-                className="size-4 rounded accent-[var(--tenant-accent,#e84b1f)]"
+                className="size-4 rounded accent-[var(--tenant-accent,#ff4d00)]"
               />
               {t("form.contactAllowed")}
             </label>

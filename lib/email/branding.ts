@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { readableText } from "@/lib/color";
+import { toAbsoluteUrl } from "@/lib/app-url";
 
 /**
  * Genormaliseerde huisstijl voor e-mails. Elke uitgaande mail wordt met dit
@@ -23,7 +24,29 @@ export type EmailBranding = {
 };
 
 /** GymRebel-default accent (gelijk aan app/globals.css → --tenant-accent). */
-const DEFAULT_ACCENT = "#e84b1f";
+const DEFAULT_ACCENT = "#ff4d00";
+
+/**
+ * Het GymRebel-woordmerk voor de mailheader. **PNG, geen SVG**: Gmail en Outlook
+ * weigeren SVG in `<img>`. Wit-op-transparant, want de header is altijd een
+ * accentbalk (zie `renderEmailLayout`). Wordt door `npm run brand:assets`
+ * gegenereerd en hieronder absoluut gemaakt.
+ */
+const PLATFORM_LOGO_PATH = "/brand/gymrebel-logo-email.png";
+
+/**
+ * Het logo voor de mailheader.
+ *
+ * - **Platformmail** (geen tenant): GymRebel is zélf de afzender → het eigen
+ *   woordmerk in plaats van de tekstvariant.
+ * - **Tenant zónder logo**: bewust `null` → de layout zet de sportschoolnaam als
+ *   tekst-wordmark. Hier het GymRebel-logo tonen zou de whitelabel-belofte breken.
+ * - Relatieve paden worden absoluut gemaakt: in een mailbox bestaat `/brand/…`
+ *   niet. Dat gold ook voor de demo-tenant, die een `/brand/…`-logo heeft.
+ */
+function emailLogoUrl(tenant: TenantBrandingInput | null): string | null {
+  return toAbsoluteUrl(tenant ? tenant.logoUrl : PLATFORM_LOGO_PATH);
+}
 const DEFAULT_FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
@@ -83,7 +106,7 @@ export function resolveEmailBranding(
 
   return {
     name: tenant?.name?.trim() || "GymRebel",
-    logoUrl: tenant?.logoUrl?.trim() || null,
+    logoUrl: emailLogoUrl(tenant),
     accent,
     accentText: readableText(accent),
     secondary: hex(tenant?.secondaryColor) ?? accent,

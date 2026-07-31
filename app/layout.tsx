@@ -43,7 +43,7 @@ export const generateMetadata = rootMetadata;
 // GymRebel-merkkleur als fallback. getCurrentTenant is per-request gecachet.
 export async function generateViewport(): Promise<Viewport> {
   const tenant = await getCurrentTenant();
-  return { themeColor: tenant?.accentColor ?? "#e84b1f" };
+  return { themeColor: tenant?.accentColor ?? "#ff4d00" };
 }
 
 export default async function RootLayout({

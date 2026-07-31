@@ -160,7 +160,7 @@ model Tenant {
   slug        String   @unique // subdomein, bv. "gymrebel"
   name        String
   logoUrl     String?
-  accentColor String? // primaire kleur (hex), bv. "#E84B1F"
+  accentColor String? // primaire kleur (hex), bv. "#FF4D00"
   secondaryColor String? // secundaire kleur (hex)
   faviconUrl  String?
   fontFamily  String? // optioneel; CSS font-family naam

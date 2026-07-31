@@ -7,7 +7,7 @@ import { contrastRatio, readableText } from "../lib/color";
 // `--tenant-accent-foreground`. Een verkeerde keuze = onleesbare knoppen.
 
 test("wit blijft de keuze op donkere en middeldonkere accenten", () => {
-  assert.equal(readableText("#e84b1f"), "#ffffff"); // GymRebel-oranje
+  assert.equal(readableText("#ff4d00"), "#ffffff"); // GymRebel-oranje
   assert.equal(readableText("#2563eb"), "#ffffff"); // blauw
   assert.equal(readableText("#16a34a"), "#ffffff"); // groen
   assert.equal(readableText("#111827"), "#ffffff"); // bijna zwart
@@ -23,7 +23,7 @@ test("lichte accenten krijgen donkere tekst i.p.v. wit-op-geel", () => {
 
 test("de gekozen tekstkleur haalt altijd minstens de 3:1-grens", () => {
   const accents = [
-    "#e84b1f", "#2563eb", "#16a34a", "#111827", "#e8b41f", "#a3e635",
+    "#ff4d00", "#2563eb", "#16a34a", "#111827", "#e8b41f", "#a3e635",
     "#facc15", "#ffffff", "#7c3aed", "#06b6d4", "#f472b6", "#84cc16",
   ];
   for (const accent of accents) {

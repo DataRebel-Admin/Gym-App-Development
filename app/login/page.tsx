@@ -6,6 +6,7 @@ import { oauthEnabled } from "@/lib/oauth";
 import { listDemoAccounts } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
+import { GymRebelMark } from "@/components/brand/gymrebel-logo";
 
 export async function generateMetadata() {
   const t = await getTranslations("auth");
@@ -61,9 +62,16 @@ export default async function LoginPage() {
                 alt=""
                 className="h-11 w-11 rounded-2xl bg-white/15 object-contain p-1.5 ring-1 ring-white/25"
               />
-            ) : (
+            ) : tenant ? (
               <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25">
                 {initial}
+              </span>
+            ) : (
+              // Géén sportschool in beeld → GymRebel is zélf de afzender. Het
+              // beeldmerk erft `currentColor` (wit op het accent-paneel), want
+              // oranje-op-oranje zou wegvallen.
+              <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+                <GymRebelMark className="w-7 h-auto" />
               </span>
             )}
             <span className="font-display text-lg font-semibold tracking-tight">
@@ -116,9 +124,13 @@ export default async function LoginPage() {
                 alt=""
                 className="mx-auto mb-4 h-14 w-14 rounded-2xl object-contain shadow-sm lg:hidden"
               />
-            ) : (
+            ) : tenant ? (
               <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-gradient text-xl font-bold text-accent-foreground shadow-accent lg:hidden">
                 {initial}
+              </span>
+            ) : (
+              <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-gradient text-accent-foreground shadow-accent lg:hidden">
+                <GymRebelMark className="w-9 h-auto" />
               </span>
             )}
             <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">

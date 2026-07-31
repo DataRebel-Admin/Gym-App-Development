@@ -71,7 +71,7 @@ export type EmailTemplateDef = {
 export const GLOBAL_PLACEHOLDERS: PlaceholderDef[] = [
   { token: "gymName", label: "Naam sportschool", sample: "FitPower" },
   { token: "currentYear", label: "Huidig jaar", sample: String(new Date().getFullYear()) },
-  { token: "accentColor", label: "Accentkleur (hex)", sample: "#e84b1f" },
+  { token: "accentColor", label: "Accentkleur (hex)", sample: "#ff4d00" },
   { token: "accentText", label: "Tekstkleur op accent", sample: "#ffffff" },
   { token: "logoUrl", label: "Logo-URL", sample: "" },
   { token: "supportEmail", label: "Support-e-mailadres", sample: "info@gymrebel.nl" },

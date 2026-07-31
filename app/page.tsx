@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { buttonClasses } from "@/components/ui/button-classes";
+import { GymRebelLogo } from "@/components/brand/gymrebel-logo";
 
 export const metadata = { title: "Welkom" };
 
@@ -26,12 +27,11 @@ export default async function Home() {
         className="pointer-events-none absolute -top-40 left-1/2 size-[36rem] -translate-x-1/2 rounded-full opacity-20 blur-3xl"
         style={{ background: "var(--accent-gradient)" }}
       />
-      <span className="mb-6 flex size-14 items-center justify-center rounded-2xl bg-accent-gradient text-2xl font-bold text-accent-foreground shadow-accent">
-        G
-      </span>
-      <h1 className="font-display text-4xl font-bold tracking-tight text-neutral-900 sm:text-6xl">
-        GymRebel
-      </h1>
+      {/* Platformmerk (pre-tenant): hier is GymRebel zélf de afzender, dus het
+          echte logo i.p.v. een initiaal-tegel. De <h1> blijft staan voor
+          screenreaders/SEO; visueel doet het woordmerk het werk. */}
+      <GymRebelLogo className="h-14 w-auto max-w-full text-neutral-900 sm:h-20" />
+      <h1 className="sr-only">GymRebel</h1>
       <p className="mt-4 max-w-md text-lg text-neutral-500">
         Slimmer trainen in jouw sportschool.
       </p>

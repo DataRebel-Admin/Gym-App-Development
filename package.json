@@ -27,8 +27,8 @@
     "data:names": "tsx scripts/normalize-catalog-names.ts",
     "audit:prune": "node scripts/prune-audit.mjs",
     "i18n:report": "node scripts/i18n-report.mjs",
-    "icons:generate": "node scripts/generate-app-icons.mjs",
-    "library:images": "tsx scripts/upload-schema-images.ts"
+    "library:images": "tsx scripts/upload-schema-images.ts",
+    "brand:assets": "tsx scripts/generate-brand-assets.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.107.0",

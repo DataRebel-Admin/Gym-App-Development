@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { GymRebelMark } from "@/components/brand/gymrebel-logo";
 
 export async function generateMetadata() {
   const t = await getTranslations("errors.offline");
@@ -24,14 +25,9 @@ export default async function OfflinePage() {
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-5 px-6 text-center">
+      {/* Statische pagina zonder tenant-context → het platformmerk. */}
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-        <svg viewBox="0 0 512 512" width="34" height="34" fill="currentColor" aria-hidden="true">
-          <rect x="150" y="240" width="212" height="32" rx="16" />
-          <rect x="160" y="214" width="24" height="84" rx="10" />
-          <rect x="328" y="214" width="24" height="84" rx="10" />
-          <rect x="116" y="190" width="34" height="132" rx="16" />
-          <rect x="362" y="190" width="34" height="132" rx="16" />
-        </svg>
+        <GymRebelMark className="w-10 h-auto" />
       </div>
       <div className="space-y-1.5">
         <h1 className="text-xl font-semibold text-neutral-900">{t("title")}</h1>

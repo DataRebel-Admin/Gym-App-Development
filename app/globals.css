@@ -7,14 +7,21 @@
  * die per tenant runtime worden gezet in app/layout.tsx. Afgeleide tokens
  * (accent-soft, gradient, ring) gebruiken color-mix zodat ze met élke
  * tenant-kleur kloppen. Niets hardcoded merk-specifiek.
+ *
+ * De *defaults* (zonder tenant) volgen het GymRebel Brand Book:
+ *   Rebel Orange #FF4D00 · Deep Orange #FF6A1A · Charcoal #111111
+ *   Slate #1E1E1E · Black #000000 · White #FFFFFF
+ * De neutralen zijn bewust kleurloos (geen blauwzweem): het brandbook zet het
+ * oranje af tegen strakke zwart/grijs-tinten. Zie components/brand/logo-art.ts,
+ * dat dezelfde waarden als `BRAND` exporteert voor de TS-kant.
  */
 :root {
   color-scheme: light;
 
   --background: #ffffff;
-  --foreground: #0a0a0a;
+  --foreground: #111111;
 
-  /* Neutraal grijs-palet */
+  /* Neutraal grijs-palet (eindigt op Charcoal) */
   --neutral-50: #fafafa;
   --neutral-100: #f5f5f5;
   --neutral-200: #e5e5e5;
@@ -22,9 +29,9 @@
   --neutral-400: #a3a3a3;
   --neutral-500: #737373;
   --neutral-600: #525252;
-  --neutral-700: #404040;
+  --neutral-700: #3d3d3d;
   --neutral-800: #262626;
-  --neutral-900: #171717;
+  --neutral-900: #111111;
 
   /* Semantische surfaces */
   --surface-0: #fafafa; /* pagina-achtergrond */
@@ -34,8 +41,8 @@
   --border-strong: #d4d4d4;
   --muted-foreground: #6b7280;
 
-  /* Tenant-overschrijfbaar: standaard GymRebel accent-oranje */
-  --tenant-accent: #e84b1f;
+  /* Tenant-overschrijfbaar: standaard Rebel Orange (Brand Book) */
+  --tenant-accent: #ff4d00;
   --tenant-accent-foreground: #ffffff;
   /* Default secundair: lichtere tint van het accent → klopt voor elke tenant.
      Wordt overschreven als de tenant een eigen secondaryColor heeft. */
@@ -44,6 +51,10 @@
   /* Accent-afgeleiden (werken met elke tenant-kleur) */
   --accent-soft: color-mix(in srgb, var(--tenant-accent) 12%, transparent);
   --accent-soft-strong: color-mix(in srgb, var(--tenant-accent) 20%, transparent);
+  /* Zelfde tint als accent-soft, maar DEKKEND (gemengd met het oppervlak i.p.v.
+     transparant) — voor sticky balken, waar meescrollende inhoud anders
+     doorheen schemert. */
+  --accent-soft-solid: color-mix(in srgb, var(--tenant-accent) 12%, var(--surface-1));
   --accent-ring: color-mix(in srgb, var(--tenant-accent) 45%, transparent);
   --accent-gradient: linear-gradient(
     135deg,
@@ -80,9 +91,10 @@
   --shimmer-tint: rgb(255 255 255 / 0.6);
 
   /* Premium app-achtergrond (licht).
-     Basis = koel off-white zodat witte kaarten loskomen; daaroverheen drie
-     zeer subtiele tenant-getinte radialen + een verticaal verloop. */
-  --app-bg-base: #eceef3;
+     Basis = neutraal off-white zodat witte kaarten loskomen; daaroverheen drie
+     zeer subtiele tenant-getinte radialen + een verticaal verloop. Bewust
+     kleurloos grijs (Brand Book) — een blauwzweem vecht met het oranje. */
+  --app-bg-base: #ededed;
   --app-bg:
     radial-gradient(
       62% 52% at 6% -8%,
@@ -99,7 +111,7 @@
       color-mix(in srgb, var(--tenant-accent) 6%, transparent) 0%,
       transparent 60%
     ),
-    linear-gradient(180deg, #f7f8fb 0%, #eef0f5 55%, #e9ebf2 100%);
+    linear-gradient(180deg, #fafafa 0%, #f0f0f0 55%, #eaeaea 100%);
   --app-grain-opacity: 0.03;
 
   /* Aurora-orbs (licht): getinte kern → zachte halo → transparant. Sterker dan
@@ -115,33 +127,38 @@
  * <html> (server-side gezet uit de cookie → no-flash). De neutral-ramp wordt
  * geïnverteerd zodat bestaande text-neutral-900 / bg-neutral-100-klassen
  * automatisch correct flippen. Accenten blijven de tenant-kleur (poppen op donker).
+ *
+ * De vlakken volgen het Brand Book letterlijk: Black (#000) = pagina,
+ * Charcoal (#111) = kaart, Slate (#1E1E1E) = verhoogd. Die drie zijn precies
+ * de gelaagdheid die het elevation-systeem nodig heeft.
  */
 :root[data-theme="dark"] {
-  --background: #0a0b0d;
-  --foreground: #f4f4f5;
+  --background: #000000;
+  --foreground: #ffffff;
 
-  /* Geïnverteerde neutral-ramp: 900 = bijna-wit (tekst), 50/100 = donkere vlakken */
-  --neutral-50: #1a1c20;
-  --neutral-100: #202329;
-  --neutral-200: #2a2e35;
-  --neutral-300: #3a3f47;
-  --neutral-400: #71757d;
-  --neutral-500: #9ca3af;
-  --neutral-600: #b8bcc4;
-  --neutral-700: #d4d4d8;
-  --neutral-800: #e4e4e7;
-  --neutral-900: #f4f4f5;
+  /* Geïnverteerde neutral-ramp: 900 = wit (tekst), 50/100 = donkere vlakken */
+  --neutral-50: #141414;
+  --neutral-100: #1e1e1e;
+  --neutral-200: #292929;
+  --neutral-300: #3a3a3a;
+  --neutral-400: #6f6f6f;
+  --neutral-500: #9a9a9a;
+  --neutral-600: #b5b5b5;
+  --neutral-700: #d4d4d4;
+  --neutral-800: #ededed;
+  --neutral-900: #ffffff;
 
-  --surface-0: #0a0b0d;
-  --surface-1: #131418;
-  --surface-2: #1b1d22;
-  --border: #272a31;
-  --border-strong: #363a42;
-  --muted-foreground: #9ca3af;
+  --surface-0: #000000;
+  --surface-1: #111111;
+  --surface-2: #1e1e1e;
+  --border: #292929;
+  --border-strong: #3a3a3a;
+  --muted-foreground: #9a9a9a;
 
   --tenant-secondary: color-mix(in srgb, var(--tenant-accent) 70%, #ffffff);
   --accent-soft: color-mix(in srgb, var(--tenant-accent) 22%, transparent);
   --accent-soft-strong: color-mix(in srgb, var(--tenant-accent) 34%, transparent);
+  --accent-soft-solid: color-mix(in srgb, var(--tenant-accent) 22%, var(--surface-1));
   --accent-ring: color-mix(in srgb, var(--tenant-accent) 55%, transparent);
 
   --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.4);
@@ -155,9 +172,10 @@
   --shimmer-tint: rgb(255 255 255 / 0.06);
 
   /* Premium app-achtergrond (donker).
-     Geen vol zwart: een diep, licht blauwig verloop met sterkere — maar nog
-     altijd ingehouden — tenant-gloed, zodat surface-kaarten duidelijk loskomen. */
-  --app-bg-base: #0a0b0d;
+     Brand Book: zwart met contrast. Het verloop blijft kleurloos (van bijna-zwart
+     naar zwart) met een ingehouden tenant-gloed, zodat de charcoal-kaarten
+     duidelijk loskomen zonder dat de achtergrond gaat "kleuren". */
+  --app-bg-base: #000000;
   --app-bg:
     radial-gradient(
       60% 50% at 4% -10%,
@@ -174,7 +192,7 @@
       color-mix(in srgb, var(--tenant-accent) 13%, transparent) 0%,
       transparent 60%
     ),
-    linear-gradient(180deg, #0f1116 0%, #0a0b0e 55%, #0c0d12 100%);
+    linear-gradient(180deg, #0d0d0d 0%, #000000 55%, #090909 100%);
   --app-grain-opacity: 0.055;
 
   /* Aurora-orbs (donker): feller zodat ze op de bijna-zwarte basis oplichten
@@ -212,6 +230,7 @@
   --color-accent: var(--tenant-accent);
   --color-accent-foreground: var(--tenant-accent-foreground);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-soft-solid: var(--accent-soft-solid);
 
   /* Elevation → shadow-sm / shadow-md / shadow-lg / shadow-accent */
   --shadow-xs: var(--shadow-xs);

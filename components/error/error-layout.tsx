@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { ERROR_PRESETS, type ErrorCode, type ErrorNav } from "@/lib/errors";
 import { useClientValue } from "@/lib/hooks/use-client-value";
 import { ReportProblemButton } from "@/components/reports/report-problem-modal";
+import { GymRebelMark } from "@/components/brand/gymrebel-logo";
 import { ErrorIllustration } from "./error-illustration";
 
 /** `?tenant=slug` uit de huidige URL (dev-tenantcontext); leeg op de server. */
@@ -113,9 +114,14 @@ export function ErrorLayout({
               alt={tenant.name}
               className="h-8 w-8 rounded-lg object-contain"
             />
-          ) : (
+          ) : tenant ? (
             <span className="flex size-8 items-center justify-center rounded-lg bg-accent-gradient text-sm font-bold text-accent-foreground shadow-accent">
-              {(tenant?.name ?? "G").charAt(0)}
+              {tenant.name.charAt(0)}
+            </span>
+          ) : (
+            // Zonder tenant is dit een GymRebel-pagina → het echte beeldmerk.
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent-gradient text-accent-foreground shadow-accent">
+              <GymRebelMark className="w-5 h-auto" />
             </span>
           )}
           <span className="font-display text-lg font-semibold tracking-tight text-neutral-900">

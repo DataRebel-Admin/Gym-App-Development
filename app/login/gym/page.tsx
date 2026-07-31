@@ -57,7 +57,7 @@ export default async function GymPickerPage() {
                   ) : (
                     <span
                       className="flex size-10 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
-                      style={{ backgroundColor: t.accentColor ?? "#e84b1f" }}
+                      style={{ backgroundColor: t.accentColor ?? "#ff4d00" }}
                     >
                       {t.name.charAt(0).toUpperCase()}
                     </span>

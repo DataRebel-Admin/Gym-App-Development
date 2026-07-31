@@ -130,7 +130,7 @@ export function TenantBrandingForm({ tenant }: { tenant: Tenant }) {
         name="accentColor"
         label="Accentkleur (primair)"
         defaultValue={tenant.accentColor ?? ""}
-        placeholder="#E84B1F"
+        placeholder="#FF4D00"
       />
       <ColorInput
         name="secondaryColor"

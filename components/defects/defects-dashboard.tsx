@@ -237,7 +237,7 @@ export function DefectsDashboard({
             type="checkbox"
             checked={outOnly}
             onChange={(e) => setOutOnly(e.target.checked)}
-            className="size-4 rounded accent-[var(--tenant-accent,#e84b1f)]"
+            className="size-4 rounded accent-[var(--tenant-accent,#ff4d00)]"
           />
           {to("filters.outOfServiceOnly")}
         </label>
@@ -554,7 +554,7 @@ function DefectDetailModal({
                     name="release"
                     value="1"
                     defaultChecked
-                    className="size-4 rounded accent-[var(--tenant-accent,#e84b1f)]"
+                    className="size-4 rounded accent-[var(--tenant-accent,#ff4d00)]"
                   />
                   {to("actions.release")}
                 </label>

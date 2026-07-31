@@ -6,6 +6,7 @@ import { SideNavDrawer } from "@/components/nav/side-nav-drawer";
 import { UserMenu } from "@/components/nav/user-menu";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { GymRebelMark } from "@/components/brand/gymrebel-logo";
 import { platformMetadata } from "@/lib/metadata";
 import { getUserBadge } from "@/lib/account";
 
@@ -99,8 +100,8 @@ export default async function AdminLayout({
               href="/admin"
               className="flex min-w-0 shrink-0 items-center gap-2.5 font-display text-lg font-bold text-neutral-900"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-gradient text-sm font-bold text-accent-foreground shadow-accent">
-                G
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-gradient text-accent-foreground shadow-accent">
+                <GymRebelMark className="w-5 h-auto" />
               </span>
               <span className="truncate">
                 GymRebel
@@ -125,7 +126,8 @@ export default async function AdminLayout({
             <SideNavDrawer
               entries={NAV}
               rootHref="/admin"
-              brand={{ name: "GymRebel", logoUrl: null }}
+              // Platform-area: het GymRebel-beeldmerk i.p.v. een initiaal-tegel.
+              brand={{ name: "GymRebel", logoUrl: "/brand/gymrebel-mark.svg" }}
               profile={{
                 name: badge?.name ?? session.user.name ?? null,
                 email: badge?.email ?? session.user.email ?? null,

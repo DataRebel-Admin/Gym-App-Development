@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import "./globals.css";
 import { getClientErrors } from "@/lib/report-client-errors";
 import { CHANGELOG } from "@/lib/changelog";
+import { GymRebelMark } from "@/components/brand/gymrebel-logo";
 
 /**
  * Catastrofale fout — vervángt de root-layout (en dus alle providers). Daarom
@@ -78,8 +79,8 @@ export default function GlobalError({
             style={{ background: "var(--accent-gradient)" }}
           />
           <div className="ge-fade relative flex w-full max-w-md flex-col items-center">
-            <span className="mb-8 flex size-9 items-center justify-center rounded-lg bg-accent-gradient text-sm font-bold text-accent-foreground shadow-accent">
-              G
+            <span className="mb-8 flex size-9 items-center justify-center rounded-lg bg-accent-gradient text-accent-foreground shadow-accent">
+              <GymRebelMark className="w-5 h-auto" />
             </span>
 
             <svg

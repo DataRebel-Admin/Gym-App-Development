@@ -97,6 +97,9 @@ type TenantSpec = {
   slug: string;
   name: string;
   accentColor: string;
+  /** Optioneel: eigen logo/favicon (URL). Leeg = de UI toont de initiaal-tegel. */
+  logoUrl?: string;
+  faviconUrl?: string;
   locale: Locale;
   aiEnabled?: boolean;
   contact?: TenantContactSpec;
@@ -222,11 +225,20 @@ async function seedTenant(spec: TenantSpec) {
   const contact = contactData(spec.contact);
   const tenant = await prisma.tenant.upsert({
     where: { slug: spec.slug },
-    update: { name: spec.name, accentColor: spec.accentColor, locale: spec.locale, ...contact },
+    update: {
+      name: spec.name,
+      accentColor: spec.accentColor,
+      logoUrl: spec.logoUrl ?? null,
+      faviconUrl: spec.faviconUrl ?? null,
+      locale: spec.locale,
+      ...contact,
+    },
     create: {
       slug: spec.slug,
       name: spec.name,
       accentColor: spec.accentColor,
+      logoUrl: spec.logoUrl ?? null,
+      faviconUrl: spec.faviconUrl ?? null,
       locale: spec.locale,
       aiEnabled: spec.aiEnabled ?? false,
       ...contact,
@@ -1099,7 +1111,14 @@ async function main() {
   await seedTenant({
     slug: "gymrebel",
     name: "GymRebel Sportschool",
-    accentColor: "#E84B1F",
+    // Rebel Orange (Brand Book) — deze demo-tenant ís het merk, dus ook het
+    // echte logo. Relatieve URL's naar `public/brand/` (uit `npm run brand:assets`):
+    // prima voor de UI. E-mail/PDF halen een logo op via fetch en slaan een
+    // relatief pad best-effort over — een échte sportschool uploadt een absolute
+    // Blob-URL via /owner/settings.
+    accentColor: "#FF4D00",
+    logoUrl: "/brand/gymrebel-mark.svg",
+    faviconUrl: "/favicon.svg",
     locale: Locale.NL,
     contact: {
       addressLine: "Krachtstraat 12",

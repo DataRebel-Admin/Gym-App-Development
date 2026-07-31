@@ -19,8 +19,10 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#ffffff",
-    theme_color: "#e84b1f",
+    // Splash-vlak = Brand Book Black; het donkere thema is de default in de app,
+    // dus een wit splashscherm gaf een felle flits vóór de eerste render.
+    background_color: "#000000",
+    theme_color: "#ff4d00",
     categories: ["health", "fitness", "sports"],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

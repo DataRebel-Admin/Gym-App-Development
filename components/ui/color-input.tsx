@@ -14,7 +14,7 @@ export function ColorInput({
   name,
   label,
   defaultValue = "",
-  placeholder = "#E84B1F",
+  placeholder = "#FF4D00",
 }: {
   name: string;
   label: string;
