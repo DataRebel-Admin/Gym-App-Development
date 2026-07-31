@@ -1881,13 +1881,26 @@ tenant-branding.
   JS-chunks een build-hash dragen en dus niet in `PRECACHE` kunnen staan. Offline
   faalden die chunks, herlaadde de Next-runtime, kreeg opnieuw de fallback en faalde
   opnieuw — een **zichtbaar flikkerende offline-pagina**. De vorige `app/offline/page.tsx`
-  is daarom verwijderd. Het bestand heeft bewust géén script en als enige externe bron
+  is daarom verwijderd. Het bestand heeft als enige **externe** bron
   `/icons/icon-192.png`, dat `sw.js` meeprecachet; voeg er nooit een asset aan toe zonder
-  die in `PRECACHE` te zetten. Wijzig je `offline.html` of `PRECACHE`, **hoog dan `CACHE`
+  die in `PRECACHE` te zetten. Een **inline** script mag wél — dat laadt niets bij en kan
+  de faalmodus hierboven dus niet terugbrengen (zelfde afweging als
+  `capacitor/www/error.html`). Wijzig je `offline.html` of `PRECACHE`, **hoog dan `CACHE`
   op** (`activate` wist alleen ándere cacheversies, dus anders houden bestaande clients
   hun oude kopie). Tekst is hardcoded NL: de fallback wordt één keer bij install gecachet
   en had als Next-route sowieso al de taal van dát moment bevroren; de ongebruikte
   `errors.offline`-sleutels staan nog in `messages/*.json`.
+  - **GEEN `dvh` OP DEZE PAGINA, MAAR `svh`.** De inhoud staat verticaal gecentreerd in
+    een `min-height`-container. `dvh` is per definitie dynamisch: hij krimpt en groeit mee
+    terwijl de mobiele browserbalk in- en uitschuift, dus hercentreerde de hele kolom
+    zichtbaar. `svh` gaat uit van de kleinste viewport en blijft staan (met `100vh` als
+    terugval erboven).
+  - **"Probeer opnieuw" navigeert niet als het toestel aantoonbaar offline is**
+    (`navigator.onLine === false` → `preventDefault`). Die navigatie faalde toch en de
+    SW serveerde dezelfde pagina opnieuw: een volledige herlaadbeurt met flits en nul
+    resultaat. In plaats daarvan verschijnt een statusregel die zijn ruimte **altijd**
+    bezet houdt (`visibility`, geen `display`) zodat er niets verspringt. Zonder JS blijft
+    de link een gewone navigatie; `online` triggert alsnog automatisch verdergaan.
 - **De service worker draait óók in development** (`ServiceWorkerRegister` in
   `app/layout.tsx` heeft geen productie-gate). Stopt of herstart de dev server, dan
   serveert de SW dus de offline-pagina. Dat is correct gedrag, geen bug — in DevTools

@@ -16,7 +16,7 @@
  * CACHE ophogen bij elke wijziging aan PRECACHE of aan offline.html, anders
  * houden bestaande clients hun oude kopie (activate wist alleen ándere versies). */
 
-const CACHE = "gymrebel-v3";
+const CACHE = "gymrebel-v4";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png"];
 

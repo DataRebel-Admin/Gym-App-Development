@@ -9,16 +9,18 @@
       Statische offline-fallback, geserveerd door public/sw.js wanneer een
       navigatie faalt.
 
-      BEWUST ZONDER JAVASCRIPT, en bewust GEEN Next-route. De vorige fallback was
-      de App Router-pagina /offline: die precachete alleen de HTML, niet haar
-      JS-chunks. Offline faalden die chunks, waarna de Next-runtime de pagina
-      opnieuw laadde, opnieuw de fallback kreeg en opnieuw faalde. Dat is het
-      flikkeren dat gebruikers zagen. Een bestand in public/ heeft geen runtime,
-      geen hydratie en geen HMR-client, dus het rendert een keer en blijft staan.
+      BEWUST GEEN Next-route. De vorige fallback was de App Router-pagina
+      /offline: die precachete alleen de HTML, niet haar JS-chunks. Offline
+      faalden die chunks, waarna de Next-runtime de pagina opnieuw laadde,
+      opnieuw de fallback kreeg en opnieuw faalde. Dat is het flikkeren dat
+      gebruikers zagen. Een bestand in public/ heeft geen runtime, geen hydratie
+      en geen HMR-client, dus het rendert een keer en blijft staan.
 
-      Daarom ook: alles inline (CSS, kleuren) en als enige externe bron het
-      app-icoon, dat sw.js expliciet meeprecachet. Voeg hier nooit een script of
-      een extra asset toe zonder die ook in PRECACHE te zetten.
+      Daarom ook: alles inline (CSS, script, kleuren) en als enige externe bron
+      het app-icoon, dat sw.js expliciet meeprecachet. Voeg hier nooit een
+      EXTERNE asset toe zonder die ook in PRECACHE te zetten. Een inline script
+      mag wel: dat laadt niets bij en kan de faalmodus hierboven dus niet
+      terugbrengen (zelfde afweging als capacitor/www/error.html).
 
       Platformmerk, geen tenant-huisstijl: deze pagina draait zonder tenant- of
       auth-context, precies zodat 'ie altijd rendert.
@@ -48,7 +50,14 @@
         padding: 0;
       }
       body {
-        min-height: 100dvh;
+        /* svh, NIET dvh. `dvh` is per definitie dynamisch: hij krimpt en groeit
+           mee terwijl de browserbalk op mobiel in- en uitschuift. Met
+           `justify-content: center` hercentreert de hele kolom dan bij elke
+           verandering, en dat is het verspringen dat je na een tik op "Probeer
+           opnieuw" zag. `svh` gaat uit van de kleinste viewport (balk zichtbaar)
+           en blijft dus staan. `vh` eerst als terugval voor oude browsers. */
+        min-height: 100vh;
+        min-height: 100svh;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -96,6 +105,16 @@
       a:hover {
         opacity: 0.9;
       }
+      /* De statusregel staat er altijd en houdt zijn ruimte bezet (visibility,
+         geen display), zodat het tonen ervan niets verschuift. */
+      .status {
+        visibility: hidden;
+        min-height: 1.375rem;
+        font-size: 0.8125rem;
+      }
+      .status.is-visible {
+        visibility: visible;
+      }
     </style>
   </head>
   <body>
@@ -104,6 +123,35 @@
       <h1>Je bent offline</h1>
       <p>Zodra je weer online bent, kun je verdergaan met trainen.</p>
     </div>
-    <a href="/">Probeer opnieuw</a>
+    <a id="retry" href="/">Probeer opnieuw</a>
+    <p class="status" id="status" role="status">Nog steeds geen verbinding.</p>
+    <script>
+      // Progressieve verbetering. Zonder JS blijft de link een gewone navigatie
+      // naar "/", precies zoals hiervoor.
+      //
+      // Mét JS: is het toestel aantoonbaar offline, dan navigeren we niet. Die
+      // navigatie faalde toch en de service worker serveerde deze pagina
+      // opnieuw — een volledige herlaadbeurt met flits, voor een zichtbaar
+      // resultaat van nul. We tonen alleen de statusregel. `navigator.onLine`
+      // is alleen betrouwbaar als hij `false` is; bij `true` proberen we het
+      // gewoon, want online zijn met het netwerk is geen garantie op bereik.
+      (function () {
+        var link = document.getElementById("retry");
+        var status = document.getElementById("status");
+
+        link.addEventListener("click", function (event) {
+          if (navigator.onLine === false) {
+            event.preventDefault();
+            status.classList.add("is-visible");
+          }
+        });
+
+        // Komt de verbinding terug, ga dan meteen verder (zelfde gedrag als de
+        // native foutpagina in capacitor/www/error.html).
+        window.addEventListener("online", function () {
+          window.location.replace(link.href);
+        });
+      })();
+    </script>
   </body>
 </html>
