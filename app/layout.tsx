@@ -13,7 +13,6 @@ import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { ToastProvider } from "@/components/ui/toast";
-import { FullscreenToggle } from "@/components/fullscreen-toggle";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { ClientErrorRecorder } from "@/components/error/client-error-recorder";
 import { SplashGate } from "@/components/pwa/splash-gate";
@@ -105,7 +104,6 @@ export default async function RootLayout({
             <ToastProvider>
               <TenantProvider tenant={tenantInfo}>
                 {children}
-                <FullscreenToggle />
                 <ServiceWorkerRegister />
                 <ClientErrorRecorder />
                 {/* Klikt het native startscherm weg zodra de UI staat; no-op op web. */}

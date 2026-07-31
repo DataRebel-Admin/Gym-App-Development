@@ -6,7 +6,6 @@ import { getMemberSchemaMode, canEditAssignedSchema } from "@/lib/member-schema"
 import { isEditableMemberStatus } from "@/lib/member-schema-status";
 import { enforceSessionTimeout } from "@/lib/session-timeout";
 import { MarkAutoStopSeen } from "@/components/member/mark-auto-stop-seen";
-import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding, Pencil } from "@/components/ui/icons";
 import {
@@ -220,7 +219,7 @@ export default async function MemberSchemaPage() {
   }));
 
   return (
-    <Fullscreenable className="flex flex-1 flex-col gap-5 px-5 py-8">
+    <div className="flex flex-1 flex-col gap-5 px-5 py-8">
       {isNew ? <MarkSchemaSeen /> : null}
       {autoStopBanner}
       {/* Banner i.p.v. de volle 3:2-kaart: op een telefoonscherm moet de titel
@@ -232,42 +231,39 @@ export default async function MemberSchemaPage() {
         priority
         className="h-36 rounded-2xl"
       />
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-              {schema.name}
-            </h1>
-            {isNew ? (
-              <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent-foreground">
-                {t("newBadge")}
-              </span>
-            ) : null}
-          </div>
-          {schema.description ? (
-            <p className="mt-1 text-sm text-neutral-500">{schema.description}</p>
-          ) : null}
-          <div className="mt-2">
-            <SchemaBadges badges={schema.badges} />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
-              <Dumbbell className="size-3.5 text-accent" /> {t("exercisesCount", { count: schema.items.length })}
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
+            {schema.name}
+          </h1>
+          {isNew ? (
+            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent-foreground">
+              {t("newBadge")}
             </span>
-            {multiDay ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
-                <CalendarDays className="size-3.5 text-accent" /> {t("daysCount", { count: days.length })}
-              </span>
-            ) : null}
-          </div>
-          {assignedByName ? (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
-              <PersonStanding className="size-3.5 text-accent" />
-              {t("assignedBy", { trainer: assignedByName })}
-            </p>
           ) : null}
         </div>
-        <FullscreenButton />
+        {schema.description ? (
+          <p className="mt-1 text-sm text-neutral-500">{schema.description}</p>
+        ) : null}
+        <div className="mt-2">
+          <SchemaBadges badges={schema.badges} />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
+            <Dumbbell className="size-3.5 text-accent" /> {t("exercisesCount", { count: schema.items.length })}
+          </span>
+          {multiDay ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-neutral-600">
+              <CalendarDays className="size-3.5 text-accent" /> {t("daysCount", { count: days.length })}
+            </span>
+          ) : null}
+        </div>
+        {assignedByName ? (
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+            <PersonStanding className="size-3.5 text-accent" />
+            {t("assignedBy", { trainer: assignedByName })}
+          </p>
+        ) : null}
       </div>
 
       {validity.state === "expiring" || validity.state === "expired" ? (
@@ -426,6 +422,6 @@ export default async function MemberSchemaPage() {
           <Pencil className="size-4 text-accent" /> {t("buildOwnSchema")}
         </Link>
       ) : null}
-    </Fullscreenable>
+    </div>
   );
 }

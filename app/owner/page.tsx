@@ -14,7 +14,6 @@ import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
 import { normalizeLayout, type WidgetId } from "@/lib/dashboard";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
-import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import {
   KpiRow,
   UsageList,
@@ -94,13 +93,13 @@ export default async function OwnerDashboard() {
   const firstName = owner.name?.split(" ")[0];
 
   return (
-    <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {/* Premium hero-header. Ondoorzichtig: achter dit paneel zweeft alleen de
           aurora, dus doorschijnendheid zou de kop enkel onrustig maken. De
           tenant-tint komt van de eigen .bg-aura-laag hieronder. */}
       <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-7 shadow-lg">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
+        <div className="relative">
           <div>
             <p className="text-sm font-medium text-accent">
               {new Date().toLocaleDateString(
@@ -117,7 +116,6 @@ export default async function OwnerDashboard() {
                 : t("noTrainingToday")}
             </p>
           </div>
-          <FullscreenButton />
         </div>
       </section>
 
@@ -133,6 +131,6 @@ export default async function OwnerDashboard() {
       {maintenanceEnabled ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
       <WidgetGrid nodes={nodes} initialLayout={layout} />
-    </Fullscreenable>
+    </div>
   );
 }

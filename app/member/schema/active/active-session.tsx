@@ -10,7 +10,6 @@ import { DynamicExerciseBlock } from "./dynamic-exercise-block";
 import { GroupGuidedBlock } from "./group-guided-block";
 import { CompletionScreen } from "./completion-screen";
 import { useRestTimer, FloatingTimer } from "./rest-timer";
-import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { Check, SkipForward, Repeat, RotateCcw, Timer, Dumbbell, X, TrendingDown, Play } from "@/components/ui/icons";
@@ -1081,7 +1080,7 @@ export function ActiveSession({
   }, [completionVisible, dismissTimer]);
 
   return (
-    <Fullscreenable className="relative flex flex-1 flex-col">
+    <div className="relative flex flex-1 flex-col">
       {/* Sticky voortgangsbalk */}
       <div className="sticky top-[3.25rem] z-30 border-b border-border bg-surface-1/85 px-4 py-2.5 backdrop-blur-xl">
         <div className="flex items-center gap-3">
@@ -1124,7 +1123,6 @@ export function ActiveSession({
               <span className="absolute inset-x-1 top-1/2 h-0.5 -translate-y-1/2 rotate-45 rounded-full bg-current" />
             ) : null}
           </button>
-          <FullscreenButton />
         </div>
         {!timersEnabled ? (
           <p className="mt-1.5 text-center text-[11px] font-medium text-neutral-400">
@@ -1452,7 +1450,7 @@ export function ActiveSession({
           />
         ) : null}
       </AnimatePresence>
-    </Fullscreenable>
+    </div>
   );
 }
 

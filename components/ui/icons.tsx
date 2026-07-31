@@ -89,8 +89,6 @@ export {
   AlertTriangle,
   Camera,
   ArrowUpRight,
-  Maximize,
-  Minimize,
   MousePointer2,
 } from "lucide-react";
 

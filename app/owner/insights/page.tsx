@@ -22,7 +22,6 @@ import { ClassTrendChart } from "@/components/charts/class-trend-chart.lazy";
 import { MiniBarChart } from "@/components/charts/mini-bar-chart.lazy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
-import { Fullscreenable, FullscreenButton } from "@/components/ui/fullscreen";
 
 const PERIODS = [7, 30, 90] as const satisfies readonly InsightsWindow[];
 
@@ -113,21 +112,18 @@ export default async function InsightsPage({
   const heatmapLocations = comparison.rows.map((r) => ({ id: r.locationId, name: r.name }));
 
   return (
-    <Fullscreenable className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title={t("title")}
         description={t("desc")}
         action={
-          <div className="flex items-center gap-2">
-            <LinkTabs
-              items={PERIODS.map((p) => ({
-                href: `/owner/insights?period=${p}${loc ? `&loc=${loc}` : ""}`,
-                label: t("days", { count: p }),
-                active: p === period,
-              }))}
-            />
-            <FullscreenButton />
-          </div>
+          <LinkTabs
+            items={PERIODS.map((p) => ({
+              href: `/owner/insights?period=${p}${loc ? `&loc=${loc}` : ""}`,
+              label: t("days", { count: p }),
+              active: p === period,
+            }))}
+          />
         }
       />
 
@@ -274,6 +270,6 @@ export default async function InsightsPage({
       <p className="text-xs text-neutral-500">
         {t("footnote")} {t("retentionExplainer")}
       </p>
-    </Fullscreenable>
+    </div>
   );
 }
