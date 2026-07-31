@@ -3,12 +3,21 @@
  * Push: toont een notificatie bij een push-event en opent de bijbehorende
  * pagina bij een klik.
  * PWA: precachet een offline-fallback + kern-icoon; navigaties zijn
- * network-first (altijd verse HTML online, offline → /offline), gehashte
+ * network-first (altijd verse HTML online, offline → /offline.html), gehashte
  * statische assets zijn cache-first met achtergrond-refresh. Bewust géén
- * caching van API-/auth-verkeer of niet-GET-requests. */
+ * caching van API-/auth-verkeer of niet-GET-requests.
+ *
+ * De fallback is een statisch bestand (public/offline.html), GEEN Next-route.
+ * Een App Router-pagina precachet alleen haar HTML; haar JS-chunks dragen een
+ * build-hash en staan dus niet in PRECACHE. Offline faalden die chunks, waarna
+ * de Next-runtime herlaadde, opnieuw de fallback kreeg en opnieuw faalde: het
+ * zichtbare geflikker. Statische HTML heeft geen runtime en blijft staan.
+ *
+ * CACHE ophogen bij elke wijziging aan PRECACHE of aan offline.html, anders
+ * houden bestaande clients hun oude kopie (activate wist alleen ándere versies). */
 
-const CACHE = "gymrebel-v1";
-const OFFLINE_URL = "/offline";
+const CACHE = "gymrebel-v3";
+const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -61,7 +70,9 @@ self.addEventListener("fetch", (event) => {
             }
             return res;
           })
-          .catch(() => cached);
+          // Zonder cache én zonder netwerk moet hier een échte Response uit:
+          // `respondWith` van een undefined gooit een TypeError in de console.
+          .catch(() => cached || Response.error());
         return cached || network;
       })
     );

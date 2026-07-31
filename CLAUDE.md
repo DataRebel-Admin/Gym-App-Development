@@ -1843,6 +1843,23 @@ tenant-branding.
   `proxy.ts` vangt de cross-area rol-mismatch op `/owner`↔`/member`↔`/admin` al af met
   een redirect (bewust — betere UX dan een 403); de guard-`forbidden()` is daar dus
   defense-in-depth en de echte 403-UX is voor andere `forbidden()`-call-sites.
+- **DE OFFLINE-FALLBACK IS STATISCHE HTML, GEEN NEXT-ROUTE** — `public/offline.html`,
+  geserveerd door `public/sw.js` als een navigatie faalt. Dit hoort níét bij de
+  presets hierboven: een App Router-pagina precachet alleen haar HTML, terwijl haar
+  JS-chunks een build-hash dragen en dus niet in `PRECACHE` kunnen staan. Offline
+  faalden die chunks, herlaadde de Next-runtime, kreeg opnieuw de fallback en faalde
+  opnieuw — een **zichtbaar flikkerende offline-pagina**. De vorige `app/offline/page.tsx`
+  is daarom verwijderd. Het bestand heeft bewust géén script en als enige externe bron
+  `/icons/icon-192.png`, dat `sw.js` meeprecachet; voeg er nooit een asset aan toe zonder
+  die in `PRECACHE` te zetten. Wijzig je `offline.html` of `PRECACHE`, **hoog dan `CACHE`
+  op** (`activate` wist alleen ándere cacheversies, dus anders houden bestaande clients
+  hun oude kopie). Tekst is hardcoded NL: de fallback wordt één keer bij install gecachet
+  en had als Next-route sowieso al de taal van dát moment bevroren; de ongebruikte
+  `errors.offline`-sleutels staan nog in `messages/*.json`.
+- **De service worker draait óók in development** (`ServiceWorkerRegister` in
+  `app/layout.tsx` heeft geen productie-gate). Stopt of herstart de dev server, dan
+  serveert de SW dus de offline-pagina. Dat is correct gedrag, geen bug — in DevTools
+  "Bypass for network" aanzetten of de SW unregistreren.
 
 ### Internationalisatie (i18n) — NL / EN / FY
 
