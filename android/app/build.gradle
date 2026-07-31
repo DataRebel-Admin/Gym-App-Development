@@ -8,7 +8,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,11 +16,66 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    /**
+     * Ondertekening van de release-build.
+     *
+     * De gegevens komen uit `android/keystore.properties` (lokaal, NIET in git)
+     * of uit omgevingsvariabelen (CI). Ontbreken ze allebei, dan wordt er géén
+     * signingConfig gezet: `assembleDebug` blijft gewoon werken en
+     * `bundleRelease` levert een ongetekende AAB. Dat faalt zichtbaar bij het
+     * uploaden in plaats van stil een verkeerd getekend artefact op te leveren.
+     *
+     * Aanmaken van de keystore: zie capacitor/README.md. Raak 'm nooit kwijt.
+     */
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    def keystoreProps = new Properties()
+    if (keystorePropsFile.exists()) {
+        keystoreProps.load(new FileInputStream(keystorePropsFile))
+    }
+
+    def storePath = keystoreProps['storeFile'] ?: System.getenv('ANDROID_KEYSTORE_PATH')
+    def storePass = keystoreProps['storePassword'] ?: System.getenv('ANDROID_KEYSTORE_PASSWORD')
+    def keyName = keystoreProps['keyAlias'] ?: System.getenv('ANDROID_KEY_ALIAS')
+    def keyPass = keystoreProps['keyPassword'] ?: System.getenv('ANDROID_KEY_PASSWORD')
+    def canSign = storePath && storePass && keyName && keyPass
+
+    signingConfigs {
+        release {
+            if (canSign) {
+                storeFile file(storePath)
+                storePassword storePass
+                keyAlias keyName
+                keyPassword keyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (canSign) {
+                signingConfig signingConfigs.release
+            } else {
+                logger.warn("⚠ Geen keystore gevonden — release-build wordt NIET ondertekend. Zie capacitor/README.md.")
+            }
+
+            // R8/minify bewust UIT. De Java-laag is hier alleen de Capacitor-brug
+            // plus plugins; die worden via reflectie aangeroepen en sneuvelen
+            // zonder zorgvuldig onderhouden keep-rules. De winst is bovendien
+            // verwaarloosbaar: vrijwel alle code van deze app staat op de server,
+            // niet in de APK. Aanzetten alleen mét een test op een echt toestel.
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Geen debug-symbolen of debugbare WebView in een release-build; Play
+            // markeert dat als beveiligingsrisico. Sluit aan op
+            // `webContentsDebuggingEnabled: false` in capacitor.config.ts.
+            debuggable false
         }
+        // Bewust géén `applicationIdSuffix` op de debug-build. Dat zou naast de
+        // store-versie kunnen draaien, maar breekt precies wat je op een toestel
+        // wilt testen: App Links verifiëren tegen de package name in
+        // assetlinks.json, en FCM koppelt z'n google-services.json er ook aan.
+        // Een debug-build met een andere id krijgt dus geen deep links en geen
+        // push, en dat is een dure verrassing tijdens het testen.
     }
 }
 

@@ -52,10 +52,16 @@ captures/
 # Comment next line if keeping position of elements in Navigation Editor is relevant for you
 .idea/navEditor.xml
 
-# Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+# Keystore files — NOOIT committen. Wie deze sleutel plus het wachtwoord heeft,
+# kan een update van GymRebel publiceren. Bewaar 'm in een wachtwoordkluis, met
+# een back-up: zonder de originele keystore kun je nooit meer updaten.
+*.jks
+*.keystore
+keystore.properties
+
+# Firebase-config met de FCM-afzender; hoort bij de release-build en komt uit
+# de Firebase Console, niet uit de repo.
+google-services.json
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
