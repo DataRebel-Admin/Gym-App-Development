@@ -11,7 +11,7 @@
 // - Kleuren komen uit `BRAND` (Brand Book): Rebel Orange, Charcoal, Black, White.
 //
 // Gebruik: npm run brand:assets
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
@@ -127,6 +127,23 @@ function png(source: string, width: number): Buffer {
 }
 
 /**
+ * Zelfde als {@link png}, maar **zonder alfakanaal**.
+ *
+ * resvg levert altijd RGBA, ook als elke pixel dekkend is. Voor het iOS-app-icoon
+ * is dat fataal: App Store Connect weigert de upload met
+ * `ITMS-90717: Invalid App Store Icon … can't be transparent nor contain an
+ * alpha channel`. sharp plat het beeld af op de merkkleur (die toch al de
+ * achtergrond is, dus visueel verandert er niets) en schrijft RGB zonder alfa.
+ */
+async function pngOpaque(source: string, width: number): Promise<Buffer> {
+  const { default: sharp } = await import("sharp");
+  return sharp(png(source, width))
+    .flatten({ background: BRAND.orange })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
+}
+
+/**
  * Bouwt een .ico met PNG-payloads (Vista+ formaat, door elke moderne browser
  * ondersteund). Geen extra dependency nodig: de container is 6 bytes header +
  * 16 bytes per afbeelding.
@@ -231,8 +248,30 @@ function androidForeground(): string {
   );
 }
 
-/** Splashscherm: gestapelde lockup, gecentreerd op Brand Book Black. */
-function androidSplash(w: number, h: number): string {
+/**
+ * Statusbalk-meldingsicoon (Android).
+ *
+ * Android gebruikt hiervan **uitsluitend het alfakanaal** en kleurt het daarna
+ * zelf in met de accentkleur. Een gewoon oranje/zwart icoon wordt daardoor een
+ * egale witte blob. Dus: wit silhouet op transparant, met ruime marge zodat het
+ * niet tegen de randen van het 24dp-vak plakt.
+ */
+function notificationIcon(): string {
+  const size = 1024;
+  const k = (size * 0.74) / MARK_W;
+  return svg(
+    `0 0 ${size} ${size}`,
+    `<g transform="translate(${(size - MARK_W * k) / 2},${(size - MARK_H * k) / 2}) scale(${k})">${markBody(BRAND.white)}</g>`,
+    "GymRebel"
+  );
+}
+
+/**
+ * Splashscherm: gestapelde lockup, gecentreerd op Brand Book Black. Gedeeld door
+ * Android (dichtheid-drawables) en iOS (één vierkant beeld dat aspect-fill wordt
+ * bijgesneden), zodat beide platforms exact hetzelfde startscherm tonen.
+ */
+function splashArt(w: number, h: number): string {
   const logoW = Math.min(w * 0.52, ((h * 0.42) / STACK.h) * STACK.w);
   const k = logoW / STACK.w;
   return svg(
@@ -248,26 +287,49 @@ if (existsSync(join(ROOT, ANDROID_RES))) {
   const round = androidRoundIcon();
   const foreground = androidForeground();
 
-  // dichtheid → [launcher-formaat, voorgrond-formaat (108dp-canvas)]
-  const densities: [string, number, number][] = [
-    ["mdpi", 48, 108],
-    ["hdpi", 72, 162],
-    ["xhdpi", 96, 216],
-    ["xxhdpi", 144, 324],
-    ["xxxhdpi", 192, 432],
+  const statusIcon = notificationIcon();
+
+  // dichtheid → [launcher-formaat, voorgrond-formaat (108dp-canvas), meldingsicoon (24dp)]
+  const densities: [string, number, number, number][] = [
+    ["mdpi", 48, 108, 24],
+    ["hdpi", 72, 162, 36],
+    ["xhdpi", 96, 216, 48],
+    ["xxhdpi", 144, 324, 72],
+    ["xxxhdpi", 192, 432, 96],
   ];
-  for (const [density, icon, fg] of densities) {
+  for (const [density, icon, fg, stat] of densities) {
     write(`${ANDROID_RES}/mipmap-${density}/ic_launcher.png`, png(launcher, icon));
     write(`${ANDROID_RES}/mipmap-${density}/ic_launcher_round.png`, png(round, icon));
     write(`${ANDROID_RES}/mipmap-${density}/ic_launcher_foreground.png`, png(foreground, fg));
+    // In `drawable-*`, niet `mipmap-*`: FCM zoekt het meldingsicoon op als drawable.
+    write(`${ANDROID_RES}/drawable-${density}/ic_stat_gymrebel.png`, png(statusIcon, stat));
   }
 
   // Het adaptive-icon (mipmap-anydpi-v26) tekent de achtergrond uit deze
   // kleurresource; die stond nog op Capacitors wit.
+  // `splashScreenBackground` wordt gebruikt door res/values-v31/styles.xml (het
+  // startscherm op Android 12+, waar het systeem de drawable negeert).
   write(
     `${ANDROID_RES}/values/ic_launcher_background.xml`,
-    `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${BRAND.orange}</color>\n</resources>\n`
+    `<?xml version="1.0" encoding="utf-8"?>\n` +
+      `<resources>\n` +
+      `    <color name="ic_launcher_background">${BRAND.orange}</color>\n` +
+      `    <color name="splashScreenBackground">${BRAND.black}</color>\n` +
+      `</resources>\n`
   );
+
+  // Capacitor's eigen placeholder-vectors (de groene Android-robot op een
+  // blauw patroon) blijven anders als dode resources in de APK staan. Ze zijn
+  // nergens meer aan gekoppeld: `ic_launcher.xml` wijst naar `@color/…` en
+  // `@mipmap/…`, niet naar deze `@drawable/…`. Opruimen hier, zodat het ook ná
+  // een verse `npx cap add android` weer klopt.
+  for (const dead of ["drawable/ic_launcher_background.xml", "drawable-v24/ic_launcher_foreground.xml"]) {
+    const path = join(ROOT, ANDROID_RES, dead);
+    if (existsSync(path)) {
+      rmSync(path);
+      console.log(`- ${ANDROID_RES}/${dead} (Capacitor-placeholder verwijderd)`);
+    }
+  }
 
   // Splash: exact de formaten die Capacitor aanmaakt (portret/landschap per dichtheid).
   const splashes: [string, number, number][] = [
@@ -284,10 +346,76 @@ if (existsSync(join(ROOT, ANDROID_RES))) {
     ["drawable-port-xxxhdpi", 1280, 1920],
   ];
   for (const [dir, w, h] of splashes) {
-    write(`${ANDROID_RES}/${dir}/splash.png`, png(androidSplash(w, h), w));
+    write(`${ANDROID_RES}/${dir}/splash.png`, png(splashArt(w, h), w));
   }
 } else {
   console.log("• android/ niet aanwezig — native iconen overgeslagen.");
 }
 
-console.log("Klaar — merk-assets gegenereerd.");
+// ── iOS (Capacitor) ──────────────────────────────────────────────────────────
+// `ios/` bestaat alleen op een Mac (of macOS-CI-runner), want `npx cap add ios`
+// vereist Xcode en CocoaPods. Dezelfde guard als hierboven: draait dit script op
+// Windows, dan wordt dit blok stil overgeslagen.
+const IOS_ASSETS = "ios/App/App/Assets.xcassets";
+
+/**
+ * Async omdat het afplatten van het alfakanaal via sharp loopt. Een top-level
+ * `await` kan niet: tsx compileert dit script naar CJS.
+ */
+async function writeIosAssets(): Promise<void> {
+  if (!existsSync(join(ROOT, IOS_ASSETS))) {
+    console.log("• ios/ niet aanwezig — iOS-assets overgeslagen (vereist macOS + `npx cap add ios`).");
+    return;
+  }
+
+  // App-icoon: **full-bleed, géén afgeronde hoeken en géén transparantie**. iOS
+  // legt zelf het masker en de hoekradius op; een icoon dat de ronding al
+  // ingebakken heeft, krijgt zichtbare donkere hoeken. Een alfakanaal is zelfs
+  // reden voor afkeuring bij het uploaden naar App Store Connect.
+  write(
+    `${IOS_ASSETS}/AppIcon.appiconset/AppIcon-512@2x.png`,
+    await pngOpaque(appIcon({ rounded: false, scale: 1 }), 1024)
+  );
+  write(
+    `${IOS_ASSETS}/AppIcon.appiconset/Contents.json`,
+    JSON.stringify(
+      {
+        images: [{ filename: "AppIcon-512@2x.png", idiom: "universal", platform: "ios", size: "1024x1024" }],
+        info: { author: "gymrebel", version: 1 },
+      },
+      null,
+      2
+    ) + "\n"
+  );
+
+  // Splash: één vierkant beeld van 2732×2732 (de grootte van de grootste iPad),
+  // dat op elk toestel aspect-fill wordt bijgesneden. Vierkant omdat hetzelfde
+  // bestand zowel portret als landschap moet dekken. Het logo staat gecentreerd
+  // en beslaat ruim binnen de veilige zone, dus bijsnijden raakt het nooit.
+  const iosSplash = png(splashArt(2732, 2732), 2732);
+  for (const name of ["splash-2732x2732.png", "splash-2732x2732-1.png", "splash-2732x2732-2.png"]) {
+    write(`${IOS_ASSETS}/Splash.imageset/${name}`, iosSplash);
+  }
+  write(
+    `${IOS_ASSETS}/Splash.imageset/Contents.json`,
+    JSON.stringify(
+      {
+        images: [
+          { filename: "splash-2732x2732.png", idiom: "universal", scale: "1x" },
+          { filename: "splash-2732x2732-1.png", idiom: "universal", scale: "2x" },
+          { filename: "splash-2732x2732-2.png", idiom: "universal", scale: "3x" },
+        ],
+        info: { author: "gymrebel", version: 1 },
+      },
+      null,
+      2
+    ) + "\n"
+  );
+}
+
+writeIosAssets()
+  .then(() => console.log("Klaar — merk-assets gegenereerd."))
+  .catch((err) => {
+    console.error("✗ iOS-assets genereren mislukt:", err);
+    process.exit(1);
+  });
