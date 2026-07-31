@@ -32,6 +32,7 @@ import {
   type InputValues,
 } from "@/lib/exercise-params";
 import { useLocalStorageItem } from "@/lib/hooks/use-client-value";
+import { MAX_SESSION_SETS } from "@/lib/session-overrides";
 
 /**
  * Server-actions die de actieve sessie muteren, geïnjecteerd door de pagina die
@@ -72,6 +73,29 @@ export type SessionActions = {
     ok: boolean;
     replacement?: { exerciseId: string; name: string; machineName: string | null; thumbUrl: string | null };
   }>;
+  revertSubstitution: (input: { sessionId: string; exerciseId: string }) => Promise<{
+    ok: boolean;
+    original?: {
+      exerciseId: string;
+      name: string;
+      machineName: string | null;
+      thumbUrl: string | null;
+      entries: { setNumber: number; reps: number; weightKg: number; params: unknown }[];
+      sessionSets: number | null;
+    };
+  }>;
+  /** Leg het aantal sets van een oefening in deze sessie vast (set toegevoegd). */
+  setSetCount: (input: {
+    sessionId: string;
+    exerciseId: string;
+    count: number;
+  }) => Promise<{ ok: boolean }>;
+  /** Verwijder de laatste set van een oefening (incl. een evt. gelogd resultaat). */
+  removeSet: (input: {
+    sessionId: string;
+    exerciseId: string;
+    setNumber: number;
+  }) => Promise<{ ok: boolean }>;
   saveWorkoutMood: (input: { sessionId: string; mood: string }) => Promise<{ ok: boolean }>;
   cancelSession: (formData: FormData) => void | Promise<void>;
   endSession: (formData: FormData) => void | Promise<void>;
@@ -113,6 +137,11 @@ export type ActiveExercise = {
   skipped: boolean;
   dayName: string | null;
   sets: number;
+  /**
+   * Sessie-scoped set-aantal (het lid heeft sets toegevoegd/verwijderd). Wint
+   * van `sets` uit het schema; `null` = geen afwijking.
+   */
+  sessionSets: number | null;
   targetReps: number;
   targetWeightKg: number | null;
   tempo: string | null;
@@ -189,6 +218,55 @@ function freshDynRows(typeKey: string, count: number): DynRow[] {
   }));
 }
 
+/** Kracht-setrijen opbouwen uit de al gelogde sets van deze sessie. */
+function strengthRowsFrom(entries: SetEntry[], len: number): SetValue[] {
+  return Array.from({ length: Math.max(len, 1) }, (_, i) => {
+    const entry = entries.find((e) => e.setNumber === i + 1);
+    return {
+      reps: entry ? String(entry.reps) : "",
+      kg: entry ? String(entry.weightKg) : "",
+      done: Boolean(entry),
+      saving: false,
+    };
+  });
+}
+
+/** Log-rijen (niet-kracht) opbouwen uit de al gelogde resultaten van deze sessie. */
+function dynRowsFrom(entries: SetEntry[], typeKey: string, len: number): DynRow[] {
+  return Array.from({ length: Math.max(len, 1) }, (_, i) => {
+    const entry = entries.find((e) => e.setNumber === i + 1);
+    return entry
+      ? { values: entryToLogInputValues(entry, typeKey), saved: true }
+      : { values: defaultLogInputValues(typeKey), saved: false };
+  });
+}
+
+/** Hoogste gelogde setnummer van een oefening (0 = nog niets gelogd). */
+function maxLoggedSet(entries: SetEntry[]): number {
+  return entries.reduce((mx, e) => Math.max(mx, e.setNumber), 0);
+}
+
+/**
+ * Eén korte herkansing rond een save-action. Een hapering (cold start van de
+ * serverless-functie, wegvallende wifi in de zaal) leverde het lid anders midden
+ * in z'n set een "niet opgeslagen"-melding op voor een set die bij de volgende
+ * poging gewoon wegschrijft. Pas als ook de tweede poging faalt, is het echt mis.
+ */
+async function saveWithRetry<T extends { ok: boolean }>(
+  call: () => Promise<T>
+): Promise<T | null> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await call();
+      if (res?.ok) return res;
+    } catch {
+      /* netwerkfout — nog één poging */
+    }
+    if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 600));
+  }
+  return null;
+}
+
 /** "Klaar"-status van een niet-kracht-oefening: alle rijen opgeslagen. */
 function dynExerciseDone(rows: DynRow[] | undefined): boolean {
   return Boolean(rows && rows.length > 0 && rows.every((r) => r.saved));
@@ -203,7 +281,11 @@ function guidedRoundsByOriginal(exercises: ActiveExercise[]): Map<string, number
   const map = new Map<string, number>();
   for (const g of groupItems(exercises)) {
     if (!isRealGroup(g)) continue;
-    const rounds = effectiveGuidedRounds(g, g.items.map((i) => Math.max(i.sets, 1)));
+    const rounds = effectiveGuidedRounds(
+      g,
+      // Een in deze sessie toegevoegde/verwijderde set telt als ronde mee.
+      g.items.map((i) => Math.max(i.sessionSets ?? i.sets, 1))
+    );
     for (const it of g.items) map.set(it.originalExerciseId, rounds);
   }
   return map;
@@ -307,17 +389,10 @@ export function ActiveSession({
     const init: Record<string, SetValue[]> = {};
     for (const ex of exercises) {
       if (!isStrength(ex)) continue;
-      const maxEntry = ex.entries.reduce((mx, e) => Math.max(mx, e.setNumber), 0);
-      const len = Math.max(rounds.get(ex.originalExerciseId) ?? ex.sets, maxEntry, 1);
-      init[ex.exerciseId] = Array.from({ length: len }, (_, i) => {
-        const entry = ex.entries.find((e) => e.setNumber === i + 1);
-        return {
-          reps: entry ? String(entry.reps) : "",
-          kg: entry ? String(entry.weightKg) : "",
-          done: Boolean(entry),
-          saving: false,
-        };
-      });
+      // Sessie-aantal wint van het schema-aantal; een gelogde set verdwijnt nooit.
+      const desired = rounds.get(ex.originalExerciseId) ?? ex.sessionSets ?? ex.sets;
+      const len = Math.max(desired, maxLoggedSet(ex.entries), 1);
+      init[ex.exerciseId] = strengthRowsFrom(ex.entries, len);
     }
     return init;
   });
@@ -331,18 +406,12 @@ export function ActiveSession({
     for (const ex of exercises) {
       if (isStrength(ex)) continue;
       const single = getExerciseType(ex.exerciseType).logModel === "single";
-      const maxEntry = ex.entries.reduce((mx, e) => Math.max(mx, e.setNumber), 0);
-      const len = Math.max(
-        rounds.get(ex.originalExerciseId) ?? (single ? 1 : Math.max(ex.sets, 1)),
-        maxEntry,
-        1
-      );
-      init[ex.exerciseId] = Array.from({ length: len }, (_, i) => {
-        const entry = ex.entries.find((e) => e.setNumber === i + 1);
-        return entry
-          ? { values: entryToLogInputValues(entry, ex.exerciseType), saved: true }
-          : { values: defaultLogInputValues(ex.exerciseType), saved: false };
-      });
+      const desired =
+        rounds.get(ex.originalExerciseId) ??
+        ex.sessionSets ??
+        (single ? 1 : Math.max(ex.sets, 1));
+      const len = Math.max(desired, maxLoggedSet(ex.entries), 1);
+      init[ex.exerciseId] = dynRowsFrom(ex.entries, ex.exerciseType, len);
     }
     return init;
   });
@@ -360,6 +429,15 @@ export function ActiveSession({
   const [skipFor, setSkipFor] = useState<ActiveExercise | null>(null);
   const [altFor, setAltFor] = useState<ActiveExercise | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [removeSetFor, setRemoveSetFor] = useState<{
+    ex: ActiveExercise;
+    setNumber: number;
+  } | null>(null);
+
+  // Snapshot van de oorspronkelijke oefening vóór een vervanging, zodat
+  // terugzetten de volledige kaart herstelt ("vorige keer" incl.). Na een reload
+  // is de snapshot weg; dan vult de server de identiteit + gelogde sets aan.
+  const [originalSnapshots, setOriginalSnapshots] = useState<Record<string, ActiveExercise>>({});
 
   function patchSet(exerciseId: string, idx: number, patch: Partial<SetValue>) {
     setSetState((prev) => {
@@ -405,15 +483,15 @@ export function ActiveSession({
     };
     patchDynRow(ex, rowIndex, { saved: true, failed: false });
     startTransition(async () => {
-      try {
-        const res = await actions.saveLog({
+      const res = await saveWithRetry(() =>
+        actions.saveLog({
           sessionId,
           exerciseId: ex.exerciseId,
           setNumber: rowIndex + 1,
           values: row.values,
-        });
-        if (!res?.ok) throw new Error("log save failed");
-      } catch {
+        })
+      );
+      if (!res) {
         patchDynRow(ex, rowIndex, { saved: false, failed: true });
         toast.error(t("logFailed"));
       }
@@ -421,14 +499,56 @@ export function ActiveSession({
     if (opts?.rest !== false && ex.restSeconds > 0) startRestFor(ex, ex.restSeconds);
   }
 
+  /**
+   * Leg het nieuwe set-aantal van een oefening vast op de server (sessie-scoped).
+   * Best-effort: de rij staat lokaal al klaar; dit zorgt dat 'ie een schermwissel
+   * of reload overleeft, ook als er nog niets in staat.
+   */
+  function persistSetCount(exerciseId: string, count: number) {
+    startTransition(async () => {
+      try {
+        await actions.setSetCount({ sessionId, exerciseId, count });
+      } catch {
+        /* cosmetisch — de rij staat lokaal al */
+      }
+    });
+  }
+
+  /** Extra logrij (niet-kracht): neemt de waarden van de vorige rij over. */
   function addDynRow(ex: ActiveExercise) {
-    setDynRows((prev) => {
-      const arr = prev[ex.exerciseId] ?? [];
-      if (arr.length >= 20) return prev;
-      return {
-        ...prev,
-        [ex.exerciseId]: [...arr, { values: defaultLogInputValues(ex.exerciseType), saved: false }],
-      };
+    const arr = dynRows[ex.exerciseId] ?? [];
+    if (arr.length >= MAX_SESSION_SETS) return;
+    const last = arr[arr.length - 1];
+    const values = last ? { ...last.values } : defaultLogInputValues(ex.exerciseType);
+    setDynRows((prev) => ({
+      ...prev,
+      [ex.exerciseId]: [...(prev[ex.exerciseId] ?? []), { values, saved: false }],
+    }));
+    persistSetCount(ex.exerciseId, arr.length + 1);
+  }
+
+  /** Verwijder de laatste logrij (niet-kracht), incl. een evt. opgeslagen resultaat. */
+  function removeDynRow(ex: ActiveExercise) {
+    const arr = dynRows[ex.exerciseId] ?? [];
+    if (arr.length <= 1) return;
+    const removed = arr[arr.length - 1];
+    const setNumber = arr.length;
+    setDynRows((prev) => ({
+      ...prev,
+      [ex.exerciseId]: (prev[ex.exerciseId] ?? []).slice(0, -1),
+    }));
+    startTransition(async () => {
+      try {
+        const res = await actions.removeSet({ sessionId, exerciseId: ex.exerciseId, setNumber });
+        if (!res?.ok) throw new Error("remove failed");
+      } catch {
+        // Rollback: het verwijderen kwam niet door → rij terug (met z'n waarden).
+        setDynRows((prev) => ({
+          ...prev,
+          [ex.exerciseId]: [...(prev[ex.exerciseId] ?? []), removed],
+        }));
+        toast.error(t("actionFailed"));
+      }
     });
   }
 
@@ -436,20 +556,79 @@ export function ActiveSession({
     patchSet(exerciseId, setNumber - 1, { [field]: value });
   }
 
+  /**
+   * Extra set: neemt gewicht + herhalingen van de voorgaande set over (dat is
+   * bijna altijd de bedoeling) en legt het nieuwe aantal vast, zodat een nog
+   * lege set niet verdwijnt bij een schermwissel.
+   */
   function addSet(exerciseId: string) {
-    setSetState((prev) => {
-      if (prev[exerciseId].length >= 20) return prev;
-      return { ...prev, [exerciseId]: [...prev[exerciseId], emptySet()] };
+    const arr = setState[exerciseId] ?? [];
+    if (arr.length >= MAX_SESSION_SETS) return;
+    const last = arr[arr.length - 1];
+    const next: SetValue = {
+      reps: last?.reps ?? "",
+      kg: last?.kg ?? "",
+      done: false,
+      saving: false,
+    };
+    setSetState((prev) => ({ ...prev, [exerciseId]: [...(prev[exerciseId] ?? []), next] }));
+    persistSetCount(exerciseId, arr.length + 1);
+  }
+
+  /**
+   * Verwijder de laatste set van een oefening. Bevat 'ie al een opgeslagen
+   * resultaat, dan vraagt `requestRemoveSet` eerst om bevestiging; de server
+   * wist dan ook de log-regel zodat de set niet terugkomt (en niet meetelt).
+   */
+  function removeSet(ex: ActiveExercise, setNumber: number) {
+    const arr = setState[ex.exerciseId] ?? [];
+    if (arr.length <= 1 || setNumber !== arr.length) return;
+    const removed = arr[setNumber - 1];
+    setSetState((prev) => ({
+      ...prev,
+      [ex.exerciseId]: (prev[ex.exerciseId] ?? []).slice(0, -1),
+    }));
+    startTransition(async () => {
+      try {
+        const res = await actions.removeSet({ sessionId, exerciseId: ex.exerciseId, setNumber });
+        if (!res?.ok) throw new Error("remove failed");
+      } catch {
+        // Rollback: verwijderen kwam niet door → set terug met z'n waarden.
+        setSetState((prev) => ({
+          ...prev,
+          [ex.exerciseId]: [...(prev[ex.exerciseId] ?? []), removed],
+        }));
+        toast.error(t("actionFailed"));
+      }
     });
   }
 
-  function removeSet(exerciseId: string, setNumber: number) {
-    setSetState((prev) => {
-      const arr = prev[exerciseId];
-      const idx = setNumber - 1;
-      if (idx !== arr.length - 1 || arr[idx]?.done) return prev;
-      return { ...prev, [exerciseId]: arr.slice(0, -1) };
-    });
+  /** Verwijderen van een set met opgeslagen gegevens gaat via een bevestiging. */
+  function requestRemoveSet(ex: ActiveExercise, setNumber: number) {
+    const cur = setState[ex.exerciseId]?.[setNumber - 1];
+    const hasData = Boolean(cur?.done || cur?.reps || cur?.kg);
+    if (hasData) setRemoveSetFor({ ex, setNumber });
+    else removeSet(ex, setNumber);
+  }
+
+  /** Idem voor de laatste logrij van een niet-kracht-oefening. */
+  function requestRemoveDynRow(ex: ActiveExercise) {
+    const arr = dynRows[ex.exerciseId] ?? [];
+    if (arr.length <= 1) return;
+    const last = arr[arr.length - 1];
+    const hasData =
+      last.saved || Object.values(last.values).some((v) => String(v).trim().length > 0);
+    if (hasData) setRemoveSetFor({ ex, setNumber: arr.length });
+    else removeDynRow(ex);
+  }
+
+  /** Bevestigd verwijderen — kracht en niet-kracht delen dezelfde dialoog. */
+  function confirmRemoveSet() {
+    const target = removeSetFor;
+    setRemoveSetFor(null);
+    if (!target) return;
+    if (isStrength(target.ex)) removeSet(target.ex, target.setNumber);
+    else removeDynRow(target.ex);
   }
 
   /**
@@ -463,21 +642,18 @@ export function ActiveSession({
     const idx = setNumber - 1;
     patchSet(ex.exerciseId, idx, { saving: true, failed: false });
     startTransition(async () => {
-      try {
-        const res = await actions.saveSet({
+      const res = await saveWithRetry(() =>
+        actions.saveSet({
           sessionId,
           exerciseId: ex.exerciseId,
           setNumber,
           reps,
           weightKg: kg,
-        });
-        if (res?.ok) {
-          patchSet(ex.exerciseId, idx, { saving: false, failed: false });
-        } else {
-          patchSet(ex.exerciseId, idx, { saving: false, failed: true });
-          toast.error(t("saveFailed"));
-        }
-      } catch {
+        })
+      );
+      if (res) {
+        patchSet(ex.exerciseId, idx, { saving: false, failed: false });
+      } else {
         patchSet(ex.exerciseId, idx, { saving: false, failed: true });
         toast.error(t("saveFailed"));
       }
@@ -590,6 +766,14 @@ export function ActiveSession({
     const oldId = ex.exerciseId;
     const newId = alt.exerciseId;
 
+    // Bewaar het origineel (alleen de eerste keer — een tweede vervanging mag de
+    // oorspronkelijke oefening niet overschrijven) voor "terugzetten".
+    if (!ex.substitutedFrom) {
+      setOriginalSnapshots((prev) =>
+        prev[ex.originalExerciseId] ? prev : { ...prev, [ex.originalExerciseId]: ex }
+      );
+    }
+
     // Identiteit vervangen, schema (sets/reps/rust/type) behouden, log fris.
     setExList((prev) =>
       prev.map((e) =>
@@ -636,6 +820,82 @@ export function ActiveSession({
 
     // Actieve timer stopt bij het vervangen (geen doorlopende rust van het origineel).
     timer.dismiss();
+  }
+
+  /**
+   * Zet een gekozen alternatief terug naar de oorspronkelijke oefening. De op
+   * het alternatief gelogde sets blijven in de historie staan (dat werk is
+   * gedaan); de kaart toont weer het origineel, inclusief wat daar in déze
+   * sessie al voor gelogd was.
+   */
+  function revertSubstitution(ex: ActiveExercise) {
+    const currentId = ex.exerciseId;
+    startTransition(async () => {
+      try {
+        const res = await actions.revertSubstitution({
+          sessionId,
+          exerciseId: ex.originalExerciseId,
+        });
+        const orig = res?.ok ? res.original : undefined;
+        if (!orig) throw new Error("revert failed");
+
+        const snapshot = originalSnapshots[ex.originalExerciseId];
+        const entries: SetEntry[] = orig.entries.map((e) => ({
+          setNumber: e.setNumber,
+          reps: e.reps,
+          weightKg: e.weightKg,
+          params: e.params,
+        }));
+
+        setExList((prev) =>
+          prev.map((e) =>
+            e.originalExerciseId === ex.originalExerciseId
+              ? {
+                  ...(snapshot ?? e),
+                  exerciseId: orig.exerciseId,
+                  name: orig.name,
+                  machineName: orig.machineName,
+                  thumbUrl: orig.thumbUrl,
+                  substitutedFrom: null,
+                  skipped: false,
+                  sessionSets: orig.sessionSets,
+                  entries,
+                }
+              : e
+          )
+        );
+
+        const len = Math.max(
+          orig.sessionSets ?? snapshot?.sets ?? ex.sets,
+          maxLoggedSet(entries),
+          1
+        );
+        if (isStrength(ex)) {
+          setSetState((prev) => {
+            const next = { ...prev };
+            delete next[currentId];
+            next[orig.exerciseId] = strengthRowsFrom(entries, len);
+            return next;
+          });
+        } else {
+          setDynRows((prev) => {
+            const next = { ...prev };
+            delete next[currentId];
+            next[orig.exerciseId] = dynRowsFrom(entries, ex.exerciseType, len);
+            return next;
+          });
+        }
+        setNotes((prev) => {
+          const next = { ...prev };
+          delete next[currentId];
+          next[orig.exerciseId] = snapshot?.note ?? "";
+          return next;
+        });
+        timer.dismiss();
+      } catch {
+        toast.error(t("actionFailed"));
+      }
+    });
   }
 
   // Voortgang + live samenvatting — overgeslagen oefeningen tellen niet mee.
@@ -976,10 +1236,21 @@ export function ActiveSession({
                     </p>
                   ) : null}
                   {ex.substitutedFrom ? (
-                    <p className="flex items-center gap-1.5 px-1 text-[11px] font-medium text-neutral-400">
-                      <Repeat className="size-3 text-accent" />
-                      {t("substitutedFrom", { name: ex.substitutedFrom })}
-                    </p>
+                    <div className="flex items-center gap-2 px-1">
+                      <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-medium text-neutral-400">
+                        <Repeat className="size-3 shrink-0 text-accent" />
+                        <span className="truncate">
+                          {t("substitutedFrom", { name: ex.substitutedFrom })}
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => revertSubstitution(ex)}
+                        className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-accent active:scale-95"
+                      >
+                        <RotateCcw className="size-3" /> {t("revertSubstitution")}
+                      </button>
+                    </div>
                   ) : null}
 
                   {isStrength(ex) ? (
@@ -993,7 +1264,7 @@ export function ActiveSession({
                       onToggleSet={(sn) => toggleSet(ex, sn)}
                       onRetrySet={(sn) => retrySet(ex, sn)}
                       onAddSet={() => addSet(ex.exerciseId)}
-                      onRemoveSet={(sn) => removeSet(ex.exerciseId, sn)}
+                      onRemoveSet={(sn) => requestRemoveSet(ex, sn)}
                       onNoteChange={(val) => setNotes((p) => ({ ...p, [ex.exerciseId]: val }))}
                       onNoteBlur={() => noteBlur(ex.exerciseId)}
                     />
@@ -1005,6 +1276,7 @@ export function ActiveSession({
                       onChangeValue={(idx, fieldId, v) => changeDynValue(ex, idx, fieldId, v)}
                       onSaveRow={(idx) => saveDynRow(ex, idx)}
                       onAddRow={() => addDynRow(ex)}
+                      onRemoveRow={() => requestRemoveDynRow(ex)}
                     />
                   )}
 
@@ -1081,6 +1353,33 @@ export function ActiveSession({
             className="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground active:opacity-90"
           >
             {t("skipConfirm")}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Set met gegevens verwijderen bevestigen */}
+      <Modal
+        open={removeSetFor !== null}
+        onClose={() => setRemoveSetFor(null)}
+        title={t("removeSetConfirmTitle")}
+      >
+        <p className="text-sm text-neutral-600">
+          {t("removeSetConfirmBody", { number: removeSetFor?.setNumber ?? 0 })}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setRemoveSetFor(null)}
+            className="rounded-xl border border-border px-4 py-2 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+          >
+            {t("keep")}
+          </button>
+          <button
+            type="button"
+            onClick={confirmRemoveSet}
+            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white active:opacity-90"
+          >
+            {t("removeSetConfirm")}
           </button>
         </div>
       </Modal>

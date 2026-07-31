@@ -7,6 +7,7 @@ import { m } from "motion/react";
 import { cn } from "@/lib/cn";
 import { Dumbbell, Trophy, Plus, Minus, RotateCcw, ChevronRight } from "@/components/ui/icons";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
+import { MAX_SESSION_SETS } from "@/lib/session-overrides";
 import { selectOnFocus } from "@/lib/select-on-focus";
 import type { ActiveExercise, SetValue } from "./active-session";
 
@@ -202,9 +203,6 @@ export function ExerciseBlock({
         {sets.map((s, i) => {
           const setNumber = i + 1;
           const prev = prevByNumber.get(setNumber);
-          // Alleen de laatste, toegevoegde én nog niet afgevinkte set is te
-          // verwijderen — zo verschuiven set-nummers van opgeslagen sets nooit.
-          const removable = setNumber === sets.length && setNumber > exercise.sets && !s.done;
           return (
             <m.div
               key={setNumber}
@@ -218,16 +216,6 @@ export function ExerciseBlock({
                     : "border-border bg-surface-1"
               )}
             >
-              {removable ? (
-                <button
-                  type="button"
-                  aria-label={t("removeSet", { number: setNumber })}
-                  onClick={() => onRemoveSet(setNumber)}
-                  className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-surface-1 text-neutral-500 shadow-sm active:scale-90"
-                >
-                  <Minus className="size-3.5" />
-                </button>
-              ) : null}
               <div className="flex items-center gap-2.5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 font-display text-sm font-bold text-neutral-600">
                   {setNumber}
@@ -288,16 +276,31 @@ export function ExerciseBlock({
         })}
       </div>
 
-      {/* Extra set toevoegen */}
-      {sets.length < 20 ? (
-        <button
-          type="button"
-          onClick={onAddSet}
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
-        >
-          <Plus className="size-4" /> {t("addSet")}
-        </button>
-      ) : null}
+      {/* Set toevoegen / laatste set verwijderen */}
+      <div className="flex items-center gap-2">
+        {sets.length < MAX_SESSION_SETS ? (
+          <button
+            type="button"
+            onClick={onAddSet}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
+          >
+            <Plus className="size-4" /> {t("addSet")}
+          </button>
+        ) : null}
+        {/* Alleen de láátste set is te verwijderen — zo verschuiven de nummers van
+            opgeslagen sets nooit. Wél altijd (ook een set uit het schema en een al
+            afgevinkte set); bevestiging + het wissen van het resultaat doet de parent. */}
+        {sets.length > 1 ? (
+          <button
+            type="button"
+            aria-label={t("removeSet", { number: sets.length })}
+            onClick={() => onRemoveSet(sets.length)}
+            className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong px-4 py-2.5 text-sm font-semibold text-neutral-500 active:scale-[0.99]"
+          >
+            <Minus className="size-4" /> {t("removeLastSet")}
+          </button>
+        ) : null}
+      </div>
 
       {/* Opmerking */}
       {showNote ? (

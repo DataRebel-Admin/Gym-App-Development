@@ -10,13 +10,18 @@ import {
   withSkipped,
   withoutSkipped,
   withSub,
+  withoutSub,
+  withSetCount,
+  MAX_SESSION_SETS,
 } from "../lib/session-overrides";
 
+const EMPTY = { skipped: [], subs: [], setCounts: {} };
+
 test("parseOverrides normaliseert onzin naar leeg", () => {
-  assert.deepEqual(parseOverrides(null), { skipped: [], subs: [] });
-  assert.deepEqual(parseOverrides(undefined), { skipped: [], subs: [] });
-  assert.deepEqual(parseOverrides([1, 2, 3]), { skipped: [], subs: [] });
-  assert.deepEqual(parseOverrides("x"), { skipped: [], subs: [] });
+  assert.deepEqual(parseOverrides(null), EMPTY);
+  assert.deepEqual(parseOverrides(undefined), EMPTY);
+  assert.deepEqual(parseOverrides([1, 2, 3]), EMPTY);
+  assert.deepEqual(parseOverrides("x"), EMPTY);
 });
 
 test("parseOverrides filtert ongeldige entries eruit", () => {
@@ -44,7 +49,7 @@ test("withSkipped is idempotent en dedupliceert", () => {
 });
 
 test("withoutSkipped verwijdert alleen de opgegeven id", () => {
-  const start = toOverridesJson({ skipped: ["a", "b"], subs: [] });
+  const start = toOverridesJson({ skipped: ["a", "b"], subs: [], setCounts: {} });
   assert.deepEqual(withoutSkipped(start, "a").skipped, ["b"]);
 });
 
@@ -67,4 +72,38 @@ test("sub op een overgeslagen item heft de skip op", () => {
   const afterSub = withSub(skippedA, { from: "a", to: "b", name: "B" });
   assert.deepEqual(afterSub.skipped, []);
   assert.deepEqual(afterSub.subs, [{ from: "a", to: "b", name: "B" }]);
+});
+
+test("withoutSub zet alleen de opgegeven vervanging terug", () => {
+  const start = toOverridesJson(
+    withSub(toOverridesJson(withSub(null, { from: "a", to: "b", name: "B" })), {
+      from: "c",
+      to: "d",
+      name: "D",
+    })
+  );
+  const reverted = withoutSub(start, "a");
+  assert.deepEqual(reverted.subs, [{ from: "c", to: "d", name: "D" }]);
+});
+
+test("withSetCount klemt op 1..MAX_SESSION_SETS en overschrijft per oefening", () => {
+  let o = withSetCount(null, "ex1", 5);
+  assert.deepEqual(o.setCounts, { ex1: 5 });
+  o = withSetCount(toOverridesJson(o), "ex1", 4);
+  o = withSetCount(toOverridesJson(o), "ex2", 999);
+  o = withSetCount(toOverridesJson(o), "ex3", 0);
+  assert.deepEqual(o.setCounts, { ex1: 4, ex2: MAX_SESSION_SETS, ex3: 1 });
+});
+
+test("setCounts overleven skippen/vervangen (staan los van de weergave)", () => {
+  const withCount = toOverridesJson(withSetCount(null, "ex1", 4));
+  const afterSkip = withSkipped(withCount, "ex1");
+  assert.deepEqual(afterSkip.setCounts, { ex1: 4 });
+  const afterSub = withSub(toOverridesJson(afterSkip), { from: "ex1", to: "ex9", name: "Alt" });
+  assert.deepEqual(afterSub.setCounts, { ex1: 4 });
+});
+
+test("parseOverrides negeert onbruikbare setCounts", () => {
+  const parsed = parseOverrides({ setCounts: { a: "3", b: "x", c: null, d: 2.7 } });
+  assert.deepEqual(parsed.setCounts, { a: 3, d: 2 });
 });

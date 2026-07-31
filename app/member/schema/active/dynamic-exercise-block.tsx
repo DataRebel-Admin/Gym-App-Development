@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
-import { ChevronRight, Check, Plus } from "@/components/ui/icons";
+import { ChevronRight, Check, Plus, Minus } from "@/components/ui/icons";
 import { getExerciseType, type ParamField } from "@/lib/exercise-types";
+import { MAX_SESSION_SETS } from "@/lib/session-overrides";
 import { selectOnFocus } from "@/lib/select-on-focus";
 import type { ActiveExercise, DynRow } from "./active-session";
 
@@ -81,12 +82,15 @@ export function DynamicExerciseBlock({
   onChangeValue,
   onSaveRow,
   onAddRow,
+  onRemoveRow,
 }: {
   exercise: ActiveExercise;
   rows: DynRow[];
   onChangeValue: (rowIndex: number, fieldId: string, value: string) => void;
   onSaveRow: (rowIndex: number) => void;
   onAddRow: () => void;
+  /** Verwijder de laatste rij (parent bevestigt + wist een evt. resultaat). */
+  onRemoveRow: () => void;
 }) {
   const t = useTranslations("member.active");
   const type = getExerciseType(exercise.exerciseType);
@@ -182,14 +186,27 @@ export function DynamicExerciseBlock({
         ))}
       </div>
 
-      {showSetLabels && rows.length < 20 ? (
-        <button
-          type="button"
-          onClick={onAddRow}
-          className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
-        >
-          <Plus className="size-4" /> {t("addSet")}
-        </button>
+      {showSetLabels ? (
+        <div className="flex items-center gap-2">
+          {rows.length < MAX_SESSION_SETS ? (
+            <button
+              type="button"
+              onClick={onAddRow}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong py-2.5 text-sm font-semibold text-neutral-600 active:scale-[0.99]"
+            >
+              <Plus className="size-4" /> {t("addSet")}
+            </button>
+          ) : null}
+          {rows.length > 1 ? (
+            <button
+              type="button"
+              onClick={onRemoveRow}
+              className="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-strong px-4 py-2.5 text-sm font-semibold text-neutral-500 active:scale-[0.99]"
+            >
+              <Minus className="size-4" /> {t("removeLastSet")}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getAssignedSchema } from "@/lib/member";
 import { getWorkoutContext } from "@/lib/member-stats";
 import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { exerciseThumbUrl, EXERCISE_THUMB_SELECT } from "@/lib/exercise-thumb";
 import { getHideQuotes, getDisableSetTimers } from "@/lib/user-preferences";
 import { parseOverrides } from "@/lib/session-overrides";
 import { resolveQuotes, pickQuote } from "@/lib/workout-quotes";
@@ -68,7 +69,9 @@ export async function buildActiveSessionView(
             id: true,
             name: true,
             machine: { select: { name: true } },
-            catalog: { select: { imageUrl: true, gifUrl: true } },
+            // Bron-bewust beeld (bibliotheek → klassiek → eigen), net als het
+            // schema zelf via `getAssignedSchema`.
+            ...EXERCISE_THUMB_SELECT,
           },
         })
       : [];
@@ -153,13 +156,14 @@ export async function buildActiveSessionView(
       machineName: subTarget
         ? subTarget.machine?.name ?? null
         : item.exercise.machine?.name ?? null,
-      thumbUrl: subTarget
-        ? subTarget.catalog?.imageUrl ?? subTarget.catalog?.gifUrl ?? null
-        : item.exercise.catalog?.imageUrl ?? item.exercise.catalog?.gifUrl ?? null,
+      thumbUrl: exerciseThumbUrl(subTarget ?? item.exercise),
       substitutedFrom: subTarget ? item.exercise.name : null,
       skipped: skippedIds.has(originalId),
       dayName,
       sets: item.sets,
+      // Sessie-scoped set-aantal: het lid heeft hier sets toegevoegd/verwijderd.
+      // Zonder dit verdween een toegevoegde lege set bij het herladen.
+      sessionSets: overrides.setCounts[renderedId] ?? null,
       targetReps: item.reps,
       targetWeightKg: item.weightKg ?? null,
       tempo: item.tempo ?? null,

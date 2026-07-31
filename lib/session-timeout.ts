@@ -12,6 +12,31 @@ export const SESSION_MAX_MS = 5 * 60 * 60 * 1000;
 export type TimeoutResult = { autoStopped: boolean; sessionId: string | null };
 
 /**
+ * Startmoment (ISO) van de lopende training, of `null` als er geen loopt.
+ * Alleen lezen — bedoeld voor de "training bezig"-balk die op élke member-pagina
+ * meeloopt; een write op elke navigatie zou onnodig zijn. Een sessie die al over
+ * de 5-uur-grens is telt niet mee: de pagina-guards sluiten die af.
+ */
+export async function getRunningSessionStart(
+  tenantId: string,
+  userId: string
+): Promise<string | null> {
+  try {
+    const open = await prisma.workoutSession.findFirst({
+      where: { tenantId, userId, endedAt: null },
+      orderBy: { startedAt: "desc" },
+      select: { startedAt: true },
+    });
+    if (!open) return null;
+    const age = Date.now() - open.startedAt.getTime();
+    return age <= SESSION_MAX_MS ? open.startedAt.toISOString() : null;
+  } catch {
+    // De balk is signalering; nooit een pagina laten struikelen.
+    return null;
+  }
+}
+
+/**
  * Sluit een te lang openstaande sessie automatisch af (idempotent). Wordt lazy
  * aangeroepen bij het openen van de actieve-sessie- en schema-pagina — géén cron
  * nodig, want zichtbaarheid is puur read-time. Best-effort: faalt nooit hard.

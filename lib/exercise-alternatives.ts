@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { resolveRegion, type MuscleRegion } from "@/lib/muscle-map";
+import { exerciseThumbUrl, EXERCISE_THUMB_SELECT } from "@/lib/exercise-thumb";
 
 /**
  * Alternatieve-oefening-suggesties tijdens een actieve training (bv. als het
@@ -53,6 +54,10 @@ const candidateSelect = {
   muscleGroups: true,
   equipment: true,
   machine: { select: { name: true } },
+  // Beeldbronnen (bibliotheek/eigen upload) uit de gedeelde constante; `catalog`
+  // wordt daarna bewust overschreven met de rijkere selectie die de matching
+  // hieronder nodig heeft (target/bodyPart/equipment/secondaryMuscles).
+  ...EXERCISE_THUMB_SELECT,
   catalog: {
     select: {
       target: true,
@@ -176,7 +181,7 @@ export async function findAlternatives(
       exerciseId: c.id,
       name: c.name,
       machineName: c.machine?.name ?? null,
-      thumbUrl: c.catalog?.imageUrl ?? c.catalog?.gifUrl ?? null,
+      thumbUrl: exerciseThumbUrl(c),
       reason,
       score,
       regionMatch: sharesRegion,

@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAssignedSchema } from "@/lib/member";
 import { logParamsFromInputValues, logColumnsFromParams } from "@/lib/exercise-params";
@@ -12,8 +13,12 @@ import {
   withSkipped,
   withoutSkipped,
   withSub,
+  withoutSub,
+  withSetCount,
+  MAX_SESSION_SETS,
 } from "@/lib/session-overrides";
 import { findAlternatives, type AlternativeSuggestion } from "@/lib/exercise-alternatives";
+import { exerciseThumbUrl, EXERCISE_THUMB_SELECT } from "@/lib/exercise-thumb";
 
 /**
  * Auth-loze kern van de actieve-trainingsflow, geparametriseerd op het *subject*
@@ -93,48 +98,87 @@ export async function startOrResumeSession(
   return created.id;
 }
 
+/**
+ * Getalveld dat een geldige invoer nooit stil laat afketsen: niet-getallen
+ * worden 0 en waarden buiten bereik worden geklémd i.p.v. geweigerd. Reden: een
+ * afgewezen veld (bv. 12,5 herhalingen uit de stepper) leverde het lid midden in
+ * z'n set een "niet opgeslagen"-fout op die met dezelfde waarde bleef falen.
+ */
+function clampedNumber(max: number, opts: { int?: boolean } = {}) {
+  return z.preprocess((value) => {
+    const n = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(n)) return 0;
+    const bounded = Math.min(max, Math.max(0, n));
+    return opts.int ? Math.round(bounded) : Math.round(bounded * 100) / 100;
+  }, z.number());
+}
+
 export const setInputSchema = z.object({
   sessionId: z.string().min(1),
   exerciseId: z.string().min(1),
-  setNumber: z.number().int().min(1).max(20),
-  reps: z.number().int().min(0).max(100),
-  weightKg: z.number().min(0).max(1000),
+  setNumber: z.number().int().min(1).max(MAX_SESSION_SETS),
+  reps: clampedNumber(100, { int: true }),
+  weightKg: clampedNumber(1000),
 });
 export type SetInput = z.infer<typeof setInputSchema>;
+
+/**
+ * Schrijf één log-regel weg (idempotent op de unieke set). Vangt de race af
+ * waarbij twee snel opeenvolgende saves van dezelfde set elkaar kruisen: de
+ * upsert ziet dan nog geen rij, terwijl de insert alsnog op de unique-index
+ * (sessionId, exerciseId, setNumber) botst (P2002). De rij bestáát op dat
+ * moment, dus we werken 'm alsnog bij i.p.v. het lid een "niet opgeslagen" te
+ * tonen voor een set die gewoon opgeslagen kan worden.
+ */
+async function writePerformanceEntry(
+  tenantId: string,
+  key: { sessionId: string; exerciseId: string; setNumber: number },
+  data: { reps: number; weightKg: number; params?: Prisma.InputJsonValue }
+): Promise<void> {
+  try {
+    await prisma.performanceEntry.upsert({
+      where: { sessionId_exerciseId_setNumber: key },
+      create: { tenantId, ...key, ...data },
+      update: data,
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code !== "P2002") throw err;
+    await prisma.performanceEntry.update({
+      where: { sessionId_exerciseId_setNumber: key },
+      data,
+    });
+  }
+}
 
 /** Sla één kracht-set (reps + gewicht) op. Idempotent via upsert op de unieke set. */
 export async function upsertSet(ctx: SessionSubject, input: SetInput): Promise<boolean> {
   const parsed = setInputSchema.safeParse(input);
-  if (!parsed.success) return false;
+  if (!parsed.success) {
+    console.warn("[workout] set geweigerd (validatie):", parsed.error.issues);
+    return false;
+  }
   const data = parsed.data;
 
   const session = await loadOpenSession(ctx, data.sessionId);
-  if (!session) return false;
+  if (!session) {
+    console.warn("[workout] set geweigerd: geen open sessie", data.sessionId);
+    return false;
+  }
 
   const exercise = await prisma.exercise.findFirst({
     where: { id: data.exerciseId, tenantId: ctx.tenantId },
     select: { id: true },
   });
-  if (!exercise) return false;
+  if (!exercise) {
+    console.warn("[workout] set geweigerd: onbekende oefening", data.exerciseId);
+    return false;
+  }
 
-  await prisma.performanceEntry.upsert({
-    where: {
-      sessionId_exerciseId_setNumber: {
-        sessionId: data.sessionId,
-        exerciseId: data.exerciseId,
-        setNumber: data.setNumber,
-      },
-    },
-    create: {
-      tenantId: ctx.tenantId,
-      sessionId: data.sessionId,
-      exerciseId: data.exerciseId,
-      setNumber: data.setNumber,
-      reps: data.reps,
-      weightKg: data.weightKg,
-    },
-    update: { reps: data.reps, weightKg: data.weightKg },
-  });
+  await writePerformanceEntry(
+    ctx.tenantId,
+    { sessionId: data.sessionId, exerciseId: data.exerciseId, setNumber: data.setNumber },
+    { reps: data.reps, weightKg: data.weightKg }
+  );
   return true;
 }
 
@@ -164,19 +208,15 @@ export async function upsertLog(ctx: SessionSubject, input: LogInput): Promise<b
   const params = logParamsFromInputValues(exercise.exerciseType, values);
   const cols = logColumnsFromParams(exercise.exerciseType, params);
 
-  await prisma.performanceEntry.upsert({
-    where: { sessionId_exerciseId_setNumber: { sessionId, exerciseId, setNumber } },
-    create: {
-      tenantId: ctx.tenantId,
-      sessionId,
-      exerciseId,
-      setNumber,
+  await writePerformanceEntry(
+    ctx.tenantId,
+    { sessionId, exerciseId, setNumber },
+    {
       reps: cols.reps,
       weightKg: cols.weightKg,
-      params: cols.params ?? undefined,
-    },
-    update: { reps: cols.reps, weightKg: cols.weightKg, params: cols.params ?? undefined },
-  });
+      ...(cols.params ? { params: cols.params as Prisma.InputJsonValue } : {}),
+    }
+  );
   return true;
 }
 
@@ -248,6 +288,74 @@ export async function setSkipped(
   return true;
 }
 
+export const setCountInputSchema = z.object({
+  sessionId: z.string().min(1),
+  exerciseId: z.string().min(1),
+  count: z.number().int().min(1).max(MAX_SESSION_SETS),
+});
+export type SetCountInput = z.infer<typeof setCountInputSchema>;
+
+/**
+ * Leg het aantal sets van één oefening in déze sessie vast (het lid heeft een
+ * set toegevoegd of verwijderd). Sessie-scoped: het schema blijft ongewijzigd.
+ * Zonder deze registratie verdween een toegevoegde, nog lege set zodra de
+ * pagina opnieuw laadde — er staat immers nog geen log-regel tegenover.
+ */
+export async function setSessionSetCount(
+  ctx: SessionSubject,
+  input: SetCountInput
+): Promise<boolean> {
+  const parsed = setCountInputSchema.safeParse(input);
+  if (!parsed.success) return false;
+  const { sessionId, exerciseId, count } = parsed.data;
+
+  const session = await loadOpenSession(ctx, sessionId);
+  if (!session) return false;
+
+  await prisma.workoutSession.update({
+    where: { id: session.id },
+    data: { overrides: toOverridesJson(withSetCount(session.overrides, exerciseId, count)) },
+  });
+  return true;
+}
+
+export const removeSetInputSchema = z.object({
+  sessionId: z.string().min(1),
+  exerciseId: z.string().min(1),
+  setNumber: z.number().int().min(2).max(MAX_SESSION_SETS),
+});
+export type RemoveSetInput = z.infer<typeof removeSetInputSchema>;
+
+/**
+ * Verwijder de láátste set van een oefening in deze sessie: de bijbehorende
+ * log-regel gaat weg (anders zou de set bij het herladen terugkomen én in het
+ * volume blijven meetellen) en het nieuwe set-aantal wordt vastgelegd. Alleen
+ * de laatste set is verwijderbaar (setNumber ≥ 2), zodat de nummering van
+ * opgeslagen sets nooit verschuift.
+ */
+export async function removeSessionSet(
+  ctx: SessionSubject,
+  input: RemoveSetInput
+): Promise<boolean> {
+  const parsed = removeSetInputSchema.safeParse(input);
+  if (!parsed.success) return false;
+  const { sessionId, exerciseId, setNumber } = parsed.data;
+
+  const session = await loadOpenSession(ctx, sessionId);
+  if (!session) return false;
+
+  await prisma.performanceEntry.deleteMany({
+    where: { tenantId: ctx.tenantId, sessionId, exerciseId, setNumber: { gte: setNumber } },
+  });
+  await prisma.workoutSession.update({
+    where: { id: session.id },
+    data: {
+      overrides: toOverridesJson(withSetCount(session.overrides, exerciseId, setNumber - 1)),
+    },
+  });
+  return true;
+}
+
 /** Haal alternatieve oefeningen op (zelfde spiergroep/type/lichaamsdeel). */
 export async function alternativesFor(
   ctx: SessionSubject,
@@ -289,7 +397,8 @@ export async function substitute(
       id: true,
       name: true,
       machine: { select: { name: true } },
-      catalog: { select: { imageUrl: true, gifUrl: true } },
+      // Bron-bewust beeld (bibliotheek → klassiek → eigen).
+      ...EXERCISE_THUMB_SELECT,
     },
   });
   if (!replacement) return { ok: false };
@@ -309,7 +418,74 @@ export async function substitute(
       exerciseId: replacement.id,
       name: replacement.name,
       machineName: replacement.machine?.name ?? null,
-      thumbUrl: replacement.catalog?.imageUrl ?? replacement.catalog?.gifUrl ?? null,
+      thumbUrl: exerciseThumbUrl(replacement),
+    },
+  };
+}
+
+export const revertSubstituteInputSchema = z.object({
+  sessionId: z.string().min(1),
+  /** Exercise.id van het oorspronkelijke template-item (de sleutel van de sub). */
+  exerciseId: z.string().min(1),
+});
+export type RevertSubstituteInput = z.infer<typeof revertSubstituteInputSchema>;
+export type RevertedExercise = SubstituteReplacement & {
+  /** Al gelogde sets van de oorspronkelijke oefening in déze sessie. */
+  entries: { setNumber: number; reps: number; weightKg: number; params: unknown }[];
+  /** Sessie-scoped set-aantal van het origineel (null = schema-aantal). */
+  sessionSets: number | null;
+};
+
+/**
+ * Draai een gekozen alternatief terug naar de oorspronkelijke oefening. De op
+ * het alternatief gelogde sets blijven staan (dat werk is echt gedaan en telt
+ * gewoon mee in de historie); alleen de weergave gaat terug. Retourneert de
+ * identiteit + reeds gelogde sets van het origineel, zodat de actieve sessie de
+ * kaart in-place kan herstellen zonder herladen.
+ */
+export async function revertSubstitution(
+  ctx: SessionSubject,
+  input: RevertSubstituteInput
+): Promise<{ ok: boolean; original?: RevertedExercise }> {
+  const parsed = revertSubstituteInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false };
+  const { sessionId, exerciseId } = parsed.data;
+
+  const session = await loadOpenSession(ctx, sessionId);
+  if (!session) return { ok: false };
+
+  const original = await prisma.exercise.findFirst({
+    where: { id: exerciseId, tenantId: ctx.tenantId },
+    select: {
+      id: true,
+      name: true,
+      machine: { select: { name: true } },
+      ...EXERCISE_THUMB_SELECT,
+    },
+  });
+  if (!original) return { ok: false };
+
+  const next = withoutSub(session.overrides, exerciseId);
+  await prisma.workoutSession.update({
+    where: { id: session.id },
+    data: { overrides: toOverridesJson(next) },
+  });
+
+  const entries = await prisma.performanceEntry.findMany({
+    where: { sessionId, exerciseId },
+    select: { setNumber: true, reps: true, weightKg: true, params: true },
+    orderBy: { setNumber: "asc" },
+  });
+
+  return {
+    ok: true,
+    original: {
+      exerciseId: original.id,
+      name: original.name,
+      machineName: original.machine?.name ?? null,
+      thumbUrl: exerciseThumbUrl(original),
+      entries,
+      sessionSets: next.setCounts[exerciseId] ?? null,
     },
   };
 }

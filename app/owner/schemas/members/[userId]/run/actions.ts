@@ -15,8 +15,11 @@ import {
   upsertLog,
   upsertNote,
   setSkipped,
+  setSessionSetCount,
+  removeSessionSet,
   alternativesFor,
   substitute,
+  revertSubstitution,
   setMood,
   finishSession,
   cancelSession as cancelSessionCore,
@@ -24,8 +27,12 @@ import {
   type LogInput,
   type NoteInput,
   type SkipInput,
+  type SetCountInput,
+  type RemoveSetInput,
   type SubstituteInput,
   type SubstituteReplacement,
+  type RevertSubstituteInput,
+  type RevertedExercise,
 } from "@/lib/workout-session-ops";
 
 // Trainer-varianten van de actieve-trainingsflow: een medewerker/PT draait een
@@ -100,6 +107,24 @@ export async function unskipFor(userId: string, input: SkipInput): Promise<Resul
   return { ok };
 }
 
+export async function setSetCountFor(
+  userId: string,
+  input: SetCountInput
+): Promise<Result> {
+  const { member } = await resolveTrainedMember(userId);
+  const ok = await setSessionSetCount({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
+}
+
+export async function removeSetFor(
+  userId: string,
+  input: RemoveSetInput
+): Promise<Result> {
+  const { member } = await resolveTrainedMember(userId);
+  const ok = await removeSessionSet({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
+}
+
 const alternativesSchema = z.object({
   exerciseId: z.string().min(1),
   excludeIds: z.array(z.string()).default([]),
@@ -126,6 +151,14 @@ export async function substituteFor(
 ): Promise<SubstituteResult> {
   const { member } = await resolveTrainedMember(userId);
   return substitute({ tenantId: member.tenantId, userId: member.id }, input);
+}
+
+export async function revertSubstitutionFor(
+  userId: string,
+  input: RevertSubstituteInput
+): Promise<{ ok: boolean; original?: RevertedExercise }> {
+  const { member } = await resolveTrainedMember(userId);
+  return revertSubstitution({ tenantId: member.tenantId, userId: member.id }, input);
 }
 
 const moodSchema = z.object({

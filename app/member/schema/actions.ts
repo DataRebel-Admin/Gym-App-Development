@@ -14,8 +14,11 @@ import {
   upsertLog,
   upsertNote,
   setSkipped,
+  setSessionSetCount,
+  removeSessionSet,
   alternativesFor,
   substitute,
+  revertSubstitution as revertSubstitutionCore,
   setMood,
   finishSession,
   cancelSession as cancelSessionCore,
@@ -23,8 +26,12 @@ import {
   type LogInput,
   type NoteInput,
   type SkipInput,
+  type SetCountInput,
+  type RemoveSetInput,
   type SubstituteInput,
   type SubstituteReplacement,
+  type RevertSubstituteInput,
+  type RevertedExercise,
 } from "@/lib/workout-session-ops";
 
 // De actieve-trainingslogica leeft in lib/workout-session-ops.ts (subject-
@@ -154,6 +161,20 @@ export async function unskipExercise(input: SkipInput): Promise<SaveSetResult> {
   return { ok };
 }
 
+/** Leg het aantal sets van een oefening in deze sessie vast (set toegevoegd). */
+export async function setSetCount(input: SetCountInput): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const ok = await setSessionSetCount({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
+}
+
+/** Verwijder de laatste set van een oefening (incl. een evt. gelogd resultaat). */
+export async function removeSet(input: RemoveSetInput): Promise<SaveSetResult> {
+  const member = await requireMember();
+  const ok = await removeSessionSet({ tenantId: member.tenantId, userId: member.id }, input);
+  return { ok };
+}
+
 const alternativesSchema = z.object({
   exerciseId: z.string().min(1),
   excludeIds: z.array(z.string()).default([]),
@@ -178,6 +199,14 @@ export async function getExerciseAlternatives(
 export async function substituteExercise(input: SubstituteInput): Promise<SubstituteResult> {
   const member = await requireMember();
   return substitute({ tenantId: member.tenantId, userId: member.id }, input);
+}
+
+/** Zet een gekozen alternatief terug naar de oorspronkelijke oefening. */
+export async function revertSubstitution(
+  input: RevertSubstituteInput
+): Promise<{ ok: boolean; original?: RevertedExercise }> {
+  const member = await requireMember();
+  return revertSubstitutionCore({ tenantId: member.tenantId, userId: member.id }, input);
 }
 
 /** Annuleer de actieve workout: verwijder de sessie volledig (entries cascaden mee). */
