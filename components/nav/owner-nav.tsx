@@ -73,7 +73,10 @@ export function OwnerNav({
   const pathname = usePathname();
   // Het open paneel onthoudt bij welk pad het geopend werd: navigeren maakt de
   // afgeleide `open` vanzelf null (sluiten bij navigatie zonder effect).
-  const [openedAt, setOpenedAt] = useState<{ key: string; path: string } | null>(null);
+  const [openedAt, setOpenedAt] = useState<{
+    key: string;
+    path: string;
+  } | null>(null);
   const open = openedAt && openedAt.path === pathname ? openedAt.key : null;
   const setOpen = (key: string | null) =>
     setOpenedAt(key ? { key, path: pathname } : null);
@@ -83,7 +86,8 @@ export function OwnerNav({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpenedAt(null);
+      if (navRef.current && !navRef.current.contains(e.target as Node))
+        setOpenedAt(null);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenedAt(null);
     document.addEventListener("mousedown", onDown);
@@ -117,7 +121,7 @@ export function OwnerNav({
                 "relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
                 active
                   ? "bg-accent-soft text-accent ring-1 ring-inset ring-accent/15"
-                  : "text-neutral-500 hover:bg-neutral-100/70 hover:text-neutral-900"
+                  : "text-neutral-500 hover:bg-neutral-100/70 hover:text-neutral-900",
               )}
             >
               {entry.iconPath ? <NavIcon d={entry.iconPath} /> : null}
@@ -144,7 +148,7 @@ export function OwnerNav({
                 active || isOpen
                   ? "text-accent"
                   : "text-neutral-500 hover:bg-neutral-100/70 hover:text-neutral-900",
-                active && "bg-accent-soft ring-1 ring-inset ring-accent/15"
+                active && "bg-accent-soft ring-1 ring-inset ring-accent/15",
               )}
             >
               {entry.iconPath ? <NavIcon d={entry.iconPath} /> : null}
@@ -153,60 +157,85 @@ export function OwnerNav({
                 d="M6 9l6 6 6-6"
                 className={cn(
                   "size-3.5 transition-transform duration-200",
-                  isOpen && "rotate-180"
+                  isOpen && "rotate-180",
                 )}
               />
             </button>
 
             <AnimatePresence>
               {isOpen ? (
+                /* De ruimte tussen knop en paneel is PADDING op het
+                   geanimeerde element, geen marge op het paneel. Een marge ligt buiten de <nav>:
+                   de muis verliet dan tijdens het oversteken de nav
+                   (onMouseLeave → sluiten) en landde vervolgens op het nog
+                   uitfadende paneel (onMouseEnter → weer openen) — het
+                   submenu knipperde. Padding hoort bij het element zelf, dus
+                   de hover blijft ononderbroken binnen de nav. */
                 <m.div
                   initial={{ opacity: 0, scale: 0.97, y: -4 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.97, y: -4 }}
                   transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-surface-2 p-1.5 shadow-lg"
+                  className="absolute left-0 top-full z-50 pt-2"
                 >
-                  {entry.items.map((item) => {
-                    const a = itemActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setOpen(null)}
-                        aria-current={a ? "page" : undefined}
-                        className={cn(
-                          "flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors",
-                          a
-                            ? "bg-accent-soft text-accent"
-                            : "text-neutral-700 hover:bg-neutral-100"
-                        )}
-                      >
-                        {item.iconPath ? (
+                  <div className="w-72 overflow-hidden rounded-2xl border border-border bg-surface-2 p-1.5 shadow-lg">
+                    {entry.items.map((item) => {
+                      const a = itemActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setOpen(null)}
+                          aria-current={a ? "page" : undefined}
+                          className={cn(
+                            "group relative block rounded-xl py-2.5 pl-4 pr-3 transition-colors",
+                            a
+                              ? "bg-accent-soft text-accent"
+                              : "text-neutral-700 hover:bg-neutral-100",
+                          )}
+                        >
+                          {/* Accent-rail: groeit bij hover vanuit het midden uit
+                            en staat vast aan op het actieve item. Reduced-motion
+                            wordt globaal afgevangen (globals.css). */}
                           <span
+                            aria-hidden
                             className={cn(
-                              "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
+                              "pointer-events-none absolute inset-y-1.5 left-1 w-[3px] origin-center rounded-full bg-accent transition-transform duration-150 ease-out",
                               a
-                                ? "bg-accent/10 text-accent"
-                                : "bg-neutral-100 text-neutral-500"
+                                ? "scale-y-100"
+                                : "scale-y-0 group-hover:scale-y-100",
                             )}
-                          >
-                            <NavIcon d={item.iconPath} />
-                          </span>
-                        ) : null}
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium leading-tight">
-                            {item.label}
-                          </span>
-                          {item.description ? (
-                            <span className="mt-0.5 block text-xs text-neutral-500">
-                              {item.description}
+                          />
+                          {/* Inhoud schuift als geheel mee, zodat icoon en tekst
+                            uitgelijnd blijven. */}
+                          <span className="flex items-start gap-3 transition-transform duration-150 ease-out group-hover:translate-x-0.5">
+                            {item.iconPath ? (
+                              <span
+                                className={cn(
+                                  "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors duration-150",
+                                  a
+                                    ? "bg-accent/10 text-accent"
+                                    : "bg-neutral-100 text-neutral-500 group-hover:bg-accent-soft group-hover:text-accent",
+                                )}
+                              >
+                                <NavIcon d={item.iconPath} />
+                              </span>
+                            ) : null}
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium leading-tight">
+                                {item.label}
+                              </span>
+                              {item.description ? (
+                                <span className="mt-0.5 block text-xs text-neutral-500">
+                                  {item.description}
+                                </span>
+                              ) : null}
                             </span>
-                          ) : null}
-                        </span>
-                      </Link>
-                    );
-                  })}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </m.div>
               ) : null}
             </AnimatePresence>
