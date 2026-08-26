@@ -29,7 +29,12 @@ export async function GET() {
 
   const enrollments = await prisma.classEnrollment.findMany({
     where: { userId: me.id },
-    select: { enrolledAt: true, session: { select: { startsAt: true, groupClass: { select: { name: true } } } } },
+    select: {
+      enrolledAt: true,
+      status: true,
+      statusChangedAt: true,
+      session: { select: { startsAt: true, groupClass: { select: { name: true } } } },
+    },
   });
 
   // App-meldingen aan het ontwikkelteam (anonieme meldingen hebben geen
