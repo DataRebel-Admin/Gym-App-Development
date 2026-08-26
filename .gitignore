@@ -48,3 +48,7 @@ next-env.d.ts
 # prisma generated client
 /app/generated/prisma
 /prisma/generated
+
+# RepDB-bundel (gelicentieerde dataset, staat op Azure — nooit committen)
+repdb-bundle-standard/
+repdb-bundle-standard*.zip

@@ -19,6 +19,7 @@
     "db:heal-locations": "node scripts/heal-default-locations.mjs",
     "media:upload": "node scripts/upload-media.mjs",
     "blob:copy": "node scripts/blob-copy-container.mjs",
+    "library:upload": "tsx scripts/upload-library-bundle.ts",
     "library:import": "tsx scripts/import-library.ts",
     "library:translate": "tsx scripts/translate-library.ts",
     "library:lookups": "tsx scripts/translate-library-lookups.ts",

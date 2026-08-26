@@ -554,10 +554,10 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
 
 ### Oefeningen-bibliotheek (RepDB — dé standaardbron)
 
-De **RepDB Standard**-bundel (gekocht, commerciële licentie; v1.26 = **483 oefeningen**,
-100% dekking op álle velden) is dé bron van waarheid voor oefening-content. Metadata in
-Postgres; media (WebP: `classic/` transparant + `flat/` + 407 animaties + 27
-spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
+De **RepDB Standard**-bundel (gekocht, commerciële licentie; **v1.38 = 526 oefeningen**
+(was v1.26 = 483), 100% dekking op álle velden) is dé bron van waarheid voor
+oefening-content. Metadata in Postgres; media (WebP: `classic/` transparant + `flat/` +
+463 animaties + 27 spierdiagrammen + 74 materiaal-iconen) op **Azure Blob**.
 
 - **Blob-indeling (licentie-eis!)**: publiek `datarebel`/**`exercise-media`** bevat
   ALLEEN `images/**`; de ruwe bundel (exercises.json, sqlite, embeddings, …) staat in de
@@ -583,6 +583,25 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   bundel uit de privé-container, valideert licht, upsert idempotent op slug, vervangt
   relaties, **retire't** verdwenen slugs (nooit hard delete) en un-retire't terugkeerders.
   Versie uit CHANGELOG.md (`datasetVersion`).
+- **DATASET-UPDATE = VASTE VOLGORDE, RAAKT GEEN TENANT-DATA.** Nieuwe bundel in een map
+  (bv. `repdb-bundle-standard/`, staat in `.gitignore` — gelicentieerd, nooit committen):
+  1. `npm run library:upload` (`scripts/upload-library-bundle.ts`): `images/**` → de
+     publieke media-container (afgeleid uit `LIBRARY_MEDIA_BASE_URL`), de rest → de
+     privé-container. **Idempotent op Content-MD5** (RepDB vervangt clips/illustraties
+     onder dezelfde naam — een size-check mist die), verwijdert **nooit** iets, en
+     eindigt met een **manifest-controle**: elk beeld dat `exercises.json` belooft moet
+     op Azure staan, anders exitcode 1 + lijst. Dat vangt een onvolledige download
+     (bij v1.38 ontbraken 206 beelden van de 43 nieuwe oefeningen in de geleverde map).
+     `--dry-run`/`--force`/`--skip-media`/`--skip-source`/`--bundle=<map>`.
+  2. `npm run library:import` (hierboven). Tenant-tabellen (`Exercise`, sessies,
+     prestaties, schema's) worden niet aangeraakt; `Exercise.libraryId` blijft naar
+     dezelfde slug wijzen.
+  3. `npm run library:lookups` — nieuw materiaal/spieren eerst een NL-naam geven in
+     `lib/translate/library-lookups-nl.ts` (het script somt gaten op, exitcode 1).
+  4. `npm run library:translate` — vult alleen de nl-rijen van **nieuwe** oefeningen.
+     Gewijzigde en-teksten van bestaande oefeningen worden **niet** hertaald (machine-
+     rijen blijven staan); daarvoor is `--force` (volle Azure-ronde).
+  Daarna `CLAUDE.md`-tellingen bijwerken.
 - **Pure kern `lib/exercise-library/`** (géén `server-only`): `mapping.ts`
   (`inferLibraryExerciseType`, `machineTypeFromLibrary` op materiaal-tags,
   `difficultyFromLibrary`, `datasetLocalePreference` (nl→[nl,en], fy volgt nl),
@@ -653,7 +672,7 @@ spierdiagrammen + 72 materiaal-iconen) op **Azure Blob**.
   idempotent via `WorkoutTemplate.libraryTemplateId` (migratie
   `20260730150000_library_template_link`). Audit `schema.library.import`.
 - **Vertaling NL — GEDAAN** (`npm run library:translate`, `scripts/translate-library.ts`):
-  alle **483** oefeningen hebben een `nl`-rij (`origin: "machine"`), vertaald vanuit de
+  alle **526** oefeningen hebben een `nl`-rij (`origin: "machine"`), vertaald vanuit de
   en-rijen via **Azure Translator** (regio `germanywestcentral` = EU). `origin: "manual"`
   wordt **nooit** overschreven — en `library:import` raakt nl-rijen ook niet aan (loopt
   alleen en/de/es + slaat origin ≠ "dataset" over), dus de twee scripts kunnen in elke
