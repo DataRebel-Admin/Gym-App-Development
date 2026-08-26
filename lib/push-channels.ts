@@ -52,6 +52,13 @@ export const PUSH_CHANNELS = {
     // Hoog: dit is waarvoor het lid de app opent.
     importance: 4,
   },
+  classes: {
+    id: "gymrebel-classes",
+    name: "Groepslessen",
+    description: "Je plek in een les, wijzigingen in het rooster en herinneringen.",
+    // Standaard: een geannuleerde les wil je weten, maar het hoeft niet te piepen.
+    importance: 3,
+  },
   defects: {
     id: "gymrebel-defects",
     name: "Apparaatmeldingen",

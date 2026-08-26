@@ -866,3 +866,45 @@ export async function reportResolvedMessage(opts: {
     ),
   };
 }
+
+// ── Groepslessen (bevestiging / wachtlijst / wijziging / annulering / herinnering)
+
+/**
+ * Generieke les-mail: kop + intro komen al vertaald uit `lib/class-notify.ts`
+ * (zelfde tekst als de in-app melding), deze composer levert alleen de
+ * gebrande shell + knop naar het rooster. Non-DB-template (patroon
+ * `maintenanceAlertMessage`).
+ */
+export async function classNotificationMessage(opts: {
+  branding: EmailBranding;
+  recipientName?: string | null;
+  headline: string;
+  intro: string;
+  viewUrl: string;
+  locale?: Locale | null;
+}): Promise<EmailMessage> {
+  const { branding, recipientName, headline, intro, viewUrl } = opts;
+  const loc = opts.locale ?? branding.locale;
+  const t = await getTranslations({ locale: localeFromEnum(loc), namespace: "email" });
+  const footerNote = EMAIL_FOOTER_AUTO[loc] ?? EMAIL_FOOTER_AUTO.NL;
+  const reason = t("classAlert.reason", { gym: branding.name });
+  const g = greetingText(t, recipientName);
+  const contentHtml = [
+    emailHeading(escapeHtml(headline)),
+    emailParagraph(escapeHtml(g)),
+    emailParagraph(escapeHtml(intro)),
+    emailButton(viewUrl, t("classAlert.btn"), branding),
+    emailLinkFallback(viewUrl),
+  ].join("");
+  return {
+    subject: headline,
+    html: renderEmailLayout({
+      branding,
+      preheader: intro,
+      contentHtml,
+      reason,
+      footerNote,
+    }),
+    text: textFrame(branding, `${headline}\n\n${g}\n\n${intro}\n\n${viewUrl}`, reason, footerNote),
+  };
+}

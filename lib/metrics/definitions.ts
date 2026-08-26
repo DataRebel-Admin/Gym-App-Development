@@ -307,7 +307,8 @@ export function retentionRate(current: Iterable<string>, next: Iterable<string>)
 
 export type EnrollmentOutcomeRow = {
   locationId: string;
-  status: "ENROLLED" | "CANCELLED" | "ATTENDED" | "NO_SHOW";
+  /** Spiegelt `enum EnrollmentStatus`; WAITLISTED telt in geen enkele teller mee (zat niet in de les). */
+  status: "ENROLLED" | "CANCELLED" | "ATTENDED" | "NO_SHOW" | "WAITLISTED";
 };
 
 export type NoShowStats = {

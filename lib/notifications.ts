@@ -18,6 +18,8 @@ export type NotificationCategory =
    */
   | "invitations"
   | "schemas"
+  /** Groepslessen: bevestiging, wachtlijst-doorschuiving, wijziging/annulering, herinnering. */
+  | "classes"
   | "changes"
   | "achievements"
   | "maintenance"

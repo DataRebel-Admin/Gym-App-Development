@@ -454,7 +454,18 @@
       "upcoming": "Komende lessen",
       "allLocations": "Alle vestigingen",
       "emptyTitle": "Nog geen lessen gepland",
-      "emptyDesc": "Er staan op dit moment geen groepslessen in het rooster. Kom later terug of vraag je sportschool naar het aanbod."
+      "emptyDesc": "Er staan op dit moment geen groepslessen in het rooster. Kom later terug of vraag je sportschool naar het aanbod.",
+      "waitlisted": "Wachtlijst",
+      "waitlistPosition": "Wachtlijst, plek {position}",
+      "joinWaitlist": "Op de wachtlijst",
+      "leaveWaitlist": "Van de wachtlijst af",
+      "started": "Gestart",
+      "waitlistCount": "{count} op de wachtlijst",
+      "msgEnrolled": "Je bent aangemeld.",
+      "msgWaitlisted": "De les is vol. Je staat op de wachtlijst en schuift automatisch door zodra er een plek vrijkomt.",
+      "msgClosed": "Deze les is al begonnen. Aan- of afmelden kan niet meer.",
+      "msgUnenrolled": "Je bent afgemeld.",
+      "msgUnchanged": "Er is niets gewijzigd."
     },
     "muscles": {
       "metaTitle": "Spieranalyse",
@@ -861,7 +872,39 @@
       "formEnd": "Einde",
       "formLocation": "Locatie",
       "scheduling": "Inplannen…",
-      "scheduleSession": "Sessie inplannen"
+      "scheduleSession": "Sessie inplannen",
+      "formDescription": "Omschrijving",
+      "formRepeat": "Wekelijks herhalen",
+      "noRepeat": "Niet herhalen",
+      "repeatWeeks": "{count, plural, one {# week extra} other {# weken extra}}",
+      "formMaxOverride": "Max. deelnemers (deze sessie)",
+      "formVenue": "Vestiging",
+      "back": "Rooster",
+      "maxParticipantsLine": "max {max} deelnemers",
+      "editClass": "Les bewerken",
+      "editSession": "Sessie bewerken",
+      "planSession": "Sessie inplannen",
+      "sessions": "Sessies ({count})",
+      "noSessions": "Nog geen sessies ingepland.",
+      "pastSessions": "Afgelopen sessies",
+      "waitlist": "{count} op de wachtlijst",
+      "present": "Aanwezig",
+      "noShow": "No-show",
+      "deleteSession": "Sessie verwijderen",
+      "deleteSessionConfirm": "Aangemelde leden krijgen een melding dat de les niet doorgaat. Dit kan niet ongedaan worden gemaakt.",
+      "deleteFollowing": "Ook alle volgende sessies in deze reeks",
+      "deleteClass": "Les verwijderen",
+      "deleteClassDesc": "Dit verwijdert de les met alle sessies en aanmeldingen. Leden die voor een komende sessie zijn aangemeld krijgen een melding.",
+      "deleteClassConfirm": "Alle sessies, aanmeldingen en aanwezigheidshistorie van deze les verdwijnen definitief.",
+      "cannotDeletePast": "Een afgelopen sessie met deelnemers blijft bewaard voor de aanwezigheidshistorie.",
+      "sessionsCreated": "{count, plural, one {# sessie ingepland.} other {# sessies ingepland.}}",
+      "saved": "Opgeslagen.",
+      "classNotFound": "Les niet gevonden.",
+      "sessionNotFound": "Sessie niet gevonden.",
+      "locationNotAllowed": "Je hebt geen toegang tot deze vestiging.",
+      "saving": "Opslaan…",
+      "save": "Opslaan",
+      "cancel": "Annuleren"
     },
     "exercises": {
       "metaTitle": "Oefeningen",
@@ -1357,6 +1400,20 @@
       "digestTitle": "Defectmeldingen van vandaag",
       "digestBody": "{new, plural, =0 {Geen nieuwe meldingen} one {# nieuwe melding} other {# nieuwe meldingen}}{overdue, plural, =0 {} one { en # open melding met achterstand} other { en # open meldingen met achterstand}}.",
       "digestDetail": "Bekijk het defectenoverzicht voor de details."
+    },
+    "classes": {
+      "enrolledTitle": "Aangemeld: {name}",
+      "enrolledBody": "{when}. Je plek is bevestigd.",
+      "waitlistedTitle": "Op de wachtlijst: {name}",
+      "waitlistedBody": "{when}. Komt er een plek vrij, dan schuif je automatisch door.",
+      "promotedTitle": "Er is een plek vrij: {name}",
+      "promotedBody": "{when}. Je staat nu aangemeld.",
+      "cancelledTitle": "Les geannuleerd: {name}",
+      "cancelledBody": "De les van {when} gaat niet door.",
+      "movedTitle": "Les gewijzigd: {name}",
+      "movedBody": "Nieuwe tijd: {when} (was {previous}).",
+      "reminderTitle": "Herinnering: {name}",
+      "reminderBody": "Je staat aangemeld voor {when}."
     }
   },
   "email": {
@@ -1425,6 +1482,10 @@
       "body": "Goed nieuws: je melding {ref} ({title}) is door het ontwikkelteam opgelost.",
       "thanks": "Bedankt voor het melden. Dankzij jou wordt de app beter.",
       "reason": "Je ontvangt deze e-mail omdat je bij je melding hebt aangegeven dat we contact mogen opnemen."
+    },
+    "classAlert": {
+      "reason": "Je ontvangt deze e-mail omdat je bij {gym} bent aangemeld voor een groepsles.",
+      "btn": "Rooster bekijken"
     }
   },
   "common": {

@@ -324,7 +324,18 @@
       "upcoming": "Kommende lessen",
       "allLocations": "Alle fêstigingen",
       "emptyTitle": "Noch gjin lessen plend",
-      "emptyDesc": "Der steane op dit stuit gjin groepslessen yn it roaster. Kom letter werom of freegje dyn sportskoalle nei it oanbod."
+      "emptyDesc": "Der steane op dit stuit gjin groepslessen yn it roaster. Kom letter werom of freegje dyn sportskoalle nei it oanbod.",
+      "waitlisted": "Wachtlist",
+      "waitlistPosition": "Wachtlist, plak {position}",
+      "joinWaitlist": "Op de wachtlist",
+      "leaveWaitlist": "Fan de wachtlist ôf",
+      "started": "Begûn",
+      "waitlistCount": "{count} op de wachtlist",
+      "msgEnrolled": "Do bist oanmeld.",
+      "msgWaitlisted": "De les is fol. Do stiest op de wachtlist en skoost automatysk troch sadree't der in plak frijkomt.",
+      "msgClosed": "Dizze les is al begûn. Oan- of ôfmelde kin net mear.",
+      "msgUnenrolled": "Do bist ôfmeld.",
+      "msgUnchanged": "Der is neat feroare."
     },
     "muscles": {
       "metaTitle": "Spieranalyze",
@@ -731,7 +742,39 @@
       "formEnd": "Ein",
       "formLocation": "Lokaasje",
       "scheduling": "Ynplanne…",
-      "scheduleSession": "Sesje ynplanne"
+      "scheduleSession": "Sesje ynplanne",
+      "formDescription": "Omskriuwing",
+      "formRepeat": "Wykliks werhelje",
+      "noRepeat": "Net werhelje",
+      "repeatWeeks": "{count, plural, one {# wike ekstra} other {# wiken ekstra}}",
+      "formMaxOverride": "Maks. dielnimmers (dizze sesje)",
+      "formVenue": "Fêstiging",
+      "back": "Roaster",
+      "maxParticipantsLine": "maks {max} dielnimmers",
+      "editClass": "Les bewurkje",
+      "editSession": "Sesje bewurkje",
+      "planSession": "Sesje ynplanne",
+      "sessions": "Sesjes ({count})",
+      "noSessions": "Noch gjin sesjes ynpland.",
+      "pastSessions": "Ôfrûne sesjes",
+      "waitlist": "{count} op de wachtlist",
+      "present": "Oanwêzich",
+      "noShow": "No-show",
+      "deleteSession": "Sesje fuortsmite",
+      "deleteSessionConfirm": "Oanmelde leden krije in melding dat de les net trochgiet. Dit kin net ûngedien makke wurde.",
+      "deleteFollowing": "Ek alle folgjende sesjes yn dizze rige",
+      "deleteClass": "Les fuortsmite",
+      "deleteClassDesc": "Dit smyt de les mei alle sesjes en oanmeldingen fuort. Leden dy't foar in kommende sesje oanmeld binne krije in melding.",
+      "deleteClassConfirm": "Alle sesjes, oanmeldingen en oanwêzigenshistoarje fan dizze les ferdwine definityf.",
+      "cannotDeletePast": "In ôfrûne sesje mei dielnimmers bliuwt bewarre foar de oanwêzigenshistoarje.",
+      "sessionsCreated": "{count, plural, one {# sesje ynpland.} other {# sesjes ynpland.}}",
+      "saved": "Opslein.",
+      "classNotFound": "Les net fûn.",
+      "sessionNotFound": "Sesje net fûn.",
+      "locationNotAllowed": "Do hast gjin tagong ta dizze fêstiging.",
+      "saving": "Opslaan…",
+      "save": "Opslaan",
+      "cancel": "Annulearje"
     },
     "exercises": {
       "metaTitle": "Oefeningen",
@@ -1217,6 +1260,20 @@
       "digestTitle": "Defektmeldingen fan hjoed",
       "digestBody": "{new, plural, =0 {Gjin nije meldingen} one {# nije melding} other {# nije meldingen}}{overdue, plural, =0 {} one { en # iepen melding mei efterstân} other { en # iepen meldingen mei efterstân}}.",
       "digestDetail": "Besjoch it defektenoersjoch foar de details."
+    },
+    "classes": {
+      "enrolledTitle": "Oanmeld: {name}",
+      "enrolledBody": "{when}. Dyn plak is befêstige.",
+      "waitlistedTitle": "Op de wachtlist: {name}",
+      "waitlistedBody": "{when}. Komt der in plak frij, dan skoost automatysk troch.",
+      "promotedTitle": "Der is in plak frij: {name}",
+      "promotedBody": "{when}. Do stiest no oanmeld.",
+      "cancelledTitle": "Les annulearre: {name}",
+      "cancelledBody": "De les fan {when} giet net troch.",
+      "movedTitle": "Les feroare: {name}",
+      "movedBody": "Nije tiid: {when} (wie {previous}).",
+      "reminderTitle": "Herinnering: {name}",
+      "reminderBody": "Do stiest oanmeld foar {when}."
     }
   },
   "email": {
@@ -1285,6 +1342,10 @@
       "body": "Goed nijs: jo melding {ref} ({title}) is troch it ûntwikkelteam oplost.",
       "thanks": "Tank foar it melden. Troch jo wurdt de app better.",
       "reason": "Jo krije dizze e-mail omdat jo by jo melding oanjûn hawwe dat wy kontakt opnimme meie."
+    },
+    "classAlert": {
+      "reason": "Do krigest dizze e-mail omdat do by {gym} oanmeld bist foar in groepsles.",
+      "btn": "Roaster besjen"
     }
   },
   "common": {

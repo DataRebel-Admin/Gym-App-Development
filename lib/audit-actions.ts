@@ -386,6 +386,54 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} markeerde ${s(meta, "member") ?? "een deelnemer"} als ${s(meta, "status") === "NO_SHOW" ? "no-show" : "aanwezig"} bij '${s(meta, "class") ?? "een les"}'`,
   },
+  "class.create": {
+    category: "schedule", label: "Les aangemaakt", icon: "📅", tone: "success",
+    sentence: ({ actor, meta }) => `${actor} maakte les '${s(meta, "name") ?? "?"}' aan`,
+  },
+  "class.update": {
+    category: "schedule", label: "Les bijgewerkt", icon: "✏️", tone: "neutral",
+    sentence: ({ actor, meta }) => `${actor} wijzigde les '${s(meta, "name") ?? "?"}'`,
+  },
+  "class.delete": {
+    category: "schedule", label: "Les verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor, meta }) =>
+      `${actor} verwijderde les '${s(meta, "name") ?? "?"}' (${s(meta, "sessions") ?? "0"} sessies)`,
+  },
+  "class.session.create": {
+    category: "schedule", label: "Sessie ingepland", icon: "🗓️", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} plande ${s(meta, "count") ?? "1"} sessie(s) in voor '${s(meta, "class") ?? "?"}'`,
+  },
+  "class.session.update": {
+    category: "schedule", label: "Sessie gewijzigd", icon: "✏️", tone: "neutral",
+    sentence: ({ actor, meta }) => `${actor} wijzigde een sessie van '${s(meta, "class") ?? "?"}'`,
+  },
+  "class.session.delete": {
+    category: "schedule", label: "Sessie verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor, meta }) =>
+      `${actor} verwijderde ${s(meta, "count") ?? "1"} sessie(s) van '${s(meta, "class") ?? "?"}'`,
+  },
+  "class.enroll": {
+    category: "schedule", label: "Aangemeld voor les", icon: "🙋", tone: "success",
+    sentence: ({ actor, meta }) => `${actor} meldde zich aan voor '${s(meta, "class") ?? "een les"}'`,
+  },
+  "class.waitlist": {
+    category: "schedule", label: "Op wachtlijst geplaatst", icon: "⏳", tone: "neutral",
+    sentence: ({ actor, meta }) => `${actor} kwam op de wachtlijst van '${s(meta, "class") ?? "een les"}'`,
+  },
+  "class.unenroll": {
+    category: "schedule", label: "Afgemeld voor les", icon: "↩️", tone: "neutral",
+    sentence: ({ actor, meta }) => `${actor} meldde zich af voor '${s(meta, "class") ?? "een les"}'`,
+  },
+  "class.notify.sent": {
+    category: "schedule", label: "Les-melding verstuurd", icon: "📣", tone: "neutral",
+    sentence: ({ meta }) =>
+      `${s(meta, "notified") ?? "0"} lid/leden gemeld (${s(meta, "kind") ?? "?"}) over '${s(meta, "class") ?? "een les"}'`,
+  },
+  "class.reminder.sent": {
+    category: "schedule", label: "Les-herinneringen verstuurd", icon: "⏰", tone: "neutral",
+    sentence: ({ meta }) => `${s(meta, "count") ?? "0"} herinnering(en) verstuurd voor komende lessen`,
+  },
   "class.attendance.noshow": {
     category: "schedule", label: "No-shows gemarkeerd (automatisch)", icon: "👻", tone: "warning",
     sentence: ({ meta }) =>

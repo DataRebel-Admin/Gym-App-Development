@@ -10,6 +10,7 @@ const CATEGORIES = [
   // mail kom je niet binnen) en loopt daarom niet langs deze voorkeuren, net als
   // de magic link. Een schakelaar tonen die niets doet, is misleidend.
   { key: "schemas", label: "Trainingsschema's" },
+  { key: "classes", label: "Groepslessen" },
   { key: "achievements", label: "Trofeeën" },
   { key: "maintenance", label: "Onderhoud" },
   { key: "defects", label: "Apparaatdefecten" },

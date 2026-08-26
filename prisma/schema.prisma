@@ -537,6 +537,7 @@ enum EnrollmentStatus {
   CANCELLED
   ATTENDED
   NO_SHOW
+  WAITLISTED
 }
 
 model GroupClass {
@@ -562,6 +563,14 @@ model ClassSession {
   startsAt   DateTime
   endsAt     DateTime
   location   String? // zaal/ruimte bínnen de vestiging (vrije tekst, bv. "Zaal 1")
+  // Capaciteit van déze sessie (kleinere zaal); null = de les-default
+  // (`GroupClass.maxParticipants`). Zie `sessionCapacity` in lib/class-attendance.ts.
+  maxParticipants Int?
+  // Herhaalreeks: sessies die in één keer wekelijks zijn ingepland delen een
+  // seriesId ("verwijder ook alle volgende"). Geen eigen model: de reeks heeft
+  // geen eigenschappen buiten haar leden.
+  seriesId   String?
+  createdAt  DateTime @default(now())
 
   tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   groupClass    GroupClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -571,6 +580,7 @@ model ClassSession {
   @@index([tenantId, startsAt])
   @@index([tenantId, locationId, startsAt])
   @@index([classId])
+  @@index([seriesId])
 }
 
 model ClassEnrollment {
@@ -587,6 +597,8 @@ model ClassEnrollment {
   status          EnrollmentStatus @default(ENROLLED)
   statusChangedAt DateTime?
   markedById      String?
+  // Idempotente herinnering (cron `class-reminders`), patroon `notifiedAt`.
+  remindedAt      DateTime?
 
   tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   session ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)

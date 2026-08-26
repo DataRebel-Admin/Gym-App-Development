@@ -454,7 +454,18 @@
       "upcoming": "Upcoming classes",
       "allLocations": "All locations",
       "emptyTitle": "No classes scheduled yet",
-      "emptyDesc": "There are no group classes in the schedule right now. Check back later or ask your gym about availability."
+      "emptyDesc": "There are no group classes in the schedule right now. Check back later or ask your gym about availability.",
+      "waitlisted": "Waitlist",
+      "waitlistPosition": "Waitlist, position {position}",
+      "joinWaitlist": "Join waitlist",
+      "leaveWaitlist": "Leave waitlist",
+      "started": "Started",
+      "waitlistCount": "{count} on the waitlist",
+      "msgEnrolled": "You're signed up.",
+      "msgWaitlisted": "This class is full. You're on the waitlist and will be moved up automatically when a spot opens.",
+      "msgClosed": "This class has already started. Signing up or cancelling is no longer possible.",
+      "msgUnenrolled": "You've been removed from the class.",
+      "msgUnchanged": "Nothing changed."
     },
     "muscles": {
       "metaTitle": "Muscle analysis",
@@ -861,7 +872,39 @@
       "formEnd": "End",
       "formLocation": "Location",
       "scheduling": "Scheduling…",
-      "scheduleSession": "Schedule session"
+      "scheduleSession": "Schedule session",
+      "formDescription": "Description",
+      "formRepeat": "Repeat weekly",
+      "noRepeat": "Don't repeat",
+      "repeatWeeks": "{count, plural, one {# extra week} other {# extra weeks}}",
+      "formMaxOverride": "Max. participants (this session)",
+      "formVenue": "Location",
+      "back": "Schedule",
+      "maxParticipantsLine": "max {max} participants",
+      "editClass": "Edit class",
+      "editSession": "Edit session",
+      "planSession": "Schedule session",
+      "sessions": "Sessions ({count})",
+      "noSessions": "No sessions scheduled yet.",
+      "pastSessions": "Past sessions",
+      "waitlist": "{count} on the waitlist",
+      "present": "Present",
+      "noShow": "No-show",
+      "deleteSession": "Delete session",
+      "deleteSessionConfirm": "Enrolled members will be notified that the class is cancelled. This cannot be undone.",
+      "deleteFollowing": "Also delete all following sessions in this series",
+      "deleteClass": "Delete class",
+      "deleteClassDesc": "This deletes the class with all sessions and enrollments. Members enrolled in an upcoming session will be notified.",
+      "deleteClassConfirm": "All sessions, enrollments and attendance history of this class will be permanently removed.",
+      "cannotDeletePast": "A past session with participants is kept for the attendance history.",
+      "sessionsCreated": "{count, plural, one {# session scheduled.} other {# sessions scheduled.}}",
+      "saved": "Saved.",
+      "classNotFound": "Class not found.",
+      "sessionNotFound": "Session not found.",
+      "locationNotAllowed": "You don't have access to this location.",
+      "saving": "Saving…",
+      "save": "Save",
+      "cancel": "Cancel"
     },
     "exercises": {
       "metaTitle": "Exercises",
@@ -1357,6 +1400,20 @@
       "digestTitle": "Today's defect reports",
       "digestBody": "{new, plural, =0 {No new reports} one {# new report} other {# new reports}}{overdue, plural, =0 {} one { and # overdue open report} other { and # overdue open reports}}.",
       "digestDetail": "See the defect overview for details."
+    },
+    "classes": {
+      "enrolledTitle": "Signed up: {name}",
+      "enrolledBody": "{when}. Your spot is confirmed.",
+      "waitlistedTitle": "On the waitlist: {name}",
+      "waitlistedBody": "{when}. If a spot opens, you'll be moved up automatically.",
+      "promotedTitle": "A spot opened up: {name}",
+      "promotedBody": "{when}. You're now signed up.",
+      "cancelledTitle": "Class cancelled: {name}",
+      "cancelledBody": "The class on {when} is cancelled.",
+      "movedTitle": "Class changed: {name}",
+      "movedBody": "New time: {when} (was {previous}).",
+      "reminderTitle": "Reminder: {name}",
+      "reminderBody": "You're signed up for {when}."
     }
   },
   "email": {
@@ -1425,6 +1482,10 @@
       "body": "Good news: your report {ref} ({title}) has been resolved by the development team.",
       "thanks": "Thanks for reporting. You're helping make the app better.",
       "reason": "You're receiving this email because you allowed us to contact you about your report."
+    },
+    "classAlert": {
+      "reason": "You're receiving this email because you signed up for a group class at {gym}.",
+      "btn": "View schedule"
     }
   },
   "common": {
