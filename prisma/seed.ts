@@ -790,6 +790,7 @@ async function seedRooster(slug: string) {
     data: {
       tenantId: tenant.id,
       name: "Spinning",
+      description: "45 minuten intervallen op de bike. Handdoek en bidon meenemen.",
       instructorName: "Eva",
       maxParticipants: 1,
       sessions: {
@@ -821,6 +822,7 @@ async function seedRooster(slug: string) {
     data: {
       tenantId: tenant.id,
       name: "Yoga",
+      description: "Rustige flow voor mobiliteit en herstel. Geschikt voor beginners.",
       instructorName: "Noa",
       maxParticipants: 12,
       sessions: {

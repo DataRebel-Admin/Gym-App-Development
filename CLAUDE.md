@@ -539,6 +539,74 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
 - **Bewust**: de 3-weg-sync/bulk-edit gelden alleen voor coach-master-schema's; zelf-gebouwde
   schema's hebben geen master (`sourceTemplateId = null`).
 
+### Groepslessen (rooster, inschrijven, wachtlijst, meldingen)
+
+De rooster-module uit prompt 12 is een ronde verder: tijdzone-correct, race-vrij,
+vestiging-gescoped, met bewerken/herhalen, wachtlijst en meldingen aan leden.
+Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
+
+- **LESTIJDEN LOPEN VIA DE VESTIGING-TIJDZONE, NOOIT VIA `new Date(string)`.**
+  Een `datetime-local` levert een zoneloze klok ("2026-09-01T18:00"); `new Date`
+  leest die als **servertijd**, dus op Vercel (UTC) werd 18:00 opgeslagen als
+  20:00 Amsterdam. Weergave zonder `timeZone` verborg dat (dezelfde servertijd
+  terug), maar `startsAt >= now`, het aanwezigheidspaneel, de no-show-grace,
+  de bezettings-heatmap en e-mails liepen 2 uur uit. Nu: **`lib/tz.ts`** (puur,
+  getest) `zonedInputToDate(input, tz)` / `dateToZonedInput(date, tz)` /
+  `addWeeksZoned` (DST-veilig via de klok), met `Location.timezone` van de
+  gekozen vestiging; `lib/datetime.ts` formatteert met een verplichte
+  `timeZone` (vangnet `DEFAULT_TIMEZONE`). Geef bij élke nieuwe les-weergave de
+  tijdzone van `venueLocation` mee. De schema-toewijzing (`availableFrom`)
+  stuurt sinds deze ronde een absolute ISO-tijd vanuit de browser.
+- **Capaciteit is race-vrij**: `enroll`/`unenroll` draaien in een
+  `Serializable`-transactie met retry op P2034 (**`lib/db-retry.ts`**
+  `withSerializableRetry`), geen ruwe `FOR UPDATE`. Onder READ COMMITTED zagen
+  twee gelijktijdige aanmeldingen dezelfde "nog 1 plek".
+- **Pure regels in `lib/class-attendance.ts`** (getest): `sessionCapacity`
+  (sessie-override `ClassSession.maxParticipants` wint van de les-default),
+  `enrollmentWindowOpen` (aan- én afmelden tot de **start**; erna is een
+  aanmelding definitief, anders poetst een lid een no-show weg), `decideEnroll`
+  (gesloten → closed, vol → **wachtlijst**, anders aangemeld; her-inschrijven
+  hergebruikt de CANCELLED-rij en zet `enrolledAt` opnieuw = wachtlijstvolgorde),
+  `promotableCount`, `noShowCutoff` (gedeeld door cron én `isNoShowEligible`).
+- **Wachtlijst = `EnrollmentStatus.WAITLISTED`** (bezet géén plek; telt nergens
+  in capaciteit/no-show mee). Doorschuiven gebeurt **in dezelfde transactie**
+  als de vrijmakende mutatie (`lib/class-enrollment.ts` `promoteWaitlist`, op
+  `enrolledAt`-volgorde): bij afmelden, bij het verhogen van de les- of
+  sessie-capaciteit. Wachtenden van een afgelopen les worden door de cron
+  CANCELLED. Het lid ziet z'n positie ("Wachtlijst, plek 2").
+- **Vestiging-scoping is fail-closed** (zoals overal): `/owner/rooster` en het
+  les-detail filteren sessies met `locationScopeWhere`; `addSession`/
+  `updateSession` accepteren alleen een vestiging binnen de scope
+  (`resolveVenue`), `deleteSession` en `markAttendance` checken de sessie-
+  vestiging, `deleteClass` mag alleen als álle sessies binnen de scope vallen.
+- **Bewerken + herhalen**: les (naam/omschrijving/instructeur/max) en sessie
+  (tijd/vestiging/zaal/capaciteit) zijn bewerkbaar; "wekelijks herhalen"
+  (`MAX_REPEAT_WEEKS` = 26) maakt N sessies met een gedeeld `seriesId` (geen
+  reeks-model: de reeks heeft geen eigen eigenschappen). Verwijderen kan "ook
+  alle volgende in deze reeks" (`session-delete-button.tsx`). Een **afgelopen
+  sessie met deelnemers is niet verwijderbaar** (aanwezigheidshistorie).
+- **Meldingen aan leden = `lib/class-notify.ts`** (`notifyClassEvent`, categorie
+  **`classes`**, in-app/push/e-mail per voorkeur, push-kanaal `gymrebel-classes`):
+  `enrolled`/`waitlisted` (bevestiging), `promoted`, `moved` (tijd/vestiging
+  gewijzigd, met "was …"), `cancelled` (sessie of les verwijderd), `reminder`.
+  De sessie gaat **expliciet** mee (niet via id): bij annulering bestaat de rij
+  al niet meer. E-mail via `classNotificationMessage` (generieke shell; kop en
+  intro zijn dezelfde vertaalde teksten als in-app, `notifications.classes.*`).
+- **Crons** (`vercel.json`): `class-reminders` (dagelijks 16:00 UTC, venster
+  `REMINDER_WINDOW_HOURS` = 30, idempotent via `ClassEnrollment.remindedAt`,
+  markeert vóór verzending) en `class-attendance` (no-show + wachtlijst opruimen).
+- **Feedback aan het lid** via `?msg=` op `/member/rooster` (enrolled/waitlisted/
+  closed/unchanged/unenrolled), gestart-maar-nog-bezig-lessen blijven zichtbaar
+  (`endsAt >= now`) maar zijn niet boekbaar; het vestiging-filter zit **in de
+  query** (niet ná `take`).
+- **Audit** (categorie `schedule`): `class.create/update/delete`,
+  `class.session.create/update/delete`, `class.enroll/waitlist/unenroll`,
+  `class.notify.sent`, `class.reminder.sent` naast de bestaande
+  `class.attendance.*`.
+- **Bewust niet**: geen annuleerdeadline vóór de start (één regel: tot de start),
+  geen per-lid limiet op aantal aanmeldingen, geen instructeur-FK
+  (`GroupClass.instructorName` blijft vrije tekst).
+
 ### Fase 3 (member-functionaliteit, prompts 08–10)
 
 - **`requireMember()`** (lib/member.ts) = guard; member-area is mobile-first (`max-w-md`,

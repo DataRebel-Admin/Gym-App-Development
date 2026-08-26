@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { NO_SHOW_GRACE_HOURS } from "@/lib/class-attendance";
+import { noShowCutoff } from "@/lib/class-attendance";
 import { audit } from "@/lib/audit";
 import { cronAuthorized } from "@/lib/cron-auth";
 
@@ -9,7 +9,10 @@ import { cronAuthorized } from "@/lib/cron-auth";
  * ENROLLED staan (staff heeft binnen de respijtperiode van
  * NO_SHOW_GRACE_HOURS geen aanwezigheid gemarkeerd) worden NO_SHOW. Voedt de
  * no-show-/retentie-analytics (lib/metrics). `markedById` blijft null =
- * automatisch gemarkeerd. Draait als Vercel Cron (zie vercel.json).
+ * automatisch gemarkeerd. Wachtenden die nooit een plek kregen worden
+ * CANCELLED (ze zaten niet in de les, dus geen no-show). Draait als Vercel
+ * Cron (zie vercel.json). De grens is `noShowCutoff` (gedeeld met
+ * `isNoShowEligible`, getest).
  *
  * Beveiliging: vereist `Authorization: Bearer ${CRON_SECRET}` (fail-closed in
  * productie, zie lib/cron-auth.ts).
@@ -21,13 +24,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const cutoff = new Date(Date.now() - NO_SHOW_GRACE_HOURS * 3_600_000);
   const now = new Date();
+  const cutoff = noShowCutoff(now);
 
   // Per tenant markeren + auditen (één regel per tenant, geen ruis per rij).
   const pending = await prisma.classEnrollment.groupBy({
     by: ["tenantId"],
-    where: { status: "ENROLLED", session: { endsAt: { lt: cutoff } } },
+    where: { status: "ENROLLED", session: { endsAt: { lte: cutoff } } },
     _count: true,
   });
 
@@ -35,11 +38,7 @@ export async function GET(req: Request) {
   for (const group of pending) {
     try {
       const res = await prisma.classEnrollment.updateMany({
-        where: {
-          tenantId: group.tenantId,
-          status: "ENROLLED",
-          session: { endsAt: { lt: cutoff } },
-        },
+        where: { tenantId: group.tenantId, status: "ENROLLED", session: { endsAt: { lte: cutoff } } },
         data: { status: "NO_SHOW", statusChangedAt: now },
       });
       marked += res.count;
@@ -55,5 +54,11 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ tenants: pending.length, marked });
+  // Wachtlijst van afgelopen lessen opruimen (geen audit: geen gedragsfeit).
+  const waitlistClosed = await prisma.classEnrollment.updateMany({
+    where: { status: "WAITLISTED", session: { endsAt: { lte: now } } },
+    data: { status: "CANCELLED", statusChangedAt: now },
+  });
+
+  return NextResponse.json({ tenants: pending.length, marked, waitlistClosed: waitlistClosed.count });
 }
