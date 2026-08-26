@@ -115,7 +115,7 @@ export function ClassOccupancy({ stats }: { stats: DashboardStats }) {
                 />
               </div>
               <span className="w-20 shrink-0 text-right text-xs text-neutral-400">
-                {formatSessionStart(new Date(c.startsAt))}
+                {formatSessionStart(new Date(c.startsAt), c.timezone)}
               </span>
             </div>
           </li>

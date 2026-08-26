@@ -91,7 +91,9 @@ export function SchemaAssignPanel({
 
     const options: AssignOptions = {
       mode,
-      availableFrom: scheduling ? availableFrom : null,
+      // Absolute tijd (ISO): een zoneloze datetime-local zou de server op Vercel
+      // als UTC lezen, twee uur naast de klok van de eigenaar.
+      availableFrom: scheduling ? new Date(availableFrom).toISOString() : null,
       startDate: startDate || null,
       endDate: endDate || null,
       trainerMessage: message.trim() || null,

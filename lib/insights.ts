@@ -1,7 +1,7 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/db";
-import { ACTIVE_ENROLLMENT_STATUSES } from "@/lib/class-attendance";
+import { ACTIVE_ENROLLMENT_STATUSES, sessionCapacity } from "@/lib/class-attendance";
 import {
   locationScopeWhere,
   scopeCacheKey,
@@ -63,6 +63,8 @@ export type PopularExercise = { id: string; name: string; count: number };
 export type ClassOccupancy = {
   name: string;
   startsAt: string; // ISO
+  /** IANA-tijdzone van de vestiging (weergave in de les-klok, niet de serverklok). */
+  timezone: string;
   enrolled: number;
   capacity: number;
 };
@@ -194,6 +196,8 @@ async function computeDashboard(
     take: 5,
     select: {
       startsAt: true,
+      maxParticipants: true,
+      venueLocation: { select: { timezone: true } },
       groupClass: { select: { name: true, maxParticipants: true } },
       // Capaciteit telt alleen actieve statussen (lib/class-attendance.ts).
       _count: {
@@ -204,8 +208,9 @@ async function computeDashboard(
   const classOccupancy: ClassOccupancy[] = upcoming.map((c) => ({
     name: c.groupClass.name,
     startsAt: c.startsAt.toISOString(),
+    timezone: c.venueLocation.timezone,
     enrolled: c._count.enrollments,
-    capacity: c.groupClass.maxParticipants,
+    capacity: sessionCapacity(c),
   }));
 
   // Top 5 deze week.
