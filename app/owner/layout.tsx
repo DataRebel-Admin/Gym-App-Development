@@ -16,6 +16,7 @@ import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NativePushRegister } from "@/components/pwa/native-push-register";
+import { nativePushConfigured } from "@/lib/push";
 
 // Geen platte, scrollende rij meer: de bestemmingen zijn gegroepeerd in
 // categorieën die uitklappen in een mega-menu. Dashboard en Instellingen
@@ -239,7 +240,7 @@ export default async function OwnerLayout({
       <main className="mx-auto w-full max-w-7xl flex-1">
         <PageTransition>{children}</PageTransition>
       </main>
-      <NativePushRegister />
+      <NativePushRegister configured={nativePushConfigured()} />
     </div>
   );
 }

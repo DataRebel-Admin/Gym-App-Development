@@ -1,8 +1,8 @@
 import "server-only";
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
-import { sendApnsToUser } from "@/lib/push-apns";
-import { sendFcmToUser } from "@/lib/push-fcm";
+import { sendApnsToUser, apnsConfigured } from "@/lib/push-apns";
+import { sendFcmToUser, fcmConfigured } from "@/lib/push-fcm";
 import type { PushChannelCategory } from "@/lib/push-channels";
 
 /**
@@ -32,6 +32,31 @@ if (PUBLIC_KEY && PRIVATE_KEY) {
 /** Is web-push geconfigureerd (VAPID-sleutels aanwezig)? */
 export function pushConfigured(): boolean {
   return configured;
+}
+
+/**
+ * Kan native push op dit platform daadwerkelijk iets bezorgen?
+ *
+ * Gebruikt door `NativePushRegister` om te beslissen of registratie überhaupt
+ * geprobeerd wordt. Twee redenen:
+ *
+ * 1. **Android crasht anders.** `PushNotifications.register()` roept
+ *    `FirebaseMessaging.getInstance()` aan; zonder `google-services.json` in de
+ *    APK gooit dat `IllegalStateException: Default FirebaseApp is not
+ *    initialized`. Die uitzondering ontstaat native op de CapacitorPlugins-thread
+ *    en is dus **niet** te vangen met een try/catch in JavaScript: het proces
+ *    gaat eraan. Precies dát gebeurde bij het toestaan van meldingen.
+ * 2. **Anders vraag je toestemming voor niets.** Zonder verzendconfiguratie komt
+ *    er nooit een melding aan, en een permissievraag die nergens toe leidt kost
+ *    je alleen goodwill (en een "nee" die je later niet meer omgedraaid krijgt).
+ *
+ * ⚠️ **Volgorde bij het inrichten van Android-push:** eerst
+ * `google-services.json` in `android/app/` en de app opnieuw bouwen, pas daarna
+ * de `FCM_*`-variabelen op de server. Andersom gaat deze vlag open terwijl de
+ * geïnstalleerde APK nog geen Firebase heeft, en dan is de crash terug.
+ */
+export function nativePushConfigured(): { ios: boolean; android: boolean } {
+  return { ios: apnsConfigured(), android: fcmConfigured() };
 }
 
 /** Publieke VAPID-sleutel voor de client (subscribe). Leeg = niet geconfigureerd. */

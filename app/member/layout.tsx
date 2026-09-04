@@ -18,6 +18,7 @@ import { getRunningSessionStart } from "@/lib/session-timeout";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
 import { CelebrationOverlay } from "@/components/achievements/celebration-overlay";
 import { NativePushRegister } from "@/components/pwa/native-push-register";
+import { nativePushConfigured } from "@/lib/push";
 
 export default async function MemberLayout({
   children,
@@ -114,7 +115,7 @@ export default async function MemberLayout({
       <MemberNav classesEnabled={classesEnabled} />
       <MemberOnboarding />
       <CelebrationOverlay celebrations={celebrations} />
-      <NativePushRegister />
+      <NativePushRegister configured={nativePushConfigured()} />
     </div>
   );
 }

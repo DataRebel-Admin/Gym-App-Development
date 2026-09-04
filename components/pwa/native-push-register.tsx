@@ -7,6 +7,9 @@ import { ALL_PUSH_CHANNELS } from "@/lib/push-channels";
 import { NATIVE_PUSH_TOKEN_KEY } from "@/lib/push-token-storage";
 import { useToast } from "@/components/ui/toast";
 
+/** Of native push op dit platform iets kan bezorgen; komt server-side uit `nativePushConfigured()`. */
+export type NativePushAvailability = { ios: boolean; android: boolean };
+
 /**
  * Registreert het native push-device-token (APNs op iOS / FCM op Android) bij de
  * server, maakt de Android-meldingskanalen aan en toont binnenkomende meldingen
@@ -16,12 +19,30 @@ import { useToast } from "@/components/ui/toast";
  * een no-op, want daar loopt push via de service worker en VAPID. Mount in een
  * geauthenticeerde layout, zodat de permissievraag ná login komt: een app die
  * meteen bij de eerste start om meldingen vraagt, krijgt vaker "nee".
+ *
+ * ## Waarom er een `configured`-prop is en niet gewoon altijd geregistreerd wordt
+ *
+ * `PushNotifications.register()` roept op Android `FirebaseMessaging.getInstance()`
+ * aan. Ontbreekt `google-services.json` in de APK, dan gooit dat
+ * `IllegalStateException: Default FirebaseApp is not initialized` — **native, op de
+ * CapacitorPlugins-thread**. Een `try/catch` hieronder vangt dat niet: het proces
+ * gaat eraan en de app sluit precies op het moment dat de gebruiker meldingen
+ * toestaat. Daarom vragen we alleen toestemming als de server bevestigt dat er ook
+ * daadwerkelijk iets bezorgd kán worden.
  */
-export function NativePushRegister() {
+export function NativePushRegister({ configured }: { configured: NativePushAvailability }) {
   const { toast } = useToast();
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+
+    // Kan dit platform überhaupt een melding bezorgen? Zo niet: niets doen, en
+    // vooral geen permissie vragen. Zie de toelichting boven dit bestand.
+    const platform = Capacitor.getPlatform();
+    const supported =
+      platform === "android" ? configured.android : platform === "ios" ? configured.ios : false;
+    if (!supported) return;
+
     let cancelled = false;
 
     (async () => {
@@ -34,7 +55,7 @@ export function NativePushRegister() {
         // `channel_id` binnenkomt, anders valt die terug op het standaardkanaal.
         // Idempotent: bestaat een kanaal al, dan is dit een no-op (en Android
         // negeert bewust wijzigingen, zie lib/push-channels.ts).
-        if (Capacitor.getPlatform() === "android") {
+        if (platform === "android") {
           for (const channel of ALL_PUSH_CHANNELS) {
             await PushNotifications.createChannel({
               id: channel.id,
@@ -50,7 +71,6 @@ export function NativePushRegister() {
 
         await PushNotifications.addListener("registration", (token) => {
           if (cancelled) return;
-          const platform = Capacitor.getPlatform() === "android" ? "android" : "ios";
           // Lokaal onthouden zodat we 'm bij uitloggen kunnen intrekken; het
           // token is dan niet meer via de plugin op te vragen zonder opnieuw te
           // registreren. Zie components/pwa/native-push-cleanup.tsx.
@@ -59,7 +79,7 @@ export function NativePushRegister() {
           } catch {
             /* privémodus of vol quotum → dan maar geen opruiming bij uitloggen */
           }
-          void registerNativePushToken({ token: token.value, platform });
+          void registerNativePushToken({ token: token.value, platform: platform === "android" ? "android" : "ios" });
         });
 
         await PushNotifications.addListener("registrationError", () => {
@@ -101,7 +121,7 @@ export function NativePushRegister() {
     return () => {
       cancelled = true;
     };
-  }, [toast]);
+  }, [toast, configured.android, configured.ios]);
 
   return null;
 }
