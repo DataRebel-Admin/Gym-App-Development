@@ -51,6 +51,27 @@ Vul per run de kolommen in en bewaar het resultaat bij de release.
 
 > 2.4 en 2.5 falen zolang `assetlinks.json` (Android) en de AASA plus Associated
 > Domains (iOS) niet kloppen. Zie `capacitor/README.md`.
+>
+> **Bekend: automatische App Links-verificatie is onbetrouwbaar bij zijlaadden.**
+> Op een OnePlus (OxygenOS) meldde de verificatie-agent niets terug
+> (`pm get-app-links` bleef op `1024`, geen enkele logregel), terwijl
+> `assetlinks.json` aantoonbaar correct was: HTTP 200, `application/json`, geen
+> redirects, en de fingerprint gelijk aan de handtekening van de geïnstalleerde
+> APK. Zodra het domein handmatig werd aangezet opende de link wél de app, en
+> ook op de juiste pagina.
+>
+> Verwachting is dat dit zich oplost bij installatie vanuit Play, omdat Play de
+> verificatie bij het installeren aanstoot in plaats van de lokale agent.
+> **Test dit dus opnieuw met een build uit de interne testtrack** voordat je
+> concludeert dat er iets stuk is.
+>
+> Werkt het bij een tester niet, dan is de handmatige route: Instellingen → Apps
+> → GymRebel → *Standaard openen* → domein aanzetten. Via adb kan het ook:
+> `pm set-app-links-user-selection --user 0 --package nl.gymrebeltraining.app true app.gymrebel-training.com`
+>
+> Let op: een **debug**-build wordt met de debug-sleutel ondertekend en matcht
+> dus nooit met de release-fingerprint in `assetlinks.json`. Deep links test je
+> met een release-ondertekende APK (`./gradlew assembleRelease`).
 
 ## 3. Trainen (de kernflow)
 
