@@ -59,7 +59,8 @@ want Android haalt de `assetlinks.json` bij dát domein op.
 
 | | Onderdeel | Waarom |
 |---|---|---|
-| ☐ | `LEGAL_ENTITY` invullen in `lib/legal.ts` | Adres en KvK-nummer staan nu op `TODO`; zonder die gegevens voldoet de verklaring niet aan artikel 13 AVG |
+| ☐ | `LEGAL_ENTITY` invullen in `lib/legal.ts` | **Blokkeert de gesloten test.** `/privacy` toont nu letterlijk "TODO: KvK-nummer", en dat is de URL die je bij Play indient |
+| ☐ | Demo-login-keuze doorvoeren in Vercel | **Blokkeert de gesloten test.** Zie `store/GESLOTEN-TEST.md` §1 |
 | ☐ | Privacyteksten juridisch laten controleren | Het zijn conceptteksten, geschreven op basis van wat de code doet |
 | ✅ | Overige `gymrebel.app`-verwijzingen omzetten | Cron-fallbacks lopen nu allemaal via `appBaseUrl()` (lib/app-url.ts); e-mailvoorbeelden, VAPID-subject en afzenderadres staan op `gymrebel-training.com` |
 | ☐ | Optioneel: schema-editor verbergen op kleine schermen | De owner-area is verrassend mobielvriendelijk, maar de drag-and-drop-editor over meerdere dagen werkt niet op een telefoon. Er bestaat niet voor niets een aparte mobiele lid-builder |
@@ -98,18 +99,18 @@ schema van een lid opzoeken tijdens een sessie.
 | ☐ | Play Console-account, €25 eenmalig | Zakelijke accounts vereisen identiteitsverificatie |
 | ✅ | Keystore aangemaakt met `keytool` | Ligt buiten de repo in `Documents/GymRebel-keys/`, geldig tot 2054. **Zonder deze sleutel plus wachtwoord kun je nooit meer updaten** |
 | ✅ | `android/keystore.properties` ingevuld | Staat in .gitignore; `bundleRelease` levert nu een ondertekende AAB |
-| ☐ | Firebase-project aanmaken, Android-app met dit package toevoegen | |
-| ☐ | `google-services.json` in `android/app/` plaatsen | Zonder dit registreert de app geen pushtoken |
-| ☐ | Service-account-sleutel maken, `FCM_*` in productie-env zetten | Zonder dit verstuurt de server niets |
-| ☐ | **Vóór het bouwen: `CAPACITOR_SERVER_URL` op productie zetten** | Bouw je met een tunnel- of preview-URL nog in `android/app/src/main/assets/capacitor.config.json`, dan wijst de gepubliceerde app daarheen. Controleer met: `unzip -p app-release.aab base/assets/capacitor.config.json` |
-| ☐ | `./gradlew bundleRelease` en de AAB uploaden | Interne test eerst |
-| ☐ | Play App Signing aanzetten | Aanbevolen: Google kan je uploadsleutel dan resetten |
-| ◐ | SHA-256-fingerprints in `ANDROID_CERT_FINGERPRINTS` | Uploadsleutel staat er (`0E:BD:BF:04:…`). De **Play App Signing-sleutel** komt er komma-gescheiden bij zodra je die in de Play Console ziet |
-| ☐ | Controleer `/.well-known/assetlinks.json` | Anders openen deep links in de browser |
-| ☐ | Store-listing invullen, inclusief **feature graphic 1024×500** | Verplicht bij Play |
+| ✅ | Firebase-project aangemaakt, Android-app toegevoegd | |
+| ✅ | `google-services.json` in `android/app/` | Staat er; app registreert een pushtoken |
+| ✅ | Service-account-sleutel, `FCM_*` in productie-env | Push geverifieerd op een toestel in alle vier de categorieën |
+| ✅ | **Vóór het bouwen: `CAPACITOR_SERVER_URL` op productie zetten** | Bouw je met een tunnel- of preview-URL nog in `android/app/src/main/assets/capacitor.config.json`, dan wijst de gepubliceerde app daarheen. Controleer met: `unzip -p app-release.aab base/assets/capacitor.config.json` |
+| ✅ | `./gradlew bundleRelease` en de AAB uploaden | Interne test draait; installeren via Play geverifieerd |
+| ✅ | Play App Signing aan | Google kan je uploadsleutel resetten |
+| ✅ | SHA-256-fingerprints in `ANDROID_CERT_FINGERPRINTS` | Alle vier live: uploadsleutel, Play-deploymentsleutel en de twee hybride certificaten |
+| ✅ | `/.well-known/assetlinks.json` gecontroleerd | Live, HTTP 200, vier fingerprints; App Links `verified` op toestel |
+| ◐ | Store-listing invullen | Teksten in METADATA.md; **feature graphic klaar** (`store/assets/play-feature-graphic.png`, `npm run brand:assets`). Screenshots nog maken |
 | ☐ | Data safety-formulier invullen | Antwoorden staan in METADATA.md |
 | ☐ | Contentclassificatie-vragenlijst | |
-| ☐ | Interne test → gesloten test → productie | |
+| ◐ | Interne test → gesloten test → productie | Interne test draait. Draaiboek: **`store/GESLOTEN-TEST.md`** | |
 
 ### Beide
 
