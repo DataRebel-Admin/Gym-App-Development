@@ -557,10 +557,15 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   `timeZone` (vangnet `DEFAULT_TIMEZONE`). Geef bij élke nieuwe les-weergave de
   tijdzone van `venueLocation` mee. De schema-toewijzing (`availableFrom`)
   stuurt sinds deze ronde een absolute ISO-tijd vanuit de browser.
-- **Capaciteit is race-vrij**: `enroll`/`unenroll` draaien in een
-  `Serializable`-transactie met retry op P2034 (**`lib/db-retry.ts`**
-  `withSerializableRetry`), geen ruwe `FOR UPDATE`. Onder READ COMMITTED zagen
-  twee gelijktijdige aanmeldingen dezelfde "nog 1 plek".
+- **Capaciteit is race-vrij — én dat geldt voor ÁLLE promotie-paden**:
+  `enroll`/`unenroll` draaien in een `Serializable`-transactie met retry op
+  P2034 (**`lib/db-retry.ts`** `withSerializableRetry`), geen ruwe `FOR UPDATE`.
+  Onder READ COMMITTED zagen twee gelijktijdige aanmeldingen dezelfde "nog 1
+  plek". Óók de owner-kant (`updateClass`/`updateSession` → `promoteWaitlists`)
+  draait Serializable + retry: Serializable-garanties gelden alleen tussen
+  transacties die dat zélf zijn — een capaciteitsverhoging naast een
+  gelijktijdige aanmelding kon anders dezelfde plek dubbel uitdelen. Nieuwe
+  promotie-call-site = zelfde patroon, nooit een kale `$transaction`.
 - **Pure regels in `lib/class-attendance.ts`** (getest): `sessionCapacity`
   (sessie-override `ClassSession.maxParticipants` wint van de les-default),
   `enrollmentWindowOpen` (aan- én afmelden tot de **start**; erna is een
@@ -572,8 +577,17 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   in capaciteit/no-show mee). Doorschuiven gebeurt **in dezelfde transactie**
   als de vrijmakende mutatie (`lib/class-enrollment.ts` `promoteWaitlist`, op
   `enrolledAt`-volgorde): bij afmelden, bij het verhogen van de les- of
-  sessie-capaciteit. Wachtenden van een afgelopen les worden door de cron
-  CANCELLED. Het lid ziet z'n positie ("Wachtlijst, plek 2").
+  sessie-capaciteit, én bij een **vertrekkend lid**. Wachtenden van een
+  afgelopen les worden door de cron CANCELLED. Het lid ziet z'n positie
+  ("Wachtlijst, plek 2"). De promoted-melding ná commit loopt via het gedeelde
+  `notifyPromotions` (lib/class-notify.ts).
+- **Vertrekkend lid geeft z'n plekken vrij**: `releaseMemberClassSpots`
+  (lib/class-enrollment.ts, best-effort — blokkeert de ledenadministratie
+  nooit) annuleert ENROLLED/WAITLISTED-rijen van nog niet gestarte sessies en
+  promoot de wachtlijst in één Serializable-transactie. Aangeroepen bij
+  deactiveren/archiveren/verwijderen (owner- én superadmin-acties) en in de
+  AVG-cron `delete-accounts` — daar **vóór** de `user.delete`, want de cascade
+  wist de rijen zonder doorschuiving. Heractiveren = opnieuw aanmelden.
 - **Vestiging-scoping is fail-closed** (zoals overal): `/owner/rooster` en het
   les-detail filteren sessies met `locationScopeWhere`; `addSession`/
   `updateSession` accepteren alleen een vestiging binnen de scope
@@ -583,8 +597,14 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   (tijd/vestiging/zaal/capaciteit) zijn bewerkbaar; "wekelijks herhalen"
   (`MAX_REPEAT_WEEKS` = 26) maakt N sessies met een gedeeld `seriesId` (geen
   reeks-model: de reeks heeft geen eigen eigenschappen). Verwijderen kan "ook
-  alle volgende in deze reeks" (`session-delete-button.tsx`). Een **afgelopen
-  sessie met deelnemers is niet verwijderbaar** (aanwezigheidshistorie).
+  alle volgende in deze reeks" (`session-delete-button.tsx`). Een **gestarte
+  sessie met aanmeldingen is niet verwijderbaar** (aanwezigheidshistorie) —
+  die regel is de gedeelde pure `canDeleteSession` (lib/class-attendance.ts),
+  gebruikt door de UI-knop én de action (die liepen uiteen: knop zichtbaar,
+  action weigerde stil). Een **verplaatste sessie** (starttijd gewijzigd) nult
+  `remindedAt` zodat de herinnering-cron de nieuwe tijd opnieuw meldt;
+  `markAttendance` weigert zelf zolang de les niet gestart is (de UI toont de
+  knoppen pas ná afloop, defense-in-depth).
 - **Meldingen aan leden = `lib/class-notify.ts`** (`notifyClassEvent`, categorie
   **`classes`**, in-app/push/e-mail per voorkeur, push-kanaal `gymrebel-classes`):
   `enrolled`/`waitlisted` (bevestiging), `promoted`, `moved` (tijd/vestiging
@@ -1409,6 +1429,11 @@ facturatie-/juridisch adres; `Location` draagt het vestigingsadres + `openingHou
 - **Tests**: `tests/location-scope.test.ts` (spec b+c), `tests/location-metrics.test.ts`
   (spec a + TZ + retentie + no-shows), `tests/achievement-scope.test.ts` (spec d),
   `tests/class-attendance.test.ts`.
+- **Vestiging archiveren is geblokkeerd zolang er komende groepslessen staan**
+  (`setLocationArchived` → `?err=lessen`-banner op het vestiging-detail):
+  anders blijven sessies boekbaar op een gesloten locatie. Vangnet voor
+  bestaande data: `enroll` behandelt een sessie op een gearchiveerde vestiging
+  als gesloten.
 - Openingstijden zijn **per vestiging** bewerkbaar op de vestiging-form (zelfde
   `hours_<dag>`-idioom als de tenant-form; alles leeg = vestiging-tijden gewist → het lid
   ziet de organisatie-tijden als vangnet op `/member/gym`).
