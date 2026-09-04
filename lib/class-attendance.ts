@@ -85,6 +85,23 @@ export function promotableCount(input: {
   return Math.max(0, Math.min(input.capacity - input.activeCount, input.waitlistCount));
 }
 
+/**
+ * Sessie verwijderbaar? Eén regel voor de UI én de server-action — die liepen
+ * uiteen (UI: afgelopen + deelnemers, action: gestart + alle niet-afgemelde
+ * rijen), waardoor een lopende les met deelnemers een verwijderknop toonde die
+ * server-side stil niets deed. Regel: nog niet gestart, óf geen enkele
+ * niet-afgemelde aanmelding (aanwezigheidshistorie beschermen; wachtenden
+ * tellen mee tot de cron ze opruimt). `enrollmentCount` = rijen met status
+ * ≠ CANCELLED.
+ */
+export function canDeleteSession(
+  session: { startsAt: Date },
+  enrollmentCount: number,
+  now: Date
+): boolean {
+  return session.startsAt.getTime() > now.getTime() || enrollmentCount === 0;
+}
+
 /** Respijt na het einde van de les vóór de cron een ENROLLED als NO_SHOW markeert. */
 export const NO_SHOW_GRACE_HOURS = 12;
 

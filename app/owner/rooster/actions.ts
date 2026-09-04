@@ -16,7 +16,7 @@ import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
 import { zonedInputToDate, addWeeksZoned } from "@/lib/tz";
 import { withSerializableRetry } from "@/lib/db-retry";
-import { MAX_REPEAT_WEEKS } from "@/lib/class-attendance";
+import { MAX_REPEAT_WEEKS, canDeleteSession } from "@/lib/class-attendance";
 import { promoteWaitlists } from "@/lib/class-enrollment";
 import {
   notifyClassEvent,
@@ -446,10 +446,9 @@ export async function deleteSession(formData: FormData) {
       },
     },
   });
-  // Historie beschermen: afgelopen sessie mét deelnemers niet verwijderen.
-  const deletable = candidates.filter(
-    (s) => s.startsAt > now || s.enrollments.length === 0
-  );
+  // Historie beschermen: gestarte sessie mét aanmeldingen niet verwijderen
+  // (gedeelde regel met de UI-knop, lib/class-attendance.ts).
+  const deletable = candidates.filter((s) => canDeleteSession(s, s.enrollments.length, now));
   if (deletable.length === 0) redirect(`/owner/rooster/${target.classId}`);
 
   await prisma.classSession.deleteMany({ where: { id: { in: deletable.map((s) => s.id) } } });

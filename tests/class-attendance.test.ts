@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import {
   ACTIVE_ENROLLMENT_STATUSES,
   countsTowardCapacity,
+  canDeleteSession,
   canUnenroll,
   canReenroll,
   isNoShowEligible,
@@ -107,6 +108,21 @@ test("promotableCount: nooit negatief, begrensd op wachtlijst en vrije plekken",
   assert.equal(promotableCount({ capacity: 10, activeCount: 10, waitlistCount: 3 }), 0);
   // Capaciteit verlaagd onder de bezetting: niemand schuift door, niemand wordt eruit gezet.
   assert.equal(promotableCount({ capacity: 5, activeCount: 8, waitlistCount: 3 }), 0);
+});
+
+test("canDeleteSession: toekomstig altijd; gestart/afgelopen alleen zonder aanmeldingen", () => {
+  const now = new Date("2026-09-01T18:30:00Z");
+  const future = { startsAt: new Date("2026-09-01T19:00:00Z") };
+  const running = { startsAt: new Date("2026-09-01T18:00:00Z") };
+
+  // Nog niet gestart: verwijderbaar, ook mét aanmeldingen (die krijgen een melding).
+  assert.equal(canDeleteSession(future, 5, now), true);
+  // Gestart (of afgelopen) mét niet-afgemelde rijen: historie beschermen.
+  assert.equal(canDeleteSession(running, 5, now), false);
+  // Gestart zonder aanmeldingen: opruimen mag.
+  assert.equal(canDeleteSession(running, 0, now), true);
+  // Precies op de start = gestart (spiegelt enrollmentWindowOpen).
+  assert.equal(canDeleteSession({ startsAt: now }, 1, now), false);
 });
 
 test("noShowCutoff is de grens die de cron en isNoShowEligible delen", () => {

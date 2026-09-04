@@ -11,6 +11,7 @@ import { areClassesEnabled } from "@/lib/classes";
 import {
   ACTIVE_ENROLLMENT_STATUSES,
   ENROLLMENT_STATUS_META,
+  canDeleteSession,
   sessionCapacity,
 } from "@/lib/class-attendance";
 import { getTenantLocations } from "@/lib/locations";
@@ -100,7 +101,9 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
     const tz = s.venueLocation.timezone;
     const waiting = s.enrollments.filter((e) => e.status === "WAITLISTED").length;
     const participants = s.enrollments.filter((e) => e.status !== "WAITLISTED");
-    const canDelete = !isPast || participants.length === 0;
+    // Zelfde regel als de server-action (lib/class-attendance.ts) — anders
+    // toont de knop gevallen die de action stil weigert.
+    const canDelete = canDeleteSession(s, s.enrollments.length, now);
     return (
       <li key={s.id} className="flex flex-col gap-2 rounded-xl border border-neutral-200 px-4 py-3 text-sm">
         <div className="flex items-center justify-between gap-3">
