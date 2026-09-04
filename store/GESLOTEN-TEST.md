@@ -93,19 +93,13 @@ zetten daarmee hun wachtwoord. Controleer daarna in het auditlog of die mail
 echt verstuurd is: `user.invite.email` met status FAILED betekent dat er niets
 wegging (zie de e-mailsectie in CLAUDE.md).
 
-> **Dit is een persoonlijk Play-account**, dus de extra eis geldt: minimaal
-> **12 testers, 14 dagen onafgebroken** opgegeven, voordat je productietoegang
-> mag aanvragen. Testers die halverwege afhaken zetten de teller terug, dus
-> nodig er liever 15 uit.
+> **Het plan is om vóór deze test naar een organisatie-account te gaan** (het
+> D-U-N-S-nummer is er al; zie `store/ROADMAP.md` fase 1). Daarmee vervalt de
+> eis van **12 testers, 14 dagen onafgebroken** die voor persoonlijke accounts
+> geldt, en bepaal je de testduur zelf.
 >
-> Overstappen naar een organisatie-account laat die eis vervallen, maar doe dat
-> niet halverwege: reken erop dat je de veertien dagen opnieuw begint, en een
-> organisatie-inschrijving vraagt om verificatie (bij Google een D-U-N-S-nummer)
-> die zelf dagen kost. Testen vanaf het persoonlijke account en pas later
-> overstappen is daarom de snellere route — controleer wel in de Play Console
-> onder Instellingen → Accountgegevens of wisselen voor jouw account mogelijk is
-> zónder de app over te dragen, want een échte overdracht naar een ander account
-> is een aparte procedure.
+> Loopt het toch via het persoonlijke account, dan geldt die eis wél. Nodig er
+> dan liever vijftien uit: testers die halverwege afhaken zetten de teller terug.
 
 ---
 
