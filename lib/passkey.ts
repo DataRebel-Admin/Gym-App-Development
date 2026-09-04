@@ -138,13 +138,18 @@ export async function beginRegistration(
       transports: c.transports as AuthenticatorTransportFuture[],
     })),
     authenticatorSelection: {
-      // Platform = de ontgrendeling van het toestel zelf (vingerafdruk, Face
-      // ID, Windows Hello) — geen QR naar een ander apparaat of USB-sleutel.
-      // Dat is de "log in zoals je je telefoon ontgrendelt"-ervaring.
-      authenticatorAttachment: "platform",
-      // Discoverable verplicht: de usernameless login (beginAuthentication
-      // zonder allowCredentials) kan alleen sleutels vinden die dat zijn.
-      residentKey: "required",
+      // BEWUST GEEN `authenticatorAttachment: "platform"` EN GEEN
+      // `residentKey: "required"`. Die strengere eisen leken de juiste
+      // "ontgrendel-zoals-je-telefoon"-ervaring af te dwingen, maar op Android
+      // (derde-partij credential-providers naast Google Wachtwoordmanager)
+      // faalde de héle ceremonie ermee: "NotReadableError: An unknown error
+      // occured while talking to the credential manager" — terwijl dezelfde
+      // telefoon met deze lossere opties (het webauthn.io-profiel) gewoon
+      // werkt. De Android-kiezer kiest standaard tóch de toestel-ontgrendeling
+      // en GPM slaat passkeys altijd discoverable op, dus de usernameless
+      // login blijft functioneren. Niet weer aanscherpen zonder test op een
+      // toestel met een niet-Google wachtwoordmanager.
+      residentKey: "preferred",
       userVerification: "preferred",
     },
   });
