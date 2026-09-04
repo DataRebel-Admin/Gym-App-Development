@@ -1,4 +1,4 @@
-# Releases: versies, namen en opmerkingen
+﻿# Releases: versies, namen en opmerkingen
 
 Hoe we releases benoemen in App Store Connect en de Play Console, en hoe de
 release-opmerkingen eruitzien. Vastgelegd bij de eerste release, zodat alle
@@ -156,6 +156,6 @@ Opgelost
    nieuwe functionaliteit in zit)
 2. `CAPACITOR_SERVER_URL` controleren: moet productie zijn, geen tunnel
 3. `npx cap sync android && ./gradlew bundleRelease`
-4. `store/TESTPLAN.md` aflopen op een fysiek toestel
+4. `docs/TESTPLAN.md` aflopen op een fysiek toestel
 5. Uploaden, releasenaam en opmerkingen invullen volgens dit document
 6. `app-version.json` committen samen met de gewijzigde native bestanden

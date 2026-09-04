@@ -1,4 +1,4 @@
-# Roadmap: van persoonlijk account naar publicatie
+﻿# Roadmap: van persoonlijk account naar publicatie
 
 De weg van waar we nu staan (interne test, persoonlijk Play-account) naar een
 gepubliceerde app onder het bedrijf. De leesvolgorde is de uitvoervolgorde, maar
@@ -69,7 +69,7 @@ kalenderwachten voordat je productie mag aanvragen.
 ## Fase 2: store-inzending klaarmaken
 
 Kan volledig parallel aan fase 1. Alles hieronder staat uitgeschreven in
-`store/METADATA.md` en `store/GESLOTEN-TEST.md` paragraaf 2.
+`docs/METADATA.md` en `docs/GESLOTEN-TEST.md` paragraaf 2.
 
 | | Onderdeel | Stand |
 |---|---|---|
@@ -87,7 +87,7 @@ met dezelfde sportschool, zodat de accentkleur consistent is.
 
 ## Fase 3: gesloten test
 
-Draaiboek: `store/GESLOTEN-TEST.md`. In het kort:
+Draaiboek: `docs/GESLOTEN-TEST.md`. In het kort:
 
 1. `DEMO_LOGIN_TENANTS="gymrebel"` in Vercel, deploy afwachten, `/login`
    controleren op alleen die ene sportschool en geen superadmin.
@@ -96,7 +96,7 @@ Draaiboek: `store/GESLOTEN-TEST.md`. In het kort:
 3. Een stuk of zes extra demo-leden aanmaken, zodat testers niet allemaal op
    hetzelfde account zitten en elkaars sets zien.
 4. Testers toevoegen in Play en de opt-in-link rondsturen.
-5. `store/TESTPLAN.md` aflopen, nu op toestellen die niet van jou zijn.
+5. `docs/TESTPLAN.md` aflopen, nu op toestellen die niet van jou zijn.
 6. Bugs verzamelen en oplossen. Webfixes staan direct live, dus daar is geen
    nieuwe release voor nodig.
 
@@ -131,7 +131,7 @@ Kan pas beginnen als de Apple-inschrijving rond is **en** je een Mac hebt. Het
    Dat zijn entitlements, die kunnen niet vanuit de repo.
 3. APNs-sleutel (.p8) maken, `APNS_*` en `APPLE_APP_ID` in de
    productie-omgeving.
-4. Archiveren, uploaden, TestFlight-ronde, `store/TESTPLAN.md` aflopen.
+4. Archiveren, uploaden, TestFlight-ronde, `docs/TESTPLAN.md` aflopen.
 5. Inzenden. Reken op een of twee afkeurrondes op richtlijn 4.2; geef de
    reviewer een **lid**-account, geen eigenaar.
 

@@ -1,4 +1,4 @@
-# Testplan native apps (iOS + Android)
+﻿# Testplan native apps (iOS + Android)
 
 Af te tekenen vóór elke store-inzending. Test op een **fysiek toestel**, niet
 alleen een simulator: haptics, camera, push en biometrie werken daar niet of
@@ -50,7 +50,7 @@ Vul per run de kolommen in en bewaar het resultaat bij de release.
 | 2.7 | Uitloggen en opnieuw starten | Sessie is echt weg, geen automatische herinlog | ☐ |
 
 > 2.4 en 2.5 falen zolang `assetlinks.json` (Android) en de AASA plus Associated
-> Domains (iOS) niet kloppen. Zie `capacitor/README.md`.
+> Domains (iOS) niet kloppen. Zie `docs/CAPACITOR.md`.
 >
 > **Bekend: automatische App Links-verificatie is onbetrouwbaar bij zijlaadden.**
 > Op een OnePlus (OxygenOS) meldde de verificatie-agent niets terug

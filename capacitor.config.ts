@@ -1,4 +1,4 @@
-import type { CapacitorConfig } from "@capacitor/cli";
+﻿import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
  * Capacitor-wrapper voor **iOS én Android** (App Store + Play Store).
@@ -23,7 +23,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *  - **Apple-richtlijn 4.2 (minimale functionaliteit)** beoordeelt een app die
  *    enkel een website toont streng. De native meerwaarde zit hier in haptics
  *    (Taptic Engine), camera-QR-scan, APNs-push en biometrische login/passkeys.
- *    Zie `capacitor/README.md` voor de argumentatie richting review.
+ *    Zie `docs/CAPACITOR.md` voor de argumentatie richting review.
  *
  * Het alternatief is een herbouw naar een client-side SPA met losse API. Dat is
  * een projectherziening, geen publicatiestap, en valt buiten scope.

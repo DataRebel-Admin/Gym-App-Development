@@ -1,4 +1,4 @@
-apply plugin: 'com.android.application'
+﻿apply plugin: 'com.android.application'
 
 android {
     namespace = "nl.gymrebeltraining.app"
@@ -25,7 +25,7 @@ android {
      * `bundleRelease` levert een ongetekende AAB. Dat faalt zichtbaar bij het
      * uploaden in plaats van stil een verkeerd getekend artefact op te leveren.
      *
-     * Aanmaken van de keystore: zie capacitor/README.md. Raak 'm nooit kwijt.
+     * Aanmaken van de keystore: zie docs/CAPACITOR.md. Raak 'm nooit kwijt.
      */
     def keystorePropsFile = rootProject.file("keystore.properties")
     def keystoreProps = new Properties()
@@ -55,7 +55,7 @@ android {
             if (canSign) {
                 signingConfig signingConfigs.release
             } else {
-                logger.warn("⚠ Geen keystore gevonden — release-build wordt NIET ondertekend. Zie capacitor/README.md.")
+                logger.warn("⚠ Geen keystore gevonden — release-build wordt NIET ondertekend. Zie docs/CAPACITOR.md.")
             }
 
             // R8/minify bewust UIT. De Java-laag is hier alleen de Capacitor-brug

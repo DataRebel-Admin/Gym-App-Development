@@ -1,4 +1,4 @@
-# GymRebel — Project Context
+﻿# GymRebel — Project Context
 
 GymRebel is een multitenant SaaS-app voor sportscholen. Elke sportschool is een aparte tenant met eigen leden, apparatuur, schema's en huisstijl. Onder de motorkap één codebase.
 
@@ -2085,8 +2085,9 @@ sleutels → NL-fallback). Géén Prisma-migratie nodig: `enum Locale {NL,EN,FY}
 
 Beide apps zijn **Capacitor-wrappers** rond de gehoste site (`server.url`). De TWA
 voor Android is uitgefaseerd: één wrapper-technologie voor beide stores. Volledige
-operationele handleiding in **`capacitor/README.md`**; publiceerchecklist,
-testplan en store-metadata in **`store/`**.
+operationele handleiding in **`docs/CAPACITOR.md`**; publiceerchecklist,
+testplan en store-metadata ook in **`docs/`** (alle eigenaar-documentatie staat
+daar bij elkaar; `store/assets/` bevat alleen gegenereerde store-afbeeldingen).
 
 - **Identiteit (onveranderlijk na publicatie)**: bundle ID/package name
   `nl.gymrebeltraining.app`, host `app.gymrebel-training.com`. Het koppelteken uit

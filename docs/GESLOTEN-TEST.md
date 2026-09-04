@@ -1,4 +1,4 @@
-# Gesloten test in Google Play
+﻿# Gesloten test in Google Play
 
 De stap tussen de interne test (die draait) en productie. Dit document is het
 draaiboek: wat er moet kloppen vóór je hem opent, en in welke volgorde.
@@ -62,12 +62,12 @@ Alles onder **App-inhoud** moet groen zijn, en de hoofd-store-listing compleet.
 | ☐ | Advertenties: **nee** | De app bevat er geen |
 | ☐ | Contentclassificatie (vragenlijst) | Geen geweld, gokken, gebruikersinteractie-met-vreemden; komt uit op 3+/PEGI 3 |
 | ☐ | Doelgroep: 18+ | Geen kinderen; dat scheelt de Families-eisen |
-| ☐ | Gegevensbeveiliging (Data safety) | `store/METADATA.md`, "Antwoorden op de privacyvragenlijsten" |
+| ☐ | Gegevensbeveiliging (Data safety) | `docs/METADATA.md`, "Antwoorden op de privacyvragenlijsten" |
 | ☐ | Overheidsapp: nee · Financiële functies: nee · Gezondheidsapp: **let op** | Zie de waarschuwing hieronder |
-| ☐ | Titel, korte en lange omschrijving | `store/METADATA.md` |
+| ☐ | Titel, korte en lange omschrijving | `docs/METADATA.md` |
 | ☐ | App-icoon 512×512 | `public/icons/icon-512.png` |
 | ☐ | **Feature graphic 1024×500** | `store/assets/play-feature-graphic.png` — gegenereerd met `npm run brand:assets` |
-| ☐ | Minimaal 2 telefoonscreenshots (aanbevolen 6) | Plan in `store/METADATA.md`; met de app op je toestel te maken |
+| ☐ | Minimaal 2 telefoonscreenshots (aanbevolen 6) | Plan in `docs/METADATA.md`; met de app op je toestel te maken |
 | ☐ | Landen kiezen | Nederland volstaat om te beginnen |
 
 > **Gezondheidsapp-vraag.** GymRebel registreert trainingen en lichaamsmetingen.
@@ -94,7 +94,7 @@ echt verstuurd is: `user.invite.email` met status FAILED betekent dat er niets
 wegging (zie de e-mailsectie in CLAUDE.md).
 
 > **Het plan is om vóór deze test naar een organisatie-account te gaan** (het
-> D-U-N-S-nummer is er al; zie `store/ROADMAP.md` fase 1). Daarmee vervalt de
+> D-U-N-S-nummer is er al; zie `docs/ROADMAP.md` fase 1). Daarmee vervalt de
 > eis van **12 testers, 14 dagen onafgebroken** die voor persoonlijke accounts
 > geldt, en bepaal je de testduur zelf.
 >

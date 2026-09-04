@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Zet de verplichte Info.plist-sleutels voor de iOS-app.
  *
  *   node scripts/patch-ios-plist.mjs          (of: npm run ios:plist)
@@ -20,7 +20,7 @@
  * Capabilities (Push Notifications, Associated Domains voor passkeys en universal
  * links) zijn *entitlements*, geen Info.plist-sleutels. Die horen bij het
  * provisioning profile en zet je in Xcode onder Signing & Capabilities, of via
- * fastlane. Zie capacitor/README.md.
+ * fastlane. Zie docs/CAPACITOR.md.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";

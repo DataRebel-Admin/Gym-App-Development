@@ -4,7 +4,8 @@ Multitenant SaaS-app voor sportscholen. Elke sportschool is een eigen tenant met
 eigen leden, apparatuur, schema's en huisstijl — onder de motorkap één codebase.
 
 De volledige projectcontext, stack en conventies staan in **[CLAUDE.md](./CLAUDE.md)**.
-De stap-voor-stap bouwgids staat in **[GymRebel-Bouwgids.md](./GymRebel-Bouwgids.md)**.
+Alle documentatie voor de eigenaar (bouwgids, app-builds, store-draaiboeken,
+testplan) staat in **[docs/](./docs/)**.
 
 ## Stack
 

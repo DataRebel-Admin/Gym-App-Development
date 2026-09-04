@@ -1,4 +1,4 @@
-# Publiceerchecklist
+﻿# Publiceerchecklist
 
 Twee lijsten: wat in de repo geregeld is, en wat alleen jij kunt doen omdat het
 een account, een betaalmiddel of een Mac vereist.
@@ -34,7 +34,7 @@ een account, een betaalmiddel of een Mac vereist.
 | ✅ | Publieke privacyverklaring, cookiebeleid en supportpagina | `/privacy`, `/cookies`, `/support` |
 | ✅ | Account verwijderen in de app, automatisch uitgevoerd | `/account/privacy` + cron |
 | ✅ | Gegevensexport in de app | `/account/export` |
-| ✅ | Testplan, store-metadata en releaseconventie | `store/TESTPLAN.md`, `store/METADATA.md`, `store/RELEASES.md` |
+| ✅ | Testplan, store-metadata en releaseconventie | `docs/TESTPLAN.md`, `docs/METADATA.md`, `docs/RELEASES.md` |
 
 **Geverifieerd in code:** `tsc --noEmit` schoon, 212 tests groen, `npm run build`
 slaagt, `npx cap sync android` vindt alle zes plugins, en `/privacy`, `/cookies`
@@ -60,7 +60,7 @@ want Android haalt de `assetlinks.json` bij dát domein op.
 | | Onderdeel | Waarom |
 |---|---|---|
 | ☐ | `LEGAL_ENTITY` invullen in `lib/legal.ts` | **Blokkeert de gesloten test.** `/privacy` toont nu letterlijk "TODO: KvK-nummer", en dat is de URL die je bij Play indient |
-| ☐ | Demo-login-keuze doorvoeren in Vercel | **Blokkeert de gesloten test.** Zie `store/GESLOTEN-TEST.md` §1 |
+| ☐ | Demo-login-keuze doorvoeren in Vercel | **Blokkeert de gesloten test.** Zie `docs/GESLOTEN-TEST.md` §1 |
 | ☐ | Privacyteksten juridisch laten controleren | Het zijn conceptteksten, geschreven op basis van wat de code doet |
 | ✅ | Overige `gymrebel.app`-verwijzingen omzetten | Cron-fallbacks lopen nu allemaal via `appBaseUrl()` (lib/app-url.ts); e-mailvoorbeelden, VAPID-subject en afzenderadres staan op `gymrebel-training.com` |
 | ☐ | Optioneel: schema-editor verbergen op kleine schermen | De owner-area is verrassend mobielvriendelijk, maar de drag-and-drop-editor over meerdere dagen werkt niet op een telefoon. Er bestaat niet voor niets een aparte mobiele lid-builder |
@@ -86,10 +86,10 @@ schema van een lid opzoeken tijdens een sessie.
 | ☐ | Op een Mac: `npx cap add ios`, `npm run brand:assets`, `npm run ios:plist` | Kan ook op een macOS-CI-runner |
 | ☐ | In Xcode: team kiezen, Push Notifications en Associated Domains aanzetten | Entitlements, niet vanuit de repo te zetten |
 | ☐ | Archiveren en uploaden naar App Store Connect | |
-| ☐ | App-record aanmaken, metadata en screenshots invullen | Zie `store/METADATA.md` |
+| ☐ | App-record aanmaken, metadata en screenshots invullen | Zie `docs/METADATA.md` |
 | ☐ | Privacyvragenlijst invullen | Antwoorden staan in METADATA.md |
 | ☐ | Reviewnotities met **lid**-testaccount plus QR-afbeelding | Zonder dit is 4.2-afkeuring waarschijnlijk |
-| ☐ | TestFlight-ronde op een echt toestel | Loop `store/TESTPLAN.md` af |
+| ☐ | TestFlight-ronde op een echt toestel | Loop `docs/TESTPLAN.md` af |
 | ☐ | Indienen voor review | |
 
 ### Google
@@ -110,7 +110,7 @@ schema van een lid opzoeken tijdens een sessie.
 | ◐ | Store-listing invullen | Teksten in METADATA.md; **feature graphic klaar** (`store/assets/play-feature-graphic.png`, `npm run brand:assets`). Screenshots nog maken |
 | ☐ | Data safety-formulier invullen | Antwoorden staan in METADATA.md |
 | ☐ | Contentclassificatie-vragenlijst | |
-| ◐ | Interne test → gesloten test → productie | Interne test draait. Draaiboek: **`store/GESLOTEN-TEST.md`** | |
+| ◐ | Interne test → gesloten test → productie | Interne test draait. Draaiboek: **`docs/GESLOTEN-TEST.md`** | |
 
 ### Beide
 
