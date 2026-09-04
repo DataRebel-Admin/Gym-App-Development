@@ -9,54 +9,24 @@ import { prisma } from "@/lib/db";
  * Belangrijk: kritieke auth-/verificatiemails (magic link, e-mailverificatie)
  * lopen hier bewust NIET langs — die mag een gebruiker niet kunnen uitzetten.
  */
-export type NotificationCategory =
-  | "new_members"
-  /**
-   * Behouden voor reeds opgeslagen voorkeuren, maar stuurt niets meer aan: een
-   * uitnodiging is transactioneel en loopt sinds `createInvitation` bewust langs
-   * deze check heen (zie de toelichting daar). Niet opnieuw als gate gebruiken.
-   */
-  | "invitations"
-  | "schemas"
-  /** Groepslessen: bevestiging, wachtlijst-doorschuiving, wijziging/annulering, herinnering. */
-  | "classes"
-  | "changes"
-  | "achievements"
-  | "maintenance"
-  | "defects"
-  | "system"
-  | "news"
-  | "security";
+// Categorieën, kanalen en standaardwaarden staan in een pure module, zodat het
+// voorkeurenformulier (client) exact dezelfde waarden gebruikt als de
+// verzendpaden. Hier opnieuw geëxporteerd zodat bestaande imports blijven werken.
+export {
+  NOTIFICATION_DEFAULTS,
+  EMAIL_ON_BY_DEFAULT,
+  notificationDefault,
+} from "@/lib/notification-defaults";
+export type {
+  NotificationCategory,
+  NotificationChannel,
+} from "@/lib/notification-defaults";
 
-export type NotificationChannel = "email" | "inApp" | "push";
-
-/** Standaardwaarden per kanaal (categorie-onafhankelijk). */
-export const NOTIFICATION_DEFAULTS: Record<NotificationChannel, boolean> = {
-  email: false,
-  inApp: true,
-  push: false,
-};
-
-/**
- * Categorieën waarvoor e-mail standaard AAN staat. Voor alle overige categorieën
- * staat e-mail standaard uit — de gebruiker kan het per categorie aanzetten onder
- * /account/meldingen. In-app en push volgen `NOTIFICATION_DEFAULTS`.
- *
- * `classes` staat aan omdat de gevolgen-meldingen (wachtlijst-promotie,
- * verplaatsing, annulering) tijdkritisch zijn: wie ze alleen in-app krijgt en
- * de app niet opent, staat onwetend als no-show op een les. Gespiegeld in
- * `app/account/meldingen/notifications-form.tsx`.
- */
-const EMAIL_ON_BY_DEFAULT: ReadonlySet<NotificationCategory> = new Set(["schemas", "classes"]);
-
-/** De standaardwaarde voor een (categorie × kanaal) — gespiegeld in de UI (`notifications-form.tsx`). */
-export function notificationDefault(
-  category: NotificationCategory,
-  channel: NotificationChannel
-): boolean {
-  if (channel === "email") return EMAIL_ON_BY_DEFAULT.has(category);
-  return NOTIFICATION_DEFAULTS[channel];
-}
+import { notificationDefault } from "@/lib/notification-defaults";
+import type {
+  NotificationCategory,
+  NotificationChannel,
+} from "@/lib/notification-defaults";
 
 type PrefsShape = Record<string, Partial<Record<NotificationChannel, boolean>>>;
 

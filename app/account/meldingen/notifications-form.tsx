@@ -3,6 +3,10 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { saveNotificationPrefs, type AccountFormState } from "../actions";
+import {
+  notificationDefault,
+  type NotificationCategory,
+} from "@/lib/notification-defaults";
 
 const CATEGORIES = [
   { key: "new_members", label: "Nieuwe leden" },
@@ -29,15 +33,17 @@ const CHANNELS = [
 type Channel = (typeof CHANNELS)[number]["key"];
 type Prefs = Record<string, Record<Channel, boolean>>;
 
-// Gespiegeld uit lib/notifications.ts (notificationDefault): e-mail staat standaard
-// UIT, behalve voor trainingsschema's en groepslessen (wachtlijst-promotie en
-// annulering zijn tijdkritisch). In-app aan, push uit.
-const EMAIL_ON_BY_DEFAULT = new Set<string>(["schemas", "classes"]);
-
+// Standaardwaarden komen uit lib/notification-defaults.ts, dezelfde bron als de
+// verzendpaden. Ze stonden hier ooit gekopieerd; toen de server-standaard voor
+// push wijzigde toonde dit formulier nog "uit" terwijl er wél verstuurd werd.
 function defaults(): Prefs {
   const p: Prefs = {};
   for (const c of CATEGORIES) {
-    p[c.key] = { email: EMAIL_ON_BY_DEFAULT.has(c.key), inApp: true, push: false };
+    p[c.key] = {
+      email: notificationDefault(c.key as NotificationCategory, "email"),
+      inApp: notificationDefault(c.key as NotificationCategory, "inApp"),
+      push: notificationDefault(c.key as NotificationCategory, "push"),
+    };
   }
   return p;
 }
