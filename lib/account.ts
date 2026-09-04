@@ -45,6 +45,11 @@ const ACCOUNT_SELECT = {
   createdAt: true,
 } as const;
 
+/** Heeft dit account minstens één passkey? Voedt de prompt na het inloggen. */
+export async function hasPasskeys(userId: string): Promise<boolean> {
+  return (await prisma.authenticator.count({ where: { userId } })) > 0;
+}
+
 /** Volledig account-record van de huidige gebruiker. */
 export async function getAccountUser() {
   const me = await requireAccount();

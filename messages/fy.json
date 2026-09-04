@@ -409,6 +409,18 @@
         "calves": "Kûten"
       }
     },
+    "passkeyPrompt": {
+      "dialogLabel": "Ynloggen mei fingerprint ynstelle",
+      "title": "Flugger ynlogge?",
+      "text": "Stel in tagongskaai yn en log tenei yn mei dyn fingerprint of gesichtsherkenning. Gjin wachtwurd mear nedich.",
+      "enable": "Fingerprint ynstelle",
+      "notNow": "No net",
+      "busy": "Dwaande…",
+      "cancelled": "Ynstellen annulearre of net slagge.",
+      "successTitle": "Ynsteld!",
+      "successText": "Fan no ôf kinst op dit apparaat ynlogge mei de knop \"Log yn mei tagongskaai\".",
+      "doneButton": "Klear"
+    },
     "onboarding": {
       "dialogLabel": "Wolkom",
       "welcome": "Wolkom! 👋",

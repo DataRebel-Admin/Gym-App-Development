@@ -76,6 +76,7 @@ export {
   Crown,
   Gem,
   Lock,
+  Fingerprint,
   ShieldCheck,
   CheckCircle2,
   Ruler,

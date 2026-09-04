@@ -9,6 +9,14 @@ import { useClientValue } from "@/lib/hooks/use-client-value";
 
 const STORAGE_KEY = "gymrebel-member-onboarding";
 
+/** Zichtbaar voor volgers van de tour (zoals de passkey-prompt): is de
+ *  rondleiding al gezien? Zelfde vlag als hierboven, alleen-lezen gebruiken. */
+export const ONBOARDING_STORAGE_KEY = STORAGE_KEY;
+
+/** Afgevuurd zodra de rondleiding wordt afgerond of overgeslagen, zodat een
+ *  opvolger (de passkey-prompt) direct kan verschijnen zonder herlaadbeurt. */
+export const ONBOARDING_DONE_EVENT = "gymrebel:onboarding-done";
+
 /** Window-event waarmee de rondleiding handmatig heropend kan worden (bv. vanuit
  *  de member-drawer). Losgekoppeld zodat elke UI-plek de tour kan triggeren
  *  zonder de localStorage-vlag te hoeven kennen. */
@@ -69,6 +77,7 @@ export function MemberOnboarding() {
       /* genegeerd */
     }
     setOverride(false);
+    window.dispatchEvent(new Event(ONBOARDING_DONE_EVENT));
   }
 
   const steps: Step[] = [

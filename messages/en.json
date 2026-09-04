@@ -539,6 +539,18 @@
         "calves": "Calves"
       }
     },
+    "passkeyPrompt": {
+      "dialogLabel": "Set up fingerprint sign-in",
+      "title": "Sign in faster?",
+      "text": "Set up a passkey and sign in with your fingerprint or face recognition from now on. No password needed.",
+      "enable": "Set up fingerprint",
+      "notNow": "Not now",
+      "busy": "Working…",
+      "cancelled": "Setup cancelled or failed.",
+      "successTitle": "All set!",
+      "successText": "From now on you can sign in on this device with the \"Sign in with passkey\" button.",
+      "doneButton": "Done"
+    },
     "onboarding": {
       "dialogLabel": "Welcome",
       "welcome": "Welcome! 👋",

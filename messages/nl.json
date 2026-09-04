@@ -539,6 +539,18 @@
         "calves": "Kuiten"
       }
     },
+    "passkeyPrompt": {
+      "dialogLabel": "Inloggen met vingerafdruk instellen",
+      "title": "Sneller inloggen?",
+      "text": "Stel een toegangssleutel in en log voortaan in met je vingerafdruk of gezichtsherkenning. Geen wachtwoord meer nodig.",
+      "enable": "Vingerafdruk instellen",
+      "notNow": "Niet nu",
+      "busy": "Bezig…",
+      "cancelled": "Instellen geannuleerd of niet gelukt.",
+      "successTitle": "Ingesteld!",
+      "successText": "Vanaf nu kun je op dit apparaat inloggen met de knop \"Log in met toegangssleutel\".",
+      "doneButton": "Klaar"
+    },
     "onboarding": {
       "dialogLabel": "Welkom",
       "welcome": "Welkom! 👋",

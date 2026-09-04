@@ -6,13 +6,14 @@ import { areClassesEnabled } from "@/lib/classes";
 import { getMemberSchemaMode } from "@/lib/member-schema";
 import { hasActiveCoachSchema } from "@/lib/member";
 import { getUserTenants } from "@/lib/tenants";
-import { getUserBadge } from "@/lib/account";
+import { getUserBadge, hasPasskeys } from "@/lib/account";
 import { getNotificationOverview } from "@/lib/notifications";
 import { MemberNav } from "@/components/nav/member-nav";
 import { MemberDrawer } from "@/components/nav/member-drawer";
 import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { MemberOnboarding } from "@/components/member/onboarding";
+import { PasskeyPrompt } from "@/components/member/passkey-prompt";
 import { ActiveWorkoutBar } from "@/components/member/active-workout-bar";
 import { getRunningSessionStart } from "@/lib/session-timeout";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
@@ -43,6 +44,8 @@ export default async function MemberLayout({
     ? await hasActiveCoachSchema(session.user.id, session.user.tenantId)
     : false;
   const badge = await getUserBadge(session.user.id);
+  // Prompt "inloggen met vingerafdruk?" zolang het account geen passkey heeft.
+  const passkeySetUp = await hasPasskeys(session.user.id);
   const notifications = await getNotificationOverview(session.user.id);
   const tenants = session.user.email
     ? await getUserTenants(session.user.email)
@@ -114,6 +117,7 @@ export default async function MemberLayout({
 
       <MemberNav classesEnabled={classesEnabled} />
       <MemberOnboarding />
+      <PasskeyPrompt userId={session.user.id} hasPasskey={passkeySetUp} />
       <CelebrationOverlay celebrations={celebrations} />
       <NativePushRegister configured={nativePushConfigured()} />
     </div>
