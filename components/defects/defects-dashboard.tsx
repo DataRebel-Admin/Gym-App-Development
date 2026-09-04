@@ -80,12 +80,21 @@ export function DefectsDashboard({
   locations,
   mostReported,
   isAdmin,
+  now,
 }: {
   rows: DefectRow[];
   staff: StaffOption[];
   locations: LocationOption[];
   mostReported: MostReportedRow[];
   isAdmin: boolean;
+  /**
+   * Servertijd bij het renderen van de pagina (epoch-ms). Bewust een prop en
+   * geen `Date.now()` in de render: die staat in een `useMemo` waar tijd geen
+   * dependency van is, dus het venster van "laatste 7 dagen" bevroor op het
+   * moment dat je die filter koos. Een dashboard dat een dag openstond, rekende
+   * dus nog met gisteren. Zelfde injecteerbare-`now`-idioom als lib/defects.ts.
+   */
+  now: number;
 }) {
   const t = useTranslations("defects");
   const to = useTranslations("owner.defects");
@@ -99,6 +108,8 @@ export function DefectsDashboard({
   const [search, setSearch] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
+  const nowDate = useMemo(() => new Date(now), [now]);
+
   const machines = useMemo(() => {
     const map = new Map<string, string>();
     for (const r of rows) if (r.machineId) map.set(r.machineId, r.machineName);
@@ -106,8 +117,7 @@ export function DefectsDashboard({
   }, [rows]);
 
   const filtered = useMemo(() => {
-    const since =
-      period === "all" ? null : Date.now() - Number(period) * 86_400_000;
+    const since = period === "all" ? null : now - Number(period) * 86_400_000;
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (status === "open" ? !isOpenDefectStatus(r.status) : status !== "all" && r.status !== status) return false;
@@ -119,7 +129,7 @@ export function DefectsDashboard({
       if (q && !r.machineName.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [rows, status, severity, machineId, locationId, period, outOnly, search]);
+  }, [rows, status, severity, machineId, locationId, period, outOnly, search, now]);
 
   const openRows = rows.filter((r) => isOpenDefectStatus(r.status));
   const detail = detailId ? rows.find((r) => r.id === detailId) ?? null : null;
@@ -131,7 +141,7 @@ export function DefectsDashboard({
     {
       key: "resolved30",
       value: rows.filter(
-        (r) => r.resolvedAt && Date.now() - new Date(r.resolvedAt).getTime() < 30 * 86_400_000 && r.status === "RESOLVED"
+        (r) => r.resolvedAt && now - new Date(r.resolvedAt).getTime() < 30 * 86_400_000 && r.status === "RESOLVED"
       ).length,
     },
   ];
@@ -298,7 +308,7 @@ export function DefectsDashboard({
                     </Td>
                     <Td className="text-center">{r.confirmations > 0 ? `+${r.confirmations}` : "—"}</Td>
                     <Td className="text-neutral-600">{r.reporter ?? to("table.anonymous")}</Td>
-                    <Td className="text-neutral-600">{defectAgeLabel(r.createdAt)}</Td>
+                    <Td className="text-neutral-600">{defectAgeLabel(r.createdAt, nowDate)}</Td>
                     <Td className="text-neutral-600">{r.assignedToName ?? "—"}</Td>
                     <Td>
                       <Badge tone={st.tone}>{t(`status.${r.status}`)}</Badge>
@@ -335,6 +345,7 @@ export function DefectsDashboard({
           allRows={rows}
           staff={staff}
           isAdmin={isAdmin}
+          nowDate={nowDate}
           onClose={() => setDetailId(null)}
         />
       ) : null}
@@ -349,12 +360,15 @@ function DefectDetailModal({
   allRows,
   staff,
   isAdmin,
+  nowDate,
   onClose,
 }: {
   defect: DefectRow;
   allRows: DefectRow[];
   staff: StaffOption[];
   isAdmin: boolean;
+  /** Zelfde klok als het dashboard; zie de toelichting bij `now` daar. */
+  nowDate: Date;
   onClose: () => void;
 }) {
   const t = useTranslations("defects");
@@ -463,7 +477,7 @@ function DefectDetailModal({
                 <li key={h.id} className="flex items-center justify-between gap-3">
                   <span className="text-neutral-700">{t(`symptoms.${h.symptom}`)}</span>
                   <span className="flex items-center gap-2 text-neutral-500">
-                    {defectAgeLabel(h.createdAt)}
+                    {defectAgeLabel(h.createdAt, nowDate)}
                     <Badge tone={DEFECT_STATUS_META[h.status].tone}>{t(`status.${h.status}`)}</Badge>
                   </span>
                 </li>
@@ -530,7 +544,7 @@ function DefectDetailModal({
                   <Select name="targetId" defaultValue={mergeTargets[0].id} className="text-sm">
                     {mergeTargets.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {t(`symptoms.${m.symptom}`)} · {defectAgeLabel(m.createdAt)}
+                        {t(`symptoms.${m.symptom}`)} · {defectAgeLabel(m.createdAt, nowDate)}
                       </option>
                     ))}
                   </Select>

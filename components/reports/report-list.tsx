@@ -6,7 +6,7 @@ import { m } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
-import { TableWrap, Table, Thead, Th, Tbody, Tr, Td } from "@/components/ui/table";
+import { TableWrap, Table, Thead, Th, Tbody, Td } from "@/components/ui/table";
 import { MobileListCard, MobileListRow } from "@/components/ui/mobile-list-card";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";

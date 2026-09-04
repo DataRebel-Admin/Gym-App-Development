@@ -7,7 +7,6 @@ import {
   accumulateMuscleVolume,
   levelForWeeklySets,
   type BodyView,
-  type ExerciseMuscleInfo,
   type MuscleLevel,
   type MuscleRegion,
 } from "@/lib/muscle-map";

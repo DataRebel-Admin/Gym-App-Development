@@ -63,7 +63,18 @@ export function ReportDefectModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Duplicaten + bevestiging ---
-  const [duplicates, setDuplicates] = useState<OpenDefectSummary[]>([]);
+  /**
+   * Opgehaalde open meldingen **mét het apparaat waar ze bij horen**. Bewust
+   * gekoppeld opgeslagen in plaats van een kale lijst die een effect leegmaakt:
+   * dat leegmaken gebeurde synchroon in de effect-body (extra renderronde), en
+   * bij snel wisselen van apparaat kon een traag antwoord voor apparaat A
+   * alsnog binnenvallen terwijl B geselecteerd was. Nu leiden we de getoonde
+   * lijst af, dus een antwoord dat niet bij de huidige keuze hoort telt niet.
+   */
+  const [dupeCache, setDupeCache] = useState<{
+    machineId: string;
+    rows: OpenDefectSummary[];
+  } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [confirmPending, startConfirm] = useTransition();
   const [showFormAnyway, setShowFormAnyway] = useState(false);
@@ -95,18 +106,22 @@ export function ReportDefectModal({
     });
   }, [open, machine, machines]);
 
+  // Getoonde duplicaten: alleen als het opgehaalde resultaat bij de huidige
+  // keuze hoort. Afgeleid, niet in state — zie de toelichting bij `dupeCache`.
+  const duplicates: OpenDefectSummary[] =
+    open && selectedMachine && dupeCache?.machineId === selectedMachine.id
+      ? dupeCache.rows
+      : [];
+
   // Open meldingen van het gekozen apparaat ophalen (duplicaatcheck).
   useEffect(() => {
-    if (!open || !selectedMachine) {
-      setDuplicates([]);
-      return;
-    }
+    if (!open || !selectedMachine) return;
     const id = selectedMachine.id;
     startLookup(async () => {
       try {
-        setDuplicates(await getOpenDefectsForMachine(id));
+        setDupeCache({ machineId: id, rows: await getOpenDefectsForMachine(id) });
       } catch {
-        setDuplicates([]);
+        setDupeCache({ machineId: id, rows: [] });
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

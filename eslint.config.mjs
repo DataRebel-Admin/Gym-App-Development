@@ -26,6 +26,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gradle-output: `cap sync` kopieert hier o.a. Capacitor's native-bridge.js
+    // naartoe. Gegenereerd, tweemaal (debug + release), en niet te repareren —
+    // een volgende sync zet het toch terug. 16 van de waarschuwingen kwamen
+    // hiervandaan en verdrongen de meldingen over onze eigen code.
+    "android/**/build/**",
   ]),
 ]);
 

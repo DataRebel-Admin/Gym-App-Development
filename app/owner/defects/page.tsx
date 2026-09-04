@@ -55,6 +55,12 @@ export default async function OwnerDefectsPage() {
     name: s.name ?? s.email,
   }));
 
+  // Rendertijd van de server, meegegeven aan het dashboard zodat de
+  // periodefilters en leeftijdslabels daar een dependency hebben en niet
+  // bevriezen op een oude klok. Zelfde `const now = new Date()`-idioom als
+  // /owner/rooster en /member/rooster.
+  const now = new Date();
+
   // Serialisatie: datums → ISO; photoKeys → alléén het aantal (URLs blijven
   // server-side; weergave via de beschermde foto-route).
   const serialized: DefectRow[] = rows.map((r) => ({
@@ -95,6 +101,7 @@ export default async function OwnerDefectsPage() {
         locations={locationOptions}
         mostReported={mostReported}
         isAdmin={user.role === "TENANT_ADMIN"}
+        now={now.getTime()}
       />
     </div>
   );
