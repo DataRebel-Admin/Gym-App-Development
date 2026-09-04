@@ -5,15 +5,18 @@ import { Capacitor } from "@capacitor/core";
 import { registerNativePushToken } from "@/app/account/native-push-actions";
 import { ALL_PUSH_CHANNELS } from "@/lib/push-channels";
 import { NATIVE_PUSH_TOKEN_KEY } from "@/lib/push-token-storage";
-import { useToast } from "@/components/ui/toast";
 
 /** Of native push op dit platform iets kan bezorgen; komt server-side uit `nativePushConfigured()`. */
 export type NativePushAvailability = { ios: boolean; android: boolean };
 
 /**
  * Registreert het native push-device-token (APNs op iOS / FCM op Android) bij de
- * server, maakt de Android-meldingskanalen aan en toont binnenkomende meldingen
- * netjes terwijl de app openstaat.
+ * server en maakt de Android-meldingskanalen aan.
+ *
+ * Het *reageren* op meldingen (binnenkomst en aantikken) zit bewust in
+ * `NativePushListeners`, gemount in de root-layout. Dit component hangt namelijk
+ * in de member- en owner-layout omdat het een ingelogde gebruiker nodig heeft, en
+ * listeners die alleen dáár bestaan werken niet vanaf bijvoorbeeld `/account`.
  *
  * Doet uitsluitend iets in de Capacitor-app (`isNativePlatform`); op web is het
  * een no-op, want daar loopt push via de service worker en VAPID. Mount in een
@@ -31,8 +34,6 @@ export type NativePushAvailability = { ios: boolean; android: boolean };
  * daadwerkelijk iets bezorgd kán worden.
  */
 export function NativePushRegister({ configured }: { configured: NativePushAvailability }) {
-  const { toast } = useToast();
-
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
@@ -86,32 +87,6 @@ export function NativePushRegister({ configured }: { configured: NativePushAvail
           /* stil — geen token, geen native push */
         });
 
-        // Melding binnen terwijl de app openstaat. Het systeem toont die dan
-        // níét (Android onderdrukt 'm, iOS alleen met presentationOptions), dus
-        // zonder dit zou een melding tijdens gebruik volledig onzichtbaar zijn.
-        await PushNotifications.addListener("pushNotificationReceived", (notification) => {
-          if (cancelled) return;
-          const title = notification.title?.trim();
-          const body = notification.body?.trim();
-          if (!title && !body) return;
-          toast(title && body ? `${title}: ${body}` : (title ?? body ?? ""), "info");
-        });
-
-        // Melding aangetikt → navigeer naar de bijbehorende pagina. Zowel de
-        // APNs- als de FCM-verzender sturen de bestemming mee als `data.url`
-        // (lib/push-apns.ts / lib/push-fcm.ts). Zonder deze listener opent de
-        // app wél, maar blijft hij staan waar hij stond: een melding "Je coach
-        // heeft een nieuw schema klaargezet" bracht je dan nergens heen.
-        await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-          if (cancelled) return;
-          const url = action.notification.data?.url;
-          if (typeof url !== "string" || !url) return;
-          // Alleen paden binnen de app volgen; een absolute URL uit een payload
-          // zou de WebView naar een willekeurige site kunnen sturen.
-          if (!url.startsWith("/") || url.startsWith("//")) return;
-          window.location.assign(url);
-        });
-
         await PushNotifications.register();
       } catch {
         /* plugin niet beschikbaar → stil */
@@ -121,7 +96,7 @@ export function NativePushRegister({ configured }: { configured: NativePushAvail
     return () => {
       cancelled = true;
     };
-  }, [toast, configured.android, configured.ios]);
+  }, [configured.android, configured.ios]);
 
   return null;
 }

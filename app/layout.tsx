@@ -17,6 +17,7 @@ import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register"
 import { ClientErrorRecorder } from "@/components/error/client-error-recorder";
 import { SplashGate } from "@/components/pwa/splash-gate";
 import { DeepLinkHandler } from "@/components/pwa/deep-link-handler";
+import { NativePushListeners } from "@/components/pwa/native-push-listeners";
 import { AppBackground } from "@/components/ui/app-background";
 
 const geistSans = Geist({
@@ -110,6 +111,8 @@ export default async function RootLayout({
                 <SplashGate />
                 {/* Magic link, uitnodiging of QR die de app opent → juiste pagina. */}
                 <DeepLinkHandler />
+                {/* Reageren op pushmeldingen — op élke pagina, niet alleen member/owner. */}
+                <NativePushListeners />
               </TenantProvider>
             </ToastProvider>
           </MotionProvider>
