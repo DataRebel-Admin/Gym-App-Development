@@ -65,6 +65,10 @@ MELD WAT KAPOT IS
 Rammelt er iets aan een apparaat? Meld het in een paar tikken, met foto. Je
 sportschool ziet het direct en anderen zien dat het al gemeld is.
 
+SNEL EN VEILIG
+Open de app met je vingerafdruk of gezichtsherkenning, net zoals je je telefoon
+ontgrendelt. Zo zit je binnen twee tellen bij je schema.
+
 VOOR SPORTSCHOLEN
 GymRebel wordt aangeboden via je sportschool. Je hebt dus een account van je eigen
 gym nodig om in te loggen. Je gegevens staan op Europese servers, we tonen geen
