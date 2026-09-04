@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -42,18 +42,42 @@ function sign(body: string): string {
   return createHmac("sha256", secret()).update(body).digest("base64url");
 }
 
-/** rpID/origin/rpName. rpID uit de app-host (lib/app-url.ts, dus `APP_BASE_URL`
- *  → `AUTH_URL` → `NEXTAUTH_URL`); override via WEBAUTHN_RP_ID (bv. een
- *  registrable parent zoals "gymrebel-training.com" voor whitelabel-subdomeinen).
- *  Bewust niet rechtstreeks op AUTH_URL: die mag leegblijven zodat NextAuth de
- *  origin uit de request afleidt, en dan zou dit stil op localhost uitkomen. */
+/** rpID/origin/rpName. Basis is de app-host (lib/app-url.ts, dus `APP_BASE_URL`
+ *  → `AUTH_URL` → `NEXTAUTH_URL`); override via WEBAUTHN_RP_ID. Bewust niet
+ *  rechtstreeks op AUTH_URL: die mag leegblijven zodat NextAuth de origin uit
+ *  de request afleidt, en dan zou dit stil op localhost uitkomen.
+ *
+ *  **rpID = het basisdomein, niet de app-host.** Leden zitten op hun
+ *  gym-subdomein (`gymrebel.gymrebel-training.com`); een rpID van
+ *  `app.gymrebel-training.com` is daar geen registrable suffix en de browser
+ *  weigert de hele ceremonie dan met een SecurityError (zo faalde elke
+ *  registratie vanaf een tenant-subdomein). Met het basisdomein als rpID werkt
+ *  één passkey op álle subdomeinen. Buiten het basisdomein (localhost,
+ *  previews) valt hij terug op de host zelf. */
 export function rpConfig(): { rpID: string; origin: string; rpName: string } {
   const url = new URL(appBaseUrl());
+  const base = (process.env.NEXT_PUBLIC_APP_DOMAIN ?? "gymrebel-training.com").toLowerCase();
+  const host = url.hostname.toLowerCase();
+  const derived = host === base || host.endsWith(`.${base}`) ? base : host;
   return {
-    rpID: process.env.WEBAUTHN_RP_ID ?? url.hostname,
+    rpID: process.env.WEBAUTHN_RP_ID ?? derived,
     origin: url.origin,
     rpName: "GymRebel",
   };
+}
+
+/** Origins die een ceremonie mag dragen: de app-host én de host van dít
+ *  request (het gym-subdomein waar het lid daadwerkelijk zit). De Host-header
+ *  is te vertrouwen: alleen domeinen die naar deze deployment routeren komen
+ *  hier binnen, en de clientDataJSON-origin moet er exact aan gelijk zijn. */
+async function expectedOrigins(): Promise<string[]> {
+  const { origin } = rpConfig();
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const origins = [origin];
+  if (host) origins.push(`${proto}://${host}`);
+  return [...new Set(origins)];
 }
 
 type ChallengePayload = { c: string; u?: string; exp: number };
@@ -147,13 +171,13 @@ export async function finishRegistration(
   await clearChallengeCookie();
   if (!stored || stored.u !== userId) return null;
 
-  const { rpID, origin } = rpConfig();
+  const { rpID } = rpConfig();
   let verification;
   try {
     verification = await verifyRegistrationResponse({
       response,
       expectedChallenge: stored.c,
-      expectedOrigin: origin,
+      expectedOrigin: await expectedOrigins(),
       expectedRPID: rpID,
       requireUserVerification: false,
     });
@@ -201,13 +225,13 @@ export async function finishAuthentication(
   await clearChallengeCookie();
   if (!stored) return null;
 
-  const { rpID, origin } = rpConfig();
+  const { rpID } = rpConfig();
   let verification;
   try {
     verification = await verifyAuthenticationResponse({
       response,
       expectedChallenge: stored.c,
-      expectedOrigin: origin,
+      expectedOrigin: await expectedOrigins(),
       expectedRPID: rpID,
       requireUserVerification: false,
       authenticator: {

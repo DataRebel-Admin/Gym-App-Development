@@ -12,6 +12,7 @@ import { buttonClasses } from "@/components/ui/button-classes";
 import { cn } from "@/lib/cn";
 import { useClientValue } from "@/lib/hooks/use-client-value";
 import { markPasskeyDevice } from "@/lib/passkey-device";
+import { webAuthnErrorDetail } from "@/lib/webauthn-error";
 
 export type PasskeyRow = {
   id: string;
@@ -44,9 +45,10 @@ export function Passkeys({ passkeys }: { passkeys: PasskeyRow[] }) {
         markPasskeyDevice();
         router.refresh();
       }
-    } catch {
-      // Meestal: de gebruiker annuleerde de biometrische prompt.
-      setError("Registratie geannuleerd of niet gelukt.");
+    } catch (err) {
+      // Kan annuleren zijn, maar toon het technische detail erbij: zonder dat
+      // is een échte fout (rpID/koppeling/al-geregistreerd) niet te herleiden.
+      setError(`Registratie geannuleerd of niet gelukt. (${webAuthnErrorDetail(err)})`);
     } finally {
       setBusy(false);
     }

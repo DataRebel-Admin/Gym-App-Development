@@ -11,6 +11,7 @@ import {
 import { Fingerprint, Check } from "@/components/ui/icons";
 import { useClientValue } from "@/lib/hooks/use-client-value";
 import { markPasskeyDevice } from "@/lib/passkey-device";
+import { webAuthnErrorDetail } from "@/lib/webauthn-error";
 import {
   ONBOARDING_DONE_EVENT,
   ONBOARDING_STORAGE_KEY,
@@ -106,9 +107,10 @@ export function PasskeyPrompt({
       // Volgende bezoek aan de inlogpagina start de biometrische login direct.
       markPasskeyDevice();
       setDone(true);
-    } catch {
-      // Meestal: de gebruiker annuleerde de biometrische prompt.
-      setError(t("cancelled"));
+    } catch (err) {
+      // Kan annuleren zijn, maar toon het technische detail erbij: zonder dat
+      // is een échte fout (rpID/koppeling/al-geregistreerd) niet te herleiden.
+      setError(`${t("cancelled")} (${webAuthnErrorDetail(err)})`);
     } finally {
       setBusy(false);
     }
