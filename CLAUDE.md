@@ -596,19 +596,39 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
 - **Bewerken + herhalen**: les (naam/omschrijving/instructeur/max) en sessie
   (tijd/vestiging/zaal/capaciteit) zijn bewerkbaar; "wekelijks herhalen"
   (`MAX_REPEAT_WEEKS` = 26) maakt N sessies met een gedeeld `seriesId` (geen
-  reeks-model: de reeks heeft geen eigen eigenschappen). Verwijderen kan "ook
-  alle volgende in deze reeks" (`session-delete-button.tsx`). Een **gestarte
+  reeks-model: de reeks heeft geen eigen eigenschappen). Verwijderen én
+  bewerken kunnen "ook alle volgende in deze reeks": de reeks-bewerking past
+  de tijdwijziging toe als **klok**-verschuiving (`wallClockDeltaMs`/
+  `shiftWallClock` in lib/tz.ts, getest — di 18:00→19:00 blijft 19:00 lokale
+  tijd voorbij de DST-overgang) en neemt vestiging/zaal/capaciteit-override
+  één-op-één over, met per sessie een eigen moved-melding. Een **gestarte
   sessie met aanmeldingen is niet verwijderbaar** (aanwezigheidshistorie) —
   die regel is de gedeelde pure `canDeleteSession` (lib/class-attendance.ts),
   gebruikt door de UI-knop én de action (die liepen uiteen: knop zichtbaar,
   action weigerde stil). Een **verplaatste sessie** (starttijd gewijzigd) nult
   `remindedAt` zodat de herinnering-cron de nieuwe tijd opnieuw meldt;
   `markAttendance` weigert zelf zolang de les niet gestart is (de UI toont de
-  knoppen pas ná afloop, defense-in-depth).
+  knoppen pas ná afloop, defense-in-depth) en heeft naast Aanwezig/No-show een
+  **Herstel**-knop terug naar ENROLLED.
+- **Annuleren zonder verwijderen = `ClassSession.cancelledAt`** (migratie
+  `20260904120000_class_session_cancelled`): de aanmeldlijst (historie) blijft
+  bestaan, terugdraaien kan (`restoreSession`, meldingstype **`restored`**).
+  `cancelSession` kan per sessie of met alle volgende in de reeks. Een
+  geannuleerde sessie is overal een niet-sessie: `enroll` → closed,
+  `promoteWaitlist` promoot er niemand in, herinnering- en no-show-cron slaan
+  haar over (aangemeld voor een geschrapte les ≠ no-show), reeks-bewerken
+  verschuift haar niet mee, en dashboards/inzichten/metrics tellen haar niet
+  als bezettings-datapunt. **Nieuwe sessie-lees-site? Vraag je af of
+  `cancelledAt: null` erbij hoort.** UI: rode badge (owner + lid), owner
+  krijgt een herstel-link, lid geen actieknoppen.
 - **Meldingen aan leden = `lib/class-notify.ts`** (`notifyClassEvent`, categorie
   **`classes`**, in-app/push/e-mail per voorkeur, push-kanaal `gymrebel-classes`):
   `enrolled`/`waitlisted` (bevestiging), `promoted`, `moved` (tijd/vestiging
-  gewijzigd, met "was …"), `cancelled` (sessie of les verwijderd), `reminder`.
+  gewijzigd, met "was …"), `cancelled` (sessie geannuleerd of verwijderd),
+  `restored` (annulering teruggedraaid), `reminder`. **E-mail staat voor
+  `classes` standaard AAN** (`EMAIL_ON_BY_DEFAULT` in lib/notifications.ts,
+  gespiegeld in notifications-form.tsx): promotie/verplaatsing/annulering zijn
+  tijdkritisch — alleen-in-app maakt onwetende no-shows.
   De sessie gaat **expliciet** mee (niet via id): bij annulering bestaat de rij
   al niet meer. E-mail via `classNotificationMessage` (generieke shell; kop en
   intro zijn dezelfde vertaalde teksten als in-app, `notifications.classes.*`).
@@ -616,15 +636,21 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   `REMINDER_WINDOW_HOURS` = 30, idempotent via `ClassEnrollment.remindedAt`,
   markeert vóór verzending) en `class-attendance` (no-show + wachtlijst opruimen).
 - **Feedback aan het lid** via `?msg=` op `/member/rooster` (enrolled/waitlisted/
-  closed/unchanged/unenrolled), gestart-maar-nog-bezig-lessen blijven zichtbaar
-  (`endsAt >= now`) maar zijn niet boekbaar; het vestiging-filter zit **in de
-  query** (niet ná `take`).
+  closed/unchanged/unenrolled, plus `?overlap=1` = amber waarschuwing dat de
+  aanmelding overlapt met een andere eigen les — dubbelboeken mag, maar niet
+  ongemerkt), gestart-maar-nog-bezig-lessen blijven zichtbaar (`endsAt >= now`)
+  maar zijn niet boekbaar; het vestiging-filter zit **in de query** en het
+  rooster toont een vaste **datumhorizon** (`ROSTER_HORIZON_DAYS` = 21, geen
+  rij-limiet — `take: 40` kapte bij een paar weekreeksen al na ±2 weken stil
+  af). `formatSessionStart` (lib/datetime.ts) toont het jaartal zodra de datum
+  buiten het lopende jaar valt.
 - **Audit** (categorie `schedule`): `class.create/update/delete`,
   `class.session.create/update/delete`, `class.enroll/waitlist/unenroll`,
   `class.notify.sent`, `class.reminder.sent` naast de bestaande
   `class.attendance.*`.
 - **Bewust niet**: geen annuleerdeadline vóór de start (één regel: tot de start),
-  geen per-lid limiet op aantal aanmeldingen, geen instructeur-FK
+  geen per-lid limiet op aantal aanmeldingen, geen blokkade op overlappende
+  aanmeldingen (alleen de waarschuwing), geen instructeur-FK
   (`GroupClass.instructorName` blijft vrije tekst).
 
 ### Fase 3 (member-functionaliteit, prompts 08–10)
