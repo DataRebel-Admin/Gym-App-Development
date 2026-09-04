@@ -361,6 +361,14 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
             maxParticipants: parsed.data.maxParticipants ?? null,
           },
         });
+        // Verschoven starttijd → herinnering opnieuw: wie voor de oude tijd al
+        // herinnerd was, hoort ook de nieuwe (cron is idempotent op remindedAt).
+        if (before.startsAt.getTime() !== startsAt.getTime()) {
+          await tx.classEnrollment.updateMany({
+            where: { sessionId: before.id, status: { in: ["ENROLLED", "WAITLISTED"] } },
+            data: { remindedAt: null },
+          });
+        }
         return promoteWaitlists(tx, [before.id]);
       },
       { isolationLevel: "Serializable" }
