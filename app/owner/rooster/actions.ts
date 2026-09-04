@@ -508,11 +508,14 @@ export async function markAttendance(formData: FormData) {
       status: true,
       user: { select: { name: true, email: true } },
       session: {
-        select: { classId: true, locationId: true, groupClass: { select: { name: true } } },
+        select: { classId: true, locationId: true, startsAt: true, groupClass: { select: { name: true } } },
       },
     },
   });
   if (!enrollment || enrollment.status === "CANCELLED" || enrollment.status === "WAITLISTED") return;
+  // Defense-in-depth: aanwezigheid bestaat pas vanaf de start van de les — de
+  // UI toont de knoppen pas ná afloop, maar de action mag daar niet op leunen.
+  if (enrollment.session.startsAt > new Date()) return;
   const scope = await getLocationScope(owner);
   if (!canAccessLocation(scope, enrollment.session.locationId)) notFound();
 
