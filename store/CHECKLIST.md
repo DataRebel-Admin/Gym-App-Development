@@ -34,7 +34,7 @@ een account, een betaalmiddel of een Mac vereist.
 | ✅ | Publieke privacyverklaring, cookiebeleid en supportpagina | `/privacy`, `/cookies`, `/support` |
 | ✅ | Account verwijderen in de app, automatisch uitgevoerd | `/account/privacy` + cron |
 | ✅ | Gegevensexport in de app | `/account/export` |
-| ✅ | Testplan en store-metadata | `store/TESTPLAN.md`, `store/METADATA.md` |
+| ✅ | Testplan, store-metadata en releaseconventie | `store/TESTPLAN.md`, `store/METADATA.md`, `store/RELEASES.md` |
 
 **Geverifieerd in code:** `tsc --noEmit` schoon, 212 tests groen, `npm run build`
 slaagt, `npx cap sync android` vindt alle zes plugins, en `/privacy`, `/cookies`
