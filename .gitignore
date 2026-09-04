@@ -52,3 +52,13 @@ next-env.d.ts
 # RepDB-bundel (gelicentieerde dataset, staat op Azure — nooit committen)
 repdb-bundle-standard/
 repdb-bundle-standard*.zip
+
+# Signing-sleutels — NOOIT committen. Wie deze sleutel plus het wachtwoord heeft,
+# kan een update van GymRebel publiceren. Ze horen buiten de repo te staan; deze
+# regels zijn het vangnet voor als er tóch een in de projectmap belandt.
+*.jks
+*.keystore
+keystore.properties
+
+# Android Studio-projectbestanden
+android/.idea/
