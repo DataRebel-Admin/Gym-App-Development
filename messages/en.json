@@ -891,6 +891,7 @@
       "waitlist": "{count} on the waitlist",
       "present": "Present",
       "noShow": "No-show",
+      "resetAttendance": "Reset",
       "deleteSession": "Delete session",
       "deleteSessionConfirm": "Enrolled members will be notified that the class is cancelled. This cannot be undone.",
       "deleteFollowing": "Also delete all following sessions in this series",

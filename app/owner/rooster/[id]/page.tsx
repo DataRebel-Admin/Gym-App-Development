@@ -186,6 +186,17 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
                         </button>
                       </form>
                     ) : null}
+                    {/* Correctie: een verkeerd gemarkeerde aanwezigheid terug
+                        naar neutraal (de action ondersteunde dit al). */}
+                    {e.status !== "ENROLLED" ? (
+                      <form action={markAttendance}>
+                        <input type="hidden" name="enrollmentId" value={e.id} />
+                        <input type="hidden" name="status" value="ENROLLED" />
+                        <button className="rounded-md border border-border px-2 py-1 text-xs text-neutral-600 hover:bg-surface-2">
+                          {t("resetAttendance")}
+                        </button>
+                      </form>
+                    ) : null}
                   </span>
                 </div>
               );

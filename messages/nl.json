@@ -891,6 +891,7 @@
       "waitlist": "{count} op de wachtlijst",
       "present": "Aanwezig",
       "noShow": "No-show",
+      "resetAttendance": "Herstel",
       "deleteSession": "Sessie verwijderen",
       "deleteSessionConfirm": "Aangemelde leden krijgen een melding dat de les niet doorgaat. Dit kan niet ongedaan worden gemaakt.",
       "deleteFollowing": "Ook alle volgende sessies in deze reeks",
