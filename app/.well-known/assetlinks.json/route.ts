@@ -5,7 +5,10 @@ import { NextResponse } from "next/server";
  * Android verifieert `https://<host>/.well-known/assetlinks.json`; matcht de
  * app-handtekening, dan gelden **App Links**: links naar dit domein (magic link,
  * uitnodiging, apparaat-QR) openen rechtstreeks in de app in plaats van in de
- * browser, zonder keuzedialoog.
+ * browser, zonder keuzedialoog. Dezelfde koppeling draagt óók de passkeys in de
+ * app: de WebView-opt-in (MainActivity.java, WEB_AUTHENTICATION_SUPPORT_FOR_APP)
+ * staat WebAuthn alleen toe voor origins die hier via `get_login_creds` aan de
+ * app gebonden zijn.
  *
  * Waarden komen uit env (de fingerprints bestaan pas ná de eerste build /
  * Play App Signing):
@@ -29,7 +32,12 @@ export function GET() {
     packageName && fingerprints.length > 0
       ? [
           {
-            relation: ["delegate_permission/common.handle_all_urls"],
+            relation: [
+              // App Links: links naar dit domein openen in de app.
+              "delegate_permission/common.handle_all_urls",
+              // Passkeys/WebAuthn in de WebView + credential-delegatie.
+              "delegate_permission/common.get_login_creds",
+            ],
             target: {
               namespace: "android_app",
               package_name: packageName,

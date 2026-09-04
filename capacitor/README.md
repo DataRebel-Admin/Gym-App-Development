@@ -69,6 +69,11 @@ komt via manifest-merge uit de haptics-plugin. Verder:
   splash-drawable negeert.
 - App Links-intent-filter op `@string/app_link_host`, geverifieerd via
   `/.well-known/assetlinks.json` (vult zich uit `ANDROID_CERT_FINGERPRINTS`).
+- Passkeys (vingerafdruk-login) in de WebView: `MainActivity.java` zet
+  `WebSettingsCompat.setWebAuthenticationSupport(FOR_APP)` — een Android-WebView
+  ondersteunt WebAuthn niet vanzelf. Werkt alleen als de assetlinks-koppeling
+  hierboven staat (de route levert daarvoor ook `get_login_creds` mee) en het
+  toestel een WebView ≥ M118 heeft; anders verbergt de loginknop zichzelf.
 
 **Nog te doen:** push werkt pas met een `google-services.json` uit Firebase in
 `android/app/`, én een FCM-verzender aan de serverkant. Die ontbreekt nog:
