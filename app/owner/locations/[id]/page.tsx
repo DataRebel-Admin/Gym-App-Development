@@ -20,10 +20,13 @@ function asRecord(v: unknown): Record<string, string> | null {
  */
 export default async function LocationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ err?: string; count?: string }>;
 }) {
   const { id } = await params;
+  const { err, count } = await searchParams;
   const owner = await requireOwner();
 
   const [location, staff] = await Promise.all([
@@ -96,6 +99,17 @@ export default async function LocationDetailPage({
           }
         />
       </div>
+
+      {err === "lessen" ? (
+        <p role="status" className="max-w-2xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Deze vestiging heeft nog {count === "1" ? "1 geplande groepsles" : `${count ?? "meerdere"} geplande groepslessen`}.
+          Verplaats of verwijder die eerst via het{" "}
+          <Link href="/owner/rooster" className="underline">
+            rooster
+          </Link>
+          , daarna kun je de vestiging archiveren.
+        </p>
+      ) : null}
 
       <LocationForm location={{ ...location, openingHours: asRecord(location.openingHours) }} />
 

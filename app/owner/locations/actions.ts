@@ -161,7 +161,10 @@ export async function setDefaultLocation(formData: FormData) {
 /**
  * Archiveer/heropen een vestiging. De default-vestiging is nooit archiveerbaar
  * (er moet altijd een vestiging overblijven); historie blijft bestaan (Restrict-
- * FK's verhinderen hard verwijderen sowieso).
+ * FK's verhinderen hard verwijderen sowieso). Een vestiging met nog geplande
+ * groepslessen is evenmin archiveerbaar: die sessies zouden boekbaar blijven
+ * op een gesloten locatie — eerst verplaatsen of verwijderen (de melding op de
+ * detailpagina legt dat uit).
  */
 export async function setLocationArchived(formData: FormData) {
   const owner = await requireOwner();
@@ -173,6 +176,12 @@ export async function setLocationArchived(formData: FormData) {
   });
   if (!location) return;
   if (archive && location.isDefault) return; // default nooit archiveren
+  if (archive) {
+    const upcoming = await prisma.classSession.count({
+      where: { tenantId: owner.tenantId, locationId: location.id, startsAt: { gt: new Date() } },
+    });
+    if (upcoming > 0) redirect(`/owner/locations/${location.id}?err=lessen&count=${upcoming}`);
+  }
 
   await prisma.location.update({
     where: { id: location.id },

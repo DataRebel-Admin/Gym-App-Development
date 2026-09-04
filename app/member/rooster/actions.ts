@@ -46,9 +46,17 @@ export async function enroll(formData: FormData) {
       async (tx) => {
         const session = await tx.classSession.findFirst({
           where: { id: sessionId, tenantId: member.tenantId },
-          select: { ...SESSION_INFO_SELECT, maxParticipants: true, groupClass: { select: { name: true, maxParticipants: true } } },
+          select: {
+            ...SESSION_INFO_SELECT,
+            maxParticipants: true,
+            groupClass: { select: { name: true, maxParticipants: true } },
+            venueLocation: { select: { timezone: true, archivedAt: true } },
+          },
         });
         if (!session) return null;
+        // Gearchiveerde vestiging = gesloten (defense-in-depth: archiveren is
+        // geblokkeerd zolang er komende lessen staan, maar oude data kan bestaan).
+        if (session.venueLocation.archivedAt) return { decision: "closed" as const, session };
 
         const existing = await tx.classEnrollment.findUnique({
           where: { sessionId_userId: { sessionId, userId: member.id } },
