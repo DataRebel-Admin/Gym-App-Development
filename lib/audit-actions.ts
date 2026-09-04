@@ -96,6 +96,13 @@ export function categoryFromAction(action: string): AuditCategory {
     case "class":
       return "schedule";
     case "auth":
+    case "password":
+    case "passkey":
+    case "2fa":
+    case "sessions":
+    case "profile":
+    case "privacy":
+    case "account":
       return "auth";
     case "email":
       return "email";
@@ -927,6 +934,72 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
   "auth.password.reset.complete": {
     category: "auth", label: "Wachtwoord gereset", icon: "🔐", tone: "accent",
     sentence: ({ actor }) => `${actor} heeft het wachtwoord opnieuw ingesteld via een reset-link`,
+  },
+
+  // --- Account & beveiliging (self-service op /account) ---
+  "password.change": {
+    category: "auth", label: "Wachtwoord gewijzigd", icon: "🔑", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft het wachtwoord gewijzigd`,
+  },
+  "2fa.enabled": {
+    category: "auth", label: "2FA ingeschakeld", icon: "🛡️", tone: "success",
+    sentence: ({ actor }) => `${actor} heeft tweestapsverificatie ingeschakeld`,
+  },
+  "2fa.disabled": {
+    category: "auth", label: "2FA uitgeschakeld", icon: "🛡️", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft tweestapsverificatie uitgeschakeld`,
+  },
+  "sessions.revoke_all": {
+    category: "auth", label: "Overal uitgelogd", icon: "🚪", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft alle sessies beëindigd`,
+  },
+  "passkey.add": {
+    category: "auth", label: "Toegangssleutel toegevoegd", icon: "🔐", tone: "success",
+    sentence: ({ actor }) => `${actor} heeft een toegangssleutel (passkey) toegevoegd`,
+  },
+  "passkey.remove": {
+    category: "auth", label: "Toegangssleutel verwijderd", icon: "🔐", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft een toegangssleutel (passkey) verwijderd`,
+  },
+  "email.change.requested": {
+    category: "auth", label: "E-mailwijziging aangevraagd", icon: "✉️", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft een e-mailwijziging aangevraagd`,
+  },
+  "email.change.confirmed": {
+    category: "auth", label: "E-mailadres gewijzigd", icon: "✉️", tone: "accent",
+    sentence: ({ actor }) => `${actor} heeft het nieuwe e-mailadres bevestigd`,
+  },
+  "profile.update": {
+    category: "auth", label: "Profiel bijgewerkt", icon: "👤", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft het profiel bijgewerkt`,
+  },
+  "profile.avatar": {
+    category: "auth", label: "Profielfoto gewijzigd", icon: "👤", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft de profielfoto gewijzigd`,
+  },
+  "privacy.consent.update": {
+    category: "auth", label: "Toestemmingen bijgewerkt", icon: "🔏", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft de privacy-toestemmingen bijgewerkt`,
+  },
+  "privacy.export": {
+    category: "auth", label: "Gegevens geëxporteerd", icon: "📦", tone: "accent",
+    sentence: ({ actor }) => `${actor} heeft een gegevensexport gedownload`,
+  },
+  "account.deletion.request": {
+    category: "auth", label: "Accountverwijdering aangevraagd", icon: "🗑️", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft accountverwijdering aangevraagd`,
+  },
+  "account.deletion.cancel": {
+    category: "auth", label: "Verwijderverzoek geannuleerd", icon: "↩️", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft het verwijderverzoek geannuleerd`,
+  },
+  "account.deletion.completed": {
+    category: "auth", label: "Account verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor }) => `Account van ${actor} is definitief verwijderd`,
+  },
+  "tenant.business.update": {
+    category: "tenant", label: "Bedrijfsgegevens bijgewerkt", icon: "🏢", tone: "neutral",
+    sentence: ({ actor }) => `${actor} heeft de bedrijfsgegevens bijgewerkt`,
   },
 };
 

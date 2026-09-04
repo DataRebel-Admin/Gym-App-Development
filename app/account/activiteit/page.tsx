@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getAccountUser } from "@/lib/account";
+import { getActionDef } from "@/lib/audit-actions";
 import { AccountPageHeader } from "@/components/account/account-page-header";
 
 const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
@@ -10,23 +11,8 @@ const DATE_FMT = new Intl.DateTimeFormat("nl-NL", {
   minute: "2-digit",
 });
 
-const ACTION_LABEL: Record<string, string> = {
-  "auth.login": "Ingelogd",
-  "auth.logout": "Uitgelogd",
-  "auth.login.failed": "Mislukte login",
-  "profile.update": "Profiel bijgewerkt",
-  "profile.avatar": "Profielfoto gewijzigd",
-  "email.change.requested": "E-mailwijziging aangevraagd",
-  "email.change.confirmed": "E-mailadres gewijzigd",
-  "privacy.consent.update": "Toestemmingen bijgewerkt",
-  "privacy.export": "Gegevens geëxporteerd",
-  "account.deletion.request": "Verwijdering aangevraagd",
-  "account.deletion.cancel": "Verwijderverzoek geannuleerd",
-};
-
-function label(action: string) {
-  return ACTION_LABEL[action] ?? action;
-}
+// Labels komen uit de centrale audit-registry (lib/audit-actions.ts): onbekende
+// acties degraderen daar netjes en nieuwe events hoeven maar op één plek een naam.
 
 export const metadata = { title: "Activiteit" };
 
@@ -56,7 +42,7 @@ export default async function ActivityPage() {
               key={l.id}
               className="flex items-center justify-between gap-4 border-b border-neutral-100 px-4 py-3 text-sm last:border-0"
             >
-              <span className="font-medium text-neutral-900">{label(l.action)}</span>
+              <span className="min-w-0 truncate font-medium text-neutral-900">{getActionDef(l.action).label}</span>
               <span className="shrink-0 text-neutral-500">{DATE_FMT.format(l.createdAt)}</span>
             </li>
           ))}

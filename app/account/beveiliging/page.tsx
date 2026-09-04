@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getAccountUser } from "@/lib/account";
+import { getActionDef } from "@/lib/audit-actions";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { AccountPageHeader } from "@/components/account/account-page-header";
 import { PasswordForm } from "./password-form";
@@ -11,16 +12,6 @@ const DT = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
 });
 
-const SEC_LABEL: Record<string, string> = {
-  "auth.login": "Ingelogd",
-  "auth.logout": "Uitgelogd",
-  "auth.login.failed": "Mislukte login",
-  "password.change": "Wachtwoord gewijzigd",
-  "2fa.enabled": "2FA ingeschakeld",
-  "2fa.disabled": "2FA uitgeschakeld",
-  "sessions.revoke_all": "Overal uitgelogd",
-  "email.change.confirmed": "E-mail gewijzigd",
-};
 
 export const metadata = { title: "Beveiliging" };
 
@@ -134,7 +125,7 @@ export default async function SecurityPage() {
           <ul className="divide-y divide-neutral-100">
             {activity.map((a) => (
               <li key={a.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="text-neutral-700">{SEC_LABEL[a.action] ?? a.action}</span>
+                <span className="min-w-0 truncate text-neutral-700">{getActionDef(a.action).label}</span>
                 <span className="shrink-0 text-xs text-neutral-400">
                   {a.ipAddress ? `${a.ipAddress} · ` : ""}{DT.format(a.createdAt)}
                 </span>
