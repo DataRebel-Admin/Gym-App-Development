@@ -36,13 +36,22 @@ een account, een betaalmiddel of een Mac vereist.
 | ✅ | Gegevensexport in de app | `/account/export` |
 | ✅ | Testplan en store-metadata | `store/TESTPLAN.md`, `store/METADATA.md` |
 
-**Geverifieerd:** `tsc --noEmit` schoon, 195 tests groen, `npm run build` slaagt,
-`npx cap sync android` vindt alle zes plugins, en `/privacy`, `/cookies` en
-`/support` geven 200 zonder login.
+**Geverifieerd in code:** `tsc --noEmit` schoon, 212 tests groen, `npm run build`
+slaagt, `npx cap sync android` vindt alle zes plugins, en `/privacy`, `/cookies`
+en `/support` geven 200 zonder login.
 
-**Niet geverifieerd** (geen JDK, Android SDK of macOS op deze machine): de
-Gradle-wijzigingen zijn niet gecompileerd, en het hele iOS-project bestaat nog
-niet. De eerste `bundleRelease` en de eerste `cap add ios` zijn de echte test.
+**Geverifieerd op een echt toestel** (OnePlus 11, Android 15):
+`assembleDebug` bouwt, installeert en draait; de app laadt de gehoste site; het
+app-icoon en het gestapelde logo kloppen; `versionName`/`versionCode` komen exact
+uit `app-version.json`; de permissies op het toestel zijn de verwachte zes (drie
+eigen, drie via manifest-merge uit de plugins); het App Links-domein is
+geregistreerd. `bundleRelease` bouwt en levert een **ondertekende** AAB, en zonder
+keystore een ongetekende mét waarschuwing, precies zoals bedoeld.
+
+**Niet geverifieerd:** alles rond iOS. Dat project bestaat nog niet en is niet op
+Windows te genereren; de eerste `cap add ios` op een Mac is daar de echte test.
+Ook deep-linkverificatie kan pas als `app.gymrebel-training.com` live staat,
+want Android haalt de `assetlinks.json` bij dát domein op.
 
 ---
 
@@ -87,14 +96,15 @@ schema van een lid opzoeken tijdens een sessie.
 | | Stap | Opmerking |
 |---|---|---|
 | ☐ | Play Console-account, €25 eenmalig | Zakelijke accounts vereisen identiteitsverificatie |
-| ☐ | Keystore aanmaken met `keytool` | Zie `android/keystore.properties.example`. **Bewaar in een kluis, met back-up** |
-| ☐ | `android/keystore.properties` invullen | Staat in .gitignore |
+| ✅ | Keystore aangemaakt met `keytool` | Ligt buiten de repo in `Documents/GymRebel-keys/`, geldig tot 2054. **Zonder deze sleutel plus wachtwoord kun je nooit meer updaten** |
+| ✅ | `android/keystore.properties` ingevuld | Staat in .gitignore; `bundleRelease` levert nu een ondertekende AAB |
 | ☐ | Firebase-project aanmaken, Android-app met dit package toevoegen | |
 | ☐ | `google-services.json` in `android/app/` plaatsen | Zonder dit registreert de app geen pushtoken |
 | ☐ | Service-account-sleutel maken, `FCM_*` in productie-env zetten | Zonder dit verstuurt de server niets |
+| ☐ | **Vóór het bouwen: `CAPACITOR_SERVER_URL` op productie zetten** | Bouw je met een tunnel- of preview-URL nog in `android/app/src/main/assets/capacitor.config.json`, dan wijst de gepubliceerde app daarheen. Controleer met: `unzip -p app-release.aab base/assets/capacitor.config.json` |
 | ☐ | `./gradlew bundleRelease` en de AAB uploaden | Interne test eerst |
 | ☐ | Play App Signing aanzetten | Aanbevolen: Google kan je uploadsleutel dan resetten |
-| ☐ | SHA-256-fingerprints in `ANDROID_CERT_FINGERPRINTS` zetten | Zowel je uploadsleutel als de Play-signing-sleutel, komma-gescheiden |
+| ◐ | SHA-256-fingerprints in `ANDROID_CERT_FINGERPRINTS` | Uploadsleutel staat er (`0E:BD:BF:04:…`). De **Play App Signing-sleutel** komt er komma-gescheiden bij zodra je die in de Play Console ziet |
 | ☐ | Controleer `/.well-known/assetlinks.json` | Anders openen deep links in de browser |
 | ☐ | Store-listing invullen, inclusief **feature graphic 1024×500** | Verplicht bij Play |
 | ☐ | Data safety-formulier invullen | Antwoorden staan in METADATA.md |
