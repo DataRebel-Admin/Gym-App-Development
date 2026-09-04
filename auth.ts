@@ -12,7 +12,7 @@ import { verifyPassword, verifyTotp } from "@/lib/security";
 import { resolveLoginUser } from "@/lib/login-user";
 import { findLoginTenantsForEmail } from "@/lib/login-tenants";
 import { verifyLoginChallenge } from "@/lib/login-challenge";
-import { demoLoginEnabled } from "@/lib/demo-login";
+import { demoLoginEnabled, demoLoginAllowsAccount } from "@/lib/demo-login";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
 import { loadTenantBrandingBySlug } from "@/lib/email/branding";
 import { magicLinkMessage } from "@/lib/email/messages";
@@ -68,6 +68,21 @@ if (demoLoginEnabled()) {
         // Tenant-scoped resolutie via de login-cookie (zoals de wachtwoord-login).
         const user = await resolveLoginUser(email);
         if (!user || !user.active) return null;
+
+        // Derde slot: niet elk bestaand account mag wachtwoordloos naar binnen.
+        // Het e-mailadres komt uit het formulier, dus zonder deze controle kon
+        // je het demo-paneel omzeilen en alsnog als superadmin inloggen. De
+        // slug komt uit de database (niet uit de cookie, die de bezoeker zelf
+        // zet) zodat de allowlist niet te omzeilen is.
+        const tenantSlug = user.tenantId
+          ? (
+              await prisma.tenant.findUnique({
+                where: { id: user.tenantId },
+                select: { slug: true },
+              })
+            )?.slug ?? null
+          : null;
+        if (!demoLoginAllowsAccount({ role: user.role, tenantSlug })) return null;
         return {
           id: user.id,
           email: user.email,

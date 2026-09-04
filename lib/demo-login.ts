@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { prisma } from "@/lib/db";
+import { demoLoginEnabled, demoLoginAllowsAccount } from "@/lib/demo-login-policy";
 import type { Role } from "@prisma/client";
 
 /**
@@ -15,19 +16,11 @@ import type { Role } from "@prisma/client";
  * — een expliciete, tweede bevestiging is nodig voor een demo van de
  * gepubliceerde versie.
  *
- * ⚠️ LET OP — dit omzeilt de authenticatie volledig: iedereen die de
- * inlogpagina bereikt kan als élk demo-account inloggen, inclusief de
- * superadmin (volledige platformtoegang). Zet dit alleen aan op een demo-/
- * testomgeving en uit zodra er echte gebruikers of data in de omgeving staan.
+ * ⚠️ LET OP — dit omzeilt de authenticatie volledig. In **productie** is de
+ * kring daarom extra ingeperkt door {@link demoLoginAllowsAccount}: nooit een
+ * superadmin, en alleen sportscholen die expliciet in `DEMO_LOGIN_TENANTS`
+ * staan. Zet het buiten een demo-omgeving gewoon helemaal uit.
  */
-export function demoLoginEnabled(): boolean {
-  if (process.env.DEMO_LOGIN !== "true") return false;
-  if (process.env.NODE_ENV === "production") {
-    return process.env.DEMO_LOGIN_ALLOW_PRODUCTION === "true";
-  }
-  return true;
-}
-
 export type DemoAccount = {
   email: string;
   name: string;
@@ -67,6 +60,9 @@ const MAX_PER_TENANT = 6;
  * voor tenant-gebruikers — een actieve sportschool (zelfde eisen als de
  * `signIn`-callback in auth.ts).
  */
+// Herexport zodat bestaande importplekken ongewijzigd blijven werken.
+export { demoLoginEnabled, demoLoginAllowsAccount };
+
 export const listDemoAccounts = cache(async (): Promise<DemoAccount[]> => {
   if (!demoLoginEnabled()) return [];
 
@@ -91,7 +87,9 @@ export const listDemoAccounts = cache(async (): Promise<DemoAccount[]> => {
     orderBy: { createdAt: "asc" },
   });
 
-  const accounts = users.map((u) => ({
+  const accounts = users
+    .filter((u) => demoLoginAllowsAccount({ role: u.role, tenantSlug: u.tenant?.slug ?? null }))
+    .map((u) => ({
     email: u.email,
     name: u.name?.trim() || u.email,
     tenant: u.tenant?.slug ?? null,

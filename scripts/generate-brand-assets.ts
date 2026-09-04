@@ -53,14 +53,20 @@ function svg(viewBox: string, body: string, label: string): string {
  *  als `GymRebelLogo` in components/brand/gymrebel-logo.tsx). `accent` = de
  *  kleur van beeldmerk + "REBEL"; gelijk aan `gym` levert de mono-variant. */
 function lockup(gym: string, accent: string = BRAND.orange): string {
+  return svg("0 0 1859 236", lockupBody(gym, accent), "GymRebel");
+}
+
+/** Alleen de inhoud van de horizontale lockup, in zijn 1859×236-coordinaten. */
+function lockupBody(gym: string, accent: string = BRAND.orange): string {
   const scale = 0.6574;
-  return svg(
-    "0 0 1859 236",
+  return (
     `<g transform="scale(${scale})">${markBody(accent)}</g>` +
-      `<g transform="translate(513,44)">${wordmarkBody(gym, accent)}</g>`,
-    "GymRebel"
+    `<g transform="translate(513,44)">${wordmarkBody(gym, accent)}</g>`
   );
 }
+
+const LOCKUP_W = 1859;
+const LOCKUP_H = 236;
 
 /** Maatvoering van de gestapelde lockup (beeldmerk boven, woordmerk onder). */
 const STACK = (() => {
@@ -105,6 +111,43 @@ function appIcon({ rounded, scale }: { rounded: boolean; scale: number }): strin
   return svg(
     `0 0 ${size} ${size}`,
     `${bg}<g transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${k.toFixed(5)})">${markBody(BRAND.black)}</g>`,
+    "GymRebel"
+  );
+}
+
+/**
+ * Play Store **feature graphic** (1024x500) — verplicht onderdeel van de
+ * store-listing, en die moet compleet zijn voordat je een gesloten test mag
+ * starten.
+ *
+ * Twee eisen die de vorm bepalen:
+ * - **Geen alfakanaal.** Play wil 24-bits PNG of JPEG; daarom `pngOpaque`,
+ *   dezelfde route als het iOS-icoon.
+ * - **Tekst uit de randen.** Play schaalt en snijdt deze afbeelding in
+ *   verschillende plaatsingen, en legt er bij een promovideo een afspeelknop
+ *   overheen. Het logo staat daarom gecentreerd op ~62% breedte, ruim binnen
+ *   de veilige zone.
+ *
+ * Bewust alleen het merk, geen slogan: tekst in de afbeelding zou per taal
+ * opnieuw gemaakt moeten worden, terwijl de korte omschrijving eronder al
+ * vertaalbaar is.
+ */
+function featureGraphic(): string {
+  const W = 1024;
+  const H = 500;
+  const k = (W * 0.62) / LOCKUP_W;
+  const x = (W - LOCKUP_W * k) / 2;
+  const y = (H - LOCKUP_H * k) / 2;
+  return svg(
+    `0 0 ${W} ${H}`,
+    `<defs><radialGradient id="glow" cx="50%" cy="46%" r="62%">` +
+      `<stop offset="0%" stop-color="${BRAND.orange}" stop-opacity="0.30"/>` +
+      `<stop offset="100%" stop-color="${BRAND.orange}" stop-opacity="0"/>` +
+      `</radialGradient></defs>` +
+      `<rect width="${W}" height="${H}" fill="${BRAND.black}"/>` +
+      `<rect width="${W}" height="${H}" fill="url(#glow)"/>` +
+      `<g transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(${k.toFixed(5)})">` +
+      `${lockupBody(BRAND.white)}</g>`,
     "GymRebel"
   );
 }
@@ -413,9 +456,15 @@ async function writeIosAssets(): Promise<void> {
   );
 }
 
+/** Store-assets die geen alfakanaal mogen hebben (Play feature graphic). */
+async function writeStoreAssets(): Promise<void> {
+  write("store/assets/play-feature-graphic.png", await pngOpaque(featureGraphic(), 1024));
+}
+
 writeIosAssets()
+  .then(writeStoreAssets)
   .then(() => console.log("Klaar — merk-assets gegenereerd."))
   .catch((err) => {
-    console.error("✗ iOS-assets genereren mislukt:", err);
+    console.error("✗ assets genereren mislukt:", err);
     process.exit(1);
   });
