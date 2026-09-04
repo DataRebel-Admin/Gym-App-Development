@@ -158,12 +158,12 @@ function ClassCard({ s }: { s: SessionCard }) {
 export default async function MemberRoosterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; msg?: string }>;
+  searchParams: Promise<{ loc?: string; msg?: string; overlap?: string }>;
 }) {
   const member = await requireMember();
   if (!(await areClassesEnabled(member.tenantId))) notFound();
   const t = await getTranslations("member.rooster");
-  const { loc, msg } = await searchParams;
+  const { loc, msg, overlap } = await searchParams;
   const now = new Date();
 
   const [locations, me] = await Promise.all([
@@ -280,10 +280,15 @@ export default async function MemberRoosterPage({
       </RevealItem>
 
       {message ? (
-        <RevealItem>
+        <RevealItem className="flex flex-col gap-2">
           <p role="status" className={`rounded-xl border px-4 py-3 text-sm ${messageTone}`}>
             {t(message)}
           </p>
+          {overlap === "1" ? (
+            <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {t("msgOverlap")}
+            </p>
+          ) : null}
         </RevealItem>
       ) : null}
 

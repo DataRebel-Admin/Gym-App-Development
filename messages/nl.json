@@ -465,7 +465,8 @@
       "msgWaitlisted": "De les is vol. Je staat op de wachtlijst en schuift automatisch door zodra er een plek vrijkomt.",
       "msgClosed": "Deze les is al begonnen. Aan- of afmelden kan niet meer.",
       "msgUnenrolled": "Je bent afgemeld.",
-      "msgUnchanged": "Er is niets gewijzigd."
+      "msgUnchanged": "Er is niets gewijzigd.",
+      "msgOverlap": "Let op: deze les overlapt met een andere les waarvoor je al bent aangemeld."
     },
     "muscles": {
       "metaTitle": "Spieranalyse",

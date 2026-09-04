@@ -335,7 +335,8 @@
       "msgWaitlisted": "De les is fol. Do stiest op de wachtlist en skoost automatysk troch sadree't der in plak frijkomt.",
       "msgClosed": "Dizze les is al begûn. Oan- of ôfmelde kin net mear.",
       "msgUnenrolled": "Do bist ôfmeld.",
-      "msgUnchanged": "Der is neat feroare."
+      "msgUnchanged": "Der is neat feroare.",
+      "msgOverlap": "Tink derom: dizze les oerlapet mei in oare les dêr'tsto al foar oanmeld bist."
     },
     "muscles": {
       "metaTitle": "Spieranalyze",

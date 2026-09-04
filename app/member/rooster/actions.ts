@@ -21,9 +21,9 @@ import {
 /** Terugkoppeling op /member/rooster (`?msg=`); vertaald in de pagina. */
 export type RoosterMessage = EnrollDecision | "unenrolled";
 
-function back(msg?: RoosterMessage): never {
+function back(msg?: RoosterMessage, overlap = false): never {
   revalidatePath("/member/rooster");
-  redirect(msg ? `/member/rooster?msg=${msg}` : "/member/rooster");
+  redirect(msg ? `/member/rooster?msg=${msg}${overlap ? "&overlap=1" : ""}` : "/member/rooster");
 }
 
 /**
@@ -93,6 +93,22 @@ export async function enroll(formData: FormData) {
 
   if (!result) back();
   const { decision, session } = result;
+  // Dubbelboeking is toegestaan (soms bewust), maar wél het melden waard:
+  // overlapt deze les met een andere waarvoor het lid al (wachtlijst-)staat?
+  // Read-only en ná de commit — geen extra conflictkans in de transactie.
+  let overlap = false;
+  if (decision === "enrolled" || decision === "waitlisted") {
+    overlap =
+      (await prisma.classEnrollment.count({
+        where: {
+          tenantId: member.tenantId,
+          userId: member.id,
+          status: { in: ["ENROLLED", "WAITLISTED"] },
+          sessionId: { not: session.id },
+          session: { startsAt: { lt: session.endsAt }, endsAt: { gt: session.startsAt } },
+        },
+      })) > 0;
+  }
   if (decision === "enrolled" || decision === "waitlisted") {
     await audit(decision === "enrolled" ? "class.enroll" : "class.waitlist", {
       actor: member,
@@ -109,7 +125,7 @@ export async function enroll(formData: FormData) {
       actor: member,
     });
   }
-  back(decision);
+  back(decision, overlap);
 }
 
 /**

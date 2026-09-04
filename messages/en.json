@@ -465,7 +465,8 @@
       "msgWaitlisted": "This class is full. You're on the waitlist and will be moved up automatically when a spot opens.",
       "msgClosed": "This class has already started. Signing up or cancelling is no longer possible.",
       "msgUnenrolled": "You've been removed from the class.",
-      "msgUnchanged": "Nothing changed."
+      "msgUnchanged": "Nothing changed.",
+      "msgOverlap": "Heads up: this class overlaps with another class you're already signed up for."
     },
     "muscles": {
       "metaTitle": "Muscle analysis",
