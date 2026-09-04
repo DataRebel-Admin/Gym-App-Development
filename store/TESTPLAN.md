@@ -135,6 +135,21 @@ Vul per run de kolommen in en bewaar het resultaat bij de release.
 > 5.3 tot en met 5.6 werken pas met `APNS_*` (iOS) respectievelijk `FCM_*` plus
 > `google-services.json` (Android). Zonder die configuratie is push een no-op en
 > is dat correct gedrag, geen bug.
+>
+> **Android afgetekend op 4 september 2026** (OnePlus 11, app uit de interne
+> testtrack): token geregistreerd, alle vier de categorieën bezorgd, GR-silhouet
+> in de statusbalk, en de kanaalindeling zichtbaar correct — trofee onder "Stil",
+> schema/defect/onderhoud erboven. Aantikken opende `/member/schema`.
+>
+> **Twee valkuilen die dit boven water bracht**, allebei gerepareerd maar het
+> waard om te kennen bij het testen:
+>
+> 1. **Push staat standaard UIT** per categorie (`NOTIFICATION_DEFAULTS.push =
+>    false`). Zet 'm eerst aan onder Account → Meldingen, anders lijkt het alsof
+>    de keten stuk is terwijl er simpelweg niets verstuurd wordt.
+> 2. **Zet de app op de achtergrond** vóór je een melding stuurt. Staat hij op de
+>    voorgrond, dan onderdrukt Android de systeemmelding en zie je alleen de
+>    in-app-melding.
 
 ## 6. Netwerk en randgevallen (webview-beperkingen)
 
