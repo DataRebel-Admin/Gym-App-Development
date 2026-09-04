@@ -456,9 +456,14 @@ async function writeIosAssets(): Promise<void> {
   );
 }
 
-/** Store-assets die geen alfakanaal mogen hebben (Play feature graphic). */
+/** Store-assets die geen alfakanaal mogen hebben (Play feature graphic + listing-icoon). */
 async function writeStoreAssets(): Promise<void> {
   write("store/assets/play-feature-graphic.png", await pngOpaque(featureGraphic(), 1024));
+  // App-icoon voor de Play Store-VERMELDING (handmatige upload in de console,
+  // los van het launcher-icoon in de AAB): 512×512, full-bleed en dekkend —
+  // Play maskt zelf de hoeken, dus geen eigen afronding of alfa meebakken
+  // (zelfde regel als het iOS-icoon hierboven).
+  write("store/assets/play-store-icon.png", await pngOpaque(appIcon({ rounded: false, scale: 1 }), 512));
 }
 
 writeIosAssets()
