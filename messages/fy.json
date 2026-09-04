@@ -1736,14 +1736,12 @@
       "check": {
         "title": "Check dyn inbox",
         "description": "Bestiet der in account by dit e-mailadres, dan hawwe wy dy in reset-link stjoerd.",
-        "devNote": "Yn development wurdt de link nei de server-console (terminal) print ynstee fan maild.",
         "backToLogin": "Werom nei ynlogge"
       }
     },
     "check": {
       "title": "Check dyn inbox",
       "description": "Wy hawwe dy in magic link stjoerd. Klik op de link om yn te loggen.",
-      "devNote": "Yn development wurdt de link nei de server-console (terminal) print ynstee fan maild.",
       "backToLogin": "Werom nei ynlogge"
     },
     "twoFactor": {

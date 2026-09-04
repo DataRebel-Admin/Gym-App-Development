@@ -1876,14 +1876,12 @@
       "check": {
         "title": "Check your inbox",
         "description": "If an account exists for this email address, we've sent you a reset link.",
-        "devNote": "In development the link is printed to the server console (terminal) instead of emailed.",
         "backToLogin": "Back to login"
       }
     },
     "check": {
       "title": "Check your inbox",
       "description": "We've sent you a magic link. Click the link to log in.",
-      "devNote": "In development the link is printed to the server console (terminal) instead of emailed.",
       "backToLogin": "Back to login"
     },
     "twoFactor": {

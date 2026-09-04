@@ -1876,14 +1876,12 @@
       "check": {
         "title": "Check je inbox",
         "description": "Bestaat er een account bij dit e-mailadres, dan hebben we je een reset-link gestuurd.",
-        "devNote": "In development wordt de link naar de server-console (terminal) geprint i.p.v. gemaild.",
         "backToLogin": "Terug naar inloggen"
       }
     },
     "check": {
       "title": "Check je inbox",
       "description": "We hebben je een magic link gestuurd. Klik op de link om in te loggen.",
-      "devNote": "In development wordt de link naar de server-console (terminal) geprint i.p.v. gemaild.",
       "backToLogin": "Terug naar inloggen"
     },
     "twoFactor": {

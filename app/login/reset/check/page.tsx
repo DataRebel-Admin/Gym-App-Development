@@ -20,10 +20,6 @@ export default async function ResetCheckPage() {
       title={t("title")}
       subtitle={t("description")}
       backLabel={t("backToLogin")}
-    >
-      <p className="rounded-lg bg-neutral-100 px-4 py-3 text-center text-xs text-neutral-500">
-        {t("devNote")}
-      </p>
-    </ResetShell>
+    />
   );
 }

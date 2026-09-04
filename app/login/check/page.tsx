@@ -14,9 +14,6 @@ export default async function CheckEmailPage() {
           {t("title")}
         </h1>
         <p className="mt-3 text-sm text-neutral-500">{t("description")}</p>
-        <p className="mt-4 rounded-lg bg-neutral-100 px-4 py-3 text-xs text-neutral-500">
-          {t("devNote")}
-        </p>
       </div>
     </main>
   );
