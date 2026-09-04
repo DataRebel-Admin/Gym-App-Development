@@ -114,7 +114,13 @@ export async function beginRegistration(
       transports: c.transports as AuthenticatorTransportFuture[],
     })),
     authenticatorSelection: {
-      residentKey: "preferred",
+      // Platform = de ontgrendeling van het toestel zelf (vingerafdruk, Face
+      // ID, Windows Hello) — geen QR naar een ander apparaat of USB-sleutel.
+      // Dat is de "log in zoals je je telefoon ontgrendelt"-ervaring.
+      authenticatorAttachment: "platform",
+      // Discoverable verplicht: de usernameless login (beginAuthentication
+      // zonder allowCredentials) kan alleen sleutels vinden die dat zijn.
+      residentKey: "required",
       userVerification: "preferred",
     },
   });

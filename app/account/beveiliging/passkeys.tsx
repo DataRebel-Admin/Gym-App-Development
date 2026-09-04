@@ -11,6 +11,7 @@ import {
 import { buttonClasses } from "@/components/ui/button-classes";
 import { cn } from "@/lib/cn";
 import { useClientValue } from "@/lib/hooks/use-client-value";
+import { markPasskeyDevice } from "@/lib/passkey-device";
 
 export type PasskeyRow = {
   id: string;
@@ -38,7 +39,11 @@ export function Passkeys({ passkeys }: { passkeys: PasskeyRow[] }) {
         typeof navigator !== "undefined" && navigator.platform ? navigator.platform : undefined;
       const res = await finishPasskeyRegistration({ response, name: suggested });
       if (!res.ok) setError(res.error);
-      else router.refresh();
+      else {
+        // Volgende bezoek aan de inlogpagina start de biometrische login direct.
+        markPasskeyDevice();
+        router.refresh();
+      }
     } catch {
       // Meestal: de gebruiker annuleerde de biometrische prompt.
       setError("Registratie geannuleerd of niet gelukt.");

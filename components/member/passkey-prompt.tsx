@@ -10,6 +10,7 @@ import {
 } from "@/app/account/passkey-actions";
 import { Fingerprint, Check } from "@/components/ui/icons";
 import { useClientValue } from "@/lib/hooks/use-client-value";
+import { markPasskeyDevice } from "@/lib/passkey-device";
 import {
   ONBOARDING_DONE_EVENT,
   ONBOARDING_STORAGE_KEY,
@@ -102,6 +103,8 @@ export function PasskeyPrompt({
         return;
       }
       remember();
+      // Volgende bezoek aan de inlogpagina start de biometrische login direct.
+      markPasskeyDevice();
       setDone(true);
     } catch {
       // Meestal: de gebruiker annuleerde de biometrische prompt.
