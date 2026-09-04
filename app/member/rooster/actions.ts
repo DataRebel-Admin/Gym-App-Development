@@ -112,6 +112,9 @@ export async function enroll(formData: FormData) {
  */
 export async function unenroll(formData: FormData) {
   const member = await requireMember();
+  // Zelfde gate als enroll: module uit = in- en uitschrijven geblokkeerd
+  // (lib/classes.ts); aanmeldingen blijven bewaard tot heractivering.
+  if (!(await areClassesEnabled(member.tenantId))) redirect("/member");
   const sessionId = String(formData.get("sessionId") ?? "");
   if (!sessionId) back();
 
