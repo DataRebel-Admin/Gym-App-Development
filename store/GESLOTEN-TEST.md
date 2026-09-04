@@ -14,9 +14,9 @@ draaiboek: wat er moet kloppen vóór je hem opent, en in welke volgorde.
 
 | | Wat | Waarom het blokkeert |
 |---|---|---|
-| ☐ | **Demo-login uitzetten of inperken** in Vercel | Zie hieronder. Zolang dit aanstaat geef je iedereen met de testlink toegang tot alle sportscholen |
+| ☐ | **`DEMO_LOGIN_TENANTS` zetten** in Vercel | Staat nu leeg, dus het paneel is leeg (fail-closed). Zie §1 |
 | ☐ | **`LEGAL_ENTITY` invullen** in `lib/legal.ts` | `/privacy` toont nu letterlijk "TODO: KvK-nummer". Dat is de URL die je bij Play indient |
-| ☐ | **Accounts voor je testers** | De app is invite-only; een tester kan zich niet zelf registreren en staat anders voor een dichte deur |
+| ☐ | **Accounts voor je testers** | Opgelost via demo-login op de demo-gym (§1). Wil je aparte accounts per tester, dan maak je ze aan onder `/owner/members` |
 
 ### Demo-login
 
@@ -27,14 +27,27 @@ e-mailtemplates en de meldingen-inbox. De code is inmiddels aangescherpt
 sportscholen die in `DEMO_LOGIN_TENANTS` staan. Die staat leeg, dus na de
 deploy is het paneel leeg.
 
-Kies bewust één van twee:
+**Gekozen: aan, maar alleen voor de demo-sportschool.** Testers klikken zichzelf
+naar binnen zonder uitnodiging. In Vercel hoeft daarvoor één variabele bij
+(`DEMO_LOGIN` en `DEMO_LOGIN_ALLOW_PRODUCTION` staan al op `true`):
 
-- **Uit** — zet `DEMO_LOGIN="false"` in Vercel. Het veiligst. Je testers krijgen
-  dan een eigen uitnodiging (zie §3).
-- **Aan voor de demo-gym** — laat `DEMO_LOGIN="true"` staan en zet
-  `DEMO_LOGIN_TENANTS="gymrebel"`. Testers klikken zichzelf naar binnen als lid
-  van de demo-sportschool. Scheelt twaalf uitnodigingen, maar iedereen met de
-  link deelt dan dezelfde demo-data en kan elkaars invoer zien.
+```
+DEMO_LOGIN_TENANTS="gymrebel"
+```
+
+Drie dingen om te weten bij deze keuze:
+
+- **Controleer eerst dat de tenant `gymrebel` alleen demo-data bevat.** Iedereen
+  met de testlink kan er straks als *eigenaar* in (`keimpe@gymrebel.nl` staat in
+  het paneel), en die rol ziet alle leden, kan exporteren en verwijderen. Staat
+  er iets echts in, gebruik dan een aparte tenant `demo`.
+- **Testers delen accounts.** Het paneel toont maximaal zes accounts per
+  sportschool, dus twaalf testers loggen als dezelfde handvol leden in en zien
+  elkaars sets, metingen en schema's door elkaar lopen. Wil je zinnige feedback,
+  maak dan alsnog een stuk of zes extra leden aan in die tenant zodat de meesten
+  hun eigen account hebben.
+- **Zet dit uit vóór productie.** Voor een gesloten test is het een bewuste
+  afweging; op een openbare release hoort geen wachtwoordloze ingang.
 
 ---
 
@@ -80,11 +93,19 @@ zetten daarmee hun wachtwoord. Controleer daarna in het auditlog of die mail
 echt verstuurd is: `user.invite.email` met status FAILED betekent dat er niets
 wegging (zie de e-mailsectie in CLAUDE.md).
 
-> **Heb je een persoonlijk Play-account** (geen organisatie), dan geldt de extra
-> eis: minimaal **12 testers, 14 dagen onafgebroken** opgegeven, voordat je
-> productietoegang mag aanvragen. Testers die halverwege afhaken zetten de teller
-> terug, dus nodig er liever 15 uit. Voor een organisatie-account vervalt deze
-> eis.
+> **Dit is een persoonlijk Play-account**, dus de extra eis geldt: minimaal
+> **12 testers, 14 dagen onafgebroken** opgegeven, voordat je productietoegang
+> mag aanvragen. Testers die halverwege afhaken zetten de teller terug, dus
+> nodig er liever 15 uit.
+>
+> Overstappen naar een organisatie-account laat die eis vervallen, maar doe dat
+> niet halverwege: reken erop dat je de veertien dagen opnieuw begint, en een
+> organisatie-inschrijving vraagt om verificatie (bij Google een D-U-N-S-nummer)
+> die zelf dagen kost. Testen vanaf het persoonlijke account en pas later
+> overstappen is daarom de snellere route — controleer wel in de Play Console
+> onder Instellingen → Accountgegevens of wisselen voor jouw account mogelijk is
+> zónder de app over te dragen, want een échte overdracht naar een ander account
+> is een aparte procedure.
 
 ---
 
@@ -113,7 +134,9 @@ beheerdersdashboard ziet, beoordeelt een andere app dan je inzendt.
 
 ## 5. Volgorde
 
-1. Demo-login-keuze doorvoeren in Vercel en de deploy afwachten.
+1. `DEMO_LOGIN_TENANTS="gymrebel"` in Vercel zetten en de deploy afwachten.
+   Controleer daarna op `/login` dat er alléén accounts van die ene sportschool
+   staan en geen superadmin.
 2. `LEGAL_ENTITY` invullen, deployen, `/privacy` controleren op "TODO".
 3. Screenshots maken op je toestel (6 stuks, plan in METADATA.md).
 4. In de Play Console: App-inhoud volledig invullen, daarna de store-listing.
