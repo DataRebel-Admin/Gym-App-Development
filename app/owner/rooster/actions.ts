@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
@@ -14,7 +15,7 @@ import { areClassesEnabled } from "@/lib/classes";
 import { audit } from "@/lib/audit";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
-import { zonedInputToDate, addWeeksZoned } from "@/lib/tz";
+import { zonedInputToDate, addWeeksZoned, shiftWallClock, wallClockDeltaMs } from "@/lib/tz";
 import { withSerializableRetry } from "@/lib/db-retry";
 import { MAX_REPEAT_WEEKS, canDeleteSession } from "@/lib/class-attendance";
 import { promoteWaitlists } from "@/lib/class-enrollment";
@@ -303,12 +304,21 @@ export async function addSession(_prev: SessionFormState, formData: FormData): P
  * Sessie bewerken (tijd/vestiging/zaal/capaciteit). Tijd of vestiging
  * gewijzigd → "les gewijzigd"-melding aan aangemelde + wachtende leden;
  * capaciteit omhoog → wachtlijst schuift door.
+ *
+ * **"Ook alle volgende in deze reeks"** (`following=1`, alleen bij een
+ * `seriesId`): dezelfde wijziging gaat mee naar de latere reeks-sessies binnen
+ * de vestiging-scope. De tijdwijziging wordt als **klok**-verschuiving
+ * toegepast (`wallClockDeltaMs`/`shiftWallClock`, lib/tz.ts): di 18:00→19:00
+ * betekent óók 19:00 lokale tijd voorbij de DST-overgang. Vestiging, zaal en
+ * capaciteit-override worden één-op-één overgenomen; per verschoven sessie
+ * reset `remindedAt` en gaat een eigen moved-melding uit.
  */
 export async function updateSession(_prev: SessionFormState, formData: FormData): Promise<SessionFormState> {
   const owner = await requirePermission("schedule:manage");
   await assertClassesEnabled(owner.tenantId);
   const t = await getTranslations("owner.rooster");
   const id = String(formData.get("id") ?? "");
+  const following = formData.get("following") === "1";
   const parsed = sessionSchema.safeParse({
     classId: formData.get("classId"),
     startsAt: formData.get("startsAt"),
@@ -320,19 +330,23 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
   if (!parsed.success) return { error: await firstValidationError(parsed.error) };
 
   const scope = await getLocationScope(owner);
+  // Bewust géén `as const`: readonly arrays breken Prisma's payload-inferentie
+  // (zelfde valkuil als activeAssignmentWhere, zie CLAUDE.md).
+  const sessionSelect = {
+    ...SESSION_INFO_SELECT,
+    classId: true,
+    seriesId: true,
+    locationId: true,
+    location: true,
+    maxParticipants: true,
+    enrollments: {
+      where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
+      select: { userId: true },
+    },
+  } satisfies Prisma.ClassSessionSelect;
   const before = await prisma.classSession.findFirst({
     where: { id, tenantId: owner.tenantId, classId: parsed.data.classId },
-    select: {
-      ...SESSION_INFO_SELECT,
-      classId: true,
-      locationId: true,
-      location: true,
-      maxParticipants: true,
-      enrollments: {
-        where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
-        select: { userId: true },
-      },
-    },
+    select: sessionSelect,
   });
   if (!before) return { error: t("sessionNotFound") };
   if (!canAccessLocation(scope, before.locationId)) return { error: t("locationNotAllowed") };
@@ -346,34 +360,60 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
   if (!startsAt || !endsAt) return { error: tv("invalidDate") };
   if (endsAt <= startsAt) return { error: tv("endAfterStart") };
 
+  // De reeks-verschuiving is de wijziging aan de doel-sessie, gemeten op de
+  // klok van de (nieuwe) vestiging.
+  const startDelta = wallClockDeltaMs(before.startsAt, startsAt, venue.timezone);
+  const endDelta = wallClockDeltaMs(before.endsAt, endsAt, venue.timezone);
+
   // Serializable + retry (zie updateClass): promotie mag niet racen met een
   // gelijktijdige aanmelding.
-  const promoted = await withSerializableRetry(() =>
+  const result = await withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
-        await tx.classSession.update({
-          where: { id: before.id },
-          data: {
-            startsAt,
-            endsAt,
-            locationId: venue.id,
-            location: parsed.data.location ?? null,
-            maxParticipants: parsed.data.maxParticipants ?? null,
-          },
-        });
-        // Verschoven starttijd → herinnering opnieuw: wie voor de oude tijd al
-        // herinnerd was, hoort ook de nieuwe (cron is idempotent op remindedAt).
-        if (before.startsAt.getTime() !== startsAt.getTime()) {
-          await tx.classEnrollment.updateMany({
-            where: { sessionId: before.id, status: { in: ["ENROLLED", "WAITLISTED"] } },
-            data: { remindedAt: null },
+        // Volgende reeks-sessies binnen de scope (fail-closed, zoals deleteSession).
+        const followers =
+          following && before.seriesId
+            ? await tx.classSession.findMany({
+                where: { ...locationScopeWhere(owner.tenantId, scope), ...followingWhere(before) },
+                orderBy: { startsAt: "asc" },
+                select: sessionSelect,
+              })
+            : [];
+        const rows = [
+          { session: before, startsAt, endsAt },
+          ...followers.map((s) => ({
+            session: s,
+            startsAt: shiftWallClock(s.startsAt, startDelta, venue.timezone),
+            endsAt: shiftWallClock(s.endsAt, endDelta, venue.timezone),
+          })),
+        ];
+        for (const r of rows) {
+          await tx.classSession.update({
+            where: { id: r.session.id },
+            data: {
+              startsAt: r.startsAt,
+              endsAt: r.endsAt,
+              locationId: venue.id,
+              location: parsed.data.location ?? null,
+              maxParticipants: parsed.data.maxParticipants ?? null,
+            },
           });
+          // Verschoven starttijd → herinnering opnieuw: wie voor de oude tijd al
+          // herinnerd was, hoort ook de nieuwe (cron is idempotent op remindedAt).
+          if (r.session.startsAt.getTime() !== r.startsAt.getTime()) {
+            await tx.classEnrollment.updateMany({
+              where: { sessionId: r.session.id, status: { in: ["ENROLLED", "WAITLISTED"] } },
+              data: { remindedAt: null },
+            });
+          }
         }
-        return promoteWaitlists(tx, [before.id]);
+        const promoted = await promoteWaitlists(tx, rows.map((r) => r.session.id));
+        return { rows, promoted };
       },
       { isolationLevel: "Serializable" }
     )
   );
+  const { rows, promoted } = result;
 
   await audit("class.session.update", {
     actor: owner,
@@ -395,28 +435,39 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
       location: parsed.data.location ?? null,
       maxParticipants: parsed.data.maxParticipants ?? null,
     },
-    metadata: { class: before.groupClass.name },
+    metadata: { class: before.groupClass.name, following: rows.length - 1 },
   });
 
-  const moved =
-    before.startsAt.getTime() !== startsAt.getTime() ||
-    before.endsAt.getTime() !== endsAt.getTime() ||
-    before.locationId !== venue.id;
-  if (moved && before.enrollments.length > 0 && startsAt > new Date()) {
-    await notifyClassEvent({
-      tenantId: owner.tenantId,
-      kind: "moved",
-      session: { id: before.id, className: before.groupClass.name, startsAt, endsAt, timezone: venue.timezone },
-      userIds: before.enrollments.map((e) => e.userId),
-      previous: { startsAt: before.startsAt, endsAt: before.endsAt },
-      actor: owner,
-    });
+  // Moved-melding per sessie (elke reeks-sessie heeft z'n eigen oude tijd en
+  // eigen deelnemers); alleen voor toekomstige sessies met aanmeldingen.
+  const now = new Date();
+  for (const r of rows) {
+    const moved =
+      r.session.startsAt.getTime() !== r.startsAt.getTime() ||
+      r.session.endsAt.getTime() !== r.endsAt.getTime() ||
+      r.session.locationId !== venue.id;
+    if (moved && r.session.enrollments.length > 0 && r.startsAt > now) {
+      await notifyClassEvent({
+        tenantId: owner.tenantId,
+        kind: "moved",
+        session: {
+          id: r.session.id,
+          className: r.session.groupClass.name,
+          startsAt: r.startsAt,
+          endsAt: r.endsAt,
+          timezone: venue.timezone,
+        },
+        userIds: r.session.enrollments.map((e) => e.userId),
+        previous: { startsAt: r.session.startsAt, endsAt: r.session.endsAt },
+        actor: owner,
+      });
+    }
   }
   await notifyPromotions(owner.tenantId, promoted, owner);
 
   revalidatePath(`/owner/rooster/${before.classId}`);
   revalidatePath("/owner/rooster");
-  return { success: t("saved") };
+  return { success: rows.length > 1 ? t("sessionsUpdated", { count: rows.length }) : t("saved") };
 }
 
 /**

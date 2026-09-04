@@ -92,3 +92,31 @@ export function addWeeksZoned(date: Date, weeks: number, timeZone: string): Date
   const guess = wall - tzOffsetMs(new Date(wall), timeZone);
   return new Date(wall - tzOffsetMs(new Date(guess), timeZone));
 }
+
+/**
+ * Verschil tussen twee momenten gemeten op de **klok** van `timeZone` (ms).
+ * "Dinsdag 18:00 → dinsdag 19:00" is altijd één uur, ook als er een
+ * DST-overgang tussen de twee absolute tijdstippen ligt.
+ */
+export function wallClockDeltaMs(from: Date, to: Date, timeZone: string): number {
+  const a = zonedParts(from, timeZone);
+  const b = zonedParts(to, timeZone);
+  return (
+    Date.UTC(b.year, b.month - 1, b.day, b.hour, b.minute, b.second) -
+    Date.UTC(a.year, a.month - 1, a.day, a.hour, a.minute, a.second)
+  );
+}
+
+/**
+ * Verschuif `date` met een klok-delta in `timeZone` (DST-veilig, zelfde
+ * dubbele-iteratie als `zonedInputToDate`). Samen met `wallClockDeltaMs` de
+ * basis van "bewerk ook alle volgende in de reeks": de wijziging aan één
+ * sessie wordt als klokverschuiving op de rest toegepast, zodat een reeks
+ * over de zomertijd heen op dezelfde lokale tijd blijft staan.
+ */
+export function shiftWallClock(date: Date, deltaMs: number, timeZone: string): Date {
+  const z = zonedParts(date, timeZone);
+  const wall = Date.UTC(z.year, z.month - 1, z.day, z.hour, z.minute, z.second) + deltaMs;
+  const guess = wall - tzOffsetMs(new Date(wall), timeZone);
+  return new Date(wall - tzOffsetMs(new Date(guess), timeZone));
+}

@@ -217,10 +217,13 @@ export function EditSessionForm({
   classId,
   locations,
   values,
+  inSeries = false,
 }: {
   classId: string;
   locations: { id: string; name: string }[];
   values: SessionFormValues;
+  /** Onderdeel van een herhaalreeks → optie "ook alle volgende" tonen. */
+  inSeries?: boolean;
 }) {
   const t = useTranslations("owner.rooster");
   const [state, formAction, pending] = useActionState<SessionFormState, FormData>(updateSession, {});
@@ -229,6 +232,12 @@ export function EditSessionForm({
       <input type="hidden" name="id" value={values.id} />
       <input type="hidden" name="classId" value={classId} />
       <SessionFields t={t} locations={locations} defaultLocationId={values.locationId} values={values} />
+      {inSeries ? (
+        <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <input type="checkbox" name="following" value="1" className="size-4 accent-accent" />
+          {t("editFollowing")}
+        </label>
+      ) : null}
       <button
         type="submit"
         disabled={pending}

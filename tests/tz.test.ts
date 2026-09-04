@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { zonedInputToDate, dateToZonedInput, addWeeksZoned, tzOffsetMs } from "../lib/tz";
+import {
+  zonedInputToDate,
+  dateToZonedInput,
+  addWeeksZoned,
+  tzOffsetMs,
+  wallClockDeltaMs,
+  shiftWallClock,
+} from "../lib/tz";
 
 const AMS = "Europe/Amsterdam";
 
@@ -30,6 +37,31 @@ test("addWeeksZoned houdt de klok vast over de DST-overgang heen", () => {
   const next = addWeeksZoned(start, 1, AMS); // 31 maart = zomertijd
   assert.equal(dateToZonedInput(next, AMS), "2026-03-31T18:00");
   assert.equal(next.getTime() - start.getTime(), 7 * 24 * 3600_000 - 3600_000);
+});
+
+test("wallClockDeltaMs meet op de klok, ook over een DST-overgang", () => {
+  // 18:00 → 19:00 op dezelfde dag = 1 uur.
+  const a = zonedInputToDate("2026-07-07T18:00", AMS)!;
+  const b = zonedInputToDate("2026-07-07T19:00", AMS)!;
+  assert.equal(wallClockDeltaMs(a, b, AMS), 3600_000);
+  // di 24 mrt 18:00 (winter) → wo 1 apr 19:00 (zomer): op de klok
+  // 8 dagen + 1 uur, ongeacht dat er absoluut een uur minder tussen zit.
+  const c = zonedInputToDate("2026-03-24T18:00", AMS)!;
+  const d = zonedInputToDate("2026-04-01T19:00", AMS)!;
+  assert.equal(wallClockDeltaMs(c, d, AMS), 8 * 24 * 3600_000 + 3600_000);
+});
+
+test("shiftWallClock verschuift de klok DST-veilig (reeks-bewerking)", () => {
+  // Reeks-scenario: de eerste sessie gaat van di 18:00 naar di 19:00
+  // (delta = 1 uur op de klok); een sessie ná de DST-overgang schuift dan
+  // óók naar 19:00 lokale tijd.
+  const later = zonedInputToDate("2026-04-07T18:00", AMS)!; // zomertijd
+  const shifted = shiftWallClock(later, 3600_000, AMS);
+  assert.equal(dateToZonedInput(shifted, AMS), "2026-04-07T19:00");
+  // Delta van een dag over de overgang heen blijft dezelfde klok.
+  const winter = zonedInputToDate("2026-03-28T10:00", AMS)!;
+  const overDst = shiftWallClock(winter, 2 * 24 * 3600_000, AMS); // 30 mrt = zomertijd
+  assert.equal(dateToZonedInput(overDst, AMS), "2026-03-30T10:00");
 });
 
 test("tzOffsetMs: +2u in de zomer, +1u in de winter", () => {

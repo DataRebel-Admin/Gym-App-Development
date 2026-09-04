@@ -895,6 +895,8 @@
       "deleteSession": "Delete session",
       "deleteSessionConfirm": "Enrolled members will be notified that the class is cancelled. This cannot be undone.",
       "deleteFollowing": "Also delete all following sessions in this series",
+      "editFollowing": "Also apply this change to all following sessions in this series",
+      "sessionsUpdated": "{count, plural, one {# session updated.} other {# sessions updated.}}",
       "deleteClass": "Delete class",
       "deleteClassDesc": "This deletes the class with all sessions and enrollments. Members enrolled in an upcoming session will be notified.",
       "deleteClassConfirm": "All sessions, enrollments and attendance history of this class will be permanently removed.",

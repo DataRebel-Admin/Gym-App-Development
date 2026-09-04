@@ -137,6 +137,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
               <EditSessionForm
                 classId={groupClass.id}
                 locations={locations}
+                inSeries={s.seriesId !== null}
                 values={{
                   id: s.id,
                   startsAt: dateToZonedInput(s.startsAt, tz),

@@ -765,6 +765,8 @@
       "deleteSession": "Sesje fuortsmite",
       "deleteSessionConfirm": "Oanmelde leden krije in melding dat de les net trochgiet. Dit kin net ûngedien makke wurde.",
       "deleteFollowing": "Ek alle folgjende sesjes yn dizze rige",
+      "editFollowing": "Feroaring ek tapasse op alle folgjende sesjes yn dizze rige",
+      "sessionsUpdated": "{count, plural, one {# sesje bywurke.} other {# sesjes bywurke.}}",
       "deleteClass": "Les fuortsmite",
       "deleteClassDesc": "Dit smyt de les mei alle sesjes en oanmeldingen fuort. Leden dy't foar in kommende sesje oanmeld binne krije in melding.",
       "deleteClassConfirm": "Alle sesjes, oanmeldingen en oanwêzigenshistoarje fan dizze les ferdwine definityf.",

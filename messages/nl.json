@@ -895,6 +895,8 @@
       "deleteSession": "Sessie verwijderen",
       "deleteSessionConfirm": "Aangemelde leden krijgen een melding dat de les niet doorgaat. Dit kan niet ongedaan worden gemaakt.",
       "deleteFollowing": "Ook alle volgende sessies in deze reeks",
+      "editFollowing": "Wijziging ook toepassen op alle volgende sessies in deze reeks",
+      "sessionsUpdated": "{count, plural, one {# sessie bijgewerkt.} other {# sessies bijgewerkt.}}",
       "deleteClass": "Les verwijderen",
       "deleteClassDesc": "Dit verwijdert de les met alle sessies en aanmeldingen. Leden die voor een komende sessie zijn aangemeld krijgen een melding.",
       "deleteClassConfirm": "Alle sessies, aanmeldingen en aanwezigheidshistorie van deze les verdwijnen definitief.",
