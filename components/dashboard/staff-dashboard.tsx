@@ -97,7 +97,8 @@ export async function StaffDashboard({
       : Promise.resolve(0),
     canSchedule
       ? prisma.classSession.findMany({
-          where: { ...scoped, startsAt: { gte: now } },
+          // Geannuleerde sessies horen niet in "aankomende lessen".
+          where: { ...scoped, startsAt: { gte: now }, cancelledAt: null },
           orderBy: { startsAt: "asc" },
           take: 5,
           select: {

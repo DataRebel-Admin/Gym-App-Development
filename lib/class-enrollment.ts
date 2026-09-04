@@ -22,9 +22,14 @@ type Tx = Prisma.TransactionClient;
 export async function promoteWaitlist(tx: Tx, sessionId: string): Promise<string[]> {
   const session = await tx.classSession.findUnique({
     where: { id: sessionId },
-    select: { maxParticipants: true, groupClass: { select: { maxParticipants: true } } },
+    select: {
+      maxParticipants: true,
+      cancelledAt: true,
+      groupClass: { select: { maxParticipants: true } },
+    },
   });
-  if (!session) return [];
+  // In een geannuleerde sessie schuift niemand door — die plek bestaat niet meer.
+  if (!session || session.cancelledAt) return [];
 
   const [activeCount, waiting] = await Promise.all([
     tx.classEnrollment.count({

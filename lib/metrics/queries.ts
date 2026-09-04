@@ -331,6 +331,8 @@ async function computeInsightsTrends(
         locationId: { in: locationIds },
         startsAt: { gte: since },
         endsAt: { lt: classCutoff },
+        // Een geannuleerde les is geen bezettings-datapunt (zou als 0% meetellen).
+        cancelledAt: null,
       },
       select: {
         startsAt: true,

@@ -20,8 +20,8 @@ import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { dateToZonedInput } from "@/lib/tz";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { AddSessionForm, EditClassForm, EditSessionForm } from "../class-forms";
-import { SessionDeleteButton } from "../session-delete-button";
-import { deleteClass, markAttendance } from "../actions";
+import { SessionCancelButton, SessionDeleteButton } from "../session-delete-button";
+import { deleteClass, markAttendance, restoreSession } from "../actions";
 
 export async function generateMetadata({
   params,
@@ -101,6 +101,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
     const tz = s.venueLocation.timezone;
     const waiting = s.enrollments.filter((e) => e.status === "WAITLISTED").length;
     const participants = s.enrollments.filter((e) => e.status !== "WAITLISTED");
+    const isCancelled = s.cancelledAt !== null;
     // Zelfde regel als de server-action (lib/class-attendance.ts) — anders
     // toont de knop gevallen die de action stil weigert.
     const canDelete = canDeleteSession(s, s.enrollments.length, now);
@@ -108,12 +109,19 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
       <li key={s.id} className="flex flex-col gap-2 rounded-xl border border-neutral-200 px-4 py-3 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span>
-            <span className="font-medium text-neutral-900">{formatSessionStart(s.startsAt, tz)}</span>{" "}
+            <span className={`font-medium ${isCancelled ? "text-neutral-400 line-through" : "text-neutral-900"}`}>
+              {formatSessionStart(s.startsAt, tz)}
+            </span>{" "}
             <span className="text-neutral-500">
               ({formatTimeRange(s.startsAt, s.endsAt, tz)})
               {multiLocation ? ` · ${s.venueLocation.name}` : ""}
               {s.location ? ` · ${s.location}` : ""}
             </span>
+            {isCancelled ? (
+              <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
+                {t("cancelledBadge")}
+              </span>
+            ) : null}
           </span>
           <span className="flex items-center gap-3">
             <span className="text-neutral-500">
@@ -124,13 +132,24 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
                 </span>
               ) : null}
             </span>
+            {!isPast && !isCancelled ? (
+              <SessionCancelButton sessionId={s.id} classId={groupClass.id} inSeries={s.seriesId !== null} />
+            ) : null}
             {canDelete ? (
               <SessionDeleteButton sessionId={s.id} classId={groupClass.id} inSeries={s.seriesId !== null} />
             ) : null}
           </span>
         </div>
 
-        {!isPast ? (
+        {!isPast && isCancelled ? (
+          <form action={restoreSession}>
+            <input type="hidden" name="id" value={s.id} />
+            <input type="hidden" name="classId" value={groupClass.id} />
+            <button className="text-xs text-accent hover:underline">{t("restoreSession")}</button>
+          </form>
+        ) : null}
+
+        {!isPast && !isCancelled ? (
           <details className="group">
             <summary className="cursor-pointer text-xs text-accent hover:underline">{t("editSession")}</summary>
             <div className="mt-3">

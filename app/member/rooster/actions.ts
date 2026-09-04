@@ -49,14 +49,17 @@ export async function enroll(formData: FormData) {
           select: {
             ...SESSION_INFO_SELECT,
             maxParticipants: true,
+            cancelledAt: true,
             groupClass: { select: { name: true, maxParticipants: true } },
             venueLocation: { select: { timezone: true, archivedAt: true } },
           },
         });
         if (!session) return null;
-        // Gearchiveerde vestiging = gesloten (defense-in-depth: archiveren is
-        // geblokkeerd zolang er komende lessen staan, maar oude data kan bestaan).
-        if (session.venueLocation.archivedAt) return { decision: "closed" as const, session };
+        // Geannuleerde sessie of gearchiveerde vestiging = gesloten (de UI
+        // toont geen knop, maar een directe POST mag er ook niet langs).
+        if (session.cancelledAt || session.venueLocation.archivedAt) {
+          return { decision: "closed" as const, session };
+        }
 
         const existing = await tx.classEnrollment.findUnique({
           where: { sessionId_userId: { sessionId, userId: member.id } },

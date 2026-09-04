@@ -102,6 +102,11 @@ export default async function RoosterPage() {
                     <span className="text-neutral-500">
                       · {formatSessionStart(s.startsAt, tz)} ({formatTimeRange(s.startsAt, s.endsAt, tz)})
                     </span>
+                    {s.cancelledAt !== null ? (
+                      <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
+                        {t("cancelledBadge")}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="text-neutral-500">
                     {s._count.enrollments}/{sessionCapacity(s)}

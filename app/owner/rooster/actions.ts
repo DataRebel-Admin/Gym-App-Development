@@ -159,6 +159,7 @@ export async function deleteClass(formData: FormData) {
         select: {
           ...SESSION_INFO_SELECT,
           locationId: true,
+          cancelledAt: true,
           enrollments: {
             where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
             select: { userId: true },
@@ -171,7 +172,10 @@ export async function deleteClass(formData: FormData) {
   if (groupClass.sessions.some((s) => !canAccessLocation(scope, s.locationId))) notFound();
 
   const now = new Date();
-  const future = groupClass.sessions.filter((s) => s.startsAt > now && s.enrollments.length > 0);
+  // Al geannuleerde sessies overslaan: die leden zijn destijds al geïnformeerd.
+  const future = groupClass.sessions.filter(
+    (s) => s.startsAt > now && s.cancelledAt === null && s.enrollments.length > 0
+  );
   await prisma.groupClass.delete({ where: { id: groupClass.id } });
   await audit("class.delete", {
     actor: owner,
@@ -370,11 +374,16 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
   const result = await withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
-        // Volgende reeks-sessies binnen de scope (fail-closed, zoals deleteSession).
+        // Volgende reeks-sessies binnen de scope (fail-closed, zoals
+        // deleteSession); geannuleerde sessies verschuiven niet mee.
         const followers =
           following && before.seriesId
             ? await tx.classSession.findMany({
-                where: { ...locationScopeWhere(owner.tenantId, scope), ...followingWhere(before) },
+                where: {
+                  ...locationScopeWhere(owner.tenantId, scope),
+                  ...followingWhere(before),
+                  cancelledAt: null,
+                },
                 orderBy: { startsAt: "asc" },
                 select: sessionSelect,
               })
@@ -532,6 +541,128 @@ export async function deleteSession(formData: FormData) {
         actor: owner,
       });
     }
+  }
+
+  revalidatePath(`/owner/rooster/${target.classId}`);
+  revalidatePath("/owner/rooster");
+  redirect(`/owner/rooster/${target.classId}`);
+}
+
+/**
+ * Sessie annuleren zónder verwijderen: `cancelledAt` bewaart de aanmeldlijst
+ * (historie), de sessie is niet meer boekbaar (enroll → closed, geen
+ * herinnering/no-show, wachtlijst promoot er niet in) en aangemelde +
+ * wachtende leden krijgen de annuleringsmelding. Optioneel "ook alle volgende
+ * in de reeks". Alleen komende, nog niet geannuleerde sessies; terugdraaien
+ * kan met `restoreSession`.
+ */
+export async function cancelSession(formData: FormData) {
+  const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
+  const id = String(formData.get("id") ?? "");
+  const classId = String(formData.get("classId") ?? "");
+  const following = formData.get("following") === "1";
+  const scope = await getLocationScope(owner);
+
+  const target = await prisma.classSession.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: { id: true, classId: true, seriesId: true, startsAt: true, locationId: true },
+  });
+  if (!target) redirect(`/owner/rooster/${classId}`);
+  if (!canAccessLocation(scope, target.locationId)) notFound();
+
+  const now = new Date();
+  const candidates = await prisma.classSession.findMany({
+    where: {
+      ...locationScopeWhere(owner.tenantId, scope),
+      cancelledAt: null,
+      startsAt: { gt: now },
+      OR: [{ id: target.id }, ...(following ? [followingWhere(target)] : [])],
+    },
+    select: {
+      ...SESSION_INFO_SELECT,
+      enrollments: {
+        where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
+        select: { userId: true },
+      },
+    },
+  });
+  if (candidates.length === 0) redirect(`/owner/rooster/${target.classId}`);
+
+  await prisma.classSession.updateMany({
+    where: { id: { in: candidates.map((c) => c.id) } },
+    data: { cancelledAt: now },
+  });
+  await audit("class.session.cancel", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    locationId: target.locationId,
+    targetType: "ClassSession",
+    targetId: target.id,
+    metadata: { class: candidates[0].groupClass.name, count: candidates.length, following },
+  });
+  for (const c of candidates) {
+    if (c.enrollments.length > 0) {
+      await notifyClassEvent({
+        tenantId: owner.tenantId,
+        kind: "cancelled",
+        session: toSessionInfo(c),
+        userIds: c.enrollments.map((e) => e.userId),
+        actor: owner,
+      });
+    }
+  }
+
+  revalidatePath(`/owner/rooster/${target.classId}`);
+  revalidatePath("/owner/rooster");
+  redirect(`/owner/rooster/${target.classId}`);
+}
+
+/**
+ * Annulering terugdraaien ("gaat toch door"): `cancelledAt` terug naar NULL,
+ * de nog aangemelde + wachtende leden horen dat hun aanmelding weer staat.
+ * Alleen voor komende sessies; per sessie (geen reeks-variant — herstellen is
+ * een correctie, geen planhandeling).
+ */
+export async function restoreSession(formData: FormData) {
+  const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
+  const id = String(formData.get("id") ?? "");
+  const classId = String(formData.get("classId") ?? "");
+  const scope = await getLocationScope(owner);
+
+  const target = await prisma.classSession.findFirst({
+    where: { id, tenantId: owner.tenantId, cancelledAt: { not: null }, startsAt: { gt: new Date() } },
+    select: {
+      ...SESSION_INFO_SELECT,
+      classId: true,
+      locationId: true,
+      enrollments: {
+        where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
+        select: { userId: true },
+      },
+    },
+  });
+  if (!target) redirect(`/owner/rooster/${classId}`);
+  if (!canAccessLocation(scope, target.locationId)) notFound();
+
+  await prisma.classSession.update({ where: { id: target.id }, data: { cancelledAt: null } });
+  await audit("class.session.restore", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    locationId: target.locationId,
+    targetType: "ClassSession",
+    targetId: target.id,
+    metadata: { class: target.groupClass.name },
+  });
+  if (target.enrollments.length > 0) {
+    await notifyClassEvent({
+      tenantId: owner.tenantId,
+      kind: "restored",
+      session: toSessionInfo(target),
+      userIds: target.enrollments.map((e) => e.userId),
+      actor: owner,
+    });
   }
 
   revalidatePath(`/owner/rooster/${target.classId}`);

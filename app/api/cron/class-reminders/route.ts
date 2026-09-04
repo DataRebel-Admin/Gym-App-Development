@@ -29,6 +29,8 @@ export async function GET(req: Request) {
   const sessions = await prisma.classSession.findMany({
     where: {
       startsAt: { gt: now, lte: until },
+      // Geen herinnering voor een geannuleerde sessie (leden zijn al geïnformeerd).
+      cancelledAt: null,
       enrollments: { some: { status: "ENROLLED", remindedAt: null } },
     },
     select: {

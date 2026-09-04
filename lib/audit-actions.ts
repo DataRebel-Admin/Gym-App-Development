@@ -413,6 +413,16 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} verwijderde ${s(meta, "count") ?? "1"} sessie(s) van '${s(meta, "class") ?? "?"}'`,
   },
+  "class.session.cancel": {
+    category: "schedule", label: "Sessie geannuleerd", icon: "🚫", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} annuleerde ${s(meta, "count") ?? "1"} sessie(s) van '${s(meta, "class") ?? "?"}'`,
+  },
+  "class.session.restore": {
+    category: "schedule", label: "Annulering teruggedraaid", icon: "✅", tone: "success",
+    sentence: ({ actor, meta }) =>
+      `${actor} liet een sessie van '${s(meta, "class") ?? "?"}' toch doorgaan`,
+  },
   "class.enroll": {
     category: "schedule", label: "Aangemeld voor les", icon: "🙋", tone: "success",
     sentence: ({ actor, meta }) => `${actor} meldde zich aan voor '${s(meta, "class") ?? "een les"}'`,

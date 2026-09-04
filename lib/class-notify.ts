@@ -20,7 +20,8 @@ const SYSTEM_ACTOR: ClassNotifyActor = { email: "systeem", role: null };
  * - enrolled / waitlisted: bevestiging van de eigen aanmelding
  * - promoted: van de wachtlijst doorgeschoven naar een plek
  * - moved: tijd/vestiging gewijzigd door de sportschool
- * - cancelled: sessie (of hele les) verwijderd
+ * - cancelled: sessie geannuleerd of verwijderd (of hele les verwijderd)
+ * - restored: een eerdere annulering teruggedraaid ("gaat toch door")
  * - reminder: cron, kort vóór de les
  */
 export type ClassNotifyKind =
@@ -29,6 +30,7 @@ export type ClassNotifyKind =
   | "promoted"
   | "moved"
   | "cancelled"
+  | "restored"
   | "reminder";
 
 /**

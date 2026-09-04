@@ -570,6 +570,10 @@ model ClassSession {
   // seriesId ("verwijder ook alle volgende"). Geen eigen model: de reeks heeft
   // geen eigenschappen buiten haar leden.
   seriesId   String?
+  // Geannuleerd zonder verwijderen: de aanmeldlijst (historie) blijft bestaan.
+  // Niet boekbaar, geen herinneringen/no-shows, wachtlijst promoot er niet in.
+  // NULL = gaat gewoon door; herstellen = terug naar NULL.
+  cancelledAt DateTime?
   createdAt  DateTime @default(now())
 
   tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)

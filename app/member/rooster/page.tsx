@@ -43,6 +43,8 @@ type SessionCard = {
   waitlistCount: number;
   full: boolean;
   started: boolean;
+  /** Geannuleerd door de sportschool: zichtbaar als mededeling, geen acties. */
+  cancelled: boolean;
   spotsLeft: number;
   count: number;
   max: number;
@@ -72,7 +74,11 @@ function ClassCard({ s }: { s: SessionCard }) {
             <p className="text-xs text-neutral-500">{t("withInstructor", { name: s.instructorName })}</p>
           ) : null}
         </div>
-        {s.mine === "enrolled" ? (
+        {s.cancelled ? (
+          <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">
+            {t("cancelled")}
+          </span>
+        ) : s.mine === "enrolled" ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground">
             <Check className="size-3" /> {t("enrolled")}
           </span>
@@ -120,7 +126,7 @@ function ClassCard({ s }: { s: SessionCard }) {
       </div>
 
       <div className="mt-3.5">
-        {s.mine !== null ? (
+        {s.cancelled ? null : s.mine !== null ? (
           s.started ? null : (
             <form action={unenroll}>
               <input type="hidden" name="sessionId" value={s.id} />
@@ -261,6 +267,7 @@ export default async function MemberRoosterPage({
       className: s.groupClass.name,
       description: s.groupClass.description,
       instructorName: s.groupClass.instructorName,
+      cancelled: s.cancelledAt !== null,
       mine: own ? (own.status === "ENROLLED" ? "enrolled" : "waitlisted") : null,
       waitlistPosition:
         own?.status === "WAITLISTED" ? waiting.findIndex((e) => e.userId === member.id) + 1 : null,

@@ -28,9 +28,11 @@ export async function GET(req: Request) {
   const cutoff = noShowCutoff(now);
 
   // Per tenant markeren + auditen (één regel per tenant, geen ruis per rij).
+  // Geannuleerde sessies tellen niet: wie aangemeld stond voor een les die
+  // niet doorging, is geen no-show.
   const pending = await prisma.classEnrollment.groupBy({
     by: ["tenantId"],
-    where: { status: "ENROLLED", session: { endsAt: { lte: cutoff } } },
+    where: { status: "ENROLLED", session: { endsAt: { lte: cutoff }, cancelledAt: null } },
     _count: true,
   });
 
@@ -38,7 +40,11 @@ export async function GET(req: Request) {
   for (const group of pending) {
     try {
       const res = await prisma.classEnrollment.updateMany({
-        where: { tenantId: group.tenantId, status: "ENROLLED", session: { endsAt: { lte: cutoff } } },
+        where: {
+          tenantId: group.tenantId,
+          status: "ENROLLED",
+          session: { endsAt: { lte: cutoff }, cancelledAt: null },
+        },
         data: { status: "NO_SHOW", statusChangedAt: now },
       });
       marked += res.count;

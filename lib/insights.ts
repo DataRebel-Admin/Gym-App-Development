@@ -189,9 +189,9 @@ async function computeDashboard(
     count: g._count.exerciseId,
   }));
 
-  // Bezetting van komende lessen.
+  // Bezetting van komende lessen (geannuleerde sessies tellen niet mee).
   const upcoming = await prisma.classSession.findMany({
-    where: { ...scoped, startsAt: { gte: new Date() } },
+    where: { ...scoped, startsAt: { gte: new Date() }, cancelledAt: null },
     orderBy: { startsAt: "asc" },
     take: 5,
     select: {
