@@ -41,8 +41,13 @@ export const NOTIFICATION_DEFAULTS: Record<NotificationChannel, boolean> = {
  * Categorieën waarvoor e-mail standaard AAN staat. Voor alle overige categorieën
  * staat e-mail standaard uit — de gebruiker kan het per categorie aanzetten onder
  * /account/meldingen. In-app en push volgen `NOTIFICATION_DEFAULTS`.
+ *
+ * `classes` staat aan omdat de gevolgen-meldingen (wachtlijst-promotie,
+ * verplaatsing, annulering) tijdkritisch zijn: wie ze alleen in-app krijgt en
+ * de app niet opent, staat onwetend als no-show op een les. Gespiegeld in
+ * `app/account/meldingen/notifications-form.tsx`.
  */
-const EMAIL_ON_BY_DEFAULT: ReadonlySet<NotificationCategory> = new Set(["schemas"]);
+const EMAIL_ON_BY_DEFAULT: ReadonlySet<NotificationCategory> = new Set(["schemas", "classes"]);
 
 /** De standaardwaarde voor een (categorie × kanaal) — gespiegeld in de UI (`notifications-form.tsx`). */
 export function notificationDefault(

@@ -30,8 +30,9 @@ type Channel = (typeof CHANNELS)[number]["key"];
 type Prefs = Record<string, Record<Channel, boolean>>;
 
 // Gespiegeld uit lib/notifications.ts (notificationDefault): e-mail staat standaard
-// UIT, behalve voor trainingsschema's. In-app aan, push uit.
-const EMAIL_ON_BY_DEFAULT = new Set<string>(["schemas"]);
+// UIT, behalve voor trainingsschema's en groepslessen (wachtlijst-promotie en
+// annulering zijn tijdkritisch). In-app aan, push uit.
+const EMAIL_ON_BY_DEFAULT = new Set<string>(["schemas", "classes"]);
 
 function defaults(): Prefs {
   const p: Prefs = {};
