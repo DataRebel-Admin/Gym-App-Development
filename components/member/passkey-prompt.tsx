@@ -11,7 +11,7 @@ import {
 import { Fingerprint, Check } from "@/components/ui/icons";
 import { useClientValue } from "@/lib/hooks/use-client-value";
 import { markPasskeyDevice } from "@/lib/passkey-device";
-import { webAuthnErrorDetail } from "@/lib/webauthn-error";
+import { logWebAuthnError } from "@/lib/webauthn-error";
 import {
   ONBOARDING_DONE_EVENT,
   ONBOARDING_STORAGE_KEY,
@@ -108,9 +108,10 @@ export function PasskeyPrompt({
       markPasskeyDevice();
       setDone(true);
     } catch (err) {
-      // Kan annuleren zijn, maar toon het technische detail erbij: zonder dat
-      // is een échte fout (rpID/koppeling/al-geregistreerd) niet te herleiden.
-      setError(`${t("cancelled")} (${webAuthnErrorDetail(err)})`);
+      // Detail naar console + ringbuffer (komt mee met "Probleem melden");
+      // de gebruiker ziet alleen de nette melding.
+      logWebAuthnError("passkey-prompt", err);
+      setError(t("cancelled"));
     } finally {
       setBusy(false);
     }

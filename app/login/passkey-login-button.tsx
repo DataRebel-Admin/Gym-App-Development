@@ -5,7 +5,7 @@ import { startAuthentication, browserSupportsWebAuthn } from "@simplewebauthn/br
 import { startPasskeyLogin, finishPasskeyLogin } from "./passkey-actions";
 import { useClientValue } from "@/lib/hooks/use-client-value";
 import { isPasskeyDevice, markPasskeyDevice } from "@/lib/passkey-device";
-import { webAuthnErrorDetail } from "@/lib/webauthn-error";
+import { logWebAuthnError } from "@/lib/webauthn-error";
 
 /**
  * "Log in met toegangssleutel" — biometrische login (Face ID / Touch ID /
@@ -39,11 +39,9 @@ export function PasskeyLoginButton() {
     } catch (err) {
       // Meestal: de gebruiker annuleerde de biometrische prompt. Bij een
       // automatische poging is dat geen fout — het formulier staat eronder.
-      if (!auto) {
-        setError(
-          `Inloggen met toegangssleutel geannuleerd of niet gelukt. (${webAuthnErrorDetail(err)})`
-        );
-      }
+      // Detail naar console + ringbuffer, de nette melding naar de gebruiker.
+      logWebAuthnError(auto ? "passkey-login-auto" : "passkey-login", err);
+      if (!auto) setError("Inloggen met toegangssleutel geannuleerd of niet gelukt.");
     } finally {
       setBusy(false);
     }

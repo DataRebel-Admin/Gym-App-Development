@@ -12,7 +12,7 @@ import { buttonClasses } from "@/components/ui/button-classes";
 import { cn } from "@/lib/cn";
 import { useClientValue } from "@/lib/hooks/use-client-value";
 import { markPasskeyDevice } from "@/lib/passkey-device";
-import { webAuthnErrorDetail } from "@/lib/webauthn-error";
+import { logWebAuthnError } from "@/lib/webauthn-error";
 
 export type PasskeyRow = {
   id: string;
@@ -46,9 +46,10 @@ export function Passkeys({ passkeys }: { passkeys: PasskeyRow[] }) {
         router.refresh();
       }
     } catch (err) {
-      // Kan annuleren zijn, maar toon het technische detail erbij: zonder dat
-      // is een échte fout (rpID/koppeling/al-geregistreerd) niet te herleiden.
-      setError(`Registratie geannuleerd of niet gelukt. (${webAuthnErrorDetail(err)})`);
+      // Detail naar console + ringbuffer (komt mee met "Probleem melden");
+      // de gebruiker ziet alleen de nette melding.
+      logWebAuthnError("passkey-registratie", err);
+      setError("Registratie geannuleerd of niet gelukt.");
     } finally {
       setBusy(false);
     }
