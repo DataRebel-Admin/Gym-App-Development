@@ -136,6 +136,9 @@ export const REMINDER_WINDOW_HOURS = 30;
 /** Maximaal aantal weken dat "wekelijks herhalen" in één keer inplant. */
 export const MAX_REPEAT_WEEKS = 26;
 
+/** Hoe ver het member-rooster vooruitkijkt (datumhorizon, geen rij-limiet). */
+export const ROSTER_HORIZON_DAYS = 21;
+
 export const ENROLLMENT_STATUS_META: Record<
   EnrollmentStatusValue,
   { label: string; tone: "neutral" | "positive" | "negative" | "muted" | "info" }

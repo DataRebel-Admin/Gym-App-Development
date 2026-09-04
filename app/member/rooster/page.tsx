@@ -6,7 +6,12 @@ import { areClassesEnabled } from "@/lib/classes";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import type { EnrollmentStatus, Prisma } from "@prisma/client";
-import { ACTIVE_ENROLLMENT_STATUSES, enrollmentWindowOpen, sessionCapacity } from "@/lib/class-attendance";
+import {
+  ACTIVE_ENROLLMENT_STATUSES,
+  ROSTER_HORIZON_DAYS,
+  enrollmentWindowOpen,
+  sessionCapacity,
+} from "@/lib/class-attendance";
 import { getTenantLocations } from "@/lib/locations";
 import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
@@ -209,16 +214,23 @@ export default async function MemberRoosterPage({
     },
   } satisfies Prisma.ClassSessionInclude;
 
+  // Vaste horizon i.p.v. een rij-limiet: met een paar wekelijkse reeksen kapte
+  // `take: 40` het rooster al na ±2 weken stil af — een datumgrens is
+  // voorspelbaar ("je ziet altijd 3 weken vooruit"). De take blijft als
+  // vangnet tegen een extreem vol rooster.
+  const horizon = new Date(now.getTime() + ROSTER_HORIZON_DAYS * 24 * 3_600_000);
+
   const [upcomingRows, mineRows] = await Promise.all([
     prisma.classSession.findMany({
       where: {
         tenantId: member.tenantId,
         // Lopende lessen blijven even zichtbaar (gestart, niet meer boekbaar).
         endsAt: { gte: now },
+        startsAt: { lte: horizon },
         ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
       },
       orderBy: { startsAt: "asc" },
-      take: 40,
+      take: 200,
       include: sessionInclude,
     }),
     // "Mijn lessen" blijft bewust ongefilterd: eigen aanmeldingen zie je altijd.
