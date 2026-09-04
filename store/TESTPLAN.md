@@ -60,10 +60,15 @@ Vul per run de kolommen in en bewaar het resultaat bij de release.
 > APK. Zodra het domein handmatig werd aangezet opende de link wél de app, en
 > ook op de juiste pagina.
 >
-> Verwachting is dat dit zich oplost bij installatie vanuit Play, omdat Play de
-> verificatie bij het installeren aanstoot in plaats van de lokale agent.
-> **Test dit dus opnieuw met een build uit de interne testtrack** voordat je
-> concludeert dat er iets stuk is.
+> **Bevestigd op 4 september 2026:** installatie vanuit de interne testtrack
+> lost dit op. Dezelfde telefoon die bij zijladen op `1024` bleef staan, meldde
+> na installatie via Play direct `app.gymrebel-training.com: verified`, en een
+> link naar het domein opende de app zonder keuzedialoog. Play stoot de
+> verificatie zelf aan; de lokale agent doet dat bij zijladen niet.
+>
+> Zie je `1024` bij een tester, controleer dan éérst of de app uit Play komt
+> (`adb shell dumpsys package <pkg> | grep installerPackageName` moet
+> `com.android.vending` tonen).
 >
 > Werkt het bij een tester niet, dan is de handmatige route: Instellingen → Apps
 > → GymRebel → *Standaard openen* → domein aanzetten. Via adb kan het ook:
