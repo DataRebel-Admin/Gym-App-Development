@@ -12,8 +12,8 @@ import { prefAllows, createInAppNotification } from "@/lib/notifications";
 import { appBaseUrl } from "@/lib/app-url";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 
-type Actor = { id?: string | null; email?: string | null; role?: Role | null };
-const SYSTEM_ACTOR: Actor = { email: "systeem", role: null };
+export type ClassNotifyActor = { id?: string | null; email?: string | null; role?: Role | null };
+const SYSTEM_ACTOR: ClassNotifyActor = { email: "systeem", role: null };
 
 /**
  * Soorten les-meldingen aan **leden** (categorie `classes`):
@@ -61,7 +61,7 @@ export async function notifyClassEvent(opts: {
   userIds: string[];
   /** Bij `moved`: de vorige tijd (voor "was …"). */
   previous?: { startsAt: Date; endsAt: Date } | null;
-  actor?: Actor;
+  actor?: ClassNotifyActor;
 }): Promise<number> {
   const { tenantId, kind, session } = opts;
   const userIds = [...new Set(opts.userIds)];
@@ -175,6 +175,32 @@ export function toSessionInfo(s: {
     endsAt: s.endsAt,
     timezone: s.venueLocation.timezone,
   };
+}
+
+/**
+ * Meld doorgeschoven wachtenden (ná commit van de vrijmakende transactie,
+ * best-effort). Gedeeld door de rooster-actions (afmelden/capaciteit omhoog)
+ * en het vrijgeven van plekken als een lid vertrekt (lib/class-enrollment.ts).
+ */
+export async function notifyPromotions(
+  tenantId: string,
+  promoted: { sessionId: string; userIds: string[] }[],
+  actor?: ClassNotifyActor
+): Promise<void> {
+  for (const p of promoted) {
+    const s = await prisma.classSession.findUnique({
+      where: { id: p.sessionId },
+      select: SESSION_INFO_SELECT,
+    });
+    if (!s) continue;
+    await notifyClassEvent({
+      tenantId,
+      kind: "promoted",
+      session: toSessionInfo(s),
+      userIds: p.userIds,
+      actor,
+    });
+  }
 }
 
 /** Selectie die `toSessionInfo` nodig heeft (voor include/select-sites). */

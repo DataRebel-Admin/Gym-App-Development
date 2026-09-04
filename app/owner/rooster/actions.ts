@@ -15,9 +15,15 @@ import { audit } from "@/lib/audit";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
 import { zonedInputToDate, addWeeksZoned } from "@/lib/tz";
+import { withSerializableRetry } from "@/lib/db-retry";
 import { MAX_REPEAT_WEEKS } from "@/lib/class-attendance";
 import { promoteWaitlists } from "@/lib/class-enrollment";
-import { notifyClassEvent, toSessionInfo, SESSION_INFO_SELECT } from "@/lib/class-notify";
+import {
+  notifyClassEvent,
+  notifyPromotions,
+  toSessionInfo,
+  SESSION_INFO_SELECT,
+} from "@/lib/class-notify";
 
 /** 404 als de groepslessen-module uit staat (Superadmin-flag óf owner-toggle). */
 async function assertClassesEnabled(tenantId: string) {
@@ -89,23 +95,31 @@ export async function updateClass(_prev: ClassFormState, formData: FormData): Pr
   });
   if (!before) return { error: t("classNotFound") };
 
-  const promoted = await prisma.$transaction(async (tx) => {
-    await tx.groupClass.update({
-      where: { id: before.id },
-      data: {
-        name: parsed.data.name,
-        description: parsed.data.description ?? null,
-        instructorName: parsed.data.instructorName ?? null,
-        maxParticipants: parsed.data.maxParticipants,
+  // Serializable + retry, net als enroll/unenroll: de wachtlijst-promotie is
+  // een count-then-write en moet in dezelfde isolatieklasse draaien als een
+  // gelijktijdige aanmelding — anders zien beide dezelfde "vrije plek".
+  const promoted = await withSerializableRetry(() =>
+    prisma.$transaction(
+      async (tx) => {
+        await tx.groupClass.update({
+          where: { id: before.id },
+          data: {
+            name: parsed.data.name,
+            description: parsed.data.description ?? null,
+            instructorName: parsed.data.instructorName ?? null,
+            maxParticipants: parsed.data.maxParticipants,
+          },
+        });
+        if (parsed.data.maxParticipants <= before.maxParticipants) return [];
+        const upcoming = await tx.classSession.findMany({
+          where: { classId: before.id, maxParticipants: null, startsAt: { gte: new Date() } },
+          select: { id: true },
+        });
+        return promoteWaitlists(tx, upcoming.map((s) => s.id));
       },
-    });
-    if (parsed.data.maxParticipants <= before.maxParticipants) return [];
-    const upcoming = await tx.classSession.findMany({
-      where: { classId: before.id, maxParticipants: null, startsAt: { gte: new Date() } },
-      select: { id: true },
-    });
-    return promoteWaitlists(tx, upcoming.map((s) => s.id));
-  });
+      { isolationLevel: "Serializable" }
+    )
+  );
 
   await audit("class.update", {
     actor: owner,
@@ -116,7 +130,7 @@ export async function updateClass(_prev: ClassFormState, formData: FormData): Pr
     newValue: { ...before, ...parsed.data },
     metadata: { name: parsed.data.name },
   });
-  await notifyPromotions(owner, promoted);
+  await notifyPromotions(owner.tenantId, promoted, owner);
 
   revalidatePath("/owner/rooster");
   revalidatePath(`/owner/rooster/${before.id}`);
@@ -332,19 +346,26 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
   if (!startsAt || !endsAt) return { error: tv("invalidDate") };
   if (endsAt <= startsAt) return { error: tv("endAfterStart") };
 
-  const promoted = await prisma.$transaction(async (tx) => {
-    await tx.classSession.update({
-      where: { id: before.id },
-      data: {
-        startsAt,
-        endsAt,
-        locationId: venue.id,
-        location: parsed.data.location ?? null,
-        maxParticipants: parsed.data.maxParticipants ?? null,
+  // Serializable + retry (zie updateClass): promotie mag niet racen met een
+  // gelijktijdige aanmelding.
+  const promoted = await withSerializableRetry(() =>
+    prisma.$transaction(
+      async (tx) => {
+        await tx.classSession.update({
+          where: { id: before.id },
+          data: {
+            startsAt,
+            endsAt,
+            locationId: venue.id,
+            location: parsed.data.location ?? null,
+            maxParticipants: parsed.data.maxParticipants ?? null,
+          },
+        });
+        return promoteWaitlists(tx, [before.id]);
       },
-    });
-    return promoteWaitlists(tx, [before.id]);
-  });
+      { isolationLevel: "Serializable" }
+    )
+  );
 
   await audit("class.session.update", {
     actor: owner,
@@ -383,7 +404,7 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
       actor: owner,
     });
   }
-  await notifyPromotions(owner, promoted);
+  await notifyPromotions(owner.tenantId, promoted, owner);
 
   revalidatePath(`/owner/rooster/${before.classId}`);
   revalidatePath("/owner/rooster");
@@ -505,22 +526,4 @@ export async function markAttendance(formData: FormData) {
     },
   });
   revalidatePath(`/owner/rooster/${enrollment.session.classId}`);
-}
-
-/** Meld doorgeschoven wachtenden (na commit, best-effort). */
-async function notifyPromotions(
-  owner: { id?: string | null; email?: string | null; role?: import("@prisma/client").Role | null; tenantId: string },
-  promoted: { sessionId: string; userIds: string[] }[]
-) {
-  for (const p of promoted) {
-    const s = await prisma.classSession.findUnique({ where: { id: p.sessionId }, select: SESSION_INFO_SELECT });
-    if (!s) continue;
-    await notifyClassEvent({
-      tenantId: owner.tenantId,
-      kind: "promoted",
-      session: toSessionInfo(s),
-      userIds: p.userIds,
-      actor: owner,
-    });
-  }
 }
