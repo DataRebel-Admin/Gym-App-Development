@@ -1,4 +1,4 @@
-﻿# GymRebel — Project Context
+# GymRebel — Project Context
 
 GymRebel is een multitenant SaaS-app voor sportscholen. Elke sportschool is een aparte tenant met eigen leden, apparatuur, schema's en huisstijl. Onder de motorkap één codebase.
 

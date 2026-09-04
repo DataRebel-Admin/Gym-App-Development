@@ -1,4 +1,4 @@
-﻿# Testplan native apps (iOS + Android)
+# Testplan native apps (iOS + Android)
 
 Af te tekenen vóór elke store-inzending. Test op een **fysiek toestel**, niet
 alleen een simulator: haptics, camera, push en biometrie werken daar niet of

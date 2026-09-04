@@ -1,4 +1,4 @@
-﻿import type { CapacitorConfig } from "@capacitor/cli";
+import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
  * Capacitor-wrapper voor **iOS én Android** (App Store + Play Store).

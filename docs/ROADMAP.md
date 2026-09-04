@@ -1,4 +1,4 @@
-﻿# Roadmap: van persoonlijk account naar publicatie
+# Roadmap: van persoonlijk account naar publicatie
 
 De weg van waar we nu staan (interne test, persoonlijk Play-account) naar een
 gepubliceerde app onder het bedrijf. De leesvolgorde is de uitvoervolgorde, maar

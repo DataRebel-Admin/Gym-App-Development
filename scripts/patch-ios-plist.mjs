@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Zet de verplichte Info.plist-sleutels voor de iOS-app.
  *
  *   node scripts/patch-ios-plist.mjs          (of: npm run ios:plist)

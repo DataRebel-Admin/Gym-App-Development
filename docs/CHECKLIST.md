@@ -1,4 +1,4 @@
-﻿# Publiceerchecklist
+# Publiceerchecklist
 
 Twee lijsten: wat in de repo geregeld is, en wat alleen jij kunt doen omdat het
 een account, een betaalmiddel of een Mac vereist.

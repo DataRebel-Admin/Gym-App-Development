@@ -1,4 +1,4 @@
-﻿# Gesloten test in Google Play
+# Gesloten test in Google Play
 
 De stap tussen de interne test (die draait) en productie. Dit document is het
 draaiboek: wat er moet kloppen vóór je hem opent, en in welke volgorde.

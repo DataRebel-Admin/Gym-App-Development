@@ -1,4 +1,4 @@
-﻿# Releases: versies, namen en opmerkingen
+# Releases: versies, namen en opmerkingen
 
 Hoe we releases benoemen in App Store Connect en de Play Console, en hoe de
 release-opmerkingen eruitzien. Vastgelegd bij de eerste release, zodat alle
