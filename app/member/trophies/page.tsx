@@ -55,7 +55,11 @@ export default async function TrophiesPage() {
       </RevealItem>
 
       {/* Zeldzaamheid-verdeling */}
-      <RevealItem className="grid grid-cols-6 gap-2 rounded-3xl border border-border bg-surface-1 p-4 shadow-sm">
+      {/* Op een telefoon is zes kolommen te krap: "LEGENDARISCH" heeft bij 9px
+          ruim 70px nodig en een zesde van de schermbreedte is er ~55. Het label
+          liep daardoor over dat van "DIAMANT" heen. Twee rijen van drie op klein,
+          één rij van zes zodra er plek is. */}
+      <RevealItem className="grid grid-cols-3 gap-2 rounded-3xl border border-border bg-surface-1 p-4 shadow-sm sm:grid-cols-6">
         {RARITIES.map((r) => (
           <div key={r.key} className="flex flex-col items-center gap-1">
             <span className={`flex size-8 items-center justify-center rounded-full ${r.gradient}`}>
@@ -64,7 +68,7 @@ export default async function TrophiesPage() {
             <span className="text-sm font-bold tabular-nums text-neutral-900">
               {view.rarityCounts[r.key]}
             </span>
-            <span className="text-[9px] font-medium uppercase tracking-wide text-neutral-400">
+            <span className="text-center text-[9px] font-medium uppercase leading-tight tracking-wide text-neutral-400">
               {r.label}
             </span>
           </div>

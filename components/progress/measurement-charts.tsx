@@ -50,6 +50,15 @@ export function MeasurementCharts({
       .filter((p) => p.value != null);
   }, [points, metric, range, now]);
 
+  /** Asticks kort en in Nederlandse notatie: maximaal één decimaal, met eenheid. */
+  const formatTick = (value: number) => {
+    const rounded = Math.round(value * 10) / 10;
+    const text = Number.isInteger(rounded)
+      ? String(rounded)
+      : rounded.toFixed(1).replace(".", ",");
+    return def.unit ? `${text} ${def.unit}` : text;
+  };
+
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,7 +108,11 @@ export function MeasurementCharts({
         </p>
       ) : (
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+          {/* Géén negatieve `left` hier, anders dan bij de andere grafieken. Die
+              truc werkt bij korte labels ("0", "20"), maar deze as draagt een
+              eenheid én decimalen ("84,2 kg") en dan schuift het eerste teken
+              buiten de container: op een telefoon las "85 kg" als "35 kg". */}
+          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--neutral-200)" vertical={false} />
             <XAxis
               dataKey="date"
@@ -112,9 +125,13 @@ export function MeasurementCharts({
               tickLine={false}
               axisLine={false}
               fontSize={12}
-              width={48}
+              // Breed genoeg voor "84,2 kg"; met 48 brak het label over twee
+              // regels en botste de onderste met de datums op de x-as.
+              width={64}
               domain={["auto", "auto"]}
-              unit={def.unit ? ` ${def.unit}` : ""}
+              // Eigen formatter i.p.v. `unit`: recharts rekent uit een auto-domein
+              // tickwaarden als 84.15 uit, en die horen niet op een weegschaal.
+              tickFormatter={formatTick}
               tick={{ fill: "var(--neutral-500)" }}
             />
             <Tooltip
