@@ -16,6 +16,7 @@ import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NativePushRegister } from "@/components/pwa/native-push-register";
+import { AppLockGate } from "@/components/app-lock/app-lock-gate";
 import { nativePushConfigured } from "@/lib/push";
 
 // Geen platte, scrollende rij meer: de bestemmingen zijn gegroepeerd in
@@ -241,6 +242,7 @@ export default async function OwnerLayout({
         <PageTransition>{children}</PageTransition>
       </main>
       <NativePushRegister configured={nativePushConfigured()} />
+      <AppLockGate />
     </div>
   );
 }

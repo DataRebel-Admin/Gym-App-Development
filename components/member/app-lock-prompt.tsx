@@ -3,61 +3,37 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, m } from "motion/react";
 import { useTranslations } from "next-intl";
-import { startRegistration, browserSupportsWebAuthn } from "@simplewebauthn/browser";
-import {
-  startPasskeyRegistration,
-  finishPasskeyRegistration,
-} from "@/app/account/passkey-actions";
 import { Fingerprint, Check } from "@/components/ui/icons";
 import { useClientValue } from "@/lib/hooks/use-client-value";
-import { markPasskeyDevice } from "@/lib/passkey-device";
-import { logWebAuthnError } from "@/lib/webauthn-error";
-import { isNativeApp } from "@/lib/app-lock";
+import {
+  appLockAvailable,
+  appLockEnabled,
+  appLockPromptDismissed,
+  dismissAppLockPrompt,
+  isNativeApp,
+  markUnlockedThisLaunch,
+  setAppLockEnabled,
+  verifyAppLock,
+} from "@/lib/app-lock";
 import {
   ONBOARDING_DONE_EVENT,
   ONBOARDING_STORAGE_KEY,
 } from "@/components/member/onboarding";
 
-/** Per gebruiker (meerdere accounts op één toestel krijgen elk hun eigen vraag). */
-const DISMISS_PREFIX = "gymrebel-passkey-prompt-";
-
-function dismissed(userId: string): boolean {
-  try {
-    return Boolean(window.localStorage.getItem(DISMISS_PREFIX + userId));
-  } catch {
-    return true;
-  }
-}
-
 /**
- * Vraagt direct na het inloggen éénmalig of het lid met vingerafdruk/Face ID
- * wil inloggen (passkey), zolang het account er nog geen heeft. Instellen
- * hergebruikt de bestaande registratie-actions van /account/beveiliging.
- *
- * Toont zichzelf alleen als het kán (WebAuthn beschikbaar; in de huidige
- * Android-app-build is dat niet zo en blijft de prompt dus vanzelf weg) en
- * nooit bovenop de onboarding-rondleiding: is die nog niet gezien, dan wacht
- * de prompt op {@link ONBOARDING_DONE_EVENT}. "Niet nu" onthoudt de keuze per
- * toestel (localStorage, patroon van de onboarding-vlag) — instellen kan
- * daarna altijd nog via Account → Beveiliging.
+ * Vraagt in de native app éénmalig of het lid de app wil vergrendelen met de
+ * vingerafdruk (native app-slot) — de app-tegenhanger van de passkey-prompt,
+ * die in de app juist wordt onderdrukt (één duidelijke flow per omgeving).
+ * Zelfde spelregels: nooit bovenop de onboarding-rondleiding, "Niet nu" wordt
+ * per toestel per gebruiker onthouden, en instellen kan altijd nog via
+ * Account → Beveiliging.
  */
-export function PasskeyPrompt({
-  userId,
-  hasPasskey,
-}: {
-  userId: string;
-  hasPasskey: boolean;
-}) {
-  const t = useTranslations("member.passkeyPrompt");
-  const supported = useClientValue(browserSupportsWebAuthn, false);
-  // Startstand: alleen open als niet weggeklikt én de tour al gezien is
-  // (server: dicht; geen localStorage → dicht, fail-closed).
-  const initiallyEligible = useClientValue(() => {
+export function AppLockPrompt({ userId }: { userId: string }) {
+  const t = useTranslations("appLock");
+  // Beschikbaar = native app + toestel kan vergrendelen + nog niet aan.
+  const [eligible, setEligible] = useState(false);
+  const tourSeen = useClientValue(() => {
     try {
-      // In de Capacitor-app niet: daar is het native app-slot dé flow
-      // (components/member/app-lock-prompt.tsx) — één vraag per omgeving.
-      if (isNativeApp()) return false;
-      if (dismissed(userId)) return false;
       return Boolean(window.localStorage.getItem(ONBOARDING_STORAGE_KEY));
     } catch {
       return false;
@@ -69,57 +45,45 @@ export function PasskeyPrompt({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Rondleiding net afgerond of overgeslagen → nu is het onze beurt.
+    if (!isNativeApp() || appLockEnabled() || appLockPromptDismissed(userId)) return;
+    let cancelled = false;
+    void appLockAvailable().then((ok) => {
+      if (!cancelled && ok) setEligible(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     const onTourDone = () => {
-      if (isNativeApp()) return;
-      if (!dismissed(userId)) setOverride(true);
+      if (!appLockPromptDismissed(userId)) setOverride(true);
     };
     window.addEventListener(ONBOARDING_DONE_EVENT, onTourDone);
     return () => window.removeEventListener(ONBOARDING_DONE_EVENT, onTourDone);
   }, [userId]);
 
-  const open = !hasPasskey && supported && (override ?? initiallyEligible);
-
-  function remember() {
-    try {
-      window.localStorage.setItem(DISMISS_PREFIX + userId, "1");
-    } catch {
-      /* genegeerd */
-    }
-  }
+  const open = eligible && (override ?? tourSeen);
 
   function dismiss() {
-    remember();
+    dismissAppLockPrompt(userId);
     setOverride(false);
   }
 
   async function enable() {
     setError(null);
     setBusy(true);
-    try {
-      const options = await startPasskeyRegistration();
-      const response = await startRegistration(options);
-      const suggested =
-        typeof navigator !== "undefined" && navigator.platform
-          ? navigator.platform
-          : undefined;
-      const res = await finishPasskeyRegistration({ response, name: suggested });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      remember();
-      // Volgende bezoek aan de inlogpagina start de biometrische login direct.
-      markPasskeyDevice();
-      setDone(true);
-    } catch (err) {
-      // Detail naar console + ringbuffer (komt mee met "Probleem melden");
-      // de gebruiker ziet alleen de nette melding.
-      logWebAuthnError("passkey-prompt", err);
-      setError(t("cancelled"));
-    } finally {
-      setBusy(false);
+    const ok = await verifyAppLock(t("verifyTitle"));
+    setBusy(false);
+    if (!ok) {
+      setError(t("promptFailed"));
+      return;
     }
+    setAppLockEnabled(true);
+    // Zojuist geverifieerd → deze sessie niet meteen weer op slot.
+    markUnlockedThisLaunch();
+    dismissAppLockPrompt(userId);
+    setDone(true);
   }
 
   return (
@@ -132,7 +96,7 @@ export function PasskeyPrompt({
           className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
           role="dialog"
           aria-modal="true"
-          aria-label={t("dialogLabel")}
+          aria-label={t("promptDialogLabel")}
         >
           <m.div
             initial={{ y: 60, opacity: 0 }}
@@ -151,10 +115,10 @@ export function PasskeyPrompt({
                 {done ? <Check className="size-9" /> : <Fingerprint className="size-9" />}
               </m.span>
               <h2 className="font-display text-2xl font-bold text-neutral-900">
-                {done ? t("successTitle") : t("title")}
+                {done ? t("promptSuccessTitle") : t("promptTitle")}
               </h2>
               <p className="mt-2 max-w-xs text-sm text-neutral-500">
-                {done ? t("successText") : t("text")}
+                {done ? t("promptSuccessText") : t("promptText")}
               </p>
               {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
             </div>
@@ -166,7 +130,7 @@ export function PasskeyPrompt({
                   onClick={() => setOverride(false)}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
                 >
-                  <Check className="size-5" /> {t("doneButton")}
+                  <Check className="size-5" /> {t("promptDone")}
                 </button>
               ) : (
                 <>
@@ -177,7 +141,7 @@ export function PasskeyPrompt({
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98] disabled:opacity-60"
                   >
                     <Fingerprint className="size-5" />
-                    {busy ? t("busy") : t("enable")}
+                    {busy ? t("busy") : t("promptEnable")}
                   </button>
                   <button
                     type="button"
@@ -185,7 +149,7 @@ export function PasskeyPrompt({
                     disabled={busy}
                     className="w-full py-1 text-center text-sm font-medium text-neutral-500 active:text-neutral-900"
                   >
-                    {t("notNow")}
+                    {t("promptNotNow")}
                   </button>
                 </>
               )}

@@ -10,6 +10,7 @@ import { UserMenu } from "@/components/nav/user-menu";
 import { AccountNav } from "@/components/account/account-nav";
 import { AccountHeaderNav } from "@/components/account/account-header-nav";
 import { PageTransition } from "@/components/motion/page-transition";
+import { AppLockGate } from "@/components/app-lock/app-lock-gate";
 
 export default async function AccountLayout({
   children,
@@ -62,6 +63,7 @@ export default async function AccountLayout({
           <PageTransition>{children}</PageTransition>
         </main>
       </div>
+      <AppLockGate />
     </div>
   );
 }

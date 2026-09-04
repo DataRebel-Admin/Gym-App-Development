@@ -1372,6 +1372,23 @@
       "btn": "Roaster besjen"
     }
   },
+  "appLock": {
+    "lockedTitle": "Beskoattele",
+    "lockedText": "Untskoattelje mei dyn fingerprint, gesicht of skermbeskoatteling.",
+    "verifyTitle": "Untskoattelje",
+    "busy": "Dwaande…",
+    "retry": "Untskoattelje",
+    "useLogin": "Log út en brûk dyn wachtwurd",
+    "promptDialogLabel": "App-beskoatteling ynstelle",
+    "promptTitle": "App iepenje mei dyn fingerprint?",
+    "promptText": "Iepenje de app tenei sa'tst dyn telefoan ûntskoattelest: fingerprint, gesicht of dyn skermbeskoatteling. Allinne do kinst der dan by.",
+    "promptEnable": "Fingerprint oansette",
+    "promptNotNow": "No net",
+    "promptFailed": "Ferifikaasje net slagge. Besykje it nochris.",
+    "promptSuccessTitle": "Ynsteld!",
+    "promptSuccessText": "De app freget tenei dyn fingerprint by it iepenjen. Utsette kin fia Account, Befeiliging.",
+    "promptDone": "Klear"
+  },
   "common": {
     "appName": "GymRebel",
     "save": "Bewarje",

@@ -2119,6 +2119,20 @@ daar bij elkaar; `store/assets/` bevat alleen gegenereerde store-afbeeldingen).
 - **Android-meldingsicoon = alfa-silhouet in `drawable-*`** (`ic_stat_gymrebel`).
   Android gebruikt alléén het alfakanaal; een gekleurd icoon wordt een witte blob.
   Bewust drawable en niet mipmap: FCM zoekt een drawable op naam.
+- **Native app-vergrendeling (vingerafdrukslot)**: lokale Capacitor-plugin
+  `AppLockPlugin.java` (BiometricPrompt, `BIOMETRIC_WEAK | DEVICE_CREDENTIAL` =
+  pincode-terugval; dependency `androidx.biometric`), geregistreerd in
+  MainActivity vóór `super.onCreate`. Web-kant `lib/app-lock.ts`
+  (`registerPlugin("AppLock")`, voorkeur per toestel in localStorage,
+  module-state = "ontgrendeld tot koude start"). `AppLockGate` hangt in de
+  member-/owner-/account-layouts (bewust niet de root — anders zit /login op
+  slot); `AppLockPrompt` (member-layout) vraagt het ná inloggen aan en
+  **onderdrukt in de app de passkey-prompt** (isNativeApp — één vraag per
+  omgeving; de browser houdt passkeys). Toggle op /account/beveiliging
+  (`app-lock-settings.tsx`, rendert alleen native). Dit is een SLOT op de
+  ingelogde sessie, geen inlogmethode — gekozen omdat Google's
+  passkey/credential-manager-laag op sommige toestellen (derde-partij
+  wachtwoordmanagers) een NotReadableError gaf. i18n-namespace `appLock`.
 - **Versiebeheer**: `app-version.json` is de enige bron; `npm run version:sync` /
   `:bump` / `:check` schrijven naar Gradle en Info.plist. Eén buildteller voor
   beide platforms. **Niet verwarren met `lib/changelog.ts`**, dat een marketing-

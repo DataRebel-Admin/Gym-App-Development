@@ -28,6 +28,9 @@ export function LoginForm({
 }) {
   const t = useTranslations("auth");
   const [mode, setMode] = useState<"password" | "link">("password");
+  // Controlled zodat het adres blijft staan ná een mislukte submit: React reset
+  // een formulier automatisch na een server action, en dat wiste het veld.
+  const [email, setEmail] = useState("");
   const [linkState, linkAction, linkPending] = useActionState<LoginState, FormData>(requestMagicLink, {});
   const [pwState, pwAction, pwPending] = useActionState<LoginState, FormData>(loginWithPassword, {});
 
@@ -88,7 +91,16 @@ export function LoginForm({
           label={t("emailLabel")}
           error={mode === "password" ? pwState.error : linkState.error}
         >
-          <Input name="email" type="email" required autoComplete="email" placeholder={t("emailPlaceholder")} className="py-3 text-base" />
+          <Input
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder={t("emailPlaceholder")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="py-3 text-base"
+          />
         </Field>
         {/* Wachtwoordveld en de "geen wachtwoord nodig"-kaart delen één grid-cel →
             de kaarthoogte springt niet bij het wisselen. In magic-link-modus is het

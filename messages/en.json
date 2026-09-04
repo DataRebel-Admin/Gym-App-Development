@@ -1512,6 +1512,23 @@
       "btn": "View schedule"
     }
   },
+  "appLock": {
+    "lockedTitle": "Locked",
+    "lockedText": "Unlock with your fingerprint, face or screen lock.",
+    "verifyTitle": "Unlock",
+    "busy": "Working…",
+    "retry": "Unlock",
+    "useLogin": "Sign out and use your password",
+    "promptDialogLabel": "Set up app lock",
+    "promptTitle": "Open the app with your fingerprint?",
+    "promptText": "Open the app the same way you unlock your phone: fingerprint, face or your screen lock. Only you can get in.",
+    "promptEnable": "Turn on fingerprint",
+    "promptNotNow": "Not now",
+    "promptFailed": "Verification failed. Please try again.",
+    "promptSuccessTitle": "All set!",
+    "promptSuccessText": "The app will ask for your fingerprint when it opens. You can turn this off under Account, Security.",
+    "promptDone": "Done"
+  },
   "common": {
     "appName": "GymRebel",
     "save": "Save",

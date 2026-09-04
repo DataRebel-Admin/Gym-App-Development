@@ -1512,6 +1512,23 @@
       "btn": "Rooster bekijken"
     }
   },
+  "appLock": {
+    "lockedTitle": "Vergrendeld",
+    "lockedText": "Ontgrendel met je vingerafdruk, gezicht of schermvergrendeling.",
+    "verifyTitle": "Ontgrendelen",
+    "busy": "Bezig…",
+    "retry": "Ontgrendelen",
+    "useLogin": "Log uit en gebruik je wachtwoord",
+    "promptDialogLabel": "App-vergrendeling instellen",
+    "promptTitle": "App openen met je vingerafdruk?",
+    "promptText": "Open de app voortaan zoals je je telefoon ontgrendelt: vingerafdruk, gezicht of je schermvergrendeling. Alleen jij kunt er dan bij.",
+    "promptEnable": "Vingerafdruk aanzetten",
+    "promptNotNow": "Niet nu",
+    "promptFailed": "Verificatie niet gelukt. Probeer het opnieuw.",
+    "promptSuccessTitle": "Ingesteld!",
+    "promptSuccessText": "De app vraagt voortaan je vingerafdruk bij het openen. Uitzetten kan via Account, Beveiliging.",
+    "promptDone": "Klaar"
+  },
   "common": {
     "appName": "GymRebel",
     "save": "Opslaan",

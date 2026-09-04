@@ -14,6 +14,8 @@ import { NotificationBell } from "@/components/nav/notification-bell";
 import { PageTransition } from "@/components/motion/page-transition";
 import { MemberOnboarding } from "@/components/member/onboarding";
 import { PasskeyPrompt } from "@/components/member/passkey-prompt";
+import { AppLockPrompt } from "@/components/member/app-lock-prompt";
+import { AppLockGate } from "@/components/app-lock/app-lock-gate";
 import { ActiveWorkoutBar } from "@/components/member/active-workout-bar";
 import { getRunningSessionStart } from "@/lib/session-timeout";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
@@ -117,7 +119,11 @@ export default async function MemberLayout({
 
       <MemberNav classesEnabled={classesEnabled} />
       <MemberOnboarding />
+      {/* Browser: passkey-vraag; native app: app-slot-vraag. De componenten
+          sluiten elkaar zelf uit op isNativeApp(). */}
       <PasskeyPrompt userId={session.user.id} hasPasskey={passkeySetUp} />
+      <AppLockPrompt userId={session.user.id} />
+      <AppLockGate />
       <CelebrationOverlay celebrations={celebrations} />
       <NativePushRegister configured={nativePushConfigured()} />
     </div>

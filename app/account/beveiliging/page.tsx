@@ -6,6 +6,7 @@ import { AccountPageHeader } from "@/components/account/account-page-header";
 import { PasswordForm } from "./password-form";
 import { TwoFactor } from "./two-factor";
 import { Passkeys } from "./passkeys";
+import { AppLockSettings } from "./app-lock-settings";
 import { logoutAllDevices } from "../security-actions";
 
 const DT = new Intl.DateTimeFormat("nl-NL", {
@@ -88,6 +89,9 @@ export default async function SecurityPage() {
         </div>
         <Passkeys passkeys={passkeyRows} />
       </section>
+
+      {/* Alleen zichtbaar in de native app op een toestel met biometrie. */}
+      <AppLockSettings />
 
       <section className="flex flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
         <div className="flex items-center justify-between">
