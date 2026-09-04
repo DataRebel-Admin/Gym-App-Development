@@ -8,6 +8,8 @@
 export const DEFAULT_TIMEZONE = "Europe/Amsterdam";
 
 const dtCache = new Map<string, Intl.DateTimeFormat>();
+const dtYearCache = new Map<string, Intl.DateTimeFormat>();
+const yearCache = new Map<string, Intl.DateTimeFormat>();
 const timeCache = new Map<string, Intl.DateTimeFormat>();
 
 function dateTimeFmt(timeZone: string): Intl.DateTimeFormat {
@@ -26,6 +28,32 @@ function dateTimeFmt(timeZone: string): Intl.DateTimeFormat {
   return f;
 }
 
+function dateTimeYearFmt(timeZone: string): Intl.DateTimeFormat {
+  let f = dtYearCache.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("nl-NL", {
+      timeZone,
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    dtYearCache.set(timeZone, f);
+  }
+  return f;
+}
+
+function yearFmt(timeZone: string): Intl.DateTimeFormat {
+  let f = yearCache.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat("nl-NL", { timeZone, year: "numeric" });
+    yearCache.set(timeZone, f);
+  }
+  return f;
+}
+
 function timeFmt(timeZone: string): Intl.DateTimeFormat {
   let f = timeCache.get(timeZone);
   if (!f) {
@@ -35,9 +63,15 @@ function timeFmt(timeZone: string): Intl.DateTimeFormat {
   return f;
 }
 
-/** bv. "do 2 jul 18:00" */
+/**
+ * bv. "do 2 jul 18:00" — mét jaartal zodra de datum buiten het lopende jaar
+ * valt ("do 2 jan 2027 18:00"): herhaalreeksen plannen tot een half jaar
+ * vooruit, over de jaargrens heen, en zonder jaartal leest dat als vorig jaar.
+ */
 export function formatSessionStart(d: Date, timeZone: string = DEFAULT_TIMEZONE): string {
-  return dateTimeFmt(timeZone).format(d);
+  const y = yearFmt(timeZone);
+  const sameYear = y.format(d) === y.format(new Date());
+  return (sameYear ? dateTimeFmt(timeZone) : dateTimeYearFmt(timeZone)).format(d);
 }
 
 /** bv. "18:00–19:00" */
