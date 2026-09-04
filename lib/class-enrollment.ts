@@ -1,5 +1,8 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { withSerializableRetry } from "@/lib/db-retry";
+import { notifyPromotions, type ClassNotifyActor } from "@/lib/class-notify";
 import {
   ACTIVE_ENROLLMENT_STATUSES,
   promotableCount,
@@ -60,4 +63,54 @@ export async function promoteWaitlists(
     if (userIds.length > 0) out.push({ sessionId, userIds });
   }
   return out;
+}
+
+/**
+ * Geef de toekomstige lesplekken van een lid vrij bij deactiveren, archiveren
+ * of verwijderen: ENROLLED/WAITLISTED-rijen van nog niet gestarte sessies gaan
+ * naar CANCELLED en per vrijgekomen plek schuift de wachtlijst door — in één
+ * Serializable-transactie (met retry), net als afmelden door het lid zelf.
+ * Zonder deze stap bezet een vertrokken lid plekken tot de no-show-cron ná de
+ * les, en bij verwijderen cascadeert de rij weg zónder dat iemand doorschuift.
+ *
+ * Bij verwijderen dus **vóór** de `user.delete` aanroepen. Best-effort: een
+ * fout hier mag de ledenadministratie nooit blokkeren (meldingen aan
+ * doorgeschoven leden zijn dat sowieso al).
+ */
+export async function releaseMemberClassSpots(
+  tenantId: string,
+  userId: string,
+  actor?: ClassNotifyActor
+): Promise<void> {
+  try {
+    const promoted = await withSerializableRetry(() =>
+      prisma.$transaction(
+        async (tx) => {
+          const rows = await tx.classEnrollment.findMany({
+            where: {
+              tenantId,
+              userId,
+              status: { in: ["ENROLLED", "WAITLISTED"] },
+              session: { startsAt: { gt: new Date() } },
+            },
+            select: { id: true, sessionId: true, status: true },
+          });
+          if (rows.length === 0) return [];
+          await tx.classEnrollment.updateMany({
+            where: { id: { in: rows.map((r) => r.id) } },
+            data: { status: "CANCELLED", statusChangedAt: new Date() },
+          });
+          // Alleen een ENROLLED-rij bezette een plek; alleen dáár kan iemand doorschuiven.
+          const freed = [
+            ...new Set(rows.filter((r) => r.status === "ENROLLED").map((r) => r.sessionId)),
+          ];
+          return promoteWaitlists(tx, freed);
+        },
+        { isolationLevel: "Serializable" }
+      )
+    );
+    if (promoted.length > 0) await notifyPromotions(tenantId, promoted, actor);
+  } catch (err) {
+    console.error("✗ Lesplekken vrijgeven mislukt:", (err as Error).message);
+  }
 }

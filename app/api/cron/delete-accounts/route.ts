@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { audit } from "@/lib/audit";
 import { ACCOUNT_DELETION_GRACE_DAYS } from "@/lib/constants";
+import { releaseMemberClassSpots } from "@/lib/class-enrollment";
 
 /**
  * Definitieve accountverwijdering na de uitstelperiode. Verwijdert gebruikers die
@@ -50,6 +51,9 @@ export async function GET(req: Request) {
         data: { reportedById: null },
       });
       await prisma.reportQuota.deleteMany({ where: { userId: u.id } });
+      // Vóór de delete: de cascade wist les-aanmeldingen zonder dat de
+      // wachtlijst doorschuift — plekken eerst vrijgeven (best-effort).
+      if (u.tenantId) await releaseMemberClassSpots(u.tenantId, u.id);
       await prisma.user.delete({ where: { id: u.id } });
       deleted++;
       await audit("account.deletion.completed", {

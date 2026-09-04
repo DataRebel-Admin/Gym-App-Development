@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";
 import { createInvitation } from "@/lib/invitation";
+import { releaseMemberClassSpots } from "@/lib/class-enrollment";
 
 const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_MEMBER"]);
 
@@ -110,6 +111,8 @@ export async function setMemberActive(formData: FormData) {
   const res = await prisma.user.updateMany({ where: { id: userId, tenantId }, data: { active } });
   if (res.count > 0) {
     await audit(active ? "user.activate" : "user.deactivate", { actor: admin, tenantId, targetType: "User", targetId: userId });
+    // Gedeactiveerd lid: toekomstige lesplekken vrijgeven (wachtlijst schuift door).
+    if (!active) await releaseMemberClassSpots(tenantId, userId, admin);
   }
   revalidate(tenantId);
 }
@@ -120,6 +123,8 @@ export async function deleteMember(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   if (!tenantId || !userId) return;
 
+  // Vóór de delete: de cascade wist aanmeldingen zonder wachtlijst-doorschuiving.
+  await releaseMemberClassSpots(tenantId, userId, admin);
   const res = await prisma.user.deleteMany({ where: { id: userId, tenantId } });
   if (res.count > 0) {
     await audit("user.delete", { actor: admin, tenantId, targetType: "User", targetId: userId });

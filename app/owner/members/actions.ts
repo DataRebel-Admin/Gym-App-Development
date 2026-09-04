@@ -10,6 +10,7 @@ import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { audit } from "@/lib/audit";
 import { createInvitation } from "@/lib/invitation";
 import { notifyInApp } from "@/lib/notifications";
+import { releaseMemberClassSpots } from "@/lib/class-enrollment";
 
 const tenantRole = z.enum(["TENANT_ADMIN", "TENANT_STAFF", "TENANT_MEMBER"]);
 
@@ -140,6 +141,9 @@ export async function setMemberActive(formData: FormData) {
   });
   if (res.count > 0) {
     await audit(active ? "user.activate" : "user.deactivate", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId });
+    // Een gedeactiveerd lid komt niet meer; z'n toekomstige lesplekken gaan
+    // naar de wachtlijst (heractiveren = opnieuw aanmelden).
+    if (!active) await releaseMemberClassSpots(owner.tenantId, userId, owner);
   }
   // Gedeeld door de leden- en de medewerkerslijst.
   revalidatePath("/owner/members");
@@ -151,6 +155,9 @@ export async function deleteMember(formData: FormData) {
   const userId = String(formData.get("userId") ?? "");
   if (!userId || userId === owner.id) return; // niet jezelf verwijderen
 
+  // Vóór de delete: de cascade wist de aanmeldingen zonder dat de wachtlijst
+  // doorschuift — plekken eerst netjes vrijgeven (no-op als er niets staat).
+  await releaseMemberClassSpots(owner.tenantId, userId, owner);
   const res = await prisma.user.deleteMany({ where: { id: userId, tenantId: owner.tenantId } });
   if (res.count > 0) {
     await audit("user.delete", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId });
@@ -359,6 +366,8 @@ async function setArchived(userId: string, archived: boolean) {
   });
   if (res.count > 0) {
     await audit(archived ? "user.archive" : "user.unarchive", { actor: owner, tenantId: owner.tenantId, targetType: "User", targetId: userId });
+    // Zelfde regel als deactiveren: gearchiveerd = komt niet meer naar de les.
+    if (archived) await releaseMemberClassSpots(owner.tenantId, userId, owner);
   }
   revalidatePath("/owner/members");
 }
