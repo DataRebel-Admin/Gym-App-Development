@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { cn } from "@/lib/cn";
 import { subscribeToPush, unsubscribeFromPush } from "../push-actions";
 
@@ -14,12 +15,23 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return out;
 }
 
-type State = "loading" | "unsupported" | "off" | "on" | "denied" | "busy";
+type State = "loading" | "unsupported" | "off" | "on" | "denied" | "busy" | "native";
 
 /**
  * Pushmeldingen aan/uit op dít apparaat. Registreert de service worker, vraagt
  * toestemming en slaat het abonnement server-side op. Degradeert netjes: zonder
  * VAPID-sleutel of browser-ondersteuning toont 'ie een nette melding.
+ *
+ * **In de native app is dit blok informatief.** Web-push loopt via de service
+ * worker, en die ontvangt in een Capacitor-WebView géén pushberichten; daar gaat
+ * het via APNs en FCM, geregeld door `NativePushRegister` direct na het inloggen.
+ * Zonder deze uitzondering las een gebruiker in de app "niet beschikbaar in deze
+ * browser" terwijl push juist wél werkte, en dat is precies het verkeerde signaal.
+ *
+ * De aan/uit-keuze zit voor de app-gebruiker ergens anders: per categorie in het
+ * formulier hierboven (die gelden óók voor native push, want `sendPushToUser`
+ * respecteert dezelfde voorkeuren), en systeembreed in de instellingen van het
+ * toestel.
  */
 export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
   const [state, setState] = useState<State>("loading");
@@ -27,6 +39,8 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
   useEffect(() => {
     let cancelled = false;
     const determine = async (): Promise<State> => {
+      // Native app: web-push is hier niet van toepassing, zie de toelichting boven.
+      if (Capacitor.isNativePlatform()) return "native";
       if (!vapidPublicKey) return "unsupported";
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "unsupported";
       if (Notification.permission === "denied") return "denied";
@@ -93,7 +107,9 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
       <div>
         <p className="text-sm font-medium text-neutral-900">Pushmeldingen op dit apparaat</p>
         <p className="text-xs text-neutral-500">
-          {state === "unsupported"
+          {state === "native"
+            ? "Deze app ontvangt meldingen rechtstreeks. Hierboven kies je per soort bericht; helemaal uitzetten doe je in de instellingen van je telefoon."
+            : state === "unsupported"
             ? "Niet beschikbaar in deze browser of nog niet geconfigureerd."
             : state === "denied"
               ? "Geblokkeerd. Sta meldingen toe in je browserinstellingen."
@@ -102,7 +118,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
                 : "Ontvang meldingen ook als de app gesloten is."}
         </p>
       </div>
-      {state === "on" ? (
+      {state === "native" ? null : state === "on" ? (
         <button
           type="button"
           onClick={disable}
