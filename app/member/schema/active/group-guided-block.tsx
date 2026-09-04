@@ -452,6 +452,7 @@ export function GroupGuidedBlock({
                         key={field.id}
                         field={field}
                         value={curRow.values[field.id] ?? ""}
+                        placeholder={stepEx.targetValues[field.id]}
                         onChange={(v) => onChangeDyn(stepEx, step.round - 1, field.id, v)}
                       />
                     ))}

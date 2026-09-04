@@ -15,10 +15,18 @@ export function LogField({
   field,
   value,
   onChange,
+  placeholder,
 }: {
   field: ParamField;
   value: string;
   onChange: (v: string) => void;
+  /**
+   * Voorstel uit het schema (de doelwaarde van de coach). Alleen een hint: leeg
+   * laten en opslaan bewaart niets, precies zoals de krachtkaart met de vorige
+   * sessie omgaat. Zonder dit stond bijvoorbeeld "houdtijd" leeg terwijl er
+   * "3 · 30 sec" boven stond, en moest het lid dat met natte handen overtypen.
+   */
+  placeholder?: string;
 }) {
   const label = `${field.label}${field.unit && field.kind !== "enum" ? ` (${field.unit})` : ""}`;
 
@@ -44,7 +52,7 @@ export function LogField({
         <input
           type="text"
           value={value}
-          placeholder={field.placeholder}
+          placeholder={placeholder || field.placeholder}
           onChange={(e) => onChange(e.target.value)}
           {...selectOnFocus}
           className="rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-sm text-neutral-900 outline-none focus:border-accent"
@@ -56,7 +64,7 @@ export function LogField({
           min={0}
           step={field.step ?? (field.kind === "float" ? 0.5 : 1)}
           value={value}
-          placeholder={field.placeholder}
+          placeholder={placeholder || field.placeholder}
           onChange={(e) => onChange(e.target.value)}
           {...selectOnFocus}
           className="rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-center font-display text-lg font-bold tabular-nums text-neutral-900 outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
@@ -164,6 +172,7 @@ export function DynamicExerciseBlock({
                   key={field.id}
                   field={field}
                   value={row.values[field.id] ?? ""}
+                  placeholder={exercise.targetValues[field.id]}
                   onChange={(v) => onChangeValue(idx, field.id, v)}
                 />
               ))}

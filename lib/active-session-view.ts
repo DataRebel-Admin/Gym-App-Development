@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { getAssignedSchema } from "@/lib/member";
 import { getWorkoutContext } from "@/lib/member-stats";
-import { targetSummaryFromItem } from "@/lib/exercise-params";
+import { targetSummaryFromItem, itemToInputValues } from "@/lib/exercise-params";
 import { exerciseThumbUrl, EXERCISE_THUMB_SELECT } from "@/lib/exercise-thumb";
 import { getHideQuotes, getDisableSetTimers } from "@/lib/user-preferences";
 import { parseOverrides } from "@/lib/session-overrides";
@@ -168,6 +168,11 @@ export async function buildActiveSessionView(
       targetWeightKg: item.weightKg ?? null,
       tempo: item.tempo ?? null,
       targetSummary: targetSummaryFromItem(item, item.exercise.exerciseType),
+      // Doelwaarden van de coach, gebruikt als placeholder in de logvelden van
+      // niet-kracht-oefeningen. Krachtoefeningen hebben hun eigen placeholder
+      // (de vorige sessie, zie exercise-block.tsx); bij de overige types stond
+      // het veld leeg terwijl er wél een doel was — onnodig getik in de zaal.
+      targetValues: itemToInputValues(item, item.exercise.exerciseType),
       restSeconds: item.restSeconds,
       note: savedNote ?? item.notes ?? null,
       memberNote: item.memberNote ?? null,

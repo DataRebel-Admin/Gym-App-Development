@@ -9,6 +9,7 @@ import { Search, ArrowUpRight, ChevronRight, X } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import {
   routesForRole,
+  type RouteFeature,
   suggestRoutes,
   isHighConfidence,
   type DashRole,
@@ -29,7 +30,14 @@ const AUTO_REDIRECT_SECONDS = 4;
  * zichtbare countdown met annuleerknop — automatisch. Daaronder een zoek/filter
  * over de bekende pagina's voor de rol. Tenantcontext (?tenant=) blijft behouden.
  */
-export function RouteSuggestions({ role }: { role: DashRole | null }) {
+export function RouteSuggestions({
+  role,
+  disabledFeatures = [],
+}: {
+  role: DashRole | null;
+  /** Functies die voor deze sportschool uitstaan; die routes worden niet voorgesteld. */
+  disabledFeatures?: readonly RouteFeature[];
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useTranslations("errors.suggestions");
@@ -37,9 +45,14 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
   const tenantQuery = useClientValue(readTenantQuery, "");
   const withTenant = (href: string) => `${href}${tenantQuery}`;
 
+  // Aan de *inhoud* hangen, niet aan de array-identiteit: de standaardwaarde `[]`
+  // is elke render een nieuw object, waardoor beide useMemo's anders nooit meer
+  // dan een dure `useMemo`-vorm van een gewone aanroep zouden zijn.
+  const featureKey = disabledFeatures.join(",");
+
   const suggestions = useMemo(
-    () => suggestRoutes(pathname, role),
-    [pathname, role]
+    () => suggestRoutes(pathname, role, 4, featureKey ? (featureKey.split(",") as RouteFeature[]) : []),
+    [pathname, role, featureKey]
   );
   const best = suggestions[0];
   const highConfidence = useMemo(
@@ -65,7 +78,10 @@ export function RouteSuggestions({ role }: { role: DashRole | null }) {
 
   // Zoek/filter over bekende pagina's voor deze rol.
   const [query, setQuery] = useState("");
-  const pool = useMemo(() => routesForRole(role), [role]);
+  const pool = useMemo(
+    () => routesForRole(role, featureKey ? (featureKey.split(",") as RouteFeature[]) : []),
+    [role, featureKey]
+  );
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return pool.slice(0, 6);

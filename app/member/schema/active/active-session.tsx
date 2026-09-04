@@ -146,6 +146,12 @@ export type ActiveExercise = {
   tempo: string | null;
   /** Type-bewuste doel-samenvatting (voor niet-kracht-types). */
   targetSummary: string;
+  /**
+   * Doelwaarden per veld-id, zoals de coach ze voorschreef. Dienen als
+   * placeholder in de logvelden van niet-kracht-oefeningen, net zoals de
+   * krachtkaart de vorige sessie als placeholder toont.
+   */
+  targetValues: Record<string, string>;
   restSeconds: number;
   note: string | null;
   /** Per-lid coach-boodschap (alleen dit lid ziet dit). */
@@ -480,14 +486,24 @@ export function ActiveSession({
       values: defaultLogInputValues(ex.exerciseType),
       saved: false,
     };
-    patchDynRow(ex, rowIndex, { saved: true, failed: false });
+
+    // Leeg gelaten velden vallen terug op de doelwaarde van de coach, precies
+    // zoals `completeStrengthSet` op de vorige set en dan op het doel terugvalt.
+    // Zonder dit zou de placeholder puur cosmetisch zijn: het veld óógt gevuld
+    // met "30", maar afvinken bewaarde niets.
+    const values: Record<string, string> = { ...row.values };
+    for (const [fieldId, target] of Object.entries(ex.targetValues)) {
+      if (!values[fieldId] && target) values[fieldId] = target;
+    }
+
+    patchDynRow(ex, rowIndex, { saved: true, failed: false, values });
     startTransition(async () => {
       const res = await saveWithRetry(() =>
         actions.saveLog({
           sessionId,
           exerciseId: ex.exerciseId,
           setNumber: rowIndex + 1,
-          values: row.values,
+          values,
         })
       );
       if (!res) {

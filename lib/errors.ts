@@ -140,7 +140,18 @@ export type KnownRoute = {
   label: string;
   /** Voor wie deze route relevant is. "public" = altijd tonen. */
   audience: DashRole | "public";
+  /**
+   * Optionele functie waar deze route van afhangt. Staat die uit voor de
+   * sportschool, dan verdwijnt de route uit de suggesties.
+   *
+   * Zonder dit stelde de 404-pagina "Rooster" voor bij een gym waar
+   * groepslessen uitstaan — een suggestie die zelf weer op een 404 uitkomt.
+   */
+  feature?: RouteFeature;
 };
+
+/** Functies waar een suggestie van af kan hangen. Uitbreiden = één regel. */
+export type RouteFeature = "group_classes";
 
 /** Populaire/bekende bestemmingen per rol. Bewust handmatig (geen dynamische
  *  route-introspectie) zodat suggesties altijd zinvol en veilig zijn. */
@@ -152,7 +163,7 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { href: "/member", label: "Mijn dashboard", audience: "TENANT_MEMBER" },
   { href: "/member/schema", label: "Mijn schema", audience: "TENANT_MEMBER" },
   { href: "/member/history", label: "Mijn voortgang", audience: "TENANT_MEMBER" },
-  { href: "/member/rooster", label: "Rooster", audience: "TENANT_MEMBER" },
+  { href: "/member/rooster", label: "Rooster", audience: "TENANT_MEMBER", feature: "group_classes" },
   { href: "/member/scan", label: "QR scannen", audience: "TENANT_MEMBER" },
   // Owner
   { href: "/owner", label: "Dashboard", audience: "TENANT_ADMIN" },
@@ -160,7 +171,7 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { href: "/owner/schemas", label: "Schema's", audience: "TENANT_ADMIN" },
   { href: "/owner/exercises", label: "Oefeningen", audience: "TENANT_ADMIN" },
   { href: "/owner/machines", label: "Apparatuur", audience: "TENANT_ADMIN" },
-  { href: "/owner/rooster", label: "Rooster", audience: "TENANT_ADMIN" },
+  { href: "/owner/rooster", label: "Rooster", audience: "TENANT_ADMIN", feature: "group_classes" },
   { href: "/owner/insights", label: "Inzichten", audience: "TENANT_ADMIN" },
   { href: "/owner/audit", label: "Activiteit", audience: "TENANT_ADMIN" },
   { href: "/owner/settings", label: "Instellingen", audience: "TENANT_ADMIN" },
@@ -173,10 +184,22 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { href: "/account", label: "Account", audience: "public" },
 ];
 
-/** Routes relevant voor een rol (publiek + de eigen rol). */
-export function routesForRole(role: DashRole | null): KnownRoute[] {
+/**
+ * Routes relevant voor een rol (publiek + de eigen rol), zonder routes waarvan
+ * de functie voor deze sportschool uitstaat.
+ *
+ * `disabledFeatures` wordt server-side bepaald (zie `ErrorView`). Wordt het
+ * weggelaten, dan filteren we niets weg: een suggestie te veel is beter dan een
+ * lege lijst wanneer we de status niet konden ophalen.
+ */
+export function routesForRole(
+  role: DashRole | null,
+  disabledFeatures: readonly RouteFeature[] = []
+): KnownRoute[] {
   return KNOWN_ROUTES.filter(
-    (r) => r.audience === "public" || r.audience === role
+    (r) =>
+      (r.audience === "public" || r.audience === role) &&
+      !(r.feature && disabledFeatures.includes(r.feature))
   );
 }
 
@@ -222,13 +245,14 @@ export type RouteSuggestion = {
 export function suggestRoutes(
   pathname: string,
   role: DashRole | null,
-  limit = 4
+  limit = 4,
+  disabledFeatures: readonly RouteFeature[] = []
 ): RouteSuggestion[] {
   const norm = (s: string) => s.toLowerCase().replace(/\/+$/, "") || "/";
   const target = norm(pathname);
   const targetTail = target.split("/").pop() ?? target;
 
-  return routesForRole(role)
+  return routesForRole(role, disabledFeatures)
     .map((route) => {
       const cand = norm(route.href);
       const candTail = cand.split("/").pop() ?? cand;
