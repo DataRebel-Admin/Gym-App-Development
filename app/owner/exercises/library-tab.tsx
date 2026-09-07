@@ -2,13 +2,14 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { isFeatureEnabled } from "@/lib/features/service";
+import type { ExerciseCatalog, Prisma } from "@prisma/client";
 import {
-  buildLibraryWhere,
+  buildLibraryQuery,
   myLibraryEquipmentSlugs,
   LIBRARY_ORDER_BY,
   type LibraryFilter,
 } from "@/lib/exercise-library/search";
-import { buildCatalogWhere } from "@/lib/catalog";
+import { buildCatalogQuery } from "@/lib/catalog";
 import { libraryImageKeys, libraryMediaUrl } from "@/lib/exercise-library/media";
 import {
   datasetLocalePreference,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/exercise-library/mapping";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getContentLocale } from "@/lib/i18n/content-locale";
+import { LiveSearchInput } from "@/components/ui/live-search-input";
 import { CatalogBulkGrid, type CatalogGridItem } from "./catalog-bulk-grid";
 
 const PAGE_SIZE = 24;
@@ -88,17 +90,42 @@ export async function LibraryTab({
   const myEquipment = filter.onlyMyEquipment
     ? await myLibraryEquipmentSlugs(tenantId)
     : null;
-  const where = buildLibraryWhere(filter, myEquipment);
+  const { where, rankedIds } = await buildLibraryQuery(filter, myEquipment);
 
-  const [items, total, allEquipment, allMuscles, existing] = await Promise.all([
-    prisma.libraryExercise.findMany({
-      where,
-      orderBy: LIBRARY_ORDER_BY,
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      include: { texts: { where: { locale: "en" }, select: { name: true } } },
-    }),
-    prisma.libraryExercise.count({ where }),
+  const textsInclude = {
+    texts: { where: { locale: "en" as const }, select: { name: true } },
+  } satisfies Prisma.LibraryExerciseInclude;
+  type LibraryRow = Prisma.LibraryExerciseGetPayload<{ include: typeof textsInclude }>;
+
+  // Met zoekterm: alle treffers ophalen en op relevantie sorteren (de matcher
+  // rankt beste eerst; skip/take in de DB zou terugvallen op slug-volgorde).
+  // Zonder zoekterm: gewone DB-paginering.
+  let items: LibraryRow[];
+  let total: number;
+  if (rankedIds) {
+    const all = await prisma.libraryExercise.findMany({ where, include: textsInclude });
+    const rank = new Map(rankedIds.map((id, i) => [id, i]));
+    all.sort(
+      (a, b) =>
+        (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    );
+    total = all.length;
+    items = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  } else {
+    [items, total] = await Promise.all([
+      prisma.libraryExercise.findMany({
+        where,
+        orderBy: LIBRARY_ORDER_BY,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+        include: textsInclude,
+      }),
+      prisma.libraryExercise.count({ where }),
+    ]);
+  }
+
+  const [allEquipment, allMuscles, existing] = await Promise.all([
     prisma.libraryEquipment.findMany({ select: { id: true, names: true } }),
     prisma.libraryMuscle.findMany({ select: { id: true, names: true } }),
     prisma.exercise.findMany({
@@ -179,10 +206,12 @@ export async function LibraryTab({
         <input type="hidden" name="tab" value="standaard" />
         <label className="flex flex-col gap-1 text-xs font-medium text-neutral-600">
           {t("search")}
-          <input
-            type="text"
-            name="q"
-            defaultValue={sp.q ?? ""}
+          {/* Live zoeken: typt de owner, dan filtert de lijst vanzelf mee
+              (debounced URL-update); Enter/Filter blijven werken. Paginering
+              van bibliotheek én aanvullende sectie reset per nieuwe term. */}
+          <LiveSearchInput
+            paramName="q"
+            resetParams={["page", "lpage", "lopen"]}
             placeholder={t("namePlaceholder")}
             className="w-48 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900"
           />
@@ -340,21 +369,38 @@ export async function LibraryTab({
  *  bibliotheek). Eigen paginering via `lpage`. */
 async function loadLegacySection(tenantId: string, sp: LibraryTabSearchParams) {
   const page = Math.max(1, Number(sp.lpage ?? "1") || 1);
-  const where = buildCatalogWhere({ q: sp.q || undefined }, null);
+  const { where, rankedIds } = await buildCatalogQuery({ q: sp.q || undefined }, null);
 
-  const [rows, total, existing] = await Promise.all([
-    prisma.exerciseCatalog.findMany({
-      where,
-      orderBy: { name: "asc" },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-    }),
-    prisma.exerciseCatalog.count({ where }),
-    prisma.exercise.findMany({
-      where: { tenantId, catalogId: { not: null } },
-      select: { id: true, catalogId: true, exerciseType: true },
-    }),
-  ]);
+  // Zelfde patroon als de bibliotheek: met zoekterm op relevantie sorteren en
+  // in JS pagineren, zonder zoekterm gewone DB-paginering op naam.
+  let rows: ExerciseCatalog[];
+  let total: number;
+  if (rankedIds) {
+    const all = await prisma.exerciseCatalog.findMany({ where });
+    const rank = new Map(rankedIds.map((id, i) => [id, i]));
+    all.sort(
+      (a, b) =>
+        (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+    );
+    total = all.length;
+    rows = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  } else {
+    [rows, total] = await Promise.all([
+      prisma.exerciseCatalog.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+      prisma.exerciseCatalog.count({ where }),
+    ]);
+  }
+
+  const existing = await prisma.exercise.findMany({
+    where: { tenantId, catalogId: { not: null } },
+    select: { id: true, catalogId: true, exerciseType: true },
+  });
 
   const byCatalogId = new Map(existing.map((e) => [e.catalogId, e]));
   const items: CatalogGridItem[] = rows.map((item) => {

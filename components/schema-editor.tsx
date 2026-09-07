@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { saveSchema, type SchemaSaveState } from "@/app/owner/schemas/actions";
 import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
+import { searchPickerMatches } from "@/lib/exercise-library/search-text";
 import Link from "next/link";
 import { Info, TrendingDown, X } from "@/components/ui/icons";
 import {
@@ -560,11 +561,10 @@ function DayCard({
   const selectedInDay = day.items.filter((i) => selectedKeys.has(i.key)).length;
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return availableExercises
-      .filter((e) => e.name.toLowerCase().includes(q) || (e.targetMuscle ?? "").toLowerCase().includes(q))
-      .slice(0, 8);
+    if (!query.trim()) return [];
+    // Fuzzy + relevantie (typo's, woordvolgorde, NL-termen) — zelfde matcher
+    // als de bibliotheek-zoekfunctie.
+    return searchPickerMatches(query, availableExercises, 8);
   }, [query, availableExercises]);
 
   return (

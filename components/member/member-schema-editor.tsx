@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { MemberSchemaStatus } from "@prisma/client";
 import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
+import { searchPickerMatches } from "@/lib/exercise-library/search-text";
 import {
   NO_GROUP,
   serializeEditorDay,
@@ -396,14 +397,10 @@ function DayCard({
   }, [day.items]);
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return allowed
-      .filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) || (e.targetMuscle ?? "").toLowerCase().includes(q)
-      )
-      .slice(0, 10);
+    if (!query.trim()) return [];
+    // Fuzzy + relevantie (typo's, woordvolgorde, NL-termen) — zelfde matcher
+    // als de bibliotheek-zoekfunctie.
+    return searchPickerMatches(query, allowed, 10);
   }, [query, allowed]);
 
   const favoriteExercises = useMemo(

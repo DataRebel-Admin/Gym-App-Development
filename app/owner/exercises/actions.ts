@@ -8,14 +8,14 @@ import { requirePermission } from "@/lib/staff";
 import { uploadExerciseImage } from "@/lib/blob";
 import { EXERCISE_DIFFICULTIES } from "@/lib/exercise-meta";
 import { suggestMachineType } from "@/lib/machine";
-import { buildCatalogWhere, myEquipmentValues } from "@/lib/catalog";
+import { buildCatalogQuery, myEquipmentValues } from "@/lib/catalog";
 import {
   getCatalogPreview,
   getLibraryPreview,
   type CatalogPreview,
   type LibraryPreview,
 } from "@/lib/exercise";
-import { buildLibraryWhere, myLibraryEquipmentSlugs } from "@/lib/exercise-library/search";
+import { buildLibraryQuery, myLibraryEquipmentSlugs } from "@/lib/exercise-library/search";
 import {
   datasetLocalePreference,
   machineTypeFromLibrary,
@@ -154,8 +154,9 @@ export async function bulkAddCatalogToGym(
     const myEquipment = filter.onlyMyEquipment
       ? await myEquipmentValues(owner.tenantId)
       : null;
+    const { where } = await buildCatalogQuery(filter, myEquipment);
     const rows = await prisma.exerciseCatalog.findMany({
-      where: buildCatalogWhere(filter, myEquipment),
+      where,
       select: { id: true },
       take: 5000,
     });
@@ -285,8 +286,9 @@ export async function bulkAddLibraryToGym(
     const myEquipment = filter.onlyMyEquipment
       ? await myLibraryEquipmentSlugs(owner.tenantId)
       : null;
+    const { where } = await buildLibraryQuery(filter, myEquipment);
     const rows = await prisma.libraryExercise.findMany({
-      where: buildLibraryWhere(filter, myEquipment),
+      where,
       select: { id: true },
       take: 5000,
     });

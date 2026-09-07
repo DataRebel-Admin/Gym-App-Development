@@ -855,7 +855,17 @@
       "loading": "Lade…",
       "secondaryMuscles": "Helpspieren",
       "instructions": "Útfiering",
-      "consultProfessional": "Twivelest oer de útfiering? Rieplachtsje altyd in profesjonal."
+      "consultProfessional": "Twivelest oer de útfiering? Rieplachtsje altyd in profesjonal.",
+      "libraryCount": "{count} oefeningen yn de biblioteek. Selektearje der meardere (of alle resultaten) en foegje se yn ien kear ta oan dyn sportskoalle.",
+      "filterDifficulty": "Nivo",
+      "filterGoal": "Doel",
+      "badgeClassic": "Oanfoljend",
+      "tips": "Coach-tips",
+      "legacyTitle": "Oanfoljende oefeningen",
+      "legacyMatches": "{count} {count, plural, one {resultaat} other {resultaten}}",
+      "legacyHint": "Dizze oefeningen komme út ús âldere kolleksje en wurde net mear útwreide. Handich as eat noch net yn de biblioteek stiet. Se bliuwe markearre as Oanfoljend.",
+      "legacyShow": "Ek yn oanfoljende oefeningen sykje",
+      "legacyHide": "Oanfoljende oefeningen ferbergje"
     },
     "audit": {
       "metaTitle": "Audit logs",
