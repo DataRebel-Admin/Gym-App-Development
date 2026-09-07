@@ -725,8 +725,31 @@ sinds deze ronde de bron van de anatomische heatmap op `/member/muscles` — zie
   `pickLibraryText`/`pickJsonName`, `trainingGoalFromLibrary`, `parseTemplateReps`
   ("8-12"/"AMRAP" → int+notitie), NL-labels voor de RepDB-enums), `media.ts`, `source.ts`
   (`ExerciseSource` + `EXERCISE_SOURCE_META` + `exerciseSourceOf`). `search.ts`
-  (`server-only`): `buildLibraryWhere`/`myLibraryEquipmentSlugs` (spiegel lib/catalog.ts).
-  Tests: `tests/exercise-library.test.ts`.
+  (`server-only`): `buildLibraryQuery`/`myLibraryEquipmentSlugs` (spiegel lib/catalog.ts).
+  **Bibliotheek-zoeken is fuzzy**: de pure matcher `search-text.ts` (géén `server-only`;
+  woordvolgorde-onafhankelijk, prefix/typo-tolerant via `levenshtein` uit lib/errors.ts,
+  synoniemen/slug als substring, relevantie-score) matcht in-memory (±600 rijen) en
+  `buildLibraryQuery` zet de treffers als `id in (…)` in de `where` — weergave én
+  bulk-add ("selecteer alle resultaten") raken zo dezelfde set; `rankedIds` is de
+  relevantie-volgorde (library-tab sorteert/pagineert daarop in JS zodra er een
+  zoekterm is). De klassieke catalogus zoekt op dezelfde manier
+  (`buildCatalogQuery` in lib/catalog.ts, zelfde matcher; de cuid wordt bewust
+  níét gematcht, anders geven korte zoektermen valse id-hits). Verder:
+  - **NL-zoektermen via query-expansie**: `NL_QUERY_TERMS` in search-text.ts
+    (nieuwe term = één regel; sleutels genormaliseerd, test dwingt af) —
+    "bankdrukken" probeert ook "bench press"; de best scorende variant wint.
+    Oefeningnamen blijven Engels (naamsbeleid), dit raakt alleen het zoeken.
+  - **Spier/materiaal matchen mee met lager gewicht** (`meta`-veld op de
+    searchable): bibliotheek = slugs + lookup-namen/-synoniemen (alle talen),
+    catalogus = target/bodyPart/equipment/muscleGroup/secondaryMuscles.
+    Naam > synoniem > meta in de ranking.
+  - **De schema-pickers (owner-SchemaEditor + mobiele lid-builder) gebruiken
+    dezélfde matcher** via `searchPickerMatches` (naam + doelspier) — niet
+    opnieuw een kale `includes` introduceren.
+  - **Live zoeken** op de Standaard-tab: `components/ui/live-search-input.tsx`
+    (debounced `router.replace`; reset `page`/`lpage`/`lopen`; Enter/Filter
+    blijven werken als terugval).
+  Tests: `tests/exercise-library.test.ts`, `tests/library-search.test.ts`.
 - **Tenant-koppeling**: `Exercise.libraryId` naast het verouderde `catalogId`;
   **CHECK-constraint**: nooit beide (migratie `20260730140000_exercise_library`). Herkomst
   = `exerciseSourceOf` → `"standaard"` (bibliotheek) | `"klassiek"` (oude catalogus) |
@@ -1197,31 +1220,44 @@ Volledig afgeleid — géén nieuw DB-model, géén migratie.
   laatste 28 dagen `PerformanceEntry` (**echt getraind**, ÷4) via `accumulateMuscleVolume`:
   primaire spieren vol, secundaire half (0.5), elke regio max. één keer per oefening.
   Serialiseert `regions[]` (plan/actual/level) + `topRegions`/`neglected`.
-  Base `prisma` + expliciete `tenantId` (zoals `member-stats.ts`).
-- **Visuals** (client): `components/muscle/body-heatmap.tsx` — een **anatomisch spierfiguur**
-  (voor/achter) waarvan de spier-polygonen **gevendord** zijn uit `react-body-highlighter`
-  (**MIT**, © 2020 GV79): `components/muscle/body-model-data.ts` (`ANTERIOR`/`POSTERIOR`,
-  `BodyPart[] = {region, points[]}`, viewBox `0 0 100 200`) + `body-model-LICENSE.txt`. Het
-  figuur is dus géén handgetekende SVG meer maar een pro-spierkaart. De library-muscle-slugs zijn
-  bij het genereren gemapt naar onze `MuscleRegion` (bv. `front-deltoids`/`back-deltoids`→`shoulders`,
-  `quadriceps`→`quads`, `gluteal`→`glutes`, `left/right-soleus`+`calves`→`calves`); `head`/`neck`/
-  `knees` → `region=null` (grijze basis). Het component tekent per `BodyPart` de polygonen, kleurt
-  ze op volume-niveau (`MUSCLE_LEVEL_COLOR`), maakt ze klikbaar en highlight de geselecteerde regio.
-  **GEDEELDE POLYGONEN (`REGION_SHARED_POLYGON` in lib/muscle-map.ts)**: de MIT-dataset heeft géén
-  aparte `lats`-vorm (die zit in `upper-back`), terwijl RepDB `latissimus_dorsi` wél onderscheidt.
-  Eén polygoon draagt daarom méérdere regio's: hij kleurt op de **zwaarst belaste** ervan (som zou
-  hetzelfde oppervlak dubbel tellen), `aria-label` noemt beide en het detailpaneel splitst ze uit
-  met elk hun eigen volume. De geometrie blijft ongemoeid — nooit met de hand splitsen; regenereren
-  = de MIT-bron opnieuw mappen. Een test in `tests/muscle-volume.test.ts` dwingt af dat élke regio
-  zichtbaar is (eigen polygoon óf gekoppeld) én dat een meelifter op hetzelfde aanzicht staat als
-  zijn gastheer — zo kan een nieuwe regio nooit stil onzichtbaar blijven.
+  Base `prisma` + expliciete `tenantId` (zoals `member-stats.ts`). Daarnaast
+  `getScheduleHeatmap(memberId, tenantId)` voor de anatomische heatmap: volume per
+  **overlay-spier** per trainingsdag (scope `"week"` + elke dag-id) plus per oefening een rij
+  (naam, `targetSummaryFromItem`-samenvatting, dag, primaire/secundaire overlay-spieren) —
+  voedt het dagfilter en de oefeningenlijst in het detailpaneel.
+- **HEATMAP-FIGUUR = RepDB muscle_heatmap-overlays (v1.41), NIET meer de MIT-polygonen.**
+  De oude gevendorde `react-body-highlighter`-dataset (`body-model-data.ts`,
+  `REGION_SHARED_POLYGON`, `regionsOnPolygon`) is **verwijderd**; het figuur is nu de neutrale
+  RepDB-basisfoto + per spier een wit-met-alpha-overlay, runtime getint met
+  `var(--tenant-accent)` in vijf opacity-stappen (`HEATMAP_LEVEL_OPACITY` — whitelabel; de
+  rood→groen-betekenisschaal `MUSCLE_LEVELS` blijft voor de vergelijkingsbalken).
+  - **Pure kern `lib/muscle-heatmap.ts`** (ook client + script + tests): registry
+    `HEATMAP_MUSCLES` (32 overlay-spieren, 18 voor/19 achter/5 op beide, NL-labels),
+    `resolveHeatmapMuscles(raw)` = granulaire RepDB-slug-mapping mét regio-terugval
+    (`REGION_TO_HEATMAP`) voor klassieke/eigen labels, telregel `accumulateHeatmapVolume`
+    (zelfde weging als de regio-variant), media-keys en `buildHeatmapAssets()` (in de Server
+    Component aanroepen — `libraryMediaUrl` leest server-env). Tests
+    `tests/muscle-heatmap.test.ts` dwingen af dat élke RepDB-slug en élke regio minstens één
+    bestaande overlay-spier kleurt (opvolger van de oude polygoon-zichtbaarheidstest).
+  - **Assets via `npm run muscles:heatmap`** (`scripts/generate-muscle-heatmap-assets.ts`):
+    verkleinde WebP-afgeleiden (480px) naar de publieke container onder
+    `images/muscle_heatmap_app/` (originelen ~3 MB basis = te zwaar voor mobiel; bron = lokale
+    bundelmap of de al geüploade originelen) + per aanzicht een **hit-test-indexkaart-PNG** in
+    `public/muscle-heatmap/` (pixel = spier-index+1 in `heatmapViewMuscles()`-volgorde — dat is
+    het CONTRACT tussen script en client; volgorde in de registry dus nooit herschikken zonder
+    het script opnieuw te draaien). De indexkaart bestaat omdat canvas-pixels van Azure-beelden
+    lezen CORS-configuratie op de storage-account zou vereisen; same-origin omzeilt dat.
+  - **Component `components/muscle/anatomical-heatmap.tsx`**: dagfilter-chips (Hele week +
+    trainingsdagen van het actieve schema), voor/achter-toggle, tik-selectie via de indexkaart
+    (nogmaals tikken = deselecteren), detailpaneel met volume + de bijdragende oefeningen
+    (sets × reps-samenvatting, "secundair", dagnaam in weekweergave), legenda in
+    accent-intensiteiten. i18n `member.muscles.heat.*` (nl/en/fy).
   `components/muscle/muscle-comparison.tsx`
   — per-spiergroep "bullet"-balken (accent-vulling = echt getraind, streepje = schema-doel) met
   bovenaan een therapietrouw-ring (% van gepland volume gehaald); vervangt de eerdere radar —
   duidelijker af te lezen welke spiergroepen achterblijven ("Achter") of extra getraind worden ("Extra").
 - **Ingangen**: drawer-link, tikbaar spiergroep-blok op `/member` en een link op `/member/schema`.
-  Toont "geen medisch advies"-melding (ontwerpprincipe 2). Nog niet i18n-gemigreerd (hardcoded NL,
-  zoals `/member/progress`).
+  Toont "geen medisch advies"-melding (ontwerpprincipe 2).
 
 ### Trofeeën, Achievements & Mijlpalen (Gym Passport)
 

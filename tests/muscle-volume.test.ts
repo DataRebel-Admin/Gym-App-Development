@@ -4,16 +4,11 @@ import {
   accumulateMuscleVolume,
   primaryMuscleRaws,
   secondaryMuscleRaws,
-  regionsOnPolygon,
   resolveRegion,
   levelForWeeklySets,
-  MUSCLE_REGIONS,
-  MUSCLE_REGION_ORDER,
-  REGION_SHARED_POLYGON,
   type ExerciseMuscleInfo,
   type MuscleRegion,
 } from "../lib/muscle-map";
-import { ANTERIOR, POSTERIOR } from "../components/muscle/body-model-data";
 
 /** Bibliotheek-oefening (RepDB): gecureerde spier-slugs, `targetMuscle` is een
  *  afgeleide weergavenaam. Zoals `bulkAddLibraryToGym` het wegschrijft. */
@@ -125,39 +120,9 @@ test("weergavenamen van de bibliotheek resolven (targetMuscle-terugval)", () => 
   assert.equal(resolveRegion("gluteus_medius"), resolveRegion("Glute Medius"));
 });
 
-// --- zichtbaarheid op de body-figuur ----------------------------------------
-
-test("élke spierregio is zichtbaar op de figuur (eigen polygoon óf gedeeld)", () => {
-  // Regressie: `lats` had geen polygoon in de gevendorde MIT-dataset, dus
-  // lat pulldown-volume lichtte nergens op. Deze test vangt dat voor élke regio.
-  const withPolygon = new Set<MuscleRegion>();
-  for (const part of [...ANTERIOR, ...POSTERIOR]) {
-    if (part.region) withPolygon.add(part.region);
-  }
-  for (const region of MUSCLE_REGION_ORDER) {
-    const host = REGION_SHARED_POLYGON[region];
-    const visible = withPolygon.has(region) || (host != null && withPolygon.has(host));
-    assert.ok(visible, `${region} kleurt nergens op de figuur`);
-  }
-});
-
-test("lats kleurt mee op de bovenrug-polygoon, in hetzelfde aanzicht", () => {
-  assert.deepEqual(regionsOnPolygon("upperBack"), ["upperBack", "lats"]);
-  // Een regio zonder meelifters levert alleen zichzelf.
-  assert.deepEqual(regionsOnPolygon("chest"), ["chest"]);
-  // De meelifter mag niet op een ánder aanzicht staan dan zijn gastheer.
-  for (const [region, host] of Object.entries(REGION_SHARED_POLYGON)) {
-    const own = MUSCLE_REGIONS[region as MuscleRegion].views;
-    const hostViews = MUSCLE_REGIONS[host as MuscleRegion].views;
-    for (const v of own) {
-      assert.ok(hostViews.includes(v), `${region} zichtbaar op ${v}, ${host} niet`);
-    }
-  }
-});
-
-test("een gedeelde polygoon telt niet dubbel: elke spier houdt eigen volume", () => {
+test("lats en bovenrug houden elk hun eigen volume (geen samenvoeging)", () => {
   // Lat pulldown (lats primair, bovenrug secundair) → gescheiden waarden, zodat
-  // het detailpaneel ze los toont en de polygoon op de hoogste kleurt.
+  // de vergelijkingsbalken ze los tonen.
   const latPulldown: ExerciseMuscleInfo = {
     targetMuscle: "Lats",
     muscleGroups: [],

@@ -1,8 +1,10 @@
 // Spiergroep-mapping — één bron van waarheid voor de spier-heatmap & -analyse.
 //
 // Bewust GEEN `server-only`: dit wordt zowel server-side (aggregatie in
-// lib/muscle-analysis.ts) als client-side (body-heatmap, radar) gebruikt — net
-// als lib/exercise-types.ts en lib/rbac.ts.
+// lib/muscle-analysis.ts) als client-side (vergelijkingsbalken, heatmap-niveaus)
+// gebruikt — net als lib/exercise-types.ts en lib/rbac.ts. De anatomische
+// heatmap zelf (overlay-spieren, fijner dan deze 16 regio's) woont in
+// lib/muscle-heatmap.ts en gebruikt deze regio-mapping als vangnet.
 //
 // De externe oefeningen-catalogus levert ruwe spier-labels (`target`,
 // `muscleGroup`, `secondaryMuscles`); eigen oefeningen leveren `targetMuscle` +
@@ -47,9 +49,6 @@ export const MUSCLE_REGIONS: Record<MuscleRegion, MuscleRegionMeta> = {
   forearms: { region: "forearms", label: "Onderarmen", views: ["front", "back"] },
   abs: { region: "abs", label: "Buik", views: ["front"] },
   obliques: { region: "obliques", label: "Schuine buik", views: ["front"] },
-  // De gevendorde body-dataset heeft geen aparte trapezius-polygoon aan de
-  // voorkant (alleen in POSTERIOR) → de spier is enkel via het achteraanzicht
-  // benaderbaar op de heatmap. Vgl. REGION_SHARED_POLYGON voor lats.
   traps: { region: "traps", label: "Trapezius", views: ["back"] },
   lats: { region: "lats", label: "Lats", views: ["back"] },
   upperBack: { region: "upperBack", label: "Bovenrug", views: ["back"] },
@@ -65,36 +64,6 @@ export const MUSCLE_REGIONS: Record<MuscleRegion, MuscleRegionMeta> = {
 export const MUSCLE_REGION_ORDER: MuscleRegion[] = Object.keys(
   MUSCLE_REGIONS
 ) as MuscleRegion[];
-
-/**
- * Regio's zónder eigen polygoon in de gevendorde body-dataset, met de polygoon
- * waarop ze méékleuren.
- *
- * De MIT-dataset (react-body-highlighter) vat de lats samen in één
- * upper-back-vorm, terwijl de RepDB-bibliotheek `latissimus_dorsi` wél apart
- * onderscheidt. Zonder deze koppeling zou lat pulldown- en roeivolume nergens op
- * de figuur oplichten. De geometrie blijft ongemoeid — die is gegenereerd uit de
- * MIT-bron (zie components/muscle/body-model-data.ts) en wordt niet met de hand
- * gesplitst; de polygoon draagt dus méérdere spieren en kleurt op de zwaarst
- * belaste ervan (som zou hetzelfde oppervlak dubbel tellen).
- *
- * Een test dwingt af dat élke regio zichtbaar is: eigen polygoon óf hier gekoppeld.
- */
-export const REGION_SHARED_POLYGON: Partial<Record<MuscleRegion, MuscleRegion>> = {
-  lats: "upperBack",
-};
-
-/**
- * Alle regio's die op de polygonen van `region` worden weergegeven — `region`
- * zelf eerst, daarna de meeliftende regio's. Gebruikt door de heatmap voor kleur,
- * `aria-label` en het detailpaneel.
- */
-export function regionsOnPolygon(region: MuscleRegion): MuscleRegion[] {
-  const shared = MUSCLE_REGION_ORDER.filter(
-    (r) => REGION_SHARED_POLYGON[r] === region
-  );
-  return [region, ...shared];
-}
 
 /**
  * Ruwe spier-labels (uit catalogus of eigen oefening, lowercase) → regio.

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireMember } from "@/lib/member";
-import { getMuscleAnalysis } from "@/lib/muscle-analysis";
+import { getMuscleAnalysis, getScheduleHeatmap } from "@/lib/muscle-analysis";
+import { buildHeatmapAssets } from "@/lib/muscle-heatmap";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BodyHeatmap } from "@/components/muscle/body-heatmap";
+import { AnatomicalHeatmap } from "@/components/muscle/anatomical-heatmap";
 import { MuscleComparison } from "@/components/muscle/muscle-comparison";
 import { PersonStanding, Activity, ClipboardList } from "@/components/ui/icons";
 
@@ -15,10 +16,12 @@ export async function generateMetadata() {
 
 export default async function MemberMusclesPage() {
   const member = await requireMember();
-  const [analysis, t] = await Promise.all([
+  const [analysis, heatmap, t] = await Promise.all([
     getMuscleAnalysis(member.id, member.tenantId),
+    getScheduleHeatmap(member.id, member.tenantId),
     getTranslations("member.muscles"),
   ]);
+  const heatmapAssets = buildHeatmapAssets();
 
   return (
     <Reveal stagger className="flex flex-col gap-5 px-4 py-6">
@@ -63,7 +66,7 @@ export default async function MemberMusclesPage() {
                 ),
               })}
             </p>
-            <BodyHeatmap regions={analysis.regions} />
+            <AnatomicalHeatmap data={heatmap} assets={heatmapAssets} />
           </RevealItem>
 
           {/* Vergelijking */}

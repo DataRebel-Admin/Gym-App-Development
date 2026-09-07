@@ -10,6 +10,12 @@ import {
   type MuscleLevel,
   type MuscleRegion,
 } from "@/lib/muscle-map";
+import {
+  accumulateHeatmapVolume,
+  primaryHeatmapMuscles,
+  secondaryHeatmapMuscles,
+} from "@/lib/muscle-heatmap";
+import { targetSummaryFromItem } from "@/lib/exercise-params";
 
 /**
  * Spier-analyse van het actieve schema van een lid.
@@ -173,4 +179,131 @@ async function computeMuscleAnalysis(
     topRegions,
     neglected,
   };
+}
+
+// --- Anatomische heatmap: volume + oefeningen per overlay-spier, per dag ----
+//
+// Voedt components/muscle/anatomical-heatmap.tsx: het figuur kleurt per
+// overlay-spier (RepDB muscle_heatmap-assets, zie lib/muscle-heatmap.ts) en
+// het detailpaneel toont per aangetikte spier de bijdragende oefeningen met
+// hun doel-samenvatting ("4 × 10 @ 70 kg"). Naast het weektotaal is er per
+// trainingsdag een eigen volume-verdeling — zo ziet het lid waar de nadruk
+// van elke dag ligt.
+
+export type HeatmapExerciseRow = {
+  name: string;
+  /** Doel-samenvatting via de centrale helper (targetSummaryFromItem). */
+  summary: string;
+  dayId: string;
+  dayName: string;
+  /** Overlay-spieren die deze oefening primair (vol) belast. */
+  primary: string[];
+  /** Overlay-spieren die secundair (half) meedoen. */
+  secondary: string[];
+};
+
+export type ScheduleHeatmap = {
+  hasSchema: boolean;
+  schemaName: string | null;
+  days: { id: string; name: string }[];
+  /** Scope "week" + elke dag-id → set-volume per overlay-spier (op 0.5 afgerond). */
+  volumes: Record<string, Record<string, number>>;
+  exercises: HeatmapExerciseRow[];
+};
+
+/** Gecachet zoals getMuscleAnalysis (zelfde staleness-afweging, 5 min). */
+export function getScheduleHeatmap(
+  memberId: string,
+  tenantId: string
+): Promise<ScheduleHeatmap> {
+  return unstable_cache(
+    () => computeScheduleHeatmap(memberId, tenantId),
+    ["muscle-heatmap", tenantId, memberId],
+    { revalidate: 300 }
+  )();
+}
+
+async function computeScheduleHeatmap(
+  memberId: string,
+  tenantId: string
+): Promise<ScheduleHeatmap> {
+  const now = new Date();
+  // Zelfde actief-schema-selectie als computeMuscleAnalysis hierboven.
+  const assignment = await prisma.assignedWorkout.findFirst({
+    where: {
+      tenantId,
+      userId: memberId,
+      status: "PUBLISHED",
+      OR: [{ availableFrom: null }, { availableFrom: { lte: now } }],
+      AND: [{ OR: [{ endDate: null }, { endDate: { gte: now } }] }],
+    },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    select: {
+      template: {
+        select: {
+          name: true,
+          days: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              name: true,
+              items: {
+                orderBy: { order: "asc" },
+                select: {
+                  sets: true,
+                  reps: true,
+                  restSeconds: true,
+                  weightKg: true,
+                  tempo: true,
+                  params: true,
+                  exercise: {
+                    select: { name: true, exerciseType: true, ...exerciseMuscleSelect },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const template = assignment?.template ?? null;
+  if (!template) {
+    return { hasSchema: false, schemaName: null, days: [], volumes: {}, exercises: [] };
+  }
+
+  const week = new Map<string, number>();
+  const volumes: Record<string, Record<string, number>> = {};
+  const exercises: HeatmapExerciseRow[] = [];
+
+  for (const day of template.days) {
+    const dayAcc = new Map<string, number>();
+    for (const it of day.items) {
+      accumulateHeatmapVolume(dayAcc, it.exercise, it.sets);
+      accumulateHeatmapVolume(week, it.exercise, it.sets);
+      exercises.push({
+        name: it.exercise.name,
+        summary: targetSummaryFromItem(it, it.exercise.exerciseType),
+        dayId: day.id,
+        dayName: day.name,
+        primary: primaryHeatmapMuscles(it.exercise),
+        secondary: secondaryHeatmapMuscles(it.exercise),
+      });
+    }
+    volumes[day.id] = roundVolumeMap(dayAcc);
+  }
+  volumes.week = roundVolumeMap(week);
+
+  return {
+    hasSchema: true,
+    schemaName: template.name,
+    days: template.days.map((d) => ({ id: d.id, name: d.name })),
+    volumes,
+    exercises,
+  };
+}
+
+function roundVolumeMap(acc: Map<string, number>): Record<string, number> {
+  return Object.fromEntries([...acc.entries()].map(([k, v]) => [k, round05(v)]));
 }

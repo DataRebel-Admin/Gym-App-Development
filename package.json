@@ -29,6 +29,7 @@
     "audit:prune": "node scripts/prune-audit.mjs",
     "i18n:report": "node scripts/i18n-report.mjs",
     "library:images": "tsx scripts/upload-schema-images.ts",
+    "muscles:heatmap": "tsx scripts/generate-muscle-heatmap-assets.ts",
     "brand:assets": "tsx scripts/generate-brand-assets.ts",
     "ios:plist": "node scripts/patch-ios-plist.mjs",
     "ios:plist:check": "node scripts/patch-ios-plist.mjs --check",
