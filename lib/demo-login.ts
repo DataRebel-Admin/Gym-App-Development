@@ -43,8 +43,10 @@ const ROLE_META: Record<Role, { label: string; area: string; order: number }> = 
   TENANT_MEMBER: { label: "Lid", area: "/member", order: 3 },
 };
 
-/** Maximaal aantal accounts per sportschool in het paneel (blijft leesbaar). */
-const MAX_PER_TENANT = 6;
+/** Maximaal aantal accounts per sportschool in het paneel (blijft leesbaar).
+ *  8 i.p.v. 6 sinds de demo-gym een zevende account kreeg (Keimpe Rocket
+ *  League) — bij 6 viel het nieuwste lid stil uit het paneel. */
+const MAX_PER_TENANT = 8;
 
 /**
  * De demo-accounts komen **uit de database**, niet uit een hardgecodeerde lijst.
