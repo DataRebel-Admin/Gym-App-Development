@@ -668,10 +668,13 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
 
 ### Oefeningen-bibliotheek (RepDB — dé standaardbron)
 
-De **RepDB Standard**-bundel (gekocht, commerciële licentie; **v1.38 = 526 oefeningen**
-(was v1.26 = 483), 100% dekking op álle velden) is dé bron van waarheid voor
-oefening-content. Metadata in Postgres; media (WebP: `classic/` transparant + `flat/` +
-463 animaties + 27 spierdiagrammen + 74 materiaal-iconen) op **Azure Blob**.
+De **RepDB Standard**-bundel (gekocht, commerciële licentie; **v1.41 = 608 oefeningen**
+(was v1.38 = 526; v1.39 voegde 75 yoga/pilates-oefeningen toe), 100% dekking op álle
+velden) is dé bron van waarheid voor oefening-content. Metadata in Postgres; media
+(WebP: `classic/` transparant + `flat/` + 496 animaties (490 bestanden + 6 aliassen) +
+27 spierdiagrammen + 74 materiaal-iconen + `muscle_heatmap/` per-spier-overlays,
+sinds deze ronde de bron van de anatomische heatmap op `/member/muscles` — zie
+"Spier-heatmap & -analyse") op **Azure Blob**.
 
 - **Blob-indeling (licentie-eis!)**: publiek `datarebel`/**`exercise-media`** bevat
   ALLEEN `images/**`; de ruwe bundel (exercises.json, sqlite, embeddings, …) staat in de
@@ -786,7 +789,7 @@ oefening-content. Metadata in Postgres; media (WebP: `classic/` transparant + `f
   idempotent via `WorkoutTemplate.libraryTemplateId` (migratie
   `20260730150000_library_template_link`). Audit `schema.library.import`.
 - **Vertaling NL — GEDAAN** (`npm run library:translate`, `scripts/translate-library.ts`):
-  alle **526** oefeningen hebben een `nl`-rij (`origin: "machine"`), vertaald vanuit de
+  alle **608** oefeningen hebben een `nl`-rij (`origin: "machine"`), vertaald vanuit de
   en-rijen via **Azure Translator** (regio `germanywestcentral` = EU). `origin: "manual"`
   wordt **nooit** overschreven — en `library:import` raakt nl-rijen ook niet aan (loopt
   alleen en/de/es + slaat origin ≠ "dataset" over), dus de twee scripts kunnen in elke
