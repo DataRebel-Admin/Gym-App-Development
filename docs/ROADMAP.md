@@ -89,15 +89,11 @@ met dezelfde sportschool, zodat de accentkleur consistent is.
 
 Draaiboek: `docs/GESLOTEN-TEST.md`. In het kort:
 
-1. `DEMO_LOGIN_TENANTS="gymrebel"` in Vercel, deploy afwachten, `/login`
-   controleren op alleen die ene sportschool en geen superadmin.
-2. Controleren dat de tenant `gymrebel` uitsluitend demo-data bevat; iedereen
-   met de testlink kan er als eigenaar in.
-3. Een stuk of zes extra demo-leden aanmaken, zodat testers niet allemaal op
-   hetzelfde account zitten en elkaars sets zien.
-4. Testers toevoegen in Play en de opt-in-link rondsturen.
-5. `docs/TESTPLAN.md` aflopen, nu op toestellen die niet van jou zijn.
-6. Bugs verzamelen en oplossen. Webfixes staan direct live, dus daar is geen
+1. Voor elke tester een eigen account aanmaken/uitnodigen onder
+   `/owner/members` (de demo-login is uit de codebase verwijderd).
+2. Testers toevoegen in Play en de opt-in-link rondsturen.
+3. `docs/TESTPLAN.md` aflopen, nu op toestellen die niet van jou zijn.
+4. Bugs verzamelen en oplossen. Webfixes staan direct live, dus daar is geen
    nieuwe release voor nodig.
 
 **Duur:** zonder de eis van 12 testers gedurende 14 dagen bepaal je die zelf.
@@ -109,13 +105,11 @@ eerste indruk.
 ## Fase 4: productie, Android
 
 1. Productietoegang aanvragen vanuit het organisatie-account.
-2. **Demo-login uit**: `DEMO_LOGIN="false"`. Op een openbare release hoort geen
-   wachtwoordloze ingang.
-3. `CAPACITOR_SERVER_URL` controleren op productie. Verifieer in de bundel zelf:
+2. `CAPACITOR_SERVER_URL` controleren op productie. Verifieer in de bundel zelf:
    `unzip -p app-release.aab base/assets/capacitor.config.json`
-4. Gefaseerde uitrol (bijvoorbeeld 20 procent), zodat een probleem niet meteen
+3. Gefaseerde uitrol (bijvoorbeeld 20 procent), zodat een probleem niet meteen
    iedereen raakt.
-5. Eerste dagen meekijken: crashrapporten in Play, en de meldingen-inbox op
+4. Eerste dagen meekijken: crashrapporten in Play, en de meldingen-inbox op
    `/admin/meldingen`.
 
 ---

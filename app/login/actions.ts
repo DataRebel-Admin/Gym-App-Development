@@ -30,7 +30,6 @@ import {
   TENANT_COOKIE_MAX_AGE,
   TWO_FACTOR_CHALLENGE_COOKIE,
 } from "@/lib/constants";
-import { demoLoginEnabled } from "@/lib/demo-login";
 
 /** Duurzame tenant-context-cookie (subdomein-loos: de proxy valt hierop terug). */
 const TENANT_COOKIE_OPTS = {
@@ -333,32 +332,6 @@ export async function oauthSignIn(formData: FormData) {
     (await cookies()).set(AUTH_TENANT_COOKIE, tenant, TENANT_COOKIE_OPTS);
   }
   await signIn(provider, { redirectTo: "/" });
-}
-
-/**
- * Demo-login: log direct in als een demo-account, zonder wachtwoord of magic
- * link. Uitsluitend actief wanneer DEMO_LOGIN="true" (zie demoLoginEnabled).
- */
-export async function demoSignIn(formData: FormData) {
-  if (!demoLoginEnabled()) return;
-  const email = String(formData.get("email") ?? "").toLowerCase().trim();
-  const tenant = String(formData.get("tenant") ?? "");
-  if (!email) return;
-
-  const store = await cookies();
-  if (tenant) {
-    store.set(AUTH_TENANT_COOKIE, tenant, TENANT_COOKIE_OPTS);
-  } else {
-    // Geen tenant → platform-superadmin (resolveLoginUser zoekt tenantId == null).
-    store.delete(AUTH_TENANT_COOKIE);
-  }
-
-  try {
-    await signIn("demo-login", { email, redirectTo: "/" });
-  } catch (e) {
-    if (e instanceof AuthError) redirect("/login?devError=1");
-    throw e;
-  }
 }
 
 /** Log de huidige gebruiker uit en stuur terug naar de loginpagina. */

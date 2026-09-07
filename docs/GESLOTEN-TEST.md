@@ -14,40 +14,16 @@ draaiboek: wat er moet kloppen vóór je hem opent, en in welke volgorde.
 
 | | Wat | Waarom het blokkeert |
 |---|---|---|
-| ☐ | **`DEMO_LOGIN_TENANTS` zetten** in Vercel | Staat nu leeg, dus het paneel is leeg (fail-closed). Zie §1 |
 | ☐ | **`LEGAL_ENTITY` invullen** in `lib/legal.ts` | `/privacy` toont nu letterlijk "TODO: KvK-nummer". Dat is de URL die je bij Play indient |
-| ☐ | **Accounts voor je testers** | Opgelost via demo-login op de demo-gym (§1). Wil je aparte accounts per tester, dan maak je ze aan onder `/owner/members` |
+| ☐ | **Accounts voor je testers** | Maak per tester een eigen account aan onder `/owner/members` (uitnodiging per e-mail) |
 
-### Demo-login
+### Demo-login (verwijderd)
 
-Op `https://app.gymrebel-training.com/login` stond een paneel waarmee je zonder
-wachtwoord kon inloggen als **superadmin** — alle sportscholen, het auditlog, de
-e-mailtemplates en de meldingen-inbox. De code is inmiddels aangescherpt
-(`lib/demo-login-policy.ts`): in productie nooit een superadmin, en alleen
-sportscholen die in `DEMO_LOGIN_TENANTS` staan. Die staat leeg, dus na de
-deploy is het paneel leeg.
-
-**Gekozen: aan, maar alleen voor de demo-sportschool.** Testers klikken zichzelf
-naar binnen zonder uitnodiging. In Vercel hoeft daarvoor één variabele bij
-(`DEMO_LOGIN` en `DEMO_LOGIN_ALLOW_PRODUCTION` staan al op `true`):
-
-```
-DEMO_LOGIN_TENANTS="gymrebel"
-```
-
-Drie dingen om te weten bij deze keuze:
-
-- **Controleer eerst dat de tenant `gymrebel` alleen demo-data bevat.** Iedereen
-  met de testlink kan er straks als *eigenaar* in (`keimpe@gymrebel.nl` staat in
-  het paneel), en die rol ziet alle leden, kan exporteren en verwijderen. Staat
-  er iets echts in, gebruik dan een aparte tenant `demo`.
-- **Testers delen accounts.** Het paneel toont maximaal zes accounts per
-  sportschool, dus twaalf testers loggen als dezelfde handvol leden in en zien
-  elkaars sets, metingen en schema's door elkaar lopen. Wil je zinnige feedback,
-  maak dan alsnog een stuk of zes extra leden aan in die tenant zodat de meesten
-  hun eigen account hebben.
-- **Zet dit uit vóór productie.** Voor een gesloten test is het een bewuste
-  afweging; op een openbare release hoort geen wachtwoordloze ingang.
+De wachtwoordloze demo-login (snel-inlog-paneel op `/login`) is volledig uit de
+codebase verwijderd. Testers krijgen dus altijd een echt account: nodig ze uit
+via `/owner/members`, dan kiezen ze zelf een wachtwoord of loggen ze in met een
+magic link. De env-variabelen `DEMO_LOGIN`, `DEMO_LOGIN_ALLOW_PRODUCTION` en
+`DEMO_LOGIN_TENANTS` kunnen uit Vercel worden verwijderd.
 
 ---
 
@@ -128,16 +104,13 @@ beheerdersdashboard ziet, beoordeelt een andere app dan je inzendt.
 
 ## 5. Volgorde
 
-1. `DEMO_LOGIN_TENANTS="gymrebel"` in Vercel zetten en de deploy afwachten.
-   Controleer daarna op `/login` dat er alléén accounts van die ene sportschool
-   staan en geen superadmin.
-2. `LEGAL_ENTITY` invullen, deployen, `/privacy` controleren op "TODO".
-3. Screenshots maken op je toestel (6 stuks, plan in METADATA.md).
-4. In de Play Console: App-inhoud volledig invullen, daarna de store-listing.
-5. Testers aanmaken in GymRebel én toevoegen in Play.
-6. De bestaande release van interne test **promoveren** naar gesloten test — er
+1. `LEGAL_ENTITY` invullen, deployen, `/privacy` controleren op "TODO".
+2. Screenshots maken op je toestel (6 stuks, plan in METADATA.md).
+3. In de Play Console: App-inhoud volledig invullen, daarna de store-listing.
+4. Testers aanmaken in GymRebel én toevoegen in Play.
+5. De bestaande release van interne test **promoveren** naar gesloten test — er
    is geen nieuwe AAB nodig zolang er niets natives wijzigde. Controleer dat wel
    met: `unzip -p app-release.aab base/assets/capacitor.config.json`
-7. Opt-in-link rondsturen en zelf verifiëren dat installeren en inloggen werkt
+6. Opt-in-link rondsturen en zelf verifiëren dat installeren en inloggen werkt
    met een tester-account dat niet van jou is.
-8. Vanaf dag 1 de teller in de gaten houden als de 12/14-eis geldt.
+7. Vanaf dag 1 de teller in de gaten houden als de 12/14-eis geldt.

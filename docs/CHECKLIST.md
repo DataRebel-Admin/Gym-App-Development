@@ -60,7 +60,7 @@ want Android haalt de `assetlinks.json` bij dát domein op.
 | | Onderdeel | Waarom |
 |---|---|---|
 | ☐ | `LEGAL_ENTITY` invullen in `lib/legal.ts` | **Blokkeert de gesloten test.** `/privacy` toont nu letterlijk "TODO: KvK-nummer", en dat is de URL die je bij Play indient |
-| ☐ | Demo-login-keuze doorvoeren in Vercel | **Blokkeert de gesloten test.** Zie `docs/GESLOTEN-TEST.md` §1 |
+| ✅ | Demo-login verwijderd uit de codebase | Testers krijgen echte accounts via `/owner/members`; `DEMO_LOGIN*`-variabelen kunnen uit Vercel |
 | ☐ | Privacyteksten juridisch laten controleren | Het zijn conceptteksten, geschreven op basis van wat de code doet |
 | ✅ | Overige `gymrebel.app`-verwijzingen omzetten | Cron-fallbacks lopen nu allemaal via `appBaseUrl()` (lib/app-url.ts); e-mailvoorbeelden, VAPID-subject en afzenderadres staan op `gymrebel-training.com` |
 | ☐ | Optioneel: schema-editor verbergen op kleine schermen | De owner-area is verrassend mobielvriendelijk, maar de drag-and-drop-editor over meerdere dagen werkt niet op een telefoon. Er bestaat niet voor niets een aparte mobiele lid-builder |

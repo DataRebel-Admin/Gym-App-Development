@@ -3,7 +3,6 @@ import { LoginForm } from "./login-form";
 import { getCurrentTenant, getTenantSlug } from "@/lib/tenant";
 import { DEV_FALLBACK_TENANT } from "@/lib/constants";
 import { oauthEnabled } from "@/lib/oauth";
-import { listDemoAccounts } from "@/lib/demo-login";
 import { Reveal } from "@/components/motion/reveal";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { GymRebelMark } from "@/components/brand/gymrebel-logo";
@@ -21,8 +20,6 @@ export default async function LoginPage() {
   const tenant = await getCurrentTenant();
   const t = await getTranslations("auth");
   const oauth = oauthEnabled();
-  // Leeg wanneer demo-login uit staat (zie listDemoAccounts).
-  const demoAccounts = await listDemoAccounts();
 
   const name = tenant?.name ?? "GymRebel";
   const initial = name.charAt(0).toUpperCase();
@@ -149,7 +146,7 @@ export default async function LoginPage() {
             </p>
           </div>
 
-          <LoginForm tenant={slug} oauth={oauth} demoAccounts={demoAccounts} />
+          <LoginForm tenant={slug} oauth={oauth} />
 
           {/* "Onbekende sportschool"-hint alleen bij een expliciet (verkeerd)
               subdomein/param — niet in de app, waar neutraal (fallback-slug,

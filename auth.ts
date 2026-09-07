@@ -12,7 +12,6 @@ import { verifyPassword, verifyTotp } from "@/lib/security";
 import { resolveLoginUser } from "@/lib/login-user";
 import { findLoginTenantsForEmail } from "@/lib/login-tenants";
 import { verifyLoginChallenge } from "@/lib/login-challenge";
-import { demoLoginEnabled, demoLoginAllowsAccount } from "@/lib/demo-login";
 import { AUTH_TENANT_COOKIE } from "@/lib/constants";
 import { loadTenantBrandingBySlug } from "@/lib/email/branding";
 import { magicLinkMessage } from "@/lib/email/messages";
@@ -47,51 +46,6 @@ if (process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_I
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
       issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
       allowDangerousEmailAccountLinking: true,
-    })
-  );
-}
-
-// Wachtwoordloze login voor demo-accounts (zie lib/demo-login.ts). Wordt alleen
-// geregistreerd wanneer DEMO_LOGIN="true" (ook in productie — bewust voor demo's).
-const demoProviders: NextAuthConfig["providers"] = [];
-if (demoLoginEnabled()) {
-  demoProviders.push(
-    Credentials({
-      id: "demo-login",
-      name: "Demo login",
-      credentials: { email: {} },
-      async authorize(creds) {
-        // Tweede slot op de deur: nooit autoriseren als demo-login uit staat.
-        if (!demoLoginEnabled()) return null;
-        const email = String(creds?.email ?? "").toLowerCase().trim();
-        if (!email) return null;
-        // Tenant-scoped resolutie via de login-cookie (zoals de wachtwoord-login).
-        const user = await resolveLoginUser(email);
-        if (!user || !user.active) return null;
-
-        // Derde slot: niet elk bestaand account mag wachtwoordloos naar binnen.
-        // Het e-mailadres komt uit het formulier, dus zonder deze controle kon
-        // je het demo-paneel omzeilen en alsnog als superadmin inloggen. De
-        // slug komt uit de database (niet uit de cookie, die de bezoeker zelf
-        // zet) zodat de allowlist niet te omzeilen is.
-        const tenantSlug = user.tenantId
-          ? (
-              await prisma.tenant.findUnique({
-                where: { id: user.tenantId },
-                select: { slug: true },
-              })
-            )?.slug ?? null
-          : null;
-        if (!demoLoginAllowsAccount({ role: user.role, tenantSlug })) return null;
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          tenantId: user.tenantId,
-          active: user.active,
-        };
-      },
     })
   );
 }
@@ -192,7 +146,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       },
     }),
     ...oauthProviders,
-    ...demoProviders,
   ],
   callbacks: {
     ...authConfig.callbacks,
