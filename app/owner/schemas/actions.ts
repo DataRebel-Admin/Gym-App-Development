@@ -13,18 +13,17 @@ import { notifyMemberSchemaReviewed } from "@/lib/member-schema-notify";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
 import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { isTrainingGoal } from "@/lib/training-goals";
-import { parseBadges } from "@/lib/schema-badges";
+import { parseBadges, libraryTemplateBadges } from "@/lib/schema-badges";
 import {
-  datasetLocalePreference,
   parseTemplateReps,
   pickJsonName,
   trainingGoalFromLibrary,
 } from "@/lib/exercise-library/mapping";
+import { ensureLibraryExercises } from "@/lib/library-exercise-sync";
 import { exerciseThumbUrl } from "@/lib/exercise-thumb";
 import { uploadSchemaImage, SCHEMA_IMAGE_MAX_BYTES } from "@/lib/blob";
 import { coverUrlForCopy } from "@/lib/schema-image";
 import { getCurrentTenant } from "@/lib/tenant";
-import { getContentLocale } from "@/lib/i18n/content-locale";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
 import { applyCarriedPlan, capturePlanForCarryOver } from "@/lib/calendar";
 import {
@@ -240,26 +239,6 @@ type LibraryTemplateDay = {
   }[];
 };
 
-/** RepDB-doel → badge-key (lib/schema-badges.ts) voor het geïmporteerde schema. */
-function badgeForLibraryGoal(goal: string): string | null {
-  switch (goal) {
-    case "strength":
-      return "strength";
-    case "hypertrophy":
-      return "hypertrophy";
-    case "endurance":
-      return "conditioning";
-    case "mobility":
-      return "mobility";
-    case "rehabilitation":
-      return "rehab";
-    case "power":
-      return "intense";
-    default:
-      return null;
-  }
-}
-
 /**
  * Neem een RepDB-voorbeeldschema over als eigen library-WorkoutTemplate:
  * ontbrekende bibliotheek-oefeningen worden eerst als tenant-Exercise toegevoegd,
@@ -285,64 +264,15 @@ export async function importLibraryTemplate(formData: FormData) {
   if (!source) return;
   const days = (source.days as LibraryTemplateDay[] | null) ?? [];
 
-  // 1) Zorg dat elke gebruikte bibliotheek-oefening als tenant-Exercise bestaat.
-  const slugs = [
-    ...new Set(days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id))),
-  ];
-  const existing = await prisma.exercise.findMany({
-    where: { tenantId: owner.tenantId, libraryId: { in: slugs } },
-    select: { id: true, libraryId: true },
-  });
-  const bySlug = new Map(existing.map((e) => [e.libraryId as string, e.id]));
-  const missing = slugs.filter((s) => !bySlug.has(s));
-  if (missing.length > 0) {
-    const libRows = await prisma.libraryExercise.findMany({
-      where: { id: { in: missing } },
-      select: {
-        id: true,
-        primaryMuscles: true,
-        exerciseType: true,
-        texts: { where: { locale: "en" }, select: { name: true } },
-      },
-    });
-    const muscleIds = [...new Set(libRows.map((l) => l.primaryMuscles[0]).filter(Boolean))];
-    const muscles = muscleIds.length
-      ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
-      : [];
-    // Spier-snapshot in het Nederlands (anatomie is vertaald; de oefeningnaam
-    // blijft Engels). Zelfde regel als `bulkAddLibraryToGym`.
-    const musclePref = datasetLocalePreference(
-      await getContentLocale((await getCurrentTenant())?.locale)
-    );
-    const muscleName = new Map(
-      muscles.map((m) => [m.id, pickJsonName(m.names, musclePref) ?? m.id.replace(/_/g, " ")])
-    );
-    await prisma.exercise.createMany({
-      data: libRows.map((l) => ({
-        tenantId: owner.tenantId,
-        name: l.texts[0]?.name ?? l.id,
-        targetMuscle: l.primaryMuscles[0]
-          ? (muscleName.get(l.primaryMuscles[0]) ?? null)
-          : null,
-        libraryId: l.id,
-        exerciseType: l.exerciseType,
-      })),
-      skipDuplicates: true,
-    });
-    const created = await prisma.exercise.findMany({
-      where: { tenantId: owner.tenantId, libraryId: { in: missing } },
-      select: { id: true, libraryId: true },
-    });
-    for (const e of created) bySlug.set(e.libraryId as string, e.id);
-  }
+  // 1) Zorg dat elke gebruikte bibliotheek-oefening als tenant-Exercise bestaat
+  // (gedeelde kern met de lid-catalogus — lib/library-exercise-sync.ts).
+  const slugs = days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id));
+  const bySlug = await ensureLibraryExercises(owner.tenantId, slugs);
 
   // 2) Schema + dagen + items in één transactie.
   const name = pickJsonName(source.names, ["nl", "en"]) ?? source.id;
   const description = pickJsonName(source.descriptions, ["nl", "en"]);
-  const badges = [
-    source.difficulty === "beginner" ? "beginner" : null,
-    badgeForLibraryGoal(source.goal),
-  ].filter((b): b is string => Boolean(b));
+  const badges = libraryTemplateBadges(source);
 
   const templateId = await prisma.$transaction(async (tx) => {
     const template = await tx.workoutTemplate.create({
@@ -1667,14 +1597,18 @@ export async function applyMasterSuggestion(formData: FormData) {
   redirect(back);
 }
 
-/** Geef een library-template vrij (of verberg) als lid-startsjabloon. */
+/**
+ * Geef een library-template vrij (of verberg) voor leden. Een SCHEMA verschijnt
+ * als week-template in de lid-catalogus (en als startsjabloon), een DAY als
+ * losse trainingsdag die het lid kan starten of aan een eigen schema toevoegen.
+ */
 export async function setTemplateMemberVisible(formData: FormData) {
   const owner = await requirePermission("schemas:manage");
   const id = String(formData.get("id") ?? "");
   const visible = formData.get("visible") === "true";
 
   const { count } = await prisma.workoutTemplate.updateMany({
-    where: { id, tenantId: owner.tenantId, isLibrary: true, kind: "SCHEMA" },
+    where: { id, tenantId: owner.tenantId, isLibrary: true },
     data: { memberVisible: visible },
   });
   if (count > 0) {

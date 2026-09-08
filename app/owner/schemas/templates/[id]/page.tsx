@@ -172,32 +172,34 @@ export default async function TemplateEditPage({
         </>
       ) : null}
 
-      {isSchema ? (
-        <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900">Beschikbaar voor leden</h2>
-            <p className="text-sm text-neutral-500">
-              {template.memberVisible
-                ? "Leden kunnen dit schema kiezen als startpunt bij zelf-samenstellen."
-                : "Geef dit schema vrij als startsjabloon voor leden die zelf een schema maken."}
-            </p>
-          </div>
-          <form action={setTemplateMemberVisible}>
-            <input type="hidden" name="id" value={template.id} />
-            <input type="hidden" name="visible" value={template.memberVisible ? "false" : "true"} />
-            <button
-              type="submit"
-              className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                template.memberVisible
-                  ? "border border-border text-neutral-900 hover:bg-neutral-50"
-                  : "bg-accent text-accent-foreground hover:opacity-90"
-              }`}
-            >
-              {template.memberVisible ? "Verbergen" : "Vrijgeven"}
-            </button>
-          </form>
-        </section>
-      ) : null}
+      <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-neutral-900">Beschikbaar voor leden</h2>
+          <p className="text-sm text-neutral-500">
+            {isSchema
+              ? template.memberVisible
+                ? "Leden zien dit schema in hun template-catalogus en kunnen het als startpunt kiezen."
+                : "Geef dit schema vrij in de template-catalogus voor leden die zelf een schema maken."
+              : template.memberVisible
+                ? "Leden zien deze dag in hun template-catalogus en kunnen 'm los starten of aan hun eigen schema toevoegen."
+                : "Geef deze dag vrij in de template-catalogus, als losse trainingsdag voor leden."}
+          </p>
+        </div>
+        <form action={setTemplateMemberVisible}>
+          <input type="hidden" name="id" value={template.id} />
+          <input type="hidden" name="visible" value={template.memberVisible ? "false" : "true"} />
+          <button
+            type="submit"
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${
+              template.memberVisible
+                ? "border border-border text-neutral-900 hover:bg-neutral-50"
+                : "bg-accent text-accent-foreground hover:opacity-90"
+            }`}
+          >
+            {template.memberVisible ? "Verbergen" : "Vrijgeven"}
+          </button>
+        </form>
+      </section>
 
       <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
         <div>
