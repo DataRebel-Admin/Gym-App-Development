@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { formatTimeRange } from "@/lib/datetime";
 import { monthKeyOfDayKey } from "@/lib/calendar-plan";
 import { CalendarDays, ChevronRight } from "@/components/ui/icons";
+import { DragScroll } from "@/components/ui/drag-scroll";
 import type { AgendaStrip } from "@/lib/calendar";
 
 /**
@@ -70,8 +71,9 @@ export function AgendaStripCard({ strip }: { strip: AgendaStrip }) {
       </p>
       <p className="mt-0.5 text-sm capitalize text-neutral-500">{sub}</p>
 
-      {/* Dagenstrip: bleedt tot de kaartrand, scrollt horizontaal met snap. */}
-      <div className="-mx-5 mt-3 flex snap-x snap-mandatory gap-2 overflow-x-auto px-5 pb-1">
+      {/* Dagenstrip: bleedt tot de kaartrand; swipen/slepen zonder zichtbare
+          scrollbalk (DragScroll regelt muis-slepen + verbergt de balk). */}
+      <DragScroll className="-mx-5 mt-3 flex snap-x snap-mandatory gap-2 px-5">
         {strip.days.map((day) => {
           const isToday = day.dayKey === strip.todayKey;
           const hasDone =
@@ -113,7 +115,7 @@ export function AgendaStripCard({ strip }: { strip: AgendaStrip }) {
             </Link>
           );
         })}
-      </div>
+      </DragScroll>
     </div>
   );
 }

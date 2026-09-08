@@ -586,6 +586,16 @@ body::after {
   animation: shimmer 1.6s infinite;
 }
 
+/* Horizontale strips (dagenstrip e.d.): wel scrollen/slepen, geen zichtbare
+   balk. Wint van de custom-scrollbar-regels hieronder. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Custom scrollbar */
 * {
   scrollbar-width: thin;
