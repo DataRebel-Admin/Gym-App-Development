@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Locale } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { activeAssignmentWhere } from "@/lib/member";
 import { getTenantLocations } from "@/lib/locations";
@@ -13,6 +13,7 @@ import {
   isValidMonthKey,
   monthGridDayKeys,
   parseWeekdayPlan,
+  plannedDayIdsOnDate,
   plannedDayStatuses,
   weekStartKeyOfDayKey,
   type DayRef,
@@ -388,6 +389,159 @@ export async function getPlanEditorData(
     assignmentId: row.id,
     plan: parseWeekdayPlan(row.weekdayPlan),
     days: row.template.days,
+  };
+}
+
+// ---------- ICS-feed (publieke token-route) ----------
+
+const FEED_FUTURE_DAYS = 42; // ~6 weken vooruit (alleen geplande dagen)
+const FEED_PAST_DAYS = 28; // ~4 weken terug (gedane trainingen + lessen)
+
+export type MemberFeedData = {
+  tenantId: string;
+  gymName: string;
+  locale: Locale | null;
+  timeZone: string;
+  planned: { assignmentId: string; dayKey: string; dayName: string }[];
+  classes: {
+    enrollmentId: string;
+    title: string;
+    startsAt: Date;
+    endsAt: Date;
+    venueName: string | null;
+    room: string | null;
+    waitlisted: boolean;
+    cancelled: boolean;
+  }[];
+  sessions: { id: string; startsAt: Date; endsAt: Date; dayName: string | null }[];
+};
+
+/**
+ * Ruwe feed-rijen voor de ICS-route. Geplande dagen alleen vanaf vandaag (het
+ * verleden komt uitsluitend uit de gedane trainingen, anders staat een gedane
+ * geplande dag dubbel); lessen en sessies over de afgelopen ~4 weken zodat de
+ * kalender van het lid ook de historie toont. Annuleringen en afmeldingen gaan
+ * mee als rij (de route zet er STATUS:CANCELLED op zodat providers het event
+ * verwijderen in plaats van een verouderde kopie te laten staan).
+ */
+export async function getMemberFeedEvents(
+  userId: string,
+  tenantId: string
+): Promise<MemberFeedData | null> {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, tenantId },
+    select: { locale: true, tenant: { select: { name: true } } },
+  });
+  if (!user?.tenant) return null;
+
+  const tz = await getMemberCalendarTimezone(userId, tenantId);
+  const now = new Date();
+  const todayKey = dayKeyInTz(now, tz);
+  const pastStart = new Date(now.getTime() - FEED_PAST_DAYS * 86_400_000);
+  const futureEnd = new Date(now.getTime() + (FEED_FUTURE_DAYS + 1) * 86_400_000);
+
+  const [assignment, enrollments, sessions] = await Promise.all([
+    prisma.assignedWorkout.findFirst({
+      where: activeAssignmentWhere(userId, tenantId, now),
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        status: true,
+        startDate: true,
+        publishedAt: true,
+        availableFrom: true,
+        createdAt: true,
+        endDate: true,
+        archivedAt: true,
+        weekdayPlan: true,
+        template: {
+          select: { days: { orderBy: { order: "asc" }, select: { id: true, name: true } } },
+        },
+      },
+    }),
+    prisma.classEnrollment.findMany({
+      where: {
+        tenantId,
+        userId,
+        status: { in: ["ENROLLED", "WAITLISTED", "ATTENDED", "NO_SHOW", "CANCELLED"] },
+        session: { startsAt: { gte: pastStart, lt: futureEnd } },
+      },
+      select: {
+        id: true,
+        status: true,
+        session: {
+          select: {
+            startsAt: true,
+            endsAt: true,
+            cancelledAt: true,
+            location: true,
+            venueLocation: { select: { name: true } },
+            groupClass: { select: { name: true } },
+          },
+        },
+      },
+    }),
+    prisma.workoutSession.findMany({
+      where: { tenantId, userId, endedAt: { not: null }, startedAt: { gte: pastStart } },
+      orderBy: { startedAt: "asc" },
+      select: { id: true, dayId: true, startedAt: true, endedAt: true },
+    }),
+  ]);
+
+  // Geplande dagen: vandaag t/m de horizon, geknipt op het toewijzingsvenster.
+  const planned: MemberFeedData["planned"] = [];
+  if (assignment?.template) {
+    const plan = parseWeekdayPlan(assignment.weekdayPlan);
+    const window = assignmentWindow(assignment, tz);
+    if (plan && window) {
+      const names = new Map(assignment.template.days.map((d) => [d.id, d.name]));
+      const horizonKey = addDaysToDayKey(todayKey, FEED_FUTURE_DAYS);
+      let k = todayKey < window.startKey ? window.startKey : todayKey;
+      const endKey =
+        window.endKey !== null && window.endKey < horizonKey ? window.endKey : horizonKey;
+      for (; k <= endKey; k = addDaysToDayKey(k, 1)) {
+        for (const dayId of plannedDayIdsOnDate(plan, k)) {
+          const dayName = names.get(dayId);
+          if (dayName) planned.push({ assignmentId: assignment.id, dayKey: k, dayName });
+        }
+      }
+    }
+  }
+
+  const dayIds = [...new Set(sessions.map((s) => s.dayId).filter((v): v is string => v != null))];
+  const dayNames = new Map(
+    dayIds.length > 0
+      ? (
+          await prisma.workoutDay.findMany({
+            where: { id: { in: dayIds }, tenantId },
+            select: { id: true, name: true },
+          })
+        ).map((d) => [d.id, d.name] as const)
+      : []
+  );
+
+  return {
+    tenantId,
+    gymName: user.tenant.name,
+    locale: user.locale,
+    timeZone: tz,
+    planned,
+    classes: enrollments.map((e) => ({
+      enrollmentId: e.id,
+      title: e.session.groupClass.name,
+      startsAt: e.session.startsAt,
+      endsAt: e.session.endsAt,
+      venueName: e.session.venueLocation.name,
+      room: e.session.location,
+      waitlisted: e.status === "WAITLISTED",
+      cancelled: e.status === "CANCELLED" || e.session.cancelledAt != null,
+    })),
+    sessions: sessions.map((s) => ({
+      id: s.id,
+      startsAt: s.startedAt,
+      endsAt: s.endedAt!,
+      dayName: s.dayId ? (dayNames.get(s.dayId) ?? null) : null,
+    })),
   };
 }
 

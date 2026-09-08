@@ -1,8 +1,11 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember } from "@/lib/member";
 import { requireFeature } from "@/lib/features/service";
+import { prisma } from "@/lib/db";
+import { appBaseUrl } from "@/lib/app-url";
 import { getMemberAgenda, getPlanEditorData } from "@/lib/calendar";
 import { WeekdayPlanner } from "@/components/calendar/weekday-planner";
+import { CalendarFeedCard } from "@/components/calendar/calendar-feed-card";
 import { monthKeyOfDayKey, nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,12 +31,19 @@ export default async function MemberAgendaPage({
   const member = await requireMember();
   await requireFeature(member.tenantId, "calendar");
   const { m } = await searchParams;
-  const [agenda, planEditor, t, locale] = await Promise.all([
+  const [agenda, planEditor, me, t, locale] = await Promise.all([
     getMemberAgenda(member.id, member.tenantId, m ?? null),
     getPlanEditorData(member.id, member.tenantId),
+    prisma.user.findFirst({
+      where: { id: member.id, tenantId: member.tenantId },
+      select: { calendarFeedToken: true },
+    }),
     getTranslations("member.agenda"),
     getLocale(),
   ]);
+  const feedUrl = me?.calendarFeedToken
+    ? `${appBaseUrl()}/api/calendar/${me.calendarFeedToken}`
+    : null;
 
   const [year, monthNo] = agenda.monthKey.split("-").map(Number);
   const monthTitle = new Intl.DateTimeFormat(locale, {
@@ -91,6 +101,11 @@ export default async function MemberAgendaPage({
             {t("plannerNoSchema")}
           </p>
         )}
+      </RevealItem>
+
+      {/* Agendakoppeling (ICS-feed voor Google/Outlook/Apple) */}
+      <RevealItem>
+        <CalendarFeedCard feedUrl={feedUrl} />
       </RevealItem>
     </Reveal>
   );

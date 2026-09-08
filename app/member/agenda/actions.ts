@@ -1,5 +1,6 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
@@ -85,6 +86,77 @@ export async function saveWeekdayPlan(formData: FormData): Promise<SavePlanState
     metadata: plannedDays > 0 ? { plannedDays } : {},
   });
 
+  revalidatePath("/member/agenda");
+  return { ok: true };
+}
+
+// ---------- ICS-feed beheren ----------
+// De tokenwaarde komt nooit in audit-metadata (het is het geheim zelf).
+
+function newFeedToken(): string {
+  // 24 bytes hex (48 tekens) — zelfde entropie-klasse als de wachtwoord-reset.
+  return randomBytes(24).toString("hex");
+}
+
+async function feedActor() {
+  const member = await requireMember();
+  await requireFeature(member.tenantId, "calendar");
+  return member;
+}
+
+/** Maak de agendafeed aan (no-op als er al een token is — nooit stil roteren). */
+export async function createCalendarFeed(): Promise<{ ok: boolean }> {
+  const member = await feedActor();
+  const { count } = await prisma.user.updateMany({
+    where: { id: member.id, tenantId: member.tenantId, calendarFeedToken: null },
+    data: { calendarFeedToken: newFeedToken() },
+  });
+  if (count > 0) {
+    await audit("calendar.feed.create", {
+      actor: { id: member.id, email: member.email, role: member.role },
+      tenantId: member.tenantId,
+      targetType: "User",
+      targetId: member.id,
+    });
+  }
+  revalidatePath("/member/agenda");
+  return { ok: true };
+}
+
+/** Vernieuw de token: de oude feed-URL is per direct ongeldig. */
+export async function rotateCalendarFeed(): Promise<{ ok: boolean }> {
+  const member = await feedActor();
+  const { count } = await prisma.user.updateMany({
+    where: { id: member.id, tenantId: member.tenantId, calendarFeedToken: { not: null } },
+    data: { calendarFeedToken: newFeedToken() },
+  });
+  if (count > 0) {
+    await audit("calendar.feed.rotate", {
+      actor: { id: member.id, email: member.email, role: member.role },
+      tenantId: member.tenantId,
+      targetType: "User",
+      targetId: member.id,
+    });
+  }
+  revalidatePath("/member/agenda");
+  return { ok: true };
+}
+
+/** Trek de feed in: token weg, URL dood. */
+export async function revokeCalendarFeed(): Promise<{ ok: boolean }> {
+  const member = await feedActor();
+  const { count } = await prisma.user.updateMany({
+    where: { id: member.id, tenantId: member.tenantId, calendarFeedToken: { not: null } },
+    data: { calendarFeedToken: null },
+  });
+  if (count > 0) {
+    await audit("calendar.feed.revoke", {
+      actor: { id: member.id, email: member.email, role: member.role },
+      tenantId: member.tenantId,
+      targetType: "User",
+      targetId: member.id,
+    });
+  }
   revalidatePath("/member/agenda");
   return { ok: true };
 }

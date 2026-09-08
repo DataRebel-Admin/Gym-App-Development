@@ -311,7 +311,13 @@ export async function requestAccountDeletion(formData: FormData) {
   const cancel = formData.get("cancel") === "true";
   await prisma.user.update({
     where: { id: session.id },
-    data: { deletionRequestedAt: cancel ? null : new Date() },
+    // Bij een verwijderverzoek gaat de agendafeed-token direct dood (niet pas
+    // na de bedenktijd-cron): externe kalenders horen per direct niets meer te
+    // kunnen ophalen. Annuleren maakt 'm niet terug — opnieuw aanmaken kan
+    // altijd op /member/agenda.
+    data: cancel
+      ? { deletionRequestedAt: null }
+      : { deletionRequestedAt: new Date(), calendarFeedToken: null },
   });
   await audit(cancel ? "account.deletion.cancel" : "account.deletion.request", {
     actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),

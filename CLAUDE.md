@@ -653,6 +653,89 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   aanmeldingen (alleen de waarschuwing), geen instructeur-FK
   (`GroupClass.instructorName` blijft vrije tekst).
 
+### Ledenagenda (kalender, weekdagplanning, ICS-feed)
+
+Leden zien op **`/member/agenda`** een maandkalender met geplande schema-dagen,
+gedane trainingen en groepsles-aanmeldingen, plannen daar hun trainingsdagen op
+weekdagen, en kunnen een **ICS-abonnementsfeed** koppelen aan Google/Outlook/
+Apple Agenda. Feature-flag **`calendar`** (default aan) gate't pagina, actions
+én feed-route. Migratie `20260908090000_member_calendar` (additief, geen RLS).
+
+- **Datamodel**: `AssignedWorkout.weekdayPlan Json?` =
+  `{ setAt: "YYYY-MM-DD", days: Record<dayId, isoWeekday[]> }` (**ISO: 1=ma …
+  7=zo** — de opgeslagen vorm; het interne 0=ma van `weekStartKeyInTz` wordt
+  alléén in `isoWeekdayOfDayKey` geconverteerd). Bewust op de toewijzing, niet
+  op `User.preferences`: het plan hoort bij dát schema en een gearchiveerde
+  toewijzing behoudt zo z'n plan voor de historie. `setAt` = eerste
+  instelmoment; bewerkingen laten het staan (anders verschuift de
+  gemist-historie). Verder `AssignedWorkout.archivedAt` en
+  `User.calendarFeedToken String? @unique`.
+- **`archivedAt`-STEMPELREGEL: élke plek die `status: "ARCHIVED"` schrijft,
+  schrijft `archivedAt` mee** (owner-actions, lid-builder, review-activatie,
+  cron publish-schemas). Het begrenst het geplande raster in de historie — een
+  gearchiveerd schema zonder `endDate` zou anders eeuwig "gemist" produceren.
+  Venster per toewijzing (`assignmentWindow` in lib/calendar.ts): start
+  `startDate ?? publishedAt ?? availableFrom ?? createdAt`, einde
+  `min(endDate, archivedAt)`; ARCHIVED zonder beide = geen raster.
+- **Pure kern `lib/calendar-plan.ts`** (géén `server-only`, idioom
+  exercise-types; tests `tests/calendar-plan.test.ts`): `parseWeekdayPlan`,
+  `carryOverWeekdayPlan`, dayKey-helpers en **`plannedDayStatuses`** — dé
+  gemist-regels: geen plan = niets gemist; alleen op/ná `setAt` en binnen het
+  venster; zelfde `dayId` elders in dezelfde ISO-week = *verschoven* (telt als
+  gedaan); een sessie zónder dayId dekt één geplande dag op dezelfde datum;
+  "gemist" bestaat alleen in **afgesloten** weken (lopende week = neutraal
+  "nog niet gedaan"). Alles op dayKey-strings — tz-resolutie is aan de caller.
+- **CARRY-OVER BIJ HERTOEWIJZING**: `cloneToAssignment` maakt nieuwe dag-ids,
+  dus élk archiveer-en-vervang-pad pakt het plan van het vorige actieve schema
+  vóór het archiveren op (`capturePlanForCarryOver`) en past het ná het
+  klonen/publiceren toe (`applyCarriedPlan`, matcht dagen op naam, anders
+  volgorde; nooit een bestaand plan overschrijven). Call-sites:
+  `assignSchemaChunk`/`assignFromTemplate`/`startSchemaFromDayTemplate`/
+  `publishAssignment`/`reviewMemberSchema(approve_activate)` (owner), builder
+  `activate()` en de cron `publish-schemas`. **Nieuw archiveer-en-vervang-pad =
+  zelfde capture/apply-paar.** `startEmptySchema` bewust niet (geen dagen).
+- **Server-assemblage `lib/calendar.ts`** (`server-only`, base prisma +
+  expliciete tenantId): `getMemberAgenda(memberId, tenantId, monthKey|null)` →
+  geserialiseerd maandraster; dag-bucketing in de **lid-tijdzone**
+  (`getMemberCalendarTimezone`: thuisvestiging → defaultvestiging →
+  `DEFAULT_TIMEZONE`; bewust NIET `resolveActiveLocationId` — geen cookie).
+  Lestijden tonen blijft in de **venue**-tijdzone (bestaande regel). De
+  sessies-query is ±1 week verbreed (randweken hebben de hele ISO-week nodig).
+- **UI**: `app/member/agenda/` (RSC; maandnavigatie server-driven via
+  `?m=YYYY-MM`), `components/calendar/` (maandgrid, daglijst, `WeekdayPlanner`
+  — 7 chips per trainingsdag, optimistisch, stuurt de volledige mapping;
+  `CalendarFeedCard`). Ingangen: drawer (Trainen) + tegel op `/member`, beide
+  achter de flag; NIET in de onderbalk (die zit al op 6 items).
+- **ICS-feed**: `User.calendarFeedToken` (randomBytes(24) hex; genereren bij
+  opt-in, roteren = oude URL direct dood, intrekken = null) → publieke route
+  **`app/api/calendar/[token]/route.ts`** (geen auth — kalenderservers fetchen
+  zonder cookies; token = het geheim, zelfde model als `/m/[qrToken]`; géén
+  proxy-wijziging nodig, alleen `/admin|/owner|/member` zijn beschermd).
+  Gate bewust via `isFeatureEnabled` + kale 404-Response (géén `requireFeature`
+  — dat rendert HTML-notFound in een text/calendar-route). Taal =
+  `localeFromEnum(user.locale)` (e-mailpatroon — `getContentLocale` werkt hier
+  niet, geen request-context). Feed-fetches worden bewust NIET geaudit (ruis,
+  zelfde afweging als QR-scans).
+- **`lib/calendar-ics.ts`** (puur, dependency-vrij; tests
+  `tests/calendar-ics.test.ts`): escaping, **75-octet folding**
+  (bytetelling, nooit midden in een codepoint), CRLF, stabiele UIDs
+  (`plan-<assignmentId>-<dayKey>` / `class-<enrollmentId>` / `session-<id>`
+  @ app-host → refetch vervangt i.p.v. dupliceert). Getimede events in **UTC**
+  (geen VTIMEZONE nodig); hele-dag-events `VALUE=DATE` met exclusieve DTEND.
+  Inhoud: geplande dagen alleen vanaf vandaag (+42d, geknipt op het venster —
+  het verleden komt uit de historie, anders staat een gedane geplande dag
+  dubbel), lessen −28d/+42d (afmelding/annulering → `STATUS:CANCELLED`,
+  wachtlijst → `TENTATIVE`), gedane trainingen −28d. Whitelabel: gym-naam in
+  PRODID/CALNAME, geen GymRebel. Geen VALARM (herinneringen zijn aan de
+  kalender-app).
+- **Audit** (categorie `calendar`): `calendar.plan.set`,
+  `calendar.feed.create/rotate/revoke` — tokenwaarde nooit in metadata.
+- **AVG**: export bevat `agendaWeekdayPlans` (eigen invoer; de token bewust
+  niet); een verwijderverzoek nult `calendarFeedToken` direct (niet pas na de
+  bedenktijd-cron), de `user.delete`-cascade dekt de rest.
+- **Bewust niet**: two-way OAuth-sync (kan later bovenop de feed), geen
+  coach-agenda, geen push-herinneringen voor geplande dagen, geen VALARM.
+
 ### Fase 3 (member-functionaliteit, prompts 08–10)
 
 - **`requireMember()`** (lib/member.ts) = guard; member-area is mobile-first (`max-w-md`,
