@@ -247,7 +247,8 @@
       "feedAddApple": "Zet in Apple Agenda",
       "feedAddGoogle": "Zet in Google Agenda",
       "feedAddOutlook": "Zet in Outlook",
-      "feedManualTitle": "Liever handmatig? Kopieer de link"
+      "feedManualTitle": "Liever handmatig? Kopieer de link",
+      "dayEmpty": "Niets gepland of gedaan op deze dag."
     },
     "schema": {
       "metaTitle": "Mijn schema",

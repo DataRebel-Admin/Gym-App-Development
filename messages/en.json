@@ -247,7 +247,8 @@
       "feedAddApple": "Add to Apple Calendar",
       "feedAddGoogle": "Add to Google Calendar",
       "feedAddOutlook": "Add to Outlook",
-      "feedManualTitle": "Prefer to do it manually? Copy the link"
+      "feedManualTitle": "Prefer to do it manually? Copy the link",
+      "dayEmpty": "Nothing planned or done on this day."
     },
     "schema": {
       "metaTitle": "My plan",

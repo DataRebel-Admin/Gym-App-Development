@@ -117,7 +117,8 @@
       "feedAddApple": "Set yn Apple Aginda",
       "feedAddGoogle": "Set yn Google Aginda",
       "feedAddOutlook": "Set yn Outlook",
-      "feedManualTitle": "Leaver mei de hân? Kopiearje de link"
+      "feedManualTitle": "Leaver mei de hân? Kopiearje de link",
+      "dayEmpty": "Neat pland of dien op dizze dei."
     },
     "schema": {
       "metaTitle": "Myn skema",

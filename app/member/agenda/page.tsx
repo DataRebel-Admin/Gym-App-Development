@@ -4,12 +4,10 @@ import { requireMember } from "@/lib/member";
 import { requireFeature } from "@/lib/features/service";
 import { prisma } from "@/lib/db";
 import { getMemberAgenda, getPlanEditorData } from "@/lib/calendar";
-import { monthKeyOfDayKey, nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
+import { isValidDayKey, nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
-import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarDays, ChevronRight, Link2 } from "@/components/ui/icons";
-import { AgendaMonthGrid } from "@/components/calendar/agenda-month-grid";
-import { AgendaDayList } from "@/components/calendar/agenda-day-list";
+import { AgendaCalendar } from "@/components/calendar/agenda-calendar";
 
 export async function generateMetadata() {
   const t = await getTranslations("member.agenda");
@@ -27,11 +25,11 @@ export async function generateMetadata() {
 export default async function MemberAgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; d?: string }>;
 }) {
   const member = await requireMember();
   await requireFeature(member.tenantId, "calendar");
-  const { m } = await searchParams;
+  const { m, d } = await searchParams;
   const [agenda, planEditor, me, t, locale] = await Promise.all([
     getMemberAgenda(member.id, member.tenantId, m ?? null),
     getPlanEditorData(member.id, member.tenantId),
@@ -50,14 +48,6 @@ export default async function MemberAgendaPage({
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, monthNo - 1, 1)));
 
-  // De daglijst toont alleen dagen van deze maand mét inhoud (het raster toont
-  // ook de aanloop-/uitloopdagen van de aangrenzende weken).
-  const listDays = agenda.days.filter(
-    (d) =>
-      monthKeyOfDayKey(d.dayKey) === agenda.monthKey &&
-      (d.planned.length > 0 || d.sessions.length > 0 || d.classes.length > 0)
-  );
-
   const plannedDayCount = planEditor?.plan ? Object.keys(planEditor.plan.days).length : 0;
   const hasFeed = Boolean(me?.calendarFeedToken);
 
@@ -71,22 +61,13 @@ export default async function MemberAgendaPage({
       </RevealItem>
 
       <RevealItem>
-        <AgendaMonthGrid
-          monthKey={agenda.monthKey}
+        <AgendaCalendar
+          agenda={agenda}
           monthTitle={monthTitle}
-          todayKey={agenda.todayKey}
-          days={agenda.days}
           prevHref={`/member/agenda?m=${prevMonthKey(agenda.monthKey)}`}
           nextHref={`/member/agenda?m=${nextMonthKey(agenda.monthKey)}`}
+          initialDayKey={d && isValidDayKey(d) ? d : null}
         />
-      </RevealItem>
-
-      <RevealItem>
-        {listDays.length > 0 ? (
-          <AgendaDayList days={listDays} timeZone={agenda.timeZone} todayKey={agenda.todayKey} />
-        ) : (
-          <EmptyState icon="🗓️" title={t("emptyTitle")} description={t("emptyDesc")} />
-        )}
       </RevealItem>
 
       {/* Ingangen naar de subpagina's, met actuele status als ondertitel. */}

@@ -701,18 +701,21 @@ Apple Agenda. Feature-flag **`calendar`** (default aan) gate't pagina, actions
   `DEFAULT_TIMEZONE`; bewust NIET `resolveActiveLocationId` — geen cookie).
   Lestijden tonen blijft in de **venue**-tijdzone (bestaande regel). De
   sessies-query is ±1 week verbreed (randweken hebben de hele ISO-week nodig).
-- **UI**: `app/member/agenda/` (RSC; maandnavigatie server-driven via
-  `?m=YYYY-MM`), `components/calendar/` (maandgrid, daglijst, `WeekdayPlanner`
-  — 7 chips per trainingsdag, optimistisch, stuurt de volledige mapping;
-  `CalendarFeedCard`). De planner en de agendakoppeling wonen op **subpagina's**
-  (`/member/agenda/planning` en `/member/agenda/koppelen`); de agenda-pagina
-  toont alleen compacte ingangen met de actuele status. `/member/history` toont
-  het maandraster als doorklikbare preview (`AgendaMonthGrid` met
-  `dayHrefPrefix` → volledige navigatie naar de agenda). Koppelen is één tik
-  per provider: `webcal://` (Apple) + de "toevoegen via URL"-deeplinks van
-  Google Agenda (`calendar.google.com/calendar/r?cid=`) en Outlook
-  (`outlook.live.com/calendar/0/addfromweb`); kopieerlinks + handmatige stappen
-  blijven als uitklap-terugval. Ingangen: drawer (Trainen) + tegel op
+- **UI**: `app/member/agenda/` (RSC-shell; maandnavigatie server-driven via
+  `?m=YYYY-MM`). De kalender zelf is de client-component
+  **`components/calendar/agenda-calendar.tsx`** (agenda-app-patroon: raster
+  blijft staan, een tik op een dag toont het detailpaneel er direct onder —
+  bewust géén anker-sprongen naar een lange daglijst). `?d=YYYY-MM-DD`
+  preselecteert een dag; `mode="link"` (op `/member/history`) maakt van elke
+  cel een navigatie naar `/member/agenda?m=…&d=…` (doorklikbare preview).
+  De planner (`WeekdayPlanner`, 7 chips per trainingsdag, optimistisch, stuurt
+  de volledige mapping) en de agendakoppeling (`CalendarFeedCard`) wonen op
+  **subpagina's** (`/member/agenda/planning` en `/member/agenda/koppelen`); de
+  agenda-pagina toont alleen compacte ingangen met de actuele status. Koppelen
+  is één tik per provider: `webcal://` (Apple) + de "toevoegen via
+  URL"-deeplinks van Google Agenda (`calendar.google.com/calendar/r?cid=`) en
+  Outlook (`outlook.live.com/calendar/0/addfromweb`); kopieerlinks + handmatige
+  stappen blijven als uitklap-terugval. Ingangen: drawer (Trainen) + tegel op
   `/member`, beide achter de flag; NIET in de onderbalk (die zit al op 6 items).
 - **ICS-feed**: `User.calendarFeedToken` (randomBytes(24) hex; genereren bij
   opt-in, roteren = oude URL direct dood, intrekken = null) → publieke route

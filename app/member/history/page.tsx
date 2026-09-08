@@ -7,7 +7,7 @@ import { trainerDisplayName } from "@/lib/schema-status";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { getMemberAgenda } from "@/lib/calendar";
 import { nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
-import { AgendaMonthGrid } from "@/components/calendar/agenda-month-grid";
+import { AgendaCalendar } from "@/components/calendar/agenda-calendar";
 import { LOCALE_META, type AppLocale } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
 import { HistoryChart } from "./history-chart.lazy";
@@ -160,14 +160,12 @@ export default async function MemberHistoryPage() {
                   {t("openAgenda")} <ChevronRight className="size-3.5" />
                 </Link>
               </div>
-              <AgendaMonthGrid
-                monthKey={agenda.monthKey}
+              <AgendaCalendar
+                agenda={agenda}
                 monthTitle={agendaMonthTitle}
-                todayKey={agenda.todayKey}
-                days={agenda.days}
                 prevHref={`/member/agenda?m=${prevMonthKey(agenda.monthKey)}`}
                 nextHref={`/member/agenda?m=${nextMonthKey(agenda.monthKey)}`}
-                dayHrefPrefix={`/member/agenda?m=${agenda.monthKey}`}
+                mode="link"
               />
             </RevealItem>
           ) : null}
