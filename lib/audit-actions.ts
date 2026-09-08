@@ -23,6 +23,7 @@ export type AuditCategory =
   | "platform"
   | "features"
   | "defects"
+  | "calendar"
   | "auth";
 
 export type AuditActionDef = {
@@ -68,6 +69,7 @@ export const CATEGORY_META: Record<
   platform: { label: "Platform", icon: "🛠️", tone: "neutral" },
   features: { label: "Features", icon: "🧩", tone: "accent" },
   defects: { label: "Defecten", icon: "🚧", tone: "warning" },
+  calendar: { label: "Agenda", icon: "🗓️", tone: "accent" },
   auth: { label: "Gebruikers", icon: "🔐", tone: "neutral" },
 };
 
@@ -116,6 +118,8 @@ export function categoryFromAction(action: string): AuditCategory {
       return "features";
     case "defect":
       return "defects";
+    case "calendar":
+      return "calendar";
     case "tenant":
     case "branding":
     default:
@@ -905,6 +909,30 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
       const on = s(meta, "enabled") === "true";
       return `${actor} heeft feature '${name}' ${on ? "ingeschakeld" : "uitgeschakeld"}`;
     },
+  },
+
+  // --- Ledenagenda ---
+  "calendar.plan.set": {
+    category: "calendar", label: "Weekdagplanning ingesteld", icon: "🗓️", tone: "accent",
+    sentence: ({ actor, meta }) => {
+      const n = s(meta, "plannedDays");
+      return n
+        ? `${actor} heeft de weekdagplanning ingesteld (${n} trainingsdag(en) gepland)`
+        : `${actor} heeft de weekdagplanning verwijderd`;
+    },
+  },
+  "calendar.feed.create": {
+    category: "calendar", label: "Agendafeed aangemaakt", icon: "🔗", tone: "success",
+    sentence: ({ actor }) => `${actor} heeft een agendakoppeling (ICS-feed) aangemaakt`,
+  },
+  "calendar.feed.rotate": {
+    category: "calendar", label: "Agendafeed vernieuwd", icon: "🔄", tone: "accent",
+    sentence: ({ actor }) =>
+      `${actor} heeft de agendakoppeling vernieuwd (oude feed-URL is ongeldig)`,
+  },
+  "calendar.feed.revoke": {
+    category: "calendar", label: "Agendafeed ingetrokken", icon: "🚫", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft de agendakoppeling ingetrokken`,
   },
 
   // --- Platform-instellingen (Superadmin) ---

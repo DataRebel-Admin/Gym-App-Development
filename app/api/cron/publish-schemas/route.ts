@@ -44,7 +44,7 @@ export async function GET(req: Request) {
       await prisma.$transaction([
         prisma.assignedWorkout.updateMany({
           where: { tenantId: a.tenantId, userId: a.userId, status: "PUBLISHED" },
-          data: { status: "ARCHIVED" },
+          data: { status: "ARCHIVED", archivedAt: now },
         }),
         prisma.assignedWorkout.update({
           where: { id: a.id },

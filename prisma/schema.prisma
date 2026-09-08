@@ -660,6 +660,9 @@ model User {
   // Wachtwoord-reset via e-mail (eenmalige, kortlevende token — 1 uur).
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
+  // Onraadbare token voor de publieke ICS-agendafeed (/api/calendar/[token]).
+  // NULL = geen feed; opnieuw genereren maakt de oude URL direct dood.
+  calendarFeedToken    String?   @unique
   tenantId      String? // NULL voor SUPERADMIN (transcendeert tenants)
   // Persoonlijke owner-dashboard indeling (widget-volgorde + zichtbaarheid).
   // null = standaard-layout. Geen RLS-impact (kolom op bestaand model).
@@ -1655,6 +1658,13 @@ model AssignedWorkout {
   assignedById  String? // User.id van de toewijzende owner/admin
   notifiedAt    DateTime? // meldingen verstuurd (voorkomt dubbele meldingen)
   seenAt        DateTime? // lid heeft het schema voor het eerst geopend ("Nieuw")
+  // Weekdagplanning van het lid: { setAt: "YYYY-MM-DD", days: Record<dayId, isoWeekday[]> }
+  // (ISO: 1=ma … 7=zo). Vorm/validatie in lib/calendar-plan.ts; reist mee bij
+  // hertoewijzing via carryOverWeekdayPlan. NULL = geen planning.
+  weekdayPlan   Json?
+  // Moment waarop status ARCHIVED werd — élke archiveer-site schrijft dit mee.
+  // Begrenst het geplande raster in de agenda-historie (lib/calendar.ts).
+  archivedAt    DateTime?
 
   // --- Zelf-gebouwd lid-schema (origin=MEMBER) ---
   // De `status` hierboven blijft de zichtbaarheidspoort; `memberStatus` draagt de

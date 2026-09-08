@@ -17,6 +17,7 @@ export type FeatureKey =
   | "group_classes"
   | "ai"
   | "defects"
+  | "calendar"
   | "exercise_legacy_catalog";
 
 export type FeatureDef = {
@@ -72,6 +73,14 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     description:
       "Leden melden defecte apparaten aan de sportschool; trainers/beheer behandelen ze per vestiging. Een gevaarlijk defect zet het apparaat direct buiten gebruik.",
     icon: "🚧",
+    defaultEnabled: true,
+  },
+  calendar: {
+    key: "calendar",
+    name: "Ledenagenda",
+    description:
+      "Kalenderweergave voor leden (geplande en gedane trainingen, groepslessen) plus een ICS-abonnementsfeed voor Google/Outlook/Apple Agenda.",
+    icon: "🗓️",
     defaultEnabled: true,
   },
   exercise_legacy_catalog: {

@@ -692,7 +692,7 @@ async function archivePriorActive(
 ): Promise<boolean> {
   const { count } = await tx.assignedWorkout.updateMany({
     where: { tenantId, userId, status: "PUBLISHED" },
-    data: { status: "ARCHIVED" },
+    data: { status: "ARCHIVED", archivedAt: new Date() },
   });
   return count > 0;
 }
@@ -1129,7 +1129,7 @@ export async function archiveAssignment(formData: FormData) {
   if (assignment) {
     await prisma.assignedWorkout.update({
       where: { id: assignment.id },
-      data: { status: "ARCHIVED" },
+      data: { status: "ARCHIVED", archivedAt: new Date() },
     });
     await audit("schema.archive", {
       actor: owner,
@@ -1799,7 +1799,7 @@ export async function reviewMemberSchema(formData: FormData) {
             status: "PUBLISHED",
             id: { not: assignment.id },
           },
-          data: { status: "ARCHIVED" },
+          data: { status: "ARCHIVED", archivedAt: new Date() },
         });
         await tx.assignedWorkout.update({
           where: { id: assignment.id },

@@ -474,12 +474,12 @@ async function archivePriorActive(
       status: "PUBLISHED",
       id: { not: exceptId },
     },
-    data: { memberStatus: "PAUSED", status: "ARCHIVED" },
+    data: { memberStatus: "PAUSED", status: "ARCHIVED", archivedAt: new Date() },
   });
   // Actief coach-schema → gearchiveerd.
   await tx.assignedWorkout.updateMany({
     where: { tenantId, userId, origin: "COACH", status: "PUBLISHED", id: { not: exceptId } },
-    data: { status: "ARCHIVED" },
+    data: { status: "ARCHIVED", archivedAt: new Date() },
   });
 }
 
@@ -683,7 +683,7 @@ export async function pauseMemberSchema(formData: FormData) {
 
   await prisma.assignedWorkout.update({
     where: { id: assignment.id },
-    data: { memberStatus: "PAUSED", status: "ARCHIVED" },
+    data: { memberStatus: "PAUSED", status: "ARCHIVED", archivedAt: new Date() },
   });
   await audit("schema.member.pause", {
     actor: { id: member.id, email: member.email, role: member.role },
