@@ -239,12 +239,9 @@ export default async function MemberHome() {
         <RevealItem>
           <Link
             href="/member/agenda"
-            className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-center text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
           >
-            <span className="inline-flex items-center gap-2">
-              <CalendarDays className="size-5 text-accent" /> {t("agenda")}
-            </span>
-            <ChevronRight className="size-4 text-neutral-300" />
+            <CalendarDays className="size-5 text-accent" /> {t("agenda")}
           </Link>
         </RevealItem>
       ) : null}

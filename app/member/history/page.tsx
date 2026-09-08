@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db";
 import { requireMember, getMemberHistory } from "@/lib/member";
 import { getMemberStats, getRecentSessions } from "@/lib/member-stats";
 import { trainerDisplayName } from "@/lib/schema-status";
+import { isFeatureEnabled } from "@/lib/features/service";
+import { getMemberAgenda } from "@/lib/calendar";
+import { nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
+import { AgendaMonthGrid } from "@/components/calendar/agenda-month-grid";
 import { LOCALE_META, type AppLocale } from "@/lib/i18n/config";
 import { formatNumber } from "@/lib/i18n/format";
 import { HistoryChart } from "./history-chart.lazy";
@@ -55,6 +59,23 @@ export default async function MemberHistoryPage() {
 
   const totalHours = Math.round((stats.totalDurationSec / 3600) * 10) / 10;
   const hasActivity = stats.totalWorkouts > 0;
+
+  // Agenda-preview (lopende maand): elke tik navigeert dóór naar /member/agenda.
+  const calendarEnabled = await isFeatureEnabled(member.tenantId, "calendar");
+  const agenda = calendarEnabled
+    ? await getMemberAgenda(member.id, member.tenantId, null)
+    : null;
+  const agendaMonthTitle = agenda
+    ? new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(
+        new Date(
+          Date.UTC(
+            Number(agenda.monthKey.slice(0, 4)),
+            Number(agenda.monthKey.slice(5)) - 1,
+            1
+          )
+        )
+      )
+    : "";
 
   // Herkomst per sessie: welke sessies zijn door een trainer gedraaid (PT-sessie).
   const conductedRows =
@@ -124,6 +145,32 @@ export default async function MemberHistoryPage() {
             </p>
             <TrainingHeatmap days={stats.heatmap} />
           </RevealItem>
+
+          {/* Agenda-preview: het maandraster van de agenda, doorklikbaar. */}
+          {agenda ? (
+            <RevealItem className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  {t("agendaTitle")}
+                </p>
+                <Link
+                  href="/member/agenda"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-accent"
+                >
+                  {t("openAgenda")} <ChevronRight className="size-3.5" />
+                </Link>
+              </div>
+              <AgendaMonthGrid
+                monthKey={agenda.monthKey}
+                monthTitle={agendaMonthTitle}
+                todayKey={agenda.todayKey}
+                days={agenda.days}
+                prevHref={`/member/agenda?m=${prevMonthKey(agenda.monthKey)}`}
+                nextHref={`/member/agenda?m=${nextMonthKey(agenda.monthKey)}`}
+                dayHrefPrefix={`/member/agenda?m=${agenda.monthKey}`}
+              />
+            </RevealItem>
+          ) : null}
 
           {/* Weekvolume */}
           <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">

@@ -11,6 +11,9 @@ import type { AgendaDay } from "@/lib/calendar";
  * les; een cel mét inhoud linkt naar het bijbehorende dag-anker in de lijst.
  * Datumrekenwerk gebeurt niet hier: de dagen komen kant-en-klaar (en al in de
  * lid-tijdzone gebucket) uit lib/calendar.ts.
+ *
+ * `dayHrefPrefix`: ingebed op een andere pagina (historie) worden de
+ * dag-ankers volledige navigaties naar de agenda-pagina.
  */
 export function AgendaMonthGrid({
   monthKey,
@@ -19,6 +22,7 @@ export function AgendaMonthGrid({
   days,
   prevHref,
   nextHref,
+  dayHrefPrefix = "",
 }: {
   monthKey: string;
   monthTitle: string;
@@ -26,6 +30,7 @@ export function AgendaMonthGrid({
   days: AgendaDay[];
   prevHref: string;
   nextHref: string;
+  dayHrefPrefix?: string;
 }) {
   const t = useTranslations("member.agenda");
   const weekdayLabels = [1, 2, 3, 4, 5, 6, 7].map((n) => t(`wd${n}`));
@@ -93,7 +98,11 @@ export function AgendaMonthGrid({
           );
 
           return hasContent ? (
-            <a key={day.dayKey} href={`#d-${day.dayKey}`} className="active:opacity-70">
+            <a
+              key={day.dayKey}
+              href={`${dayHrefPrefix}#d-${day.dayKey}`}
+              className="active:opacity-70"
+            >
               {cell}
             </a>
           ) : (

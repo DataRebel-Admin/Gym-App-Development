@@ -238,7 +238,16 @@
       "feedProviderApple": "Apple Calendar",
       "feedGoogleSteps": "Open Google Calendar on a computer, go to Settings, choose 'Add calendar' and then 'From URL', and paste the https link.",
       "feedOutlookSteps": "In Outlook choose 'Add calendar', then 'Subscribe from web', and paste the https link.",
-      "feedAppleSteps": "Tap the webcal link on your iPhone, or on the Mac choose 'File' and then 'New Calendar Subscription', and paste the link."
+      "feedAppleSteps": "Tap the webcal link on your iPhone, or on the Mac choose 'File' and then 'New Calendar Subscription', and paste the link.",
+      "plannedDaysCount": "{count} {count, plural, one {training day} other {training days}} planned",
+      "plannerNotSet": "Not set up yet",
+      "feedLinked": "Connected, the feed is active",
+      "feedNotLinked": "Put your workouts in your own calendar app",
+      "backToAgenda": "Back to calendar",
+      "feedAddApple": "Add to Apple Calendar",
+      "feedAddGoogle": "Add to Google Calendar",
+      "feedAddOutlook": "Add to Outlook",
+      "feedManualTitle": "Prefer to do it manually? Copy the link"
     },
     "schema": {
       "metaTitle": "My plan",
@@ -429,6 +438,8 @@
     },
     "history": {
       "metaTitle": "History",
+      "agendaTitle": "Calendar",
+      "openAgenda": "Open calendar",
       "title": "History",
       "subtitle": "Your progress in numbers.",
       "emptyTitle": "No workouts yet",

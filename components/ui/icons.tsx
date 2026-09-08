@@ -17,6 +17,7 @@ export {
   Send,
   LayoutDashboard,
   LineChart,
+  Link2,
   BarChart3,
   TrendingUp,
   TrendingDown,

@@ -704,8 +704,16 @@ Apple Agenda. Feature-flag **`calendar`** (default aan) gate't pagina, actions
 - **UI**: `app/member/agenda/` (RSC; maandnavigatie server-driven via
   `?m=YYYY-MM`), `components/calendar/` (maandgrid, daglijst, `WeekdayPlanner`
   — 7 chips per trainingsdag, optimistisch, stuurt de volledige mapping;
-  `CalendarFeedCard`). Ingangen: drawer (Trainen) + tegel op `/member`, beide
-  achter de flag; NIET in de onderbalk (die zit al op 6 items).
+  `CalendarFeedCard`). De planner en de agendakoppeling wonen op **subpagina's**
+  (`/member/agenda/planning` en `/member/agenda/koppelen`); de agenda-pagina
+  toont alleen compacte ingangen met de actuele status. `/member/history` toont
+  het maandraster als doorklikbare preview (`AgendaMonthGrid` met
+  `dayHrefPrefix` → volledige navigatie naar de agenda). Koppelen is één tik
+  per provider: `webcal://` (Apple) + de "toevoegen via URL"-deeplinks van
+  Google Agenda (`calendar.google.com/calendar/r?cid=`) en Outlook
+  (`outlook.live.com/calendar/0/addfromweb`); kopieerlinks + handmatige stappen
+  blijven als uitklap-terugval. Ingangen: drawer (Trainen) + tegel op
+  `/member`, beide achter de flag; NIET in de onderbalk (die zit al op 6 items).
 - **ICS-feed**: `User.calendarFeedToken` (randomBytes(24) hex; genereren bij
   opt-in, roteren = oude URL direct dood, intrekken = null) → publieke route
   **`app/api/calendar/[token]/route.ts`** (geen auth — kalenderservers fetchen

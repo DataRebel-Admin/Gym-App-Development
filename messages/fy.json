@@ -108,7 +108,16 @@
       "feedProviderApple": "Apple Aginda",
       "feedGoogleSteps": "Iepenje Google Aginda op in kompjûter, gean nei Ynstellingen, kies 'Aginda tafoegje' en dan 'Fia URL', en plak de https-link.",
       "feedOutlookSteps": "Kies yn Outlook 'Aginda tafoegje', dan 'Abonnearje fia ynternet', en plak de https-link.",
-      "feedAppleSteps": "Tik op dyn iPhone op de webcal-link, of kies op de Mac 'Archyf' en dan 'Nij aginda-abonnemint', en plak de link."
+      "feedAppleSteps": "Tik op dyn iPhone op de webcal-link, of kies op de Mac 'Archyf' en dan 'Nij aginda-abonnemint', en plak de link.",
+      "plannedDaysCount": "{count} {count, plural, one {trainingsdei} other {trainingsdagen}} pland",
+      "plannerNotSet": "Noch net ynsteld",
+      "feedLinked": "Keppele, de feed is aktyf",
+      "feedNotLinked": "Set dyn trainingen yn dyn eigen aginda-app",
+      "backToAgenda": "Werom nei aginda",
+      "feedAddApple": "Set yn Apple Aginda",
+      "feedAddGoogle": "Set yn Google Aginda",
+      "feedAddOutlook": "Set yn Outlook",
+      "feedManualTitle": "Leaver mei de hân? Kopiearje de link"
     },
     "schema": {
       "metaTitle": "Myn skema",
@@ -299,6 +308,8 @@
     },
     "history": {
       "metaTitle": "Skiednis",
+      "agendaTitle": "Aginda",
+      "openAgenda": "Iepenje aginda",
       "title": "Skiednis",
       "subtitle": "Dyn fuortgong yn sifers.",
       "emptyTitle": "Noch gjin trainingen",

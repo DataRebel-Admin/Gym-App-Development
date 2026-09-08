@@ -238,7 +238,16 @@
       "feedProviderApple": "Apple Agenda",
       "feedGoogleSteps": "Open Google Agenda op een computer, ga naar Instellingen, kies 'Agenda toevoegen' en daarna 'Via URL', en plak de https-link.",
       "feedOutlookSteps": "Kies in Outlook 'Agenda toevoegen', daarna 'Abonneren via internet', en plak de https-link.",
-      "feedAppleSteps": "Tik op je iPhone op de webcal-link, of kies op de Mac 'Archief' en dan 'Nieuw agenda-abonnement', en plak de link."
+      "feedAppleSteps": "Tik op je iPhone op de webcal-link, of kies op de Mac 'Archief' en dan 'Nieuw agenda-abonnement', en plak de link.",
+      "plannedDaysCount": "{count} {count, plural, one {trainingsdag} other {trainingsdagen}} gepland",
+      "plannerNotSet": "Nog niet ingesteld",
+      "feedLinked": "Gekoppeld, de feed is actief",
+      "feedNotLinked": "Zet je trainingen in je eigen agenda-app",
+      "backToAgenda": "Terug naar agenda",
+      "feedAddApple": "Zet in Apple Agenda",
+      "feedAddGoogle": "Zet in Google Agenda",
+      "feedAddOutlook": "Zet in Outlook",
+      "feedManualTitle": "Liever handmatig? Kopieer de link"
     },
     "schema": {
       "metaTitle": "Mijn schema",
@@ -429,6 +438,8 @@
     },
     "history": {
       "metaTitle": "Geschiedenis",
+      "agendaTitle": "Agenda",
+      "openAgenda": "Open agenda",
       "title": "Historie",
       "subtitle": "Jouw voortgang in cijfers.",
       "emptyTitle": "Nog geen trainingen",

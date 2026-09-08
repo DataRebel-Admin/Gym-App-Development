@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
-import { Check, ChevronDown } from "@/components/ui/icons";
+import { CalendarDays, Check, ChevronDown } from "@/components/ui/icons";
 import {
   createCalendarFeed,
   revokeCalendarFeed,
@@ -12,13 +12,21 @@ import {
 } from "@/app/member/agenda/actions";
 
 /**
- * "Koppel je agenda": ICS-abonnementsfeed aanmaken, kopiëren (https + webcal),
- * per provider instructies, en vernieuwen/intrekken. Vernieuwen/intrekken
- * vraagt een tweede tik als bevestiging (armed-state, geen modal nodig).
- * De uitleg is bewust eerlijk: providers verversen elke paar uur, en het lid
- * deelt hiermee z'n trainingsdata met z'n eigen kalenderprovider.
+ * Agendakoppeling (ICS-feed): aanmaken en daarna zo automatisch mogelijk
+ * koppelen — één tik per provider (webcal:// voor Apple, de "toevoegen via
+ * URL"-deeplinks van Google Agenda en Outlook). Kopieerknoppen en handmatige
+ * stappen blijven als terugval in een uitklapblok. Vernieuwen/intrekken vraagt
+ * een tweede tik als bevestiging (armed-state, geen modal nodig). De uitleg is
+ * bewust eerlijk: providers verversen elke paar uur, en het lid deelt hiermee
+ * z'n trainingsdata met z'n eigen kalenderprovider.
  */
-export function CalendarFeedCard({ feedUrl }: { feedUrl: string | null }) {
+export function CalendarFeedCard({
+  feedUrl,
+  calendarName,
+}: {
+  feedUrl: string | null;
+  calendarName: string | null;
+}) {
   const t = useTranslations("member.agenda");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -31,6 +39,14 @@ export function CalendarFeedCard({ feedUrl }: { feedUrl: string | null }) {
   }, []);
 
   const webcalUrl = feedUrl ? feedUrl.replace(/^https?:\/\//, "webcal://") : null;
+  const googleUrl = webcalUrl
+    ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`
+    : null;
+  const outlookUrl = feedUrl
+    ? `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(
+        feedUrl
+      )}&name=${encodeURIComponent(calendarName ?? "Agenda")}`
+    : null;
 
   async function copy(text: string, which: "https" | "webcal") {
     try {
@@ -71,110 +87,138 @@ export function CalendarFeedCard({ feedUrl }: { feedUrl: string | null }) {
     run(action);
   }
 
+  if (feedUrl === null) {
+    return (
+      <div className="rounded-3xl border border-border bg-surface-1 p-4 shadow-sm">
+        <p className="text-xs text-neutral-500">{t("feedPrivacyNotice")}</p>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(createCalendarFeed)}
+          className="mt-3 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground active:opacity-90 disabled:opacity-60"
+        >
+          {t("feedCreate")}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-3xl border border-border bg-surface-1 p-4 shadow-sm">
-      <h2 className="font-display text-sm font-bold text-neutral-900">{t("feedTitle")}</h2>
-      <p className="mt-1 text-xs text-neutral-500">{t("feedDesc")}</p>
+      {/* Eén tik per provider — de link opent direct het abonneer-scherm. */}
+      <div className="flex flex-col gap-2">
+        <a
+          href={webcalUrl ?? "#"}
+          className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground active:opacity-90"
+        >
+          <CalendarDays className="size-4" /> {t("feedAddApple")}
+        </a>
+        <a
+          href={googleUrl ?? "#"}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl border border-accent px-4 py-2.5 text-sm font-bold text-accent active:bg-surface-2"
+        >
+          <CalendarDays className="size-4" /> {t("feedAddGoogle")}
+        </a>
+        <a
+          href={outlookUrl ?? "#"}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-center gap-2 rounded-xl border border-accent px-4 py-2.5 text-sm font-bold text-accent active:bg-surface-2"
+        >
+          <CalendarDays className="size-4" /> {t("feedAddOutlook")}
+        </a>
+      </div>
 
-      {feedUrl === null ? (
-        <>
-          <p className="mt-2 text-xs text-neutral-500">{t("feedPrivacyNotice")}</p>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => run(createCalendarFeed)}
-            className="mt-3 w-full rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground active:opacity-90 disabled:opacity-60"
-          >
-            {t("feedCreate")}
-          </button>
-        </>
-      ) : (
-        <>
-          <div className="mt-3 flex flex-col gap-2">
-            {([
-              ["https", t("feedUrlLabel"), feedUrl],
-              ["webcal", t("feedWebcalLabel"), webcalUrl ?? ""],
-            ] as const).map(([which, label, url]) => (
-              <div key={which}>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
-                  {label}
-                </p>
-                <div className="mt-1 flex items-center gap-2">
-                  <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2.5 py-2 text-[11px] text-neutral-600">
-                    {url}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => copy(url, which)}
-                    className={cn(
-                      "shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold",
-                      copied === which
-                        ? "border-accent text-accent"
-                        : "border-border text-neutral-600 active:bg-surface-2"
-                    )}
-                  >
-                    {copied === which ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Check className="size-3" /> {t("feedCopied")}
-                      </span>
-                    ) : (
-                      t("feedCopy")
-                    )}
-                  </button>
-                </div>
+      {/* Handmatige terugval: links kopiëren + stappen per provider. */}
+      <details className="group mt-3 rounded-xl border border-border px-3 py-2">
+        <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-neutral-700">
+          {t("feedManualTitle")}
+          <ChevronDown className="size-4 text-neutral-400 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="mt-2 flex flex-col gap-2">
+          {([
+            ["https", t("feedUrlLabel"), feedUrl],
+            ["webcal", t("feedWebcalLabel"), webcalUrl ?? ""],
+          ] as const).map(([which, label, url]) => (
+            <div key={which}>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">
+                {label}
+              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2.5 py-2 text-[11px] text-neutral-600">
+                  {url}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => copy(url, which)}
+                  className={cn(
+                    "shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold",
+                    copied === which
+                      ? "border-accent text-accent"
+                      : "border-border text-neutral-600 active:bg-surface-2"
+                  )}
+                >
+                  {copied === which ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Check className="size-3" /> {t("feedCopied")}
+                    </span>
+                  ) : (
+                    t("feedCopy")
+                  )}
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+          <ul className="mt-1 flex flex-col gap-1.5 text-xs text-neutral-500">
+            <li>
+              <span className="font-semibold text-neutral-600">{t("feedProviderGoogle")}: </span>
+              {t("feedGoogleSteps")}
+            </li>
+            <li>
+              <span className="font-semibold text-neutral-600">{t("feedProviderOutlook")}: </span>
+              {t("feedOutlookSteps")}
+            </li>
+            <li>
+              <span className="font-semibold text-neutral-600">{t("feedProviderApple")}: </span>
+              {t("feedAppleSteps")}
+            </li>
+          </ul>
+        </div>
+      </details>
 
-          <div className="mt-3 flex flex-col gap-1.5">
-            {([
-              ["google", t("feedProviderGoogle"), t("feedGoogleSteps")],
-              ["outlook", t("feedProviderOutlook"), t("feedOutlookSteps")],
-              ["apple", t("feedProviderApple"), t("feedAppleSteps")],
-            ] as const).map(([key, name, steps]) => (
-              <details key={key} className="group rounded-xl border border-border px-3 py-2">
-                <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold text-neutral-700">
-                  {name}
-                  <ChevronDown className="size-4 text-neutral-400 transition-transform group-open:rotate-180" />
-                </summary>
-                <p className="mt-1.5 text-xs text-neutral-500">{steps}</p>
-              </details>
-            ))}
-          </div>
+      <p className="mt-3 text-[11px] text-neutral-400">{t("feedRefreshNotice")}</p>
+      <p className="mt-1 text-[11px] text-neutral-400">{t("feedPrivacyNotice")}</p>
 
-          <p className="mt-3 text-[11px] text-neutral-400">{t("feedRefreshNotice")}</p>
-          <p className="mt-1 text-[11px] text-neutral-400">{t("feedPrivacyNotice")}</p>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => confirmable("rotate", rotateCalendarFeed)}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-xs font-semibold disabled:opacity-60",
-                armed === "rotate"
-                  ? "border-accent text-accent"
-                  : "border-border text-neutral-600 active:bg-surface-2"
-              )}
-            >
-              {armed === "rotate" ? t("feedConfirm") : t("feedRotate")}
-            </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => confirmable("revoke", revokeCalendarFeed)}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-xs font-semibold disabled:opacity-60",
-                armed === "revoke"
-                  ? "border-red-400 text-red-600"
-                  : "border-border text-neutral-600 active:bg-surface-2"
-              )}
-            >
-              {armed === "revoke" ? t("feedConfirm") : t("feedRevoke")}
-            </button>
-          </div>
-        </>
-      )}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => confirmable("rotate", rotateCalendarFeed)}
+          className={cn(
+            "rounded-xl border px-3 py-2.5 text-xs font-semibold disabled:opacity-60",
+            armed === "rotate"
+              ? "border-accent text-accent"
+              : "border-border text-neutral-600 active:bg-surface-2"
+          )}
+        >
+          {armed === "rotate" ? t("feedConfirm") : t("feedRotate")}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => confirmable("revoke", revokeCalendarFeed)}
+          className={cn(
+            "rounded-xl border px-3 py-2.5 text-xs font-semibold disabled:opacity-60",
+            armed === "revoke"
+              ? "border-red-400 text-red-600"
+              : "border-border text-neutral-600 active:bg-surface-2"
+          )}
+        >
+          {armed === "revoke" ? t("feedConfirm") : t("feedRevoke")}
+        </button>
+      </div>
     </div>
   );
 }
