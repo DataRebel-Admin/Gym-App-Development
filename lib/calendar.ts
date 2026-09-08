@@ -142,16 +142,30 @@ export async function getMemberAgenda(
   requestedMonthKey: string | null
 ): Promise<AgendaMonth> {
   const tz = await getMemberCalendarTimezone(memberId, tenantId);
-  const now = new Date();
-  const todayKey = dayKeyInTz(now, tz);
+  const todayKey = dayKeyInTz(new Date(), tz);
   // Geen/ongeldige ?m= → de lopende maand in de tijdzone van het lid.
   const monthKey =
     requestedMonthKey && isValidMonthKey(requestedMonthKey)
       ? requestedMonthKey
       : todayKey.slice(0, 7);
-  const gridKeys = monthGridDayKeys(monthKey);
-  const firstKey = gridKeys[0];
-  const lastKey = gridKeys[gridKeys.length - 1];
+  const days = await assembleAgendaDays(memberId, tenantId, tz, todayKey, monthGridDayKeys(monthKey));
+  return { monthKey, timeZone: tz, todayKey, days };
+}
+
+/**
+ * Gedeelde dag-assemblage voor een willekeurige, oplopende reeks dayKeys —
+ * gebruikt door het maandraster én de dagenstrip op het dashboard.
+ */
+async function assembleAgendaDays(
+  memberId: string,
+  tenantId: string,
+  tz: string,
+  todayKey: string,
+  dayKeys: string[]
+): Promise<AgendaDay[]> {
+  const now = new Date();
+  const firstKey = dayKeys[0];
+  const lastKey = dayKeys[dayKeys.length - 1];
 
   // Instant-grenzen in de lid-tijdzone. De sessies-query is ±1 week verbreed:
   // de verschoven-/gemist-regel heeft op randweken de héle ISO-week nodig.
@@ -304,8 +318,8 @@ export async function getMemberAgenda(
     classesByDay.set(key, list);
   }
 
-  // Per rasterdag: geplande statussen + gedane trainingen + lessen.
-  const days: AgendaDay[] = gridKeys.map((dayKey) => {
+  // Per dag: geplande statussen + gedane trainingen + lessen.
+  return dayKeys.map((dayKey): AgendaDay => {
     // Overlappende vensters: de toewijzing met de laatste start wint (een
     // nieuwe toewijzing vervangt de verwachting van de oude).
     const owner = planned
@@ -354,8 +368,79 @@ export async function getMemberAgenda(
       classes: classesByDay.get(dayKey) ?? [],
     };
   });
+}
 
-  return { monthKey, timeZone: tz, todayKey, days };
+// ---------- Dagenstrip + "volgende training" (dashboard) ----------
+
+export type AgendaNextUp =
+  | { kind: "training"; dayKey: string; dayName: string }
+  | {
+      kind: "class";
+      dayKey: string;
+      title: string;
+      startIso: string;
+      endIso: string;
+      timezone: string;
+      waitlisted: boolean;
+    }
+  | null;
+
+export type AgendaStrip = {
+  timeZone: string;
+  todayKey: string;
+  /** Vandaag t/m vandaag + daysAhead - 1, op volgorde. */
+  days: AgendaDay[];
+  nextUp: AgendaNextUp;
+};
+
+/**
+ * Komende dagen voor de horizontale dagenstrip op /member, plus de eerste
+ * aankomende verplichting ("volgende training"): een nog niet gedane geplande
+ * schema-dag, of anders de eerstvolgende les-aanmelding (niet afgelast).
+ */
+export async function getMemberAgendaStrip(
+  memberId: string,
+  tenantId: string,
+  daysAhead = 14
+): Promise<AgendaStrip> {
+  const tz = await getMemberCalendarTimezone(memberId, tenantId);
+  const now = new Date();
+  const todayKey = dayKeyInTz(now, tz);
+  const dayKeys = Array.from({ length: daysAhead }, (_, i) => addDaysToDayKey(todayKey, i));
+  const days = await assembleAgendaDays(memberId, tenantId, tz, todayKey, dayKeys);
+
+  let nextUp: AgendaNextUp = null;
+  for (const day of days) {
+    // Op dezelfde dag wint de geplande schema-training van een les (die heeft
+    // de hele dag; de les komt eronder in de agenda alsnog in beeld).
+    const training = day.planned.find(
+      (p) => p.status === "upcoming" || p.status === "pending"
+    );
+    if (training) {
+      nextUp = { kind: "training", dayKey: day.dayKey, dayName: training.dayName };
+      break;
+    }
+    const cls = day.classes.find(
+      (c) =>
+        !c.cancelled &&
+        (c.status === "ENROLLED" || c.status === "WAITLISTED") &&
+        new Date(c.startIso) > now
+    );
+    if (cls) {
+      nextUp = {
+        kind: "class",
+        dayKey: day.dayKey,
+        title: cls.title,
+        startIso: cls.startIso,
+        endIso: cls.endIso,
+        timezone: cls.timezone,
+        waitlisted: cls.status === "WAITLISTED",
+      };
+      break;
+    }
+  }
+
+  return { timeZone: tz, todayKey, days, nextUp };
 }
 
 // ---------- Weekdagplanner (bewerkdata) ----------

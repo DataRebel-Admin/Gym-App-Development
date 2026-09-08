@@ -715,8 +715,13 @@ Apple Agenda. Feature-flag **`calendar`** (default aan) gate't pagina, actions
   is één tik per provider: `webcal://` (Apple) + de "toevoegen via
   URL"-deeplinks van Google Agenda (`calendar.google.com/calendar/r?cid=`) en
   Outlook (`outlook.live.com/calendar/0/addfromweb`); kopieerlinks + handmatige
-  stappen blijven als uitklap-terugval. Ingangen: drawer (Trainen) + tegel op
-  `/member`, beide achter de flag; NIET in de onderbalk (die zit al op 6 items).
+  stappen blijven als uitklap-terugval. Ingangen: drawer (Trainen) + op
+  `/member` de widget **"Volgende training"** (`agenda-strip-card.tsx`, server
+  component: eerstvolgende niet-gedane geplande dag of les via
+  `getMemberAgendaStrip`, met een horizontaal scroll-snap-strookje losse
+  dagblokjes → `/member/agenda?m=…&d=…`); NIET in de onderbalk (die zit al op
+  6 items). De dag-assemblage is gedeeld (`assembleAgendaDays`, maandraster én
+  strip) — nieuwe dag-consument = die helper, niet een eigen query.
 - **ICS-feed**: `User.calendarFeedToken` (randomBytes(24) hex; genereren bij
   opt-in, roteren = oude URL direct dood, intrekken = null) → publieke route
   **`app/api/calendar/[token]/route.ts`** (geen auth — kalenderservers fetchen

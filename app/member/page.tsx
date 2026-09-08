@@ -16,6 +16,8 @@ import { MuscleGroupBars } from "@/components/charts/muscle-group-bars";
 import { Sparkline } from "@/components/charts/sparkline";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isFeatureEnabled } from "@/lib/features/service";
+import { getMemberAgendaStrip } from "@/lib/calendar";
+import { AgendaStripCard } from "@/components/calendar/agenda-strip-card";
 import {
   Flame,
   Trophy,
@@ -27,7 +29,6 @@ import {
   Play,
   ClipboardList,
   Building2,
-  CalendarDays,
 } from "@/components/ui/icons";
 
 export async function generateMetadata() {
@@ -58,8 +59,11 @@ export default async function MemberHome() {
   ]);
   // AI-widget: alleen als de AI-module beschikbaar is (Superadmin-flag én owner-toggle).
   const aiEnabled = await isAiEnabled(member.tenantId);
-  // Agenda-tegel: alleen als de ledenagenda-module aan staat.
+  // Agenda-widget (volgende training + dagenstrip): alleen als de module aan staat.
   const calendarEnabled = await isFeatureEnabled(member.tenantId, "calendar");
+  const agendaStrip = calendarEnabled
+    ? await getMemberAgendaStrip(member.id, member.tenantId)
+    : null;
   // Trofeeën-widget: alleen als aan voor de gym én niet persoonlijk verborgen.
   const achievementUi = await getAchievementUiState(member.id, member.tenantId);
   const achievementsView = achievementUi.visible
@@ -145,6 +149,13 @@ export default async function MemberHome() {
         </div>
       </RevealItem>
 
+      {/* Volgende training + dagenstrip (agenda-widget) */}
+      {agendaStrip ? (
+        <RevealItem>
+          <AgendaStripCard strip={agendaStrip} />
+        </RevealItem>
+      ) : null}
+
       {/* Quick stats */}
       <RevealItem className="grid grid-cols-3 gap-3">
         <StatCard
@@ -153,6 +164,7 @@ export default async function MemberHome() {
           suffix=" kg"
           icon={<Dumbbell className="size-4" />}
           hint={t("hintThisWeek")}
+          href="/member/history"
         />
         <StatCard
           label={t("statTime")}
@@ -160,12 +172,14 @@ export default async function MemberHome() {
           suffix=" m"
           icon={<Clock className="size-4" />}
           hint={t("hintThisWeek")}
+          href="/member/history"
         />
         <StatCard
           label={t("statTotal")}
           value={stats.totalWorkouts}
           icon={<Activity className="size-4" />}
           hint={t("hintTrainings")}
+          href="/member/history"
         />
       </RevealItem>
 
@@ -233,18 +247,6 @@ export default async function MemberHome() {
           <Dumbbell className="size-5 text-accent" /> {t("exercises")}
         </Link>
       </RevealItem>
-
-      {/* Agenda (maandoverzicht + weekdagplanning) */}
-      {calendarEnabled ? (
-        <RevealItem>
-          <Link
-            href="/member/agenda"
-            className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-center text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
-          >
-            <CalendarDays className="size-5 text-accent" /> {t("agenda")}
-          </Link>
-        </RevealItem>
-      ) : null}
 
       {/* Schema aanvragen + sportschool */}
       <RevealItem className="grid grid-cols-2 gap-3">
