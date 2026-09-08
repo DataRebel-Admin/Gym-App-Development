@@ -12,6 +12,7 @@ import { withFavoriteIds } from "@/lib/user-preferences";
 import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
 import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
+import { applyCarriedPlan, capturePlanForCarryOver } from "@/lib/calendar";
 import {
   requireMemberSchemaEnabled,
   getMemberSchemaMode,
@@ -490,6 +491,8 @@ async function activate(
   assignmentId: string
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
+    // Weekdagplanning van het vorige actieve schema meenemen (lib/calendar.ts).
+    const carried = await capturePlanForCarryOver(tx, tenantId, userId, assignmentId);
     await archivePriorActive(tx, tenantId, userId, assignmentId);
     const current = await tx.assignedWorkout.findUnique({
       where: { id: assignmentId },
@@ -509,6 +512,7 @@ async function activate(
         seenAt: new Date(), // lid heeft z'n eigen schema al gezien
       },
     });
+    await applyCarriedPlan(tx, { tenantId, assignmentId, carried });
   });
 }
 

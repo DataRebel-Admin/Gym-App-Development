@@ -22,7 +22,7 @@ export async function requireMember() {
  * anders opnieuw uitschrijven: wie de poort (`availableFrom`) of het verlopen
  * (`endDate`) vergeet, laat een verborgen of verlopen schema tóch meetellen.
  */
-function activeAssignmentWhere(
+export function activeAssignmentWhere(
   memberId: string,
   tenantId: string,
   now: Date

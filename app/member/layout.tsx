@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { getCurrentTenant } from "@/lib/tenant";
 import { areClassesEnabled } from "@/lib/classes";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { getMemberSchemaMode } from "@/lib/member-schema";
 import { hasActiveCoachSchema } from "@/lib/member";
 import { getUserTenants } from "@/lib/tenants";
@@ -36,6 +37,8 @@ export default async function MemberLayout({
   const tenant = await getCurrentTenant();
   // Effectief = Superadmin-feature-flag én owner-toggle (zie lib/classes.ts).
   const classesEnabled = tenant ? await areClassesEnabled(tenant.id) : true;
+  // Drawer-ingang "Agenda" alleen als de ledenagenda-module aan staat.
+  const calendarEnabled = tenant ? await isFeatureEnabled(tenant.id, "calendar") : false;
   // Drawer-ingang "Zelf schema samenstellen" alleen als de tenant het aan heeft.
   const canBuildSchema = tenant
     ? (await getMemberSchemaMode(tenant.id)) !== "DISABLED"
@@ -106,6 +109,7 @@ export default async function MemberLayout({
               showAchievements={achievementUi.visible}
               showSchemaBuilder={canBuildSchema}
               showSchemaChange={canRequestChange}
+              showCalendar={calendarEnabled}
             />
           </div>
         </header>

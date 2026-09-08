@@ -26,6 +26,7 @@ import { coverUrlForCopy } from "@/lib/schema-image";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getContentLocale } from "@/lib/i18n/content-locale";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
+import { applyCarriedPlan, capturePlanForCarryOver } from "@/lib/calendar";
 import {
   snapshotOf,
   asSnapshot,
@@ -772,7 +773,11 @@ export async function assignSchemaChunk(
 
       const assignmentId = await prisma.$transaction(async (tx) => {
         let reassigned = false;
+        let carried = null;
         if (opts.mode === "now") {
+          // Weekdagplanning van het vorige actieve schema meenemen — vóór het
+          // archiveren vastpakken, ná het klonen toepassen (lib/calendar.ts).
+          carried = await capturePlanForCarryOver(tx, owner.tenantId, m.id);
           reassigned = await archivePriorActive(tx, owner.tenantId, m.id);
         }
         const id = await cloneToAssignment(tx, {
@@ -788,6 +793,7 @@ export async function assignSchemaChunk(
           trainerMessage,
           publishedAt,
         });
+        await applyCarriedPlan(tx, { tenantId: owner.tenantId, assignmentId: id, carried });
         return { id, reassigned };
       });
 
@@ -871,6 +877,7 @@ export async function assignFromTemplate(formData: FormData) {
   if (!source) redirect(`/owner/schemas/members/${userId}`);
 
   const { assignmentId, reassigned } = await prisma.$transaction(async (tx) => {
+    const carried = await capturePlanForCarryOver(tx, owner.tenantId, userId);
     const reassigned = await archivePriorActive(tx, owner.tenantId, userId);
     const id = await cloneToAssignment(tx, {
       tenantId: owner.tenantId,
@@ -885,6 +892,7 @@ export async function assignFromTemplate(formData: FormData) {
       trainerMessage: null,
       publishedAt: new Date(),
     });
+    await applyCarriedPlan(tx, { tenantId: owner.tenantId, assignmentId: id, carried });
     return { assignmentId: id, reassigned };
   });
 
@@ -987,6 +995,7 @@ export async function startEmptySchema(formData: FormData) {
   if (!member) redirect("/owner/schemas/members");
 
   await prisma.$transaction(async (tx) => {
+    // Geen carry-over: een leeg schema heeft geen dagen om een plan op te matchen.
     await archivePriorActive(tx, owner.tenantId, userId);
     const tpl = await tx.workoutTemplate.create({
       data: { tenantId: owner.tenantId, name: "Nieuw schema", isLibrary: false },
@@ -1042,8 +1051,9 @@ export async function startSchemaFromDayTemplate(formData: FormData) {
   if (!source) redirect(`/owner/schemas/members/${userId}`);
 
   await prisma.$transaction(async (tx) => {
+    const carried = await capturePlanForCarryOver(tx, owner.tenantId, userId);
     await archivePriorActive(tx, owner.tenantId, userId);
-    await cloneToAssignment(tx, {
+    const id = await cloneToAssignment(tx, {
       tenantId: owner.tenantId,
       userId,
       assignedById: owner.id,
@@ -1056,6 +1066,7 @@ export async function startSchemaFromDayTemplate(formData: FormData) {
       trainerMessage: null,
       publishedAt: new Date(),
     });
+    await applyCarriedPlan(tx, { tenantId: owner.tenantId, assignmentId: id, carried });
   });
 
   await audit("schema.assign", {
@@ -1093,11 +1104,13 @@ export async function publishAssignment(formData: FormData) {
   }
 
   await prisma.$transaction(async (tx) => {
+    const carried = await capturePlanForCarryOver(tx, owner.tenantId, userId, assignment.id);
     await archivePriorActive(tx, owner.tenantId, userId);
     await tx.assignedWorkout.update({
       where: { id: assignment.id },
       data: { status: "PUBLISHED", publishedAt: new Date(), availableFrom: null, notifiedAt: null },
     });
+    await applyCarriedPlan(tx, { tenantId: owner.tenantId, assignmentId: assignment.id, carried });
   });
 
   await audit("schema.publish", {
@@ -1791,7 +1804,14 @@ export async function reviewMemberSchema(formData: FormData) {
         },
       });
       if (decision === "approve_activate") {
-        // Archiveer het huidige actieve schema van het lid en zet dit live.
+        // Archiveer het huidige actieve schema van het lid en zet dit live;
+        // een weekdagplanning op het oude schema reist mee (lib/calendar.ts).
+        const carried = await capturePlanForCarryOver(
+          tx,
+          owner.tenantId,
+          assignment.userId,
+          assignment.id
+        );
         await tx.assignedWorkout.updateMany({
           where: {
             tenantId: owner.tenantId,
@@ -1809,6 +1829,11 @@ export async function reviewMemberSchema(formData: FormData) {
             publishedAt: new Date(),
             availableFrom: null,
           },
+        });
+        await applyCarriedPlan(tx, {
+          tenantId: owner.tenantId,
+          assignmentId: assignment.id,
+          carried,
         });
       }
     });

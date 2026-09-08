@@ -11,7 +11,7 @@ import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, ClipboardList, Pencil, PersonStanding, Trophy, Flag, Wrench, LifeBuoy, Sparkles } from "@/components/ui/icons";
+import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, CalendarDays, ClipboardList, Pencil, PersonStanding, Trophy, Flag, Wrench, LifeBuoy, Sparkles } from "@/components/ui/icons";
 import { parseRequestKind, requestKindHref } from "@/lib/schema-requests";
 import { ReportProblemModal } from "@/components/reports/report-problem-modal";
 import { reopenOnboarding } from "@/components/member/onboarding";
@@ -52,6 +52,7 @@ export function MemberDrawer({
   showAchievements = false,
   showSchemaBuilder = false,
   showSchemaChange = false,
+  showCalendar = false,
 }: {
   name: string | null;
   email: string | null;
@@ -62,6 +63,8 @@ export function MemberDrawer({
   showSchemaBuilder?: boolean;
   /** Er ligt een actief coach-schema → "Aanpassing vragen" is zinvol. */
   showSchemaChange?: boolean;
+  /** Ledenagenda-module (feature-flag `calendar`) aan voor deze tenant. */
+  showCalendar?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -99,6 +102,16 @@ export function MemberDrawer({
       key: "training",
       label: "Trainen",
       items: [
+        ...(showCalendar
+          ? [
+              {
+                key: "agenda",
+                label: "Agenda",
+                icon: <CalendarDays className="size-5" />,
+                href: "/member/agenda",
+              },
+            ]
+          : []),
         {
           key: "requests",
           label: "Trainingsschema aanvragen",

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { notifyAssignmentsPublished } from "@/lib/schema-notify";
 import { cronAuthorized } from "@/lib/cron-auth";
+import { applyCarriedPlan, capturePlanForCarryOver } from "@/lib/calendar";
 import { appBaseUrl } from "@/lib/app-url";
 
 /**
@@ -41,16 +42,20 @@ export async function GET(req: Request) {
   // Per toewijzing: archiveer een vorig actief schema en publiceer dit schema.
   for (const a of due) {
     try {
-      await prisma.$transaction([
-        prisma.assignedWorkout.updateMany({
+      await prisma.$transaction(async (tx) => {
+        // Weekdagplanning van het vorige actieve schema meenemen — vóór het
+        // archiveren vastpakken, ná het publiceren toepassen (lib/calendar.ts).
+        const carried = await capturePlanForCarryOver(tx, a.tenantId, a.userId, a.id);
+        await tx.assignedWorkout.updateMany({
           where: { tenantId: a.tenantId, userId: a.userId, status: "PUBLISHED" },
           data: { status: "ARCHIVED", archivedAt: now },
-        }),
-        prisma.assignedWorkout.update({
+        });
+        await tx.assignedWorkout.update({
           where: { id: a.id },
           data: { status: "PUBLISHED", publishedAt: now, availableFrom: null, notifiedAt: null },
-        }),
-      ]);
+        });
+        await applyCarriedPlan(tx, { tenantId: a.tenantId, assignmentId: a.id, carried });
+      });
     } catch (err) {
       console.error("[cron] publiceren mislukt:", (err as Error).message);
     }

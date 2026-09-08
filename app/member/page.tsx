@@ -15,6 +15,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { MuscleGroupBars } from "@/components/charts/muscle-group-bars";
 import { Sparkline } from "@/components/charts/sparkline";
 import { EmptyState } from "@/components/ui/empty-state";
+import { isFeatureEnabled } from "@/lib/features/service";
 import {
   Flame,
   Trophy,
@@ -26,6 +27,7 @@ import {
   Play,
   ClipboardList,
   Building2,
+  CalendarDays,
 } from "@/components/ui/icons";
 
 export async function generateMetadata() {
@@ -56,6 +58,8 @@ export default async function MemberHome() {
   ]);
   // AI-widget: alleen als de AI-module beschikbaar is (Superadmin-flag én owner-toggle).
   const aiEnabled = await isAiEnabled(member.tenantId);
+  // Agenda-tegel: alleen als de ledenagenda-module aan staat.
+  const calendarEnabled = await isFeatureEnabled(member.tenantId, "calendar");
   // Trofeeën-widget: alleen als aan voor de gym én niet persoonlijk verborgen.
   const achievementUi = await getAchievementUiState(member.id, member.tenantId);
   const achievementsView = achievementUi.visible
@@ -229,6 +233,21 @@ export default async function MemberHome() {
           <Dumbbell className="size-5 text-accent" /> {t("exercises")}
         </Link>
       </RevealItem>
+
+      {/* Agenda (maandoverzicht + weekdagplanning) */}
+      {calendarEnabled ? (
+        <RevealItem>
+          <Link
+            href="/member/agenda"
+            className="flex items-center justify-between gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
+          >
+            <span className="inline-flex items-center gap-2">
+              <CalendarDays className="size-5 text-accent" /> {t("agenda")}
+            </span>
+            <ChevronRight className="size-4 text-neutral-300" />
+          </Link>
+        </RevealItem>
+      ) : null}
 
       {/* Schema aanvragen + sportschool */}
       <RevealItem className="grid grid-cols-2 gap-3">
