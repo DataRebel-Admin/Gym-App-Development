@@ -59,6 +59,38 @@ export function schemaBadgeOptions(): SchemaBadgeDef[] {
   return SCHEMA_BADGE_KEYS.map((k) => SCHEMA_BADGES[k]);
 }
 
+/**
+ * RepDB-doel → badge-key voor een (geïmporteerd of getoond) voorbeeldschema.
+ * Gedeeld door `importLibraryTemplate` (owner) en de lid-template-catalogus,
+ * zodat hetzelfde RepDB-schema op beide plekken dezelfde badges draagt.
+ */
+export function badgeForLibraryGoal(goal: string): string | null {
+  switch (goal) {
+    case "strength":
+      return "strength";
+    case "hypertrophy":
+      return "hypertrophy";
+    case "endurance":
+      return "conditioning";
+    case "mobility":
+      return "mobility";
+    case "rehabilitation":
+      return "rehab";
+    case "power":
+      return "intense";
+    default:
+      return null;
+  }
+}
+
+/** Badge-keys van een RepDB-voorbeeldschema (beginner-vlag + doel-badge). */
+export function libraryTemplateBadges(source: { difficulty: string; goal: string }): string[] {
+  return [
+    source.difficulty === "beginner" ? "beginner" : null,
+    badgeForLibraryGoal(source.goal),
+  ].filter((b): b is string => Boolean(b));
+}
+
 /** Parse een (Json/onbekende) waarde naar een gevalideerde, ontdubbelde key-lijst. */
 export function parseBadges(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

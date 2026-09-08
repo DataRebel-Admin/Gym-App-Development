@@ -31,6 +31,18 @@ export const MEMBER_LIBRARY_WHERE = {
   kind: "SCHEMA",
 } as const satisfies Prisma.WorkoutTemplateWhereInput;
 
+/**
+ * Dag-tegenhanger voor de template-catalogus: door de sportschool vrijgegeven
+ * herbruikbare dag-templates (`kind: "DAY"`). Zelfde drie voorwaarden, zelfde
+ * regel (tonen én overnemen gebruiken dezelfde constante); `tenantId` altijd
+ * zelf toevoegen bij de aanroep.
+ */
+export const MEMBER_DAY_LIBRARY_WHERE = {
+  isLibrary: true,
+  memberVisible: true,
+  kind: "DAY",
+} as const satisfies Prisma.WorkoutTemplateWhereInput;
+
 /** Minimale vorm om te toetsen of een template in de library hoort. */
 export type MemberLibraryCandidate = {
   isLibrary: boolean;

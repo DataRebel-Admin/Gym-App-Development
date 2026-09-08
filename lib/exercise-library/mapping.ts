@@ -175,6 +175,25 @@ export const LIBRARY_GOAL_LABEL: Record<string, string> = {
   core: "Core",
 };
 
+/** Shape van één dag in `LibraryWorkoutTemplate.days` (verbatim bundel-Json). */
+export type LibraryTemplateDay = {
+  name_en?: string;
+  name_de?: string;
+  name_es?: string;
+  exercises?: {
+    exercise_id: string;
+    sets?: number;
+    reps?: string;
+    rest_seconds?: number;
+    notes_en?: string;
+  }[];
+};
+
+/** Defensieve cast van het `days`-Json (gedeeld door owner-import en lid-catalogus). */
+export function parseLibraryTemplateDays(days: unknown): LibraryTemplateDay[] {
+  return Array.isArray(days) ? (days as LibraryTemplateDay[]) : [];
+}
+
 /**
  * Vertaal de vrije reps-notatie van een RepDB-voorbeeldschema ("5", "8-12",
  * "AMRAP", "30s", "10/leg") naar onze integer-kolom + een notitie voor de rest.
