@@ -17,6 +17,7 @@ import {
   requestKindHref,
 } from "@/lib/schema-requests";
 import { fmtDate } from "@/lib/schema-status";
+import { parseTrainingGoals, preferredRequestGoal } from "@/lib/training-goals";
 
 /** Subtiele tekstknop in de kaartvoet — zelfde gewicht als de datum ernaast. */
 const actionClass =
@@ -49,19 +50,25 @@ export default async function MemberRequestsPage({
   const kind = wanted === "CHANGE" && coachSchema ? "CHANGE" : "NEW_SCHEMA";
   const fellBack = wanted === "CHANGE" && !coachSchema;
 
-  const requests = await prisma.schemaRequest.findMany({
-    where: { tenantId: member.tenantId, userId: member.id },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      kind: true,
-      goal: true,
-      description: true,
-      preferredStart: true,
-      status: true,
-      createdAt: true,
-    },
-  });
+  const [requests, user] = await Promise.all([
+    prisma.schemaRequest.findMany({
+      where: { tenantId: member.tenantId, userId: member.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        kind: true,
+        goal: true,
+        description: true,
+        preferredStart: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
+    prisma.user.findUnique({ where: { id: member.id }, select: { trainingGoals: true } }),
+  ]);
+
+  // Doel-prefill uit /account/doelen: het lid kan altijd nog iets anders kiezen.
+  const defaultGoal = preferredRequestGoal(parseTrainingGoals(user?.trainingGoals));
 
   // Openstaand per type — een aanpassingsverzoek blokkeert geen nieuw schema.
   const openKinds = requests.filter((r) => isOpenRequest(r.status)).map((r) => r.kind);
@@ -85,7 +92,7 @@ export default async function MemberRequestsPage({
         </p>
       ) : null}
 
-      <SchemaRequestForm kind={kind} canSubmit={canSubmit} />
+      <SchemaRequestForm kind={kind} canSubmit={canSubmit} defaultGoal={defaultGoal} />
 
       {/* Verkeerd formulier? Eén tik naar het andere type. De aanpassing-variant
           bieden we alleen aan als er ook echt een coach-schema ligt. */}

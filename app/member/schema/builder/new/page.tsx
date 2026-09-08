@@ -1,10 +1,18 @@
 import Link from "next/link";
 import { requireMember } from "@/lib/member";
+import { prisma } from "@/lib/db";
 import { requireMemberSchemaEnabled } from "@/lib/member-schema";
 import { getMemberLibrary } from "@/lib/member-library";
 import { SCHEMA_BLUEPRINTS } from "@/lib/member-schema-blueprints";
 import { GOAL_OPTIONS, REQUEST_GOAL_LABELS } from "@/lib/schema-requests";
+import {
+  hasGoalOverlap,
+  parseTrainingGoals,
+  preferredRequestGoal,
+  sortByGoalMatch,
+} from "@/lib/training-goals";
 import { ChevronLeft } from "@/components/ui/icons";
+import { Badge } from "@/components/ui/badge";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { SchemaCover } from "@/components/schema/schema-cover";
 import { schemaImage } from "@/lib/schema-image";
@@ -20,11 +28,20 @@ export default async function MemberBuilderNewPage() {
   const member = await requireMember();
   await requireMemberSchemaEnabled(member.tenantId);
 
-  const [templates, tenant] = await Promise.all([
+  const [rawTemplates, tenant, user] = await Promise.all([
     getMemberLibrary(member.tenantId),
     getCurrentTenant(),
+    prisma.user.findUnique({ where: { id: member.id }, select: { trainingGoals: true } }),
   ]);
   const logoUrl = tenant?.logoUrl ?? null;
+
+  // Personalisatie op de doelen uit /account/doelen: passende sjablonen en
+  // blueprints eerst (stabiel, geen filter), en het best passende blueprint is
+  // daardoor meteen de voorselectie. Zonder gekozen doelen verandert er niets.
+  const memberGoals = parseTrainingGoals(user?.trainingGoals);
+  const templates = sortByGoalMatch(rawTemplates, memberGoals, (t) => [t.goal]);
+  const blueprints = sortByGoalMatch(SCHEMA_BLUEPRINTS, memberGoals, (b) => b.goals);
+  const defaultGoal = preferredRequestGoal(memberGoals);
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-5 py-6">
@@ -44,12 +61,21 @@ export default async function MemberBuilderNewPage() {
         <p className="mt-1 text-sm text-neutral-500">
           Kies een startpunt en je doel. Je kunt daarna alles zelf aanpassen.
         </p>
+        {memberGoals.length > 0 ? (
+          <p className="mt-1 text-xs text-neutral-400">
+            Gesorteerd op{" "}
+            <Link href="/account/doelen" className="underline underline-offset-2">
+              jouw doelen
+            </Link>
+            : wat bij je past staat bovenaan.
+          </p>
+        ) : null}
       </div>
 
       <form action={startMemberSchema} className="flex flex-col gap-5">
         <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
           Mijn doel <span className="font-normal text-neutral-400">(optioneel)</span>
-          <select name="goal" defaultValue="" className={field}>
+          <select name="goal" defaultValue={defaultGoal ?? ""} className={field}>
             <option value="">Kies een doel…</option>
             {GOAL_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -90,7 +116,12 @@ export default async function MemberBuilderNewPage() {
                   className="h-14 w-21 shrink-0 rounded-xl"
                 />
                 <span className="min-w-0">
-                  <span className="block font-semibold text-neutral-900">{tpl.name}</span>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-neutral-900">{tpl.name}</span>
+                    {hasGoalOverlap([tpl.goal], memberGoals) ? (
+                      <Badge tone="accent">Past bij jouw doel</Badge>
+                    ) : null}
+                  </span>
                   <span className="block text-xs text-neutral-500">
                     {tpl._count.days} dagen · {tpl._count.items} oefeningen
                     {tpl.description ? ` · ${tpl.description}` : ""}
@@ -106,8 +137,9 @@ export default async function MemberBuilderNewPage() {
 
         <div className="flex flex-col gap-2">
           <p className="text-sm font-semibold text-neutral-900">Blueprints</p>
-          {SCHEMA_BLUEPRINTS.map((bp, i) => {
+          {blueprints.map((bp, i) => {
             const Icon = bp.icon;
+            const matched = hasGoalOverlap(bp.goals, memberGoals);
             return (
               <label
                 key={bp.key}
@@ -125,7 +157,10 @@ export default async function MemberBuilderNewPage() {
                     <Icon className="size-4" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-semibold text-neutral-900">{bp.label}</span>
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-semibold text-neutral-900">{bp.label}</span>
+                      {matched ? <Badge tone="accent">Past bij jouw doel</Badge> : null}
+                    </span>
                     <span className="block text-xs text-neutral-500">{bp.description}</span>
                   </span>
                 </span>

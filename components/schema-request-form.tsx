@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { SchemaRequestKind } from "@prisma/client";
+import type { SchemaRequestGoal, SchemaRequestKind } from "@prisma/client";
 import { submitRequest, type RequestFormState } from "@/app/member/requests/actions";
 import { GOAL_OPTIONS } from "@/lib/schema-requests";
 import { Check } from "@/components/ui/icons";
@@ -22,9 +22,12 @@ const fieldClass =
 export function SchemaRequestForm({
   kind,
   canSubmit,
+  defaultGoal,
 }: {
   kind: SchemaRequestKind;
   canSubmit: boolean;
+  /** Prefill uit de doelen van het lid (/account/doelen); null = geen voorkeur. */
+  defaultGoal?: SchemaRequestGoal | null;
 }) {
   const t = useTranslations("member.requests");
   const tr = useTranslations("requests");
@@ -32,7 +35,7 @@ export function SchemaRequestForm({
     submitRequest,
     {}
   );
-  const [goal, setGoal] = useState<string>("MUSCLE");
+  const [goal, setGoal] = useState<string>(defaultGoal ?? "MUSCLE");
   const isChange = kind === "CHANGE";
 
   if (state.ok) {

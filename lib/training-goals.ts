@@ -10,6 +10,7 @@
 // app niet neigt naar één doelgroep (bv. bodybuilding). Geen enkel doel is
 // "standaard" of geprivilegieerd. Nieuw doel = één record hieronder.
 
+import type { SchemaRequestGoal } from "@prisma/client";
 import {
   Dumbbell,
   Flame,
@@ -35,6 +36,10 @@ export type TrainingGoalDef = {
   /** Oefeningstypes die dit doel doorgaans benadrukt — voedt template-matching
    *  en suggesties. Verwijst naar keys uit lib/exercise-types.ts. */
   emphasizes: string[];
+  /** Dichtstbijzijnde `SchemaRequestGoal` — voedt de doel-prefill van het
+   *  schema-aanvraagformulier. Ontbreekt bij doelen zonder duidelijke
+   *  tegenhanger (dan liever geen prefill dan "Anders" gokken). */
+  requestGoal?: SchemaRequestGoal;
 };
 
 export const TRAINING_GOALS: Record<string, TrainingGoalDef> = {
@@ -45,6 +50,7 @@ export const TRAINING_GOALS: Record<string, TrainingGoalDef> = {
     icon: Dumbbell,
     tone: "bg-accent-soft text-accent",
     emphasizes: ["strength", "functional"],
+    requestGoal: "STRENGTH",
   },
   muscle: {
     key: "muscle",
@@ -53,6 +59,7 @@ export const TRAINING_GOALS: Record<string, TrainingGoalDef> = {
     icon: Flame,
     tone: "bg-orange-50 text-orange-600",
     emphasizes: ["strength"],
+    requestGoal: "MUSCLE",
   },
   fat_loss: {
     key: "fat_loss",
@@ -61,6 +68,7 @@ export const TRAINING_GOALS: Record<string, TrainingGoalDef> = {
     icon: TrendingDown,
     tone: "bg-rose-50 text-rose-600",
     emphasizes: ["cardio", "hiit", "circuit", "strength"],
+    requestGoal: "WEIGHT_LOSS",
   },
   conditioning: {
     key: "conditioning",
@@ -69,6 +77,7 @@ export const TRAINING_GOALS: Record<string, TrainingGoalDef> = {
     icon: Heart,
     tone: "bg-sky-50 text-sky-600",
     emphasizes: ["cardio", "endurance", "hiit"],
+    requestGoal: "CONDITION",
   },
   mobility: {
     key: "mobility",
@@ -93,6 +102,7 @@ export const TRAINING_GOALS: Record<string, TrainingGoalDef> = {
     icon: HeartPulse,
     tone: "bg-pink-50 text-pink-600",
     emphasizes: ["rehab", "mobility", "stability"],
+    requestGoal: "REHAB",
   },
   health: {
     key: "health",
@@ -136,4 +146,58 @@ export function isTrainingGoal(key: string | null | undefined): key is string {
 export function parseTrainingGoals(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((v): v is string => typeof v === "string" && v in TRAINING_GOALS);
+}
+
+// ---------------------------------------------------------------------------
+// Personalisatie: sporterdoelen ↔ templates/blueprints/aanvraag.
+// De registry deelt bewust één woordenschat met WorkoutTemplate.goal — deze
+// helpers zijn de match zelf. Puur + getest (tests/training-goals.test.ts).
+// ---------------------------------------------------------------------------
+
+/**
+ * Overlapt minstens één van de (template-/blueprint-)doelen met de gekozen
+ * sporterdoelen? Onbekende of lege keys tellen nooit mee — een sporter zonder
+ * doelen matcht dus nergens op (en de sortering blijft dan neutraal).
+ */
+export function hasGoalOverlap(
+  rowGoals: readonly (string | null | undefined)[],
+  memberGoals: readonly string[]
+): boolean {
+  if (memberGoals.length === 0) return false;
+  return rowGoals.some((g) => Boolean(g) && memberGoals.includes(g as string));
+}
+
+/**
+ * Stabiele sortering: rijen die bij de sporterdoelen passen eerst, de rest
+ * erachter, binnen beide groepen in de oorspronkelijke volgorde. Zonder gekozen
+ * doelen verandert er niets — personalisatie is een lens, geen filter.
+ */
+export function sortByGoalMatch<T>(
+  rows: readonly T[],
+  memberGoals: readonly string[],
+  goalsOf: (row: T) => readonly (string | null | undefined)[]
+): T[] {
+  if (memberGoals.length === 0) return [...rows];
+  const matched: T[] = [];
+  const rest: T[] = [];
+  for (const row of rows) {
+    (hasGoalOverlap(goalsOf(row), memberGoals) ? matched : rest).push(row);
+  }
+  return [...matched, ...rest];
+}
+
+/**
+ * Beste `SchemaRequestGoal`-prefill voor de gekozen sporterdoelen: het eerste
+ * doel (in de opgeslagen volgorde) mét een duidelijke tegenhanger wint. Doelen
+ * zonder tegenhanger (mobiliteit, stabiliteit, …) prefillen bewust niets:
+ * liever de sporter laten kiezen dan "Anders" gokken.
+ */
+export function preferredRequestGoal(
+  memberGoals: readonly string[]
+): SchemaRequestGoal | null {
+  for (const key of memberGoals) {
+    const requestGoal = TRAINING_GOALS[key]?.requestGoal;
+    if (requestGoal) return requestGoal;
+  }
+  return null;
 }
