@@ -307,3 +307,81 @@ async function computeScheduleHeatmap(
 function roundVolumeMap(acc: Map<string, number>): Record<string, number> {
   return Object.fromEntries([...acc.entries()].map(([k, v]) => [k, round05(v)]));
 }
+
+// --- Getraind-weergave: heatmap op écht gelogde sets (laatste 28 dagen) -----
+//
+// De tegenhanger van het schema-raster hierboven: zelfde overlays en zelfde
+// telregel, maar gevoed door PerformanceEntries van de afgelopen 4 weken,
+// teruggerekend naar een weekgemiddelde (÷4 — dezelfde conventie als
+// `computeMuscleAnalysis`). Zo klopt de doorklik vanaf de dashboard-widget
+// "Getrainde spiergroepen · laatste 4 weken": wat je aanklikt is wat je ziet.
+
+export type TrainedHeatmapExerciseRow = {
+  name: string;
+  /** "N sets" over de laatste 4 weken (taal-neutraal jargon). */
+  summary: string;
+  primary: string[];
+  secondary: string[];
+};
+
+export type TrainedHeatmap = {
+  hasData: boolean;
+  /** Weekgemiddelde set-volume per overlay-spier (op 0.5 afgerond). */
+  volumes: Record<string, number>;
+  exercises: TrainedHeatmapExerciseRow[];
+};
+
+/** Gecachet zoals getScheduleHeatmap (zelfde staleness-afweging, 5 min). */
+export function getTrainedHeatmap(
+  memberId: string,
+  tenantId: string
+): Promise<TrainedHeatmap> {
+  return unstable_cache(
+    () => computeTrainedHeatmap(memberId, tenantId),
+    ["muscle-heatmap-trained", tenantId, memberId],
+    { revalidate: 300 }
+  )();
+}
+
+async function computeTrainedHeatmap(
+  memberId: string,
+  tenantId: string
+): Promise<TrainedHeatmap> {
+  const since = new Date(Date.now() - 28 * 86400_000);
+  // Elke PerformanceEntry is één gelogde set (zelfde lezing als
+  // computeMuscleAnalysis hierboven).
+  const entries = await prisma.performanceEntry.findMany({
+    where: { tenantId, session: { userId: memberId, startedAt: { gte: since } } },
+    select: { exercise: { select: { id: true, name: true, ...exerciseMuscleSelect } } },
+  });
+  if (entries.length === 0) return { hasData: false, volumes: {}, exercises: [] };
+
+  const acc = new Map<string, number>();
+  const perExercise = new Map<
+    string,
+    { name: string; sets: number; exercise: (typeof entries)[number]["exercise"] }
+  >();
+  for (const e of entries) {
+    accumulateHeatmapVolume(acc, e.exercise, 1);
+    const row = perExercise.get(e.exercise.id);
+    if (row) row.sets += 1;
+    else perExercise.set(e.exercise.id, { name: e.exercise.name, sets: 1, exercise: e.exercise });
+  }
+
+  // ÷4 → weekgemiddelde, zodat de volume-niveaus (levelForWeeklySets) en de
+  // "sets per week"-teksten dezelfde schaal houden als de schema-weergave.
+  const volumes = Object.fromEntries(
+    [...acc.entries()].map(([k, v]) => [k, round05(v / 4)])
+  );
+
+  const exercises = [...perExercise.values()]
+    .sort((a, b) => b.sets - a.sets)
+    .map((r) => ({
+      name: r.name,
+      summary: `${r.sets} sets`,
+      primary: primaryHeatmapMuscles(r.exercise),
+      secondary: secondaryHeatmapMuscles(r.exercise),
+    }));
+
+  return { hasData: true, volumes, exercises };
+}

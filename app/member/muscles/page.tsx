@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireMember } from "@/lib/member";
-import { getMuscleAnalysis, getScheduleHeatmap } from "@/lib/muscle-analysis";
+import { getMuscleAnalysis, getScheduleHeatmap, getTrainedHeatmap } from "@/lib/muscle-analysis";
 import { buildHeatmapAssets } from "@/lib/muscle-heatmap";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,14 +14,25 @@ export async function generateMetadata() {
   return { title: t("metaTitle") };
 }
 
-export default async function MemberMusclesPage() {
+export default async function MemberMusclesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ weergave?: string }>;
+}) {
   const member = await requireMember();
-  const [analysis, heatmap, t] = await Promise.all([
+  const { weergave } = await searchParams;
+  const [analysis, heatmap, trained, t] = await Promise.all([
     getMuscleAnalysis(member.id, member.tenantId),
     getScheduleHeatmap(member.id, member.tenantId),
+    getTrainedHeatmap(member.id, member.tenantId),
     getTranslations("member.muscles"),
   ]);
   const heatmapAssets = buildHeatmapAssets();
+  // ?weergave=getraind (doorklik vanaf de dashboard-widget) opent de heatmap
+  // op de echt-getraind-bron i.p.v. het schema.
+  const initialMode = weergave === "getraind" && trained.hasData ? "trained" : "schema";
+  // Zonder schema maar mét logdata is de getraind-weergave alsnog zinvol.
+  const showHeatmap = analysis.hasSchema || trained.hasData;
 
   return (
     <Reveal stagger className="flex flex-col gap-5 px-4 py-6">
@@ -32,7 +43,7 @@ export default async function MemberMusclesPage() {
         <p className="mt-1 text-sm text-neutral-500">{t("subtitle")}</p>
       </RevealItem>
 
-      {!analysis.hasSchema ? (
+      {!showHeatmap ? (
         <RevealItem>
           <EmptyState
             icon={<PersonStanding className="size-7 text-accent" />}
@@ -59,17 +70,27 @@ export default async function MemberMusclesPage() {
               </p>
             </div>
             <p className="-mt-2 mb-3 text-sm text-neutral-500">
-              {t.rich("heatmapIntro", {
-                schema: analysis.schemaName ?? "",
-                b: (chunks) => (
-                  <span className="font-semibold text-neutral-700">{chunks}</span>
-                ),
-              })}
+              {analysis.hasSchema ? (
+                t.rich("heatmapIntro", {
+                  schema: analysis.schemaName ?? "",
+                  b: (chunks) => (
+                    <span className="font-semibold text-neutral-700">{chunks}</span>
+                  ),
+                })
+              ) : (
+                t("heat.introTrainedOnly")
+              )}
             </p>
-            <AnatomicalHeatmap data={heatmap} assets={heatmapAssets} />
+            <AnatomicalHeatmap
+              data={heatmap}
+              trained={trained}
+              initialMode={initialMode}
+              assets={heatmapAssets}
+            />
           </RevealItem>
 
-          {/* Vergelijking */}
+          {/* Vergelijking (vergt een schema als referentie) */}
+          {analysis.hasSchema ? (
           <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
             <div className="mb-1 flex items-center gap-2">
               <Activity className="size-5 text-accent" />
@@ -86,9 +107,11 @@ export default async function MemberMusclesPage() {
               </p>
             )}
           </RevealItem>
+          ) : null}
 
-          {/* Inzichten */}
-          {(analysis.topRegions.length > 0 || analysis.neglected.length > 0) && (
+          {/* Inzichten (plan-gebaseerd, dus alleen mét schema) */}
+          {analysis.hasSchema &&
+            (analysis.topRegions.length > 0 || analysis.neglected.length > 0) && (
             <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
               <p className="mb-3 font-display text-lg font-bold text-neutral-900">
                 {t("balanceTitle")}

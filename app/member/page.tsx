@@ -285,7 +285,7 @@ export default async function MemberHome() {
       {stats.muscleGroups.length > 0 ? (
         <RevealItem>
           <Link
-            href="/member/muscles"
+            href="/member/muscles?weergave=getraind"
             className="block rounded-3xl border border-border bg-surface-1 p-5 shadow-sm transition-colors active:bg-surface-2"
           >
             <p className="mb-3 flex items-center justify-between text-xs font-medium uppercase tracking-wide text-neutral-400">
