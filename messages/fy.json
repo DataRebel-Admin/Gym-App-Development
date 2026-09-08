@@ -84,7 +84,12 @@
       "classCancelled": "Ofsein",
       "classNoShow": "Mist",
       "emptyTitle": "Noch neat yn dizze moanne",
-      "emptyDesc": "Trainingen, lessen en plande dagen ferskine hjir fansels."
+      "emptyDesc": "Trainingen, lessen en plande dagen ferskine hjir fansels.",
+      "plannerTitle": "Wykdeiplanning",
+      "plannerDesc": "Keppelje dyn trainingsdagen oan fêste wykdagen. Sa sjochst yn de aginda wat der pland stiet, en wat der noch iepen leit.",
+      "plannerUnplanned": "net pland",
+      "plannerSaving": "Opslaan…",
+      "plannerNoSchema": "Sadree't in aktyf skema mei trainingsdagen hast, kinst hjir dyn wykdagen plannen."
     },
     "schema": {
       "metaTitle": "Myn skema",

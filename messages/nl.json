@@ -214,7 +214,12 @@
       "classCancelled": "Afgelast",
       "classNoShow": "Gemist",
       "emptyTitle": "Nog niets in deze maand",
-      "emptyDesc": "Trainingen, lessen en geplande dagen verschijnen hier vanzelf."
+      "emptyDesc": "Trainingen, lessen en geplande dagen verschijnen hier vanzelf.",
+      "plannerTitle": "Weekdagplanning",
+      "plannerDesc": "Koppel je trainingsdagen aan vaste weekdagen. Zo zie je in de agenda wat er gepland staat, en wat er nog open ligt.",
+      "plannerUnplanned": "ongepland",
+      "plannerSaving": "Opslaan…",
+      "plannerNoSchema": "Zodra je een actief schema met trainingsdagen hebt, kun je hier je weekdagen plannen."
     },
     "schema": {
       "metaTitle": "Mijn schema",

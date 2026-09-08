@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAccount } from "@/lib/account";
 import { audit } from "@/lib/audit";
@@ -60,11 +61,30 @@ export async function GET() {
     },
   });
 
+  // Weekdagplanning van de agenda: door het lid zelf ingevoerde data, dus mee
+  // in de export. De feed-token blijft er bewust buiten (geheim, geen data).
+  const weekdayPlans = await prisma.assignedWorkout.findMany({
+    where: { userId: me.id, weekdayPlan: { not: Prisma.DbNull } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      createdAt: true,
+      status: true,
+      weekdayPlan: true,
+      template: { select: { name: true } },
+    },
+  });
+
   const payload = {
     exportedAt: new Date().toISOString(),
     account: user,
     workoutSessions: sessions,
     classEnrollments: enrollments,
+    agendaWeekdayPlans: weekdayPlans.map((w) => ({
+      schemaName: w.template?.name ?? null,
+      status: w.status,
+      createdAt: w.createdAt,
+      weekdayPlan: w.weekdayPlan,
+    })),
     appReports,
     equipmentDefects,
   };

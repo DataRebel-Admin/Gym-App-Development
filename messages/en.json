@@ -214,7 +214,12 @@
       "classCancelled": "Cancelled",
       "classNoShow": "Missed",
       "emptyTitle": "Nothing this month yet",
-      "emptyDesc": "Workouts, classes and planned days show up here automatically."
+      "emptyDesc": "Workouts, classes and planned days show up here automatically.",
+      "plannerTitle": "Weekday planning",
+      "plannerDesc": "Link your training days to fixed weekdays. The calendar then shows what is planned and what is still open.",
+      "plannerUnplanned": "unplanned",
+      "plannerSaving": "Saving…",
+      "plannerNoSchema": "Once you have an active plan with training days, you can plan your weekdays here."
     },
     "schema": {
       "metaTitle": "My plan",

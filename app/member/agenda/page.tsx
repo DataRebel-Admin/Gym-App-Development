@@ -1,7 +1,8 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember } from "@/lib/member";
 import { requireFeature } from "@/lib/features/service";
-import { getMemberAgenda } from "@/lib/calendar";
+import { getMemberAgenda, getPlanEditorData } from "@/lib/calendar";
+import { WeekdayPlanner } from "@/components/calendar/weekday-planner";
 import { monthKeyOfDayKey, nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,8 +28,9 @@ export default async function MemberAgendaPage({
   const member = await requireMember();
   await requireFeature(member.tenantId, "calendar");
   const { m } = await searchParams;
-  const [agenda, t, locale] = await Promise.all([
+  const [agenda, planEditor, t, locale] = await Promise.all([
     getMemberAgenda(member.id, member.tenantId, m ?? null),
+    getPlanEditorData(member.id, member.tenantId),
     getTranslations("member.agenda"),
     getLocale(),
   ]);
@@ -73,6 +75,21 @@ export default async function MemberAgendaPage({
           <AgendaDayList days={listDays} timeZone={agenda.timeZone} todayKey={agenda.todayKey} />
         ) : (
           <EmptyState icon="🗓️" title={t("emptyTitle")} description={t("emptyDesc")} />
+        )}
+      </RevealItem>
+
+      {/* Weekdagplanning: alleen met een actief schema valt er iets te plannen. */}
+      <RevealItem>
+        {planEditor && planEditor.days.length > 0 ? (
+          <WeekdayPlanner
+            assignmentId={planEditor.assignmentId}
+            days={planEditor.days}
+            plan={planEditor.plan}
+          />
+        ) : (
+          <p className="rounded-2xl border border-dashed border-border px-4 py-3 text-xs text-neutral-500">
+            {t("plannerNoSchema")}
+          </p>
         )}
       </RevealItem>
     </Reveal>
