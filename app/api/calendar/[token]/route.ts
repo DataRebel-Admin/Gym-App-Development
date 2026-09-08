@@ -77,8 +77,10 @@ export async function GET(
   ];
 
   const body = buildIcs(
+    // Kale gym-naam: die voedt óók de PRODID ("-//<naam>//Agenda//NL"), een
+    // suffix zou daar dubbelen.
     {
-      name: `${gym} · ${t("metaTitle")}`,
+      name: gym,
       timeZoneHint: feed.timeZone,
       uidDomain: new URL(appBaseUrl()).host,
     },
