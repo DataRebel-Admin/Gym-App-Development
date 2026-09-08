@@ -18,12 +18,19 @@ export async function AchievementDashboardSummary({ view }: { view: Achievements
 
   return (
     <div className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
-          <Trophy className="size-4 text-accent" /> {t("dashboard.trophies")}
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex min-w-0 items-center gap-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+          <Trophy className="size-4 shrink-0 text-accent" /> {t("dashboard.trophies")}
+          {/* Niveau als badge — niet als linktekst, dat las als knopnaam. */}
+          <span className="truncate rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-semibold normal-case tracking-normal text-accent">
+            {view.level.name}
+          </span>
         </p>
-        <Link href="/member/trophies" className="inline-flex items-center gap-0.5 text-sm font-semibold text-accent">
-          {view.level.name} <ChevronRight className="size-4" />
+        <Link
+          href="/member/trophies"
+          className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-accent"
+        >
+          {t("dashboard.viewAll")} <ChevronRight className="size-4" />
         </Link>
       </div>
 
