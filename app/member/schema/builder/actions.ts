@@ -27,8 +27,21 @@ import {
   statusAfterWithdraw,
 } from "@/lib/member-schema-status";
 import { getBlueprint } from "@/lib/member-schema-blueprints";
-import { MEMBER_LIBRARY_WHERE } from "@/lib/member-library-rules";
-import { coverUrlForCopy } from "@/lib/schema-image";
+import { MEMBER_LIBRARY_WHERE, MEMBER_DAY_LIBRARY_WHERE } from "@/lib/member-library-rules";
+import { coverUrlForCopy, libraryTemplateImage } from "@/lib/schema-image";
+import { libraryTemplateBadges } from "@/lib/schema-badges";
+import { isTrainingGoal } from "@/lib/training-goals";
+import {
+  parseLibraryTemplateDays,
+  parseTemplateReps,
+  pickJsonName,
+  trainingGoalFromLibrary,
+} from "@/lib/exercise-library/mapping";
+import {
+  ensureLibraryExercises,
+  countNewLibraryExercises,
+} from "@/lib/library-exercise-sync";
+import { getMemberDayTemplate, dayTemplateSlugs } from "@/lib/member-day-templates";
 import {
   notifyMemberSchemaSubmitted,
   emailCoachesSchemaSubmitted,
@@ -83,11 +96,77 @@ async function assertExercisesInTenant(tenantId: string, ids: string[]) {
   }
 }
 
+/** Eén te maken dag met ingevulde items (repdb-/dag-template-bron). */
+type SpecDay = {
+  name: string;
+  items: {
+    exerciseId: string;
+    order: number;
+    sets: number;
+    reps: number;
+    restSeconds: number;
+    notes: string | null;
+  }[];
+};
+
+/** RepDB-bundel-dagen → SpecDay[] via de slug→Exercise-mapping (onbekende slugs vallen weg). */
+function specsFromLibraryDays(
+  days: ReturnType<typeof parseLibraryTemplateDays>,
+  bySlug: Map<string, string>
+): SpecDay[] {
+  return days.map((d, i) => ({
+    name: d.name_en?.trim() || `Dag ${i + 1}`,
+    items: (d.exercises ?? []).flatMap((e, order) => {
+      const exerciseId = bySlug.get(e.exercise_id);
+      if (!exerciseId) return [];
+      const parsed = parseTemplateReps(e.reps ?? "");
+      const notes = [parsed.note, e.notes_en?.trim() || null].filter(Boolean).join(" · ");
+      return [
+        {
+          exerciseId,
+          order,
+          sets: e.sets ?? 3,
+          reps: parsed.reps ?? 10,
+          restSeconds: e.rest_seconds ?? 60,
+          notes: notes || null,
+        },
+      ];
+    }),
+  }));
+}
+
+/** Dag-template uit de registry → SpecDay (zelfde reps-parsing als de import). */
+function specFromDayTemplate(
+  def: NonNullable<ReturnType<typeof getMemberDayTemplate>>,
+  bySlug: Map<string, string>
+): SpecDay {
+  return {
+    name: def.name,
+    items: def.items.flatMap((e, order) => {
+      const exerciseId = bySlug.get(e.slug);
+      if (!exerciseId) return [];
+      const parsed = parseTemplateReps(e.reps);
+      const notes = [parsed.note, e.notes ?? null].filter(Boolean).join(" · ");
+      return [
+        {
+          exerciseId,
+          order,
+          sets: e.sets,
+          reps: parsed.reps ?? 10,
+          restSeconds: e.restSeconds,
+          notes: notes || null,
+        },
+      ];
+    }),
+  };
+}
+
 /**
- * Start een nieuw zelf-gebouwd schema: leeg, vanuit een blueprint of vanuit een
- * door de owner vrijgegeven library-template. Maakt een niet-library
- * WorkoutTemplate (concept) + AssignedWorkout(origin=MEMBER, DRAFT) en gaat naar
- * de editor.
+ * Start een nieuw zelf-gebouwd schema: leeg, vanuit een blueprint, vanuit een
+ * door de owner vrijgegeven library-template (schema of dag), rechtstreeks
+ * vanuit een RepDB-voorbeeldschema of vanuit een gecureerd dag-template
+ * (template-catalogus). Maakt een niet-library WorkoutTemplate (concept) +
+ * AssignedWorkout(origin=MEMBER, DRAFT) en gaat naar de editor.
  */
 export async function startMemberSchema(formData: FormData) {
   const member = await requireMember();
@@ -105,23 +184,71 @@ export async function startMemberSchema(formData: FormData) {
   // Bepaal naam + dag-structuur op basis van de bron.
   let name = "Mijn schema";
   let dayNames: string[] = ["Dag 1"];
+  let description: string | null = null;
+  let imageUrl: string | null = null;
+  let templateGoal: string | null = null;
+  let badges: string[] = [];
+  let newExercises = 0;
+  let daySpecs: SpecDay[] | null = null;
   let clonedFrom:
     | Prisma.WorkoutTemplateGetPayload<{
         include: { days: { include: { items: true } } };
       }>
     | null = null;
 
-  if (source.startsWith("template:")) {
-    const templateId = source.slice("template:".length);
+  if (source.startsWith("template:") || source.startsWith("tenantday:")) {
+    const isDay = source.startsWith("tenantday:");
+    const templateId = source.slice(source.indexOf(":") + 1);
     clonedFrom = await prisma.workoutTemplate.findFirst({
       // Autoritatieve hercontrole van de bron: dezelfde where als het
       // library-overzicht (nooit de client vertrouwen). Zie
       // lib/member-library-rules.ts voor waarom dit één constante is.
-      where: { id: templateId, tenantId: member.tenantId, ...MEMBER_LIBRARY_WHERE },
+      where: {
+        id: templateId,
+        tenantId: member.tenantId,
+        ...(isDay ? MEMBER_DAY_LIBRARY_WHERE : MEMBER_LIBRARY_WHERE),
+      },
       include: { days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } } },
     });
-    if (!clonedFrom) redirect("/member/schema/builder/new");
-    name = `${clonedFrom.name} (mijn versie)`;
+    if (!clonedFrom) redirect(isDay ? "/member/schema/templates" : "/member/schema/builder/new");
+    name = isDay ? clonedFrom.name : `${clonedFrom.name} (mijn versie)`;
+    description = clonedFrom.description;
+    // Neem het beeld van het sjabloon over, zodat "mijn versie" er in de lijst
+    // hetzelfde uitziet als het schema waar het lid mee begon.
+    imageUrl = coverUrlForCopy(clonedFrom);
+  } else if (source.startsWith("repdb:")) {
+    // Rechtstreeks een RepDB-voorbeeldschema overnemen (template-catalogus).
+    // Ontbrekende oefeningen worden eerst als tenant-Exercise aangemaakt —
+    // zelfde pad als de owner-import (lib/library-exercise-sync.ts).
+    const tpl = await prisma.libraryWorkoutTemplate.findFirst({
+      where: { id: source.slice("repdb:".length), retiredAt: null },
+    });
+    if (!tpl) redirect("/member/schema/templates");
+    const days = parseLibraryTemplateDays(tpl.days);
+    const slugs = days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id));
+    newExercises = await countNewLibraryExercises(member.tenantId, slugs);
+    const bySlug = await ensureLibraryExercises(member.tenantId, slugs);
+    name = pickJsonName(tpl.names, ["nl", "en"]) ?? tpl.id;
+    description = pickJsonName(tpl.descriptions, ["nl", "en"]);
+    // Herkomst-foto hard meeschrijven; bewust nooit `libraryTemplateId` op de
+    // kopie (dat is de idempotentie-sleutel van de owner-import).
+    imageUrl = libraryTemplateImage(tpl.id, tpl.goal)?.url ?? null;
+    templateGoal = trainingGoalFromLibrary(tpl.goal);
+    badges = libraryTemplateBadges(tpl);
+    daySpecs = specsFromLibraryDays(days, bySlug);
+  } else if (source.startsWith("day:")) {
+    // Gecureerd dag-template (lib/member-day-templates.ts) als los schema.
+    const def = getMemberDayTemplate(source.slice("day:".length));
+    if (!def) redirect("/member/schema/templates");
+    const slugs = dayTemplateSlugs(def);
+    newExercises = await countNewLibraryExercises(member.tenantId, slugs);
+    const bySlug = await ensureLibraryExercises(member.tenantId, slugs);
+    name = def.name;
+    description = def.description;
+    imageUrl = libraryTemplateImage(def.photoSlug, def.goals[0] ?? null)?.url ?? null;
+    templateGoal = isTrainingGoal(def.goals[0]) ? def.goals[0] : null;
+    badges = def.badges;
+    daySpecs = [specFromDayTemplate(def, bySlug)];
   } else if (source.startsWith("blueprint:")) {
     const bp = getBlueprint(source.slice("blueprint:".length));
     if (bp && bp.key !== "scratch") {
@@ -135,10 +262,10 @@ export async function startMemberSchema(formData: FormData) {
       data: {
         tenantId: member.tenantId,
         name,
-        description: clonedFrom?.description ?? null,
-        // Neem het beeld van het sjabloon over, zodat "mijn versie" er in de
-        // lijst hetzelfde uitziet als het schema waar het lid mee begon.
-        imageUrl: clonedFrom ? coverUrlForCopy(clonedFrom) : null,
+        description,
+        imageUrl,
+        goal: templateGoal,
+        badges,
         isLibrary: false,
       },
     });
@@ -179,6 +306,29 @@ export async function startMemberSchema(formData: FormData) {
           },
         });
       }
+    } else if (daySpecs) {
+      for (const [i, d] of daySpecs.entries()) {
+        await tx.workoutDay.create({
+          data: {
+            tenantId: member.tenantId,
+            templateId: tpl.id,
+            order: i,
+            name: d.name,
+            items: {
+              create: d.items.map((it) => ({
+                tenantId: member.tenantId,
+                templateId: tpl.id,
+                exerciseId: it.exerciseId,
+                order: it.order,
+                sets: it.sets,
+                reps: it.reps,
+                restSeconds: it.restSeconds,
+                notes: it.notes,
+              })),
+            },
+          },
+        });
+      }
     } else {
       await Promise.all(
         dayNames.map((dn, i) =>
@@ -211,10 +361,105 @@ export async function startMemberSchema(formData: FormData) {
     tenantId: member.tenantId,
     targetType: "AssignedWorkout",
     targetId: created.id,
-    metadata: { name },
+    metadata: {
+      name,
+      source: source.split(":")[0],
+      ...(newExercises > 0 ? { newExercises } : {}),
+    },
   });
 
   redirect(`/member/schema/builder/${created.id}`);
+}
+
+/**
+ * Voeg een dag-template (gecureerd of vrijgegeven door de gym) als extra dag
+ * toe aan een bestaand, bewerkbaar eigen schema. Zelfde poorten als de builder
+ * (`assertEditAllowed` dekt zelf-gebouwd én — bij `memberCanEditAssigned` —
+ * een toegewezen schema); het dag-maximum van een kader geldt alleen op een
+ * zelf-gebouwd schema (op het schema van de trainer is de coach leidend).
+ */
+export async function addDayFromTemplate(formData: FormData) {
+  const member = await requireMember();
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  const ref = String(formData.get("ref") ?? "");
+
+  const assignment = await loadOwnAssignment(assignmentId, member.id, member.tenantId);
+  if (!assignment?.template) redirect("/member/schema/templates");
+  const blocked = await assertEditAllowed(member.tenantId, assignment);
+  if (blocked) redirect("/member/schema/builder");
+
+  // Bron: gecureerd dag-template of vrijgegeven gym-dag-template.
+  let detailHref: string;
+  let dayName: string;
+  let items: Prisma.WorkoutExerciseItemUncheckedCreateWithoutDayInput[] = [];
+  const templateId = assignment.template.id;
+  const base = { tenantId: member.tenantId, templateId };
+
+  if (ref.startsWith("day:")) {
+    const key = ref.slice("day:".length);
+    const def = getMemberDayTemplate(key);
+    if (!def) redirect("/member/schema/templates");
+    detailHref = `/member/schema/templates/day/${key}`;
+    const bySlug = await ensureLibraryExercises(member.tenantId, dayTemplateSlugs(def));
+    const spec = specFromDayTemplate(def, bySlug);
+    dayName = spec.name;
+    items = spec.items.map((it) => ({ ...base, ...it }));
+  } else if (ref.startsWith("tenantday:")) {
+    const id = ref.slice("tenantday:".length);
+    const source = await prisma.workoutTemplate.findFirst({
+      where: { id, tenantId: member.tenantId, ...MEMBER_DAY_LIBRARY_WHERE },
+      include: { days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } } },
+    });
+    const day = source?.days[0];
+    if (!source || !day) redirect("/member/schema/templates");
+    detailHref = `/member/schema/templates/tenantday/${id}`;
+    dayName = day.name;
+    items = day.items.map((it) => ({
+      ...base,
+      exerciseId: it.exerciseId,
+      order: it.order,
+      sets: it.sets,
+      reps: it.reps,
+      restSeconds: it.restSeconds,
+      weightKg: it.weightKg,
+      tempo: it.tempo,
+      params: it.params ?? undefined,
+      notes: it.notes,
+      // memberNote bewust niet (coach-only); groep/dropset wél behouden.
+      groupId: it.groupId,
+      groupType: it.groupType,
+      groupOrder: it.groupOrder,
+      groupRounds: it.groupRounds,
+      groupRestSeconds: it.groupRestSeconds,
+      groupLabel: it.groupLabel,
+      groupTimeCapSeconds: it.groupTimeCapSeconds,
+      dropsetCount: it.dropsetCount,
+    }));
+  } else {
+    redirect("/member/schema/templates");
+  }
+
+  const dayCount = await prisma.workoutDay.count({ where: { templateId } });
+  if (assignment.origin === "MEMBER") {
+    const framework = await resolveFramework(member.tenantId, member.id);
+    const maxDays = framework?.limits.maxDays ?? null;
+    if (maxDays != null && dayCount + 1 > maxDays) {
+      redirect(`${detailHref}?err=maxdays`);
+    }
+  }
+
+  await prisma.workoutDay.create({
+    data: {
+      tenantId: member.tenantId,
+      templateId,
+      order: dayCount,
+      name: dayName,
+      items: { create: items },
+    },
+  });
+
+  revalidatePath(`/member/schema/builder/${assignment.id}`);
+  redirect(`/member/schema/builder/${assignment.id}`);
 }
 
 /**

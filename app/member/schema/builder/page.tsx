@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmButton } from "@/components/ui/confirm-button";
-import { Dumbbell, Plus, Pencil, Play } from "@/components/ui/icons";
+import { Dumbbell, Layers, Plus, Pencil, Play } from "@/components/ui/icons";
 import { fmtDate } from "@/lib/schema-status";
 import {
   activateMemberSchema,
@@ -61,18 +61,26 @@ export default async function MemberBuilderOverviewPage({
         </div>
       ) : null}
 
-      <Link
-        href="/member/schema/builder/new"
-        className="flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3.5 text-sm font-bold text-accent-foreground active:opacity-90"
-      >
-        <Plus className="size-4" /> Nieuw schema samenstellen
-      </Link>
+      <div className="flex flex-col gap-2">
+        <Link
+          href="/member/schema/templates"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3.5 text-sm font-bold text-accent-foreground active:opacity-90"
+        >
+          <Layers className="size-4" /> Kies een kant-en-klaar template
+        </Link>
+        <Link
+          href="/member/schema/builder/new"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-border-strong px-5 py-3.5 text-sm font-bold text-neutral-900 active:bg-surface-2"
+        >
+          <Plus className="size-4" /> Zelf opbouwen
+        </Link>
+      </div>
 
       {schemas.length === 0 ? (
         <EmptyState
           icon={<Dumbbell className="size-8 text-accent" />}
           title="Nog geen eigen schema's"
-          description="Begin met een blueprint of een leeg schema en bouw helemaal zelf op."
+          description="Pak een compleet template uit de catalogus, of bouw zelf op vanaf een lege dag-indeling."
         />
       ) : (
         <ul className="flex flex-col gap-3">

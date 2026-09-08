@@ -874,15 +874,30 @@ export function MemberSchemaEditor({
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={addDay}
-        disabled={maxReached}
-        className="flex items-center justify-center gap-1.5 rounded-xl border border-border-strong px-4 py-2.5 text-sm font-semibold text-neutral-900 active:bg-surface-2 disabled:opacity-40"
-      >
-        <Plus className="size-4" /> Dag toevoegen
-        {maxReached ? ` (max ${maxDays})` : ""}
-      </button>
+      {maxReached ? (
+        // Niet een stil uitgegrijsde knop: leg uit wáárom er geen dag bij kan
+        // (het kader van de sportschool), anders lijkt de editor kapot.
+        <p className="rounded-xl border border-dashed border-border-strong px-4 py-2.5 text-center text-sm text-neutral-500">
+          Je zit op het maximum van{" "}
+          <span className="font-semibold text-neutral-700">
+            {maxDays} {maxDays === 1 ? "dag" : "dagen"}
+          </span>{" "}
+          dat je sportschool toestaat. Verwijder eerst een dag om een andere toe te voegen.
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={addDay}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-border-strong px-4 py-2.5 text-sm font-semibold text-neutral-900 active:bg-surface-2"
+        >
+          <Plus className="size-4" /> Dag toevoegen
+          {maxDays != null ? (
+            <span className="font-normal text-neutral-400">
+              ({days.length}/{maxDays})
+            </span>
+          ) : null}
+        </button>
+      )}
 
       {/* Live voorbeeld */}
       {totalItems > 0 ? (

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requireMember } from "@/lib/member";
 import { prisma } from "@/lib/db";
 import { requireMemberSchemaEnabled } from "@/lib/member-schema";
-import { getMemberLibrary } from "@/lib/member-library";
 import { SCHEMA_BLUEPRINTS } from "@/lib/member-schema-blueprints";
 import { GOAL_OPTIONS, REQUEST_GOAL_LABELS } from "@/lib/schema-requests";
 import {
@@ -11,12 +10,8 @@ import {
   preferredRequestGoal,
   sortByGoalMatch,
 } from "@/lib/training-goals";
-import { ChevronLeft } from "@/components/ui/icons";
+import { ChevronLeft, ChevronRight, Layers } from "@/components/ui/icons";
 import { Badge } from "@/components/ui/badge";
-import { SchemaBadges } from "@/components/schema/schema-badges";
-import { SchemaCover } from "@/components/schema/schema-cover";
-import { schemaImage } from "@/lib/schema-image";
-import { getCurrentTenant } from "@/lib/tenant";
 import { startMemberSchema } from "../actions";
 
 export const metadata = { title: "Nieuw schema" };
@@ -28,18 +23,15 @@ export default async function MemberBuilderNewPage() {
   const member = await requireMember();
   await requireMemberSchemaEnabled(member.tenantId);
 
-  const [rawTemplates, tenant, user] = await Promise.all([
-    getMemberLibrary(member.tenantId),
-    getCurrentTenant(),
-    prisma.user.findUnique({ where: { id: member.id }, select: { trainingGoals: true } }),
-  ]);
-  const logoUrl = tenant?.logoUrl ?? null;
+  const user = await prisma.user.findUnique({
+    where: { id: member.id },
+    select: { trainingGoals: true },
+  });
 
-  // Personalisatie op de doelen uit /account/doelen: passende sjablonen en
-  // blueprints eerst (stabiel, geen filter), en het best passende blueprint is
-  // daardoor meteen de voorselectie. Zonder gekozen doelen verandert er niets.
+  // Personalisatie op de doelen uit /account/doelen: passende blueprints eerst
+  // (stabiel, geen filter), en het best passende blueprint is daardoor meteen de
+  // voorselectie. Zonder gekozen doelen verandert er niets.
   const memberGoals = parseTrainingGoals(user?.trainingGoals);
-  const templates = sortByGoalMatch(rawTemplates, memberGoals, (t) => [t.goal]);
   const blueprints = sortByGoalMatch(SCHEMA_BLUEPRINTS, memberGoals, (b) => b.goals);
   const defaultGoal = preferredRequestGoal(memberGoals);
 
@@ -56,10 +48,10 @@ export default async function MemberBuilderNewPage() {
 
       <div>
         <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-          Waar wil je mee beginnen?
+          Zelf een schema opbouwen
         </h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Kies een startpunt en je doel. Je kunt daarna alles zelf aanpassen.
+          Kies een dag-indeling en je doel. Je kunt daarna alles zelf aanpassen.
         </p>
         {memberGoals.length > 0 ? (
           <p className="mt-1 text-xs text-neutral-400">
@@ -71,6 +63,26 @@ export default async function MemberBuilderNewPage() {
           </p>
         ) : null}
       </div>
+
+      {/* Kant-en-klaar? De catalogus is de primaire ingang; dit is de
+          zelf-opbouwen-route (lege dag-structuren). */}
+      <Link
+        href="/member/schema/templates"
+        className="flex items-center gap-3 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3 active:opacity-90"
+      >
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+          <Layers className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold text-neutral-900">
+            Liever een kant-en-klaar template?
+          </span>
+          <span className="block text-xs text-neutral-600">
+            Complete schema&apos;s en losse dagen, mét oefeningen, sets en herhalingen.
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-neutral-400" />
+      </Link>
 
       <form action={startMemberSchema} className="flex flex-col gap-5">
         <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
@@ -94,46 +106,6 @@ export default async function MemberBuilderNewPage() {
             className={field}
           />
         </label>
-
-        {templates.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold text-neutral-900">Sjablonen van je sportschool</p>
-            {templates.map((tpl) => (
-              <label
-                key={tpl.id}
-                className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface-1 px-4 py-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft"
-              >
-                <input
-                  type="radio"
-                  name="source"
-                  value={`template:${tpl.id}`}
-                  className="mt-1 accent-[var(--tenant-accent)]"
-                />
-                <SchemaCover
-                  image={schemaImage(tpl, { logoUrl })}
-                  alt={tpl.name}
-                  aspect={false}
-                  className="h-14 w-21 shrink-0 rounded-xl"
-                />
-                <span className="min-w-0">
-                  <span className="flex flex-wrap items-center gap-1.5">
-                    <span className="font-semibold text-neutral-900">{tpl.name}</span>
-                    {hasGoalOverlap([tpl.goal], memberGoals) ? (
-                      <Badge tone="accent">Past bij jouw doel</Badge>
-                    ) : null}
-                  </span>
-                  <span className="block text-xs text-neutral-500">
-                    {tpl._count.days} dagen · {tpl._count.items} oefeningen
-                    {tpl.description ? ` · ${tpl.description}` : ""}
-                  </span>
-                  <span className="mt-1.5 block">
-                    <SchemaBadges badges={tpl.badges} size="xs" max={3} />
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-        ) : null}
 
         <div className="flex flex-col gap-2">
           <p className="text-sm font-semibold text-neutral-900">Blueprints</p>
