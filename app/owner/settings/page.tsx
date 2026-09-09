@@ -9,6 +9,12 @@ import {
   setClassesEnabled,
   setMemberCanEditAssigned,
 } from "./actions";
+import { Input } from "@/components/ui/field";
+import { Badge } from "@/components/ui/badge";
+import {
+  SettingsSection,
+  SettingToggleSection,
+} from "@/components/owner/settings-section";
 import { TenantContactForm, type ContactInitial } from "@/components/tenant-contact-form";
 import { MemberSchemaModeForm } from "@/components/owner/member-schema-mode-form";
 import { MeasurementFieldsForm } from "@/components/owner/measurement-fields-form";
@@ -95,252 +101,120 @@ export default async function SettingsPage() {
       </h1>
 
       {features.ai ? (
-        <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900">
-              {t("aiTitle")}
-            </h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              {t.rich("aiDesc", {
-                status: () => (
-                  <span className="font-medium text-neutral-900">
-                    {tenant.aiEnabled ? t("statusOn") : t("statusOff")}
-                  </span>
-                ),
-              })}
-            </p>
-          </div>
-
-          <form action={setAiEnabled}>
-            <input
-              type="hidden"
-              name="enabled"
-              value={tenant.aiEnabled ? "false" : "true"}
-            />
-            <button
-              type="submit"
-              className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                tenant.aiEnabled
-                  ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
-                  : "bg-accent text-accent-foreground hover:opacity-90"
-              }`}
-            >
-              {tenant.aiEnabled ? t("turnOff") : t("turnOn")}
-            </button>
-          </form>
-
-          <div className="rounded-lg bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+        <SettingToggleSection
+          title={t("aiTitle")}
+          description={t("aiDesc")}
+          enabled={tenant.aiEnabled}
+          action={setAiEnabled}
+        >
+          <div className="rounded-lg border border-border bg-surface-0 px-4 py-3 text-sm text-neutral-600">
             {t("questionsThisMonth")}{" "}
             <span className="font-semibold text-neutral-900">
               {questionsThisMonth}
             </span>{" "}
             <span className="text-neutral-500">{t("forCostMonitoring")}</span>
           </div>
-        </section>
+        </SettingToggleSection>
       ) : null}
 
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">Trofeeën &amp; mijlpalen</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Beloon je leden met trofeeën, een Gym Passport en automatisch gevierde mijlpalen.
-            Momenteel{" "}
-            <span className="font-medium text-neutral-900">
-              {tenant.achievementsEnabled ? "aan" : "uit"}
-            </span>
-            .
-          </p>
-        </div>
+      <SettingToggleSection
+        title="Trofeeën & mijlpalen"
+        description="Beloon je leden met trofeeën, een Gym Passport en automatisch gevierde mijlpalen."
+        enabled={tenant.achievementsEnabled}
+        action={setAchievementsEnabled}
+      />
 
-        <form action={setAchievementsEnabled}>
-          <input type="hidden" name="enabled" value={tenant.achievementsEnabled ? "false" : "true"} />
-          <button
-            type="submit"
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${
-              tenant.achievementsEnabled
-                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
-                : "bg-accent text-accent-foreground hover:opacity-90"
-            }`}
-          >
-            {tenant.achievementsEnabled ? "Uitschakelen" : "Inschakelen"}
-          </button>
-        </form>
-      </section>
-
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">Workout Quotes</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Toon je leden een korte motiverende quote na een afgeronde training. Momenteel{" "}
-            <span className="font-medium text-neutral-900">
-              {tenant.quotesEnabled ? "aan" : "uit"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <form action={setQuotesEnabled}>
-          <input type="hidden" name="enabled" value={tenant.quotesEnabled ? "false" : "true"} />
-          <button
-            type="submit"
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${
-              tenant.quotesEnabled
-                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
-                : "bg-accent text-accent-foreground hover:opacity-90"
-            }`}
-          >
-            {tenant.quotesEnabled ? "Uitschakelen" : "Inschakelen"}
-          </button>
-        </form>
-
+      <SettingToggleSection
+        title="Workout Quotes"
+        description="Toon je leden een korte motiverende quote na een afgeronde training."
+        enabled={tenant.quotesEnabled}
+        action={setQuotesEnabled}
+      >
         <QuotesForm initial={parseCustomQuotes(tenant.customQuotes)} />
-      </section>
+      </SettingToggleSection>
 
       {features.group_classes ? (
-        <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900">Lesrooster</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Laat leden zich aanmelden voor groepslessen. Momenteel{" "}
-              <span className="font-medium text-neutral-900">
-                {tenant.classesEnabled ? "aan" : "uit"}
-              </span>
-              . Uitschakelen verbergt het rooster voor leden en medewerkers; bestaande
-              lessen en aanmeldingen blijven behouden.
-            </p>
-          </div>
-
-          <form action={setClassesEnabled}>
-            <input type="hidden" name="enabled" value={tenant.classesEnabled ? "false" : "true"} />
-            <button
-              type="submit"
-              className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                tenant.classesEnabled
-                  ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
-                  : "bg-accent text-accent-foreground hover:opacity-90"
-              }`}
-            >
-              {tenant.classesEnabled ? "Uitschakelen" : "Inschakelen"}
-            </button>
-          </form>
-        </section>
+        <SettingToggleSection
+          title="Lesrooster"
+          description="Laat leden zich aanmelden voor groepslessen. Uitschakelen verbergt het rooster voor leden en medewerkers; bestaande lessen en aanmeldingen blijven behouden."
+          enabled={tenant.classesEnabled}
+          action={setClassesEnabled}
+        />
       ) : null}
 
       {features.defects ? (
-        <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900">Apparaatdefecten</h2>
-            <p className="mt-1 text-sm text-neutral-500">
-              Een open defectmelding die langer dan deze termijn openstaat, komt als
-              achterstand terug in de dagelijkse samenvatting.
-            </p>
-          </div>
+        <SettingsSection
+          title="Apparaatdefecten"
+          description="Een open defectmelding die langer dan deze termijn openstaat, komt als achterstand terug in de dagelijkse samenvatting."
+        >
           <form action={setDefectReminderDays} className="flex items-end gap-3">
             <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
               Achterstand-termijn (dagen)
-              <input
-                type="number"
-                name="days"
-                min={1}
-                max={90}
-                defaultValue={tenant.defectReminderDays}
-                className="w-28 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-              />
+              <span className="block w-28">
+                <Input
+                  type="number"
+                  name="days"
+                  min={1}
+                  max={90}
+                  defaultValue={tenant.defectReminderDays}
+                  fieldSize="sm"
+                />
+              </span>
             </label>
             <button
               type="submit"
-              className="rounded-lg border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+              className="h-9 rounded-lg border border-border bg-surface-1 px-4 text-sm font-medium text-neutral-900 hover:bg-surface-2"
             >
               Opslaan
             </button>
           </form>
-        </section>
+        </SettingsSection>
       ) : null}
 
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">
-            {t("memberSchemaTitle")}
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            {t.rich("memberSchemaDesc", {
-              status: () => (
-                <span className="font-medium text-neutral-900">
-                  {t(`memberSchemaMode${tenant.memberSchemaMode}`)}
-                </span>
-              ),
-            })}
-          </p>
-        </div>
+      <SettingsSection
+        title={t("memberSchemaTitle")}
+        status={
+          <Badge tone={tenant.memberSchemaMode === "DISABLED" ? "neutral" : "success"}>
+            {t(`memberSchemaMode${tenant.memberSchemaMode}`)}
+          </Badge>
+        }
+        description={t("memberSchemaDesc")}
+      >
         <MemberSchemaModeForm current={tenant.memberSchemaMode} />
-      </section>
+      </SettingsSection>
 
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">
-            Toegewezen schema&apos;s laten aanpassen
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
+      <SettingToggleSection
+        title="Toegewezen schema's laten aanpassen"
+        description={
+          <>
             Laat leden het schema aanpassen dat jij hén hebt toegewezen, bijvoorbeeld
             een oefening ruilen als een apparaat bezet is. Ze bewerken hun eigen versie;
             jouw sjabloon blijft ongewijzigd en je ziet de aanpassing terug bij het
             schema. Deze instelling staat los van &ldquo;zelf een schema
-            samenstellen&rdquo;. Momenteel{" "}
-            <span className="font-medium text-neutral-900">
-              {tenant.memberCanEditAssigned ? "aan" : "uit"}
-            </span>
-            .
-          </p>
-        </div>
+            samenstellen&rdquo;.
+          </>
+        }
+        enabled={tenant.memberCanEditAssigned}
+        action={setMemberCanEditAssigned}
+      />
 
-        <form action={setMemberCanEditAssigned}>
-          <input
-            type="hidden"
-            name="enabled"
-            value={tenant.memberCanEditAssigned ? "false" : "true"}
-          />
-          <button
-            type="submit"
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${
-              tenant.memberCanEditAssigned
-                ? "border border-neutral-300 text-neutral-900 hover:bg-neutral-50"
-                : "bg-accent text-accent-foreground hover:opacity-90"
-            }`}
-          >
-            {tenant.memberCanEditAssigned ? "Uitschakelen" : "Inschakelen"}
-          </button>
-        </form>
-      </section>
-
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">Meetvelden</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Kies welke lichaamsmetingen jouw sportschool gebruikt. Niet-geselecteerde
-            velden verdwijnen uit de formulieren, grafieken en overzichten, voor
-            trainers én leden.
-          </p>
-        </div>
+      <SettingsSection
+        title="Meetvelden"
+        description="Kies welke lichaamsmetingen jouw sportschool gebruikt. Niet-geselecteerde velden verdwijnen uit de formulieren, grafieken en overzichten, voor trainers én leden."
+      >
         <MeasurementFieldsForm enabled={parseEnabledMetricKeys(tenant.enabledMeasurementFields)} />
-      </section>
+      </SettingsSection>
 
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">{t("contactTitle")}</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            {t.rich("contactDesc", {
-              b: (c) => <span className="font-medium text-neutral-900">{c}</span>,
-            })}
-          </p>
-        </div>
+      <SettingsSection
+        title={t("contactTitle")}
+        description={t.rich("contactDesc", {
+          b: (c) => <span className="font-medium text-neutral-900">{c}</span>,
+        })}
+      >
         <TenantContactForm initial={contactInitial} />
-      </section>
+      </SettingsSection>
 
-      <section className="flex max-w-2xl flex-col gap-4 rounded-xl border border-neutral-200 p-5">
-        <div>
-          <h2 className="text-sm font-semibold text-neutral-900">{t("supportTitle")}</h2>
-          <p className="mt-1 text-sm text-neutral-500">{t("supportDesc")}</p>
-        </div>
+      <SettingsSection title={t("supportTitle")} description={t("supportDesc")}>
         <ContactSupportButton
           initial={{
             name: owner.name ?? "",
@@ -348,7 +222,7 @@ export default async function SettingsPage() {
             gymName: tenant.name,
           }}
         />
-      </section>
+      </SettingsSection>
     </div>
   );
 }

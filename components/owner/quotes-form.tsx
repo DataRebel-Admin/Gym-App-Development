@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { Textarea } from "@/components/ui/field";
 import { setCustomQuotes, type ContactFormState } from "@/app/owner/settings/actions";
 
 /**
@@ -17,12 +18,11 @@ export function QuotesForm({ initial }: { initial: string[] }) {
     <form action={formAction} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1 text-sm text-neutral-700">
         Eigen quotes (één per regel)
-        <textarea
+        <Textarea
           name="quotes"
           rows={5}
           defaultValue={initial.join("\n")}
           placeholder={"Bijv. Vandaag geef je 1% extra.\nElke rep telt."}
-          className="rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <span className="text-xs text-neutral-400">
           Maximaal 50 quotes. Deze verschijnen willekeurig, samen met de standaardquotes.

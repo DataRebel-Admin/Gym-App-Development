@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { controlClasses } from "@/components/ui/field";
 import { setTenantContact, type ContactFormState } from "@/app/owner/settings/actions";
 
 export type ContactInitial = {
@@ -33,8 +34,7 @@ const SOCIALS: { key: string; label: string }[] = [
   { key: "linkedin", label: "LinkedIn" },
 ];
 
-const input =
-  "rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-accent";
+const input = controlClasses("sm");
 const label = "flex flex-col gap-1 text-sm text-neutral-700";
 
 export function TenantContactForm({ initial }: { initial: ContactInitial }) {
