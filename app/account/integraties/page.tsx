@@ -1,11 +1,16 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getAccountUser } from "@/lib/account";
 import { getCurrentTenant } from "@/lib/tenant";
 import { oauthEnabled } from "@/lib/oauth";
 import { graphConfigured } from "@/lib/email/graph";
+import { isFeatureEnabled } from "@/lib/features/service";
 import { Badge } from "@/components/ui/badge";
 import { AccountPageHeader } from "@/components/account/account-page-header";
 import { oauthSignIn } from "@/app/login/actions";
+
+const ACTION_BUTTON =
+  "inline-flex h-10 items-center rounded-xl border border-border-strong px-4 text-sm font-medium text-neutral-900 hover:bg-neutral-50";
 
 function StatusBadge({ ok, offLabel = "Niet verbonden" }: { ok: boolean; offLabel?: string }) {
   return ok ? <Badge tone="success">Verbonden</Badge> : <Badge tone="neutral">{offLabel}</Badge>;
@@ -43,12 +48,12 @@ function ConnectButton({
   tenantSlug: string;
 }) {
   if (connected.has(provider)) return <StatusBadge ok />;
-  if (!enabled) return <Badge tone="neutral">Niet geconfigureerd</Badge>;
+  if (!enabled) return <Badge tone="neutral">Binnenkort</Badge>;
   return (
     <form action={oauthSignIn}>
       <input type="hidden" name="provider" value={provider} />
       <input type="hidden" name="tenant" value={tenantSlug} />
-      <button type="submit" className="inline-flex h-10 items-center rounded-xl border border-border-strong px-4 text-sm font-medium text-neutral-900 hover:bg-neutral-50">
+      <button type="submit" className={ACTION_BUTTON}>
         Verbinden
       </button>
     </form>
@@ -62,14 +67,26 @@ export default async function IntegrationsPage() {
   const tenant = await getCurrentTenant();
   const oauth = oauthEnabled();
 
-  const accounts = await prisma.account.findMany({
-    where: { userId: user.id },
-    select: { provider: true },
-  });
+  const [accounts, feedUser] = await Promise.all([
+    prisma.account.findMany({
+      where: { userId: user.id },
+      select: { provider: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { tenantId: true, calendarFeedToken: true },
+    }),
+  ]);
   const connected = new Set(accounts.map((a) => a.provider));
   const tenantSlug = tenant?.slug ?? "";
 
   const isAdmin = user.role === "TENANT_ADMIN";
+  const isMember = user.role === "TENANT_MEMBER";
+  const agendaAvailable =
+    isMember && feedUser?.tenantId
+      ? await isFeatureEnabled(feedUser.tenantId, "calendar")
+      : false;
+  const feedConnected = Boolean(feedUser?.calendarFeedToken);
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
@@ -85,29 +102,35 @@ export default async function IntegrationsPage() {
         </Row>
       </section>
 
+      {agendaAvailable ? (
+        <section className="rounded-2xl border border-border bg-surface-1 p-5">
+          <h2 className="text-sm font-semibold text-neutral-900">Agenda</h2>
+          <Row
+            title="Agendakoppeling"
+            desc="Je trainingen en lessen in Google, Outlook of Apple Agenda."
+          >
+            <div className="flex items-center gap-3">
+              <StatusBadge ok={feedConnected} />
+              <Link href="/member/agenda/koppelen" className={ACTION_BUTTON}>
+                {feedConnected ? "Beheren" : "Koppelen"}
+              </Link>
+            </div>
+          </Row>
+        </section>
+      ) : null}
+
       {isAdmin ? (
         <section className="rounded-2xl border border-border bg-surface-1 p-5">
           <h2 className="text-sm font-semibold text-neutral-900">Koppelingen (sportschool)</h2>
           <Row title="Microsoft 365 / Azure Mail" desc="Uitnodigingsmails via Microsoft Graph.">
-            <StatusBadge ok={graphConfigured()} offLabel="Niet geconfigureerd" />
+            <StatusBadge ok={graphConfigured()} offLabel="Binnenkort" />
           </Row>
           <Row title="AI-assistent" desc={`Provider: ${process.env.AI_PROVIDER ?? "anthropic"}.`}>
             <StatusBadge
               ok={Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY)}
-              offLabel="Geen sleutel"
+              offLabel="Binnenkort"
             />
           </Row>
-          {[
-            ["Google Calendar", "Lesrooster synchroniseren."],
-            ["Stripe", "Betalingen (toekomst)."],
-            ["Mailchimp", "Nieuwsbrieven (toekomst)."],
-            ["Webhooks", "Externe systemen koppelen."],
-            ["API Keys", "Toegang voor integraties."],
-          ].map(([t, d]) => (
-            <Row key={t} title={t} desc={d}>
-              <Badge tone="neutral">Binnenkort</Badge>
-            </Row>
-          ))}
         </section>
       ) : null}
     </div>
