@@ -44,6 +44,25 @@ export const REPORT_SCREENSHOT_RETENTION_DAYS = 183;
  *  met `User.locale` bij login en bij wisselen (zie lib/i18n). */
 export const LOCALE_COOKIE = "gymrebel-locale";
 
+/** Kortlevende cookie ("1") die op élk login-afrondpunt gezet wordt (wachtwoord,
+ *  2FA, gym-kiezer, passkey, OAuth, magic link) zodat de member-/owner-layout
+ *  direct na het inloggen één keer de gebrande splash (gym-logo op accentkleur)
+ *  toont. Bewust NIET httpOnly: de client verwijdert 'm zodra de splash getoond
+ *  is, anders verschijnt hij opnieuw bij een refresh. */
+export const POST_LOGIN_SPLASH_COOKIE = "gymrebel-splash";
+
+/** Opties voor de splash-cookie. 10 minuten: ruim genoeg om een externe
+ *  OAuth-roundtrip (incl. MFA bij Microsoft/Google) te overleven, kort genoeg om
+ *  nooit te blijven hangen als een loginpoging strandt. Als plain object zodat
+ *  zowel `cookies().set` (server action) als `res.cookies.set` (route-response)
+ *  'm kan gebruiken. */
+export const POST_LOGIN_SPLASH_COOKIE_OPTS = {
+  httpOnly: false,
+  sameSite: "lax",
+  path: "/",
+  maxAge: 60 * 10,
+} as const;
+
 /** Cookie ("on"/"off") waarin de voorkeur staat of de aurora-achtergrond op de
  *  cursor reageert (muis-parallax). Per apparaat — net als het thema — zodat de
  *  root-layout 'm no-flash en zonder DB-lees kan toepassen (lib/background-motion.ts). */

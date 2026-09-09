@@ -27,6 +27,8 @@ import type { LoginState } from "@/lib/login-types";
 import {
   AUTH_TENANT_COOKIE,
   GYM_SELECT_COOKIE,
+  POST_LOGIN_SPLASH_COOKIE,
+  POST_LOGIN_SPLASH_COOKIE_OPTS,
   TENANT_COOKIE_MAX_AGE,
   TWO_FACTOR_CHALLENGE_COOKIE,
 } from "@/lib/constants";
@@ -254,11 +256,16 @@ export async function verifyTwoFactor(
   }
   const { code } = parsed.data;
 
-  const challenge = (await cookies()).get(TWO_FACTOR_CHALLENGE_COOKIE)?.value;
+  const store = await cookies();
+  const challenge = store.get(TWO_FACTOR_CHALLENGE_COOKIE)?.value;
   const claims = challenge ? parseLoginChallenge(challenge) : null;
   if (!challenge || !claims) {
     return { error: "Je sessie is verlopen. Log opnieuw in." };
   }
+
+  // Markeer voor de eenmalige gebrande splash na de redirect. Bij een foute
+  // code blijft de gebruiker op /login/2fa en verloopt de cookie vanzelf.
+  store.set(POST_LOGIN_SPLASH_COOKIE, "1", POST_LOGIN_SPLASH_COOKIE_OPTS);
 
   try {
     await signIn("credentials", {
@@ -328,9 +335,13 @@ export async function oauthSignIn(formData: FormData) {
   const provider = String(formData.get("provider") ?? "");
   const tenant = String(formData.get("tenant") ?? "");
   if (provider !== "google" && provider !== "microsoft-entra-id") return;
+  const store = await cookies();
   if (tenant) {
-    (await cookies()).set(AUTH_TENANT_COOKIE, tenant, TENANT_COOKIE_OPTS);
+    store.set(AUTH_TENANT_COOKIE, tenant, TENANT_COOKIE_OPTS);
   }
+  // Splash-markering vóór de externe OAuth-roundtrip; de cookie (10 min) is er
+  // dus nog als de gebruiker via de callback op het dashboard landt.
+  store.set(POST_LOGIN_SPLASH_COOKIE, "1", POST_LOGIN_SPLASH_COOKIE_OPTS);
   await signIn(provider, { redirectTo: "/" });
 }
 

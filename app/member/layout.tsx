@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { auth } from "@/auth";
+import { POST_LOGIN_SPLASH_COOKIE } from "@/lib/constants";
+import { PostLoginSplash } from "@/components/post-login-splash";
 import { getCurrentTenant } from "@/lib/tenant";
 import { areClassesEnabled } from "@/lib/classes";
 import { isFeatureEnabled } from "@/lib/features/service";
@@ -18,6 +21,7 @@ import { PasskeyPrompt } from "@/components/member/passkey-prompt";
 import { AppLockPrompt } from "@/components/member/app-lock-prompt";
 import { AppLockGate } from "@/components/app-lock/app-lock-gate";
 import { ActiveWorkoutBar } from "@/components/member/active-workout-bar";
+import { WorkoutOngoingNotification } from "@/components/member/workout-ongoing-notification";
 import { getRunningSessionStart } from "@/lib/session-timeout";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
 import { CelebrationOverlay } from "@/components/achievements/celebration-overlay";
@@ -63,6 +67,11 @@ export default async function MemberLayout({
   const celebrations = achievementUi.visible
     ? await getPendingCelebrations(session.user.id, session.user.tenantId!)
     : [];
+
+  // Vers ingelogd? Dan staat de splash-cookie er en tonen we één keer de
+  // gebrande splash (server-side gelezen zodat de overlay al in de SSR-HTML
+  // zit; de client verwijdert de cookie na het tonen).
+  const showSplash = (await cookies()).has(POST_LOGIN_SPLASH_COOKIE);
 
   // Loopt er een training? Dan tonen we dat op élke member-pagina in een balk.
   const activeStartedAt = session.user.tenantId
@@ -116,6 +125,9 @@ export default async function MemberLayout({
 
         {activeStartedAt ? <ActiveWorkoutBar startedAt={activeStartedAt} /> : null}
       </div>
+      {/* Native app: blijvende "training bezig"-notificatie, gesynct met de
+          serverstaat (ook het opruimen ná afronden/annuleren/timeout). */}
+      <WorkoutOngoingNotification startedAt={activeStartedAt} />
 
       <main className="flex flex-1 flex-col pb-24">
         <PageTransition>{children}</PageTransition>
@@ -130,6 +142,7 @@ export default async function MemberLayout({
       <AppLockGate />
       <CelebrationOverlay celebrations={celebrations} />
       <NativePushRegister configured={nativePushConfigured()} />
+      <PostLoginSplash show={showSplash} />
     </div>
   );
 }

@@ -4,7 +4,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { mintLoginChallenge } from "@/lib/login-challenge";
-import { TWO_FACTOR_CHALLENGE_COOKIE } from "@/lib/constants";
+import {
+  POST_LOGIN_SPLASH_COOKIE,
+  POST_LOGIN_SPLASH_COOKIE_OPTS,
+  TWO_FACTOR_CHALLENGE_COOKIE,
+} from "@/lib/constants";
 import type { LoginState } from "@/lib/login-types";
 
 /**
@@ -36,6 +40,14 @@ export async function completePasswordLogin(account: {
     });
     redirect("/login/2fa");
   }
+
+  // Login gaat slagen: markeer voor de eenmalige gebrande splash na de redirect
+  // (2FA-pad hierboven zet 'm pas in verifyTwoFactor, ná de code-check).
+  (await cookies()).set(
+    POST_LOGIN_SPLASH_COOKIE,
+    "1",
+    POST_LOGIN_SPLASH_COOKIE_OPTS
+  );
 
   try {
     await signIn("credentials", { email: account.email, challenge, redirectTo: "/" });

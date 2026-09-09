@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { AUTH_TENANT_COOKIE, TENANT_COOKIE_MAX_AGE } from "@/lib/constants";
+import {
+  AUTH_TENANT_COOKIE,
+  POST_LOGIN_SPLASH_COOKIE,
+  POST_LOGIN_SPLASH_COOKIE_OPTS,
+  TENANT_COOKIE_MAX_AGE,
+} from "@/lib/constants";
 
 /**
  * Tenant-doorstuurroute voor multi-gym magic links.
@@ -46,5 +51,8 @@ export async function GET(req: Request) {
     path: "/",
     maxAge: TENANT_COOKIE_MAX_AGE,
   });
+  // De klik op de magic link is het login-moment: markeer voor de eenmalige
+  // gebrande splash zodra de Auth.js-callback op het dashboard uitkomt.
+  res.cookies.set(POST_LOGIN_SPLASH_COOKIE, "1", POST_LOGIN_SPLASH_COOKIE_OPTS);
   return res;
 }

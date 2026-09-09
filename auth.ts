@@ -83,10 +83,18 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         // 0 of 1 sportschool: branding uit de login-cookie of de enige tenant.
         const slug = (await cookies()).get(AUTH_TENANT_COOKIE)?.value ?? tenants[0]?.slug ?? null;
         const branding = await loadTenantBrandingBySlug(slug);
+        // Ook de enkele-gym-link loopt via /login/magic: die route zet de
+        // tenant-cookie én de splash-markering op het klik-moment (de directe
+        // Auth.js-callback kan zelf geen cookies zetten). Zonder bekende tenant
+        // (superadmin) blijft het de kale callback-URL.
+        const single = tenants.length === 1 ? tenants[0].slug : null;
+        const link = single
+          ? `${new URL(url).origin}/login/magic?t=${encodeURIComponent(single)}&u=${encodeURIComponent(url)}`
+          : url;
         await sendEmail({
           to: email,
-          message: await magicLinkMessage({ branding, url }),
-          devLink: url,
+          message: await magicLinkMessage({ branding, url: link }),
+          devLink: link,
         });
       },
     }),
