@@ -26,6 +26,7 @@ import { getRunningSessionStart } from "@/lib/session-timeout";
 import { getAchievementUiState, getPendingCelebrations } from "@/lib/achievements/evaluate";
 import { CelebrationOverlay } from "@/components/achievements/celebration-overlay";
 import { NativePushRegister } from "@/components/pwa/native-push-register";
+import { DeviceCalendarAutosync } from "@/components/calendar/device-calendar-autosync";
 import { nativePushConfigured } from "@/lib/push";
 
 export default async function MemberLayout({
@@ -142,6 +143,8 @@ export default async function MemberLayout({
       <AppLockGate />
       <CelebrationOverlay celebrations={celebrations} />
       <NativePushRegister configured={nativePushConfigured()} />
+      {/* Android-app: gekoppelde toestelagenda automatisch bijwerken. */}
+      {calendarEnabled ? <DeviceCalendarAutosync userId={session.user.id} /> : null}
       <PostLoginSplash show={showSplash} />
     </div>
   );

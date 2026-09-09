@@ -2,7 +2,8 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { getMemberFeedEvents } from "@/lib/calendar";
-import { buildIcs, type IcsEvent } from "@/lib/calendar-ics";
+import { feedToIcsEvents } from "@/lib/calendar-feed-events";
+import { buildIcs } from "@/lib/calendar-ics";
 import { localeFromEnum } from "@/lib/i18n/config";
 import { appBaseUrl } from "@/lib/app-url";
 
@@ -43,44 +44,15 @@ export async function GET(
     locale: localeFromEnum(feed.locale),
     namespace: "member.agenda",
   });
-  const gym = feed.gymName;
-
-  const events: IcsEvent[] = [
-    ...feed.planned.map(
-      (p): IcsEvent => ({
-        kind: "allday",
-        uid: `plan-${p.assignmentId}-${p.dayKey}`,
-        dayKey: p.dayKey,
-        summary: `${t("icsTraining")}: ${p.dayName} · ${gym}`,
-      })
-    ),
-    ...feed.classes.map(
-      (c): IcsEvent => ({
-        kind: "timed",
-        uid: `class-${c.enrollmentId}`,
-        startUtc: c.startsAt,
-        endUtc: c.endsAt,
-        summary: `${c.title} · ${gym}`,
-        location: [c.venueName, c.room].filter(Boolean).join(" · ") || undefined,
-        status: c.cancelled ? "CANCELLED" : c.waitlisted ? "TENTATIVE" : undefined,
-      })
-    ),
-    ...feed.sessions.map(
-      (s): IcsEvent => ({
-        kind: "timed",
-        uid: `session-${s.id}`,
-        startUtc: s.startsAt,
-        endUtc: s.endsAt,
-        summary: `${t("icsTraining")}${s.dayName ? `: ${s.dayName}` : ""} · ${gym}`,
-      })
-    ),
-  ];
+  // Gedeeld met de toestel-agendasync (lib/calendar-feed-events.ts): zelfde
+  // titels, tijden en UIDs op beide kanalen.
+  const events = feedToIcsEvents(feed, t("icsTraining"));
 
   const body = buildIcs(
     // Kale gym-naam: die voedt óók de PRODID ("-//<naam>//Agenda//NL"), een
     // suffix zou daar dubbelen.
     {
-      name: gym,
+      name: feed.gymName,
       timeZoneHint: feed.timeZone,
       uidDomain: new URL(appBaseUrl()).host,
     },

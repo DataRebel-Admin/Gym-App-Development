@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         // Eigen plugins registreren vóór super.onCreate, anders kent de bridge ze niet.
         registerPlugin(AppLockPlugin.class);
         registerPlugin(WorkoutNotificationsPlugin.class);
+        registerPlugin(CalendarSyncPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Passkeys (WebAuthn) in de WebView. Anders dan Chrome ondersteunt een

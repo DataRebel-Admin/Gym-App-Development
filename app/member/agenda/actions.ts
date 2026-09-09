@@ -9,7 +9,10 @@ import { requireMember } from "@/lib/member";
 import { requireFeature } from "@/lib/features/service";
 import { audit } from "@/lib/audit";
 import { dayKeyInTz } from "@/lib/metrics/definitions";
-import { getMemberCalendarTimezone } from "@/lib/calendar";
+import { getTranslations } from "next-intl/server";
+import { getMemberCalendarTimezone, getMemberFeedEvents } from "@/lib/calendar";
+import { feedToIcsEvents } from "@/lib/calendar-feed-events";
+import { icsEventsToDeviceEvents, type DeviceCalendarEvent } from "@/lib/calendar-device";
 import { parseWeekdayPlan, type IsoWeekday } from "@/lib/calendar-plan";
 
 export type SavePlanState = { ok?: boolean; error?: boolean };
@@ -140,6 +143,31 @@ export async function rotateCalendarFeed(): Promise<{ ok: boolean }> {
   }
   revalidatePath("/member/agenda");
   return { ok: true };
+}
+
+// ---------- toestel-agendasync (Android-app) ----------
+
+export type DeviceCalendarEventsResult =
+  | { ok: true; calendarName: string; events: DeviceCalendarEvent[] }
+  | { ok: false };
+
+/**
+ * De agenda-events van het ingelogde lid voor de toestel-agendasync
+ * (CalendarSyncPlugin via lib/calendar-device-sync.ts). Zelfde bron en zelfde
+ * UIDs als de ICS-feed, maar zónder feed-token: de sessie is hier de auth.
+ * Titels in de UI-taal van het lid. Bewust niet geaudit — dit draait bij elk
+ * openen van de app (zelfde afweging als feed-fetches en QR-scans).
+ */
+export async function getDeviceCalendarEvents(): Promise<DeviceCalendarEventsResult> {
+  const member = await feedActor();
+  const feed = await getMemberFeedEvents(member.id, member.tenantId);
+  if (!feed) return { ok: false };
+  const t = await getTranslations("member.agenda");
+  return {
+    ok: true,
+    calendarName: feed.gymName,
+    events: icsEventsToDeviceEvents(feedToIcsEvents(feed, t("icsTraining"))),
+  };
 }
 
 /** Trek de feed in: token weg, URL dood. */

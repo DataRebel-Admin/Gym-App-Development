@@ -59,8 +59,18 @@ npx cap open android      # Android Studio
 ```
 
 Permissies staan in [`AndroidManifest.xml`](../android/app/src/main/AndroidManifest.xml)
-en zijn bewust minimaal: `INTERNET`, `CAMERA`, `POST_NOTIFICATIONS`. `VIBRATE`
-komt via manifest-merge uit de haptics-plugin. Verder:
+en zijn bewust minimaal: `INTERNET`, `CAMERA`, `POST_NOTIFICATIONS`,
+`READ_CALENDAR` + `WRITE_CALENDAR`. `VIBRATE` komt via manifest-merge uit de
+haptics-plugin. Verder:
+
+- `CalendarSyncPlugin.java` — schrijft de agenda-events van het lid (trainingen,
+  lessen, geplande dagen) rechtstreeks in een agenda op het toestel, bv. de
+  Google-agenda, die Android zelf verder synchroniseert. Nodig omdat Google
+  Agenda en Outlook op een telefoon geen ICS-abonnementslink kunnen toevoegen.
+  De agenda-permissie wordt pas gevraagd als het lid op "Koppelen" tikt
+  (`/member/agenda/koppelen`); eigen events zijn herkenbaar aan
+  `CUSTOM_APP_PACKAGE`/`CUSTOM_APP_URI`, loskoppelen ruimt ze op. Web-kant:
+  `lib/calendar-device-sync.ts`. Alleen Android; iOS abonneert via webcal://.
 
 - `network_security_config.xml` — alleen HTTPS, alleen systeem-CA's.
 - `data_extraction_rules.xml` plus `allowBackup=false` — geen sessiecookies in

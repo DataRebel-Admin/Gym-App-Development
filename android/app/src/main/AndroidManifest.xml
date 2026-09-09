@@ -106,6 +106,17 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
+        Agenda: trainingen, lessen en geplande dagen rechtstreeks in een agenda
+        op het toestel zetten (CalendarSyncPlugin.java). Runtime-permissie, pas
+        gevraagd als het lid op "Koppelen" tikt op /member/agenda/koppelen.
+        Nodig omdat Google Agenda en Outlook op een telefoon geen
+        abonnementslink (ICS) kunnen toevoegen. READ is nodig om de eigen
+        events terug te vinden (bijwerken/opruimen) en de agenda's op te sommen.
+    -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+
+    <!--
         Camera is een prettige extra, geen installatievereiste: `required="false"`
         houdt de app installeerbaar op toestellen zonder camera en beperkt de
         Play-distributie niet onnodig. Zonder camera valt alleen de QR-scanner weg.

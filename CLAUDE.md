@@ -891,13 +891,51 @@ Apple Agenda. Feature-flag **`calendar`** (default aan) gate't pagina, actions
   is één tik per provider: `webcal://` (Apple) + de "toevoegen via
   URL"-deeplinks van Google Agenda (`calendar.google.com/calendar/r?cid=`) en
   Outlook (`outlook.live.com/calendar/0/addfromweb`); kopieerlinks + handmatige
-  stappen blijven als uitklap-terugval. Ingangen: drawer (Trainen) + op
+  stappen blijven als uitklap-terugval. **OP EEN TELEFOON BESTAAT "TOEVOEGEN
+  VIA URL" NIET BIJ GOOGLE EN OUTLOOK**: de `?cid=`-deeplink werkt alleen in de
+  desktop-webversie; op Android/iOS pakt de Google Agenda-app die link over
+  (App Links) en negeert 'm stil, dus de knop leek te werken maar er kwam niets
+  bij (gemeld vanuit de Android-app). Ook de Google Calendar API kent geen
+  URL-abonnement, dus de link-route is op een telefoon definitief dood.
+  - **De automatische route op Android = de toestel-agendasync.** Lokale
+    Capacitor-plugin `CalendarSyncPlugin.java` (CalendarContract; permissies
+    `READ_CALENDAR`/`WRITE_CALENDAR`, runtime gevraagd bij "Koppelen") schrijft
+    de events rechtstreeks in een door het lid gekozen agenda op het toestel
+    (bv. de Google-agenda, die Android zelf naar alle apparaten synct). Eigen
+    events herkent de plugin aan `CUSTOM_APP_PACKAGE` + `CUSTOM_APP_URI` (= de
+    feed-UID) → upsert + opruimen, nooit dubbelen; loskoppelen wist ze. Web-kant
+    `lib/calendar-device-sync.ts` (koppeling per toestel in localStorage, mét
+    `userId`), pure kern `lib/calendar-device.ts` (`icsEventsToDeviceEvents`,
+    getest), server-action `getDeviceCalendarEvents` (zelfde bron als de feed
+    via het gedeelde **`lib/calendar-feed-events.ts` `feedToIcsEvents`** —
+    beide kanalen dragen identieke titels/UIDs). UI `DeviceCalendarCard` op de
+    koppelpagina (rendert alleen in de Android-app), automatisch bijwerken via
+    `DeviceCalendarAutosync` in de member-layout (bij openen/zichtbaar worden,
+    max. 1× per 6 uur). Het is een **kopie van events, geen abonnement**: wat
+    het lid zelf aan zo'n event wijzigt wordt bij de volgende sync overschreven.
+    Bewust niet geaudit (draait bij elk openen). Vereist een nieuwe app-build.
+  - De feed-kaart kiest per platform (`usePlatform` in `lib/platform.ts`, met
+    `useSyncExternalStore` zodat de server de desktop-variant rendert): op een
+    telefoon vervangt een "alleen via een computer"-blok met kopieerknop de
+    Google-/Outlook-knoppen. De Apple-knop (`webcal://`) blijft op iOS en
+    desktop, op Android heeft dat schema geen handler en valt hij weg. Voeg
+    nooit weer een one-tap-Google-knop toe voor mobiel. iOS-tegenhanger
+    (EventKit) volgt pas bij de eerste Mac-build (`ios/` staat niet in de repo).
+  Ingangen: drawer (Trainen) + op
   `/member` de widget **"Volgende training"** (`agenda-strip-card.tsx`, server
   component: eerstvolgende niet-gedane geplande dag of les via
   `getMemberAgendaStrip`, met een horizontaal scroll-snap-strookje losse
-  dagblokjes → `/member/agenda?m=…&d=…`); NIET in de onderbalk (die zit al op
-  6 items). De dag-assemblage is gedeeld (`assembleAgendaDays`, maandraster én
-  strip) — nieuwe dag-consument = die helper, niet een eigen query.
+  dagblokjes); NIET in de onderbalk (die zit al op 6 items). **Een tik op een
+  dagblokje opent het detail van die dag in een overlay** (`Modal`; bewust
+  géén uitklap onder de strip — besluit eigenaar 2026-09-09), zonder
+  navigatie — snel even kijken vanaf de homepage; de link "Bekijk in agenda"
+  in die overlay gaat naar `/member/agenda?m=…&d=…`. Het paneel is het
+  gedeelde **`components/calendar/agenda-day-detail.tsx`** (`AgendaDayDetail`,
+  ook gebruikt door de maandkalender; `bare` = zonder eigen kaart/datumkop,
+  voor een container met eigen titelbalk): nieuw rijtype of andere
+  dag-weergave = dáár, niet in beide plekken apart. De dag-assemblage
+  is gedeeld (`assembleAgendaDays`, maandraster én strip) — nieuwe
+  dag-consument = die helper, niet een eigen query.
   **Doorklik naar de training** vanuit het detailpaneel: een geplande dag van
   het schema dat nú actief is (`AgendaPlannedRow.startable`, zelfde regel als
   `getAssignedSchema`) toont op vandaag een "Start training"-knop (form →

@@ -8,6 +8,7 @@ import { appBaseUrl } from "@/lib/app-url";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { ChevronLeft } from "@/components/ui/icons";
 import { CalendarFeedCard } from "@/components/calendar/calendar-feed-card";
+import { DeviceCalendarCard } from "@/components/calendar/device-calendar-card";
 
 export async function generateMetadata() {
   const t = await getTranslations("member.agenda");
@@ -43,6 +44,13 @@ export default async function AgendaKoppelenPage() {
           {t("feedTitle")}
         </h1>
         <p className="mt-1 text-neutral-500">{t("feedDesc")}</p>
+      </RevealItem>
+
+      {/* Android-app: rechtstreeks in de toestelagenda schrijven (rendert
+          zichzelf alleen daar). De feed-kaart eronder blijft voor desktop,
+          iOS (webcal) en wie liever een abonnementslink gebruikt. */}
+      <RevealItem>
+        <DeviceCalendarCard userId={member.id} />
       </RevealItem>
 
       <RevealItem>

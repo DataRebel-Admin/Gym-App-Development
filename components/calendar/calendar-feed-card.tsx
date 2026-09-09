@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
+import { usePlatform } from "@/lib/platform";
 import { CalendarDays, Check, ChevronDown } from "@/components/ui/icons";
 import {
   createCalendarFeed,
@@ -19,6 +20,18 @@ import {
  * een tweede tik als bevestiging (armed-state, geen modal nodig). De uitleg is
  * bewust eerlijk: providers verversen elke paar uur, en het lid deelt hiermee
  * z'n trainingsdata met z'n eigen kalenderprovider.
+ *
+ * OP EEN TELEFOON BESTAAT "TOEVOEGEN VIA URL" NIET BIJ GOOGLE EN OUTLOOK.
+ * De `?cid=`-deeplink werkt alleen in de desktop-webversie van Google Agenda.
+ * Op Android/iOS pakt de Google Agenda-app die link over (App Links) en negeert
+ * 'm stil: de knop leek te werken, maar er kwam niets bij. Hetzelfde geldt voor
+ * Outlook mobiel. Daarom kiest de kaart per platform (`usePlatform`, de server
+ * kent het toestel niet): op een telefoon vervangt een "alleen via een
+ * computer"-blok met kopieerknop die twee knoppen. De automatische route op
+ * Android is de toestel-agendasync (`DeviceCalendarCard`, staat op de
+ * koppelpagina bóven deze kaart). Apple Agenda abonneert wél rechtstreeks op
+ * webcal://, dus die knop blijft op iOS; op Android heeft `webcal://` geen
+ * handler en verdwijnt hij.
  */
 export function CalendarFeedCard({
   feedUrl,
@@ -33,6 +46,8 @@ export function CalendarFeedCard({
   const [copied, setCopied] = useState<"https" | "webcal" | null>(null);
   const [armed, setArmed] = useState<"rotate" | "revoke" | null>(null);
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Server-render = desktop-variant; na hydratie wint het echte toestel.
+  const platform = usePlatform();
 
   useEffect(() => () => {
     if (armTimer.current) clearTimeout(armTimer.current);
@@ -105,30 +120,57 @@ export function CalendarFeedCard({
 
   return (
     <div className="rounded-3xl border border-border bg-surface-1 p-4 shadow-sm">
-      {/* Eén tik per provider — de link opent direct het abonneer-scherm. */}
+      {/* Eén tik per provider — de link opent direct het abonneer-scherm.
+          Op een telefoon alleen Apple (iOS): Google en Outlook kunnen daar
+          geen abonnementslink toevoegen, zie het blok eronder. */}
       <div className="flex flex-col gap-2">
-        <a
-          href={webcalUrl ?? "#"}
-          className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground active:opacity-90"
-        >
-          <CalendarDays className="size-4" /> {t("feedAddApple")}
-        </a>
-        <a
-          href={googleUrl ?? "#"}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center justify-center gap-2 rounded-xl border border-accent px-4 py-2.5 text-sm font-bold text-accent active:bg-surface-2"
-        >
-          <CalendarDays className="size-4" /> {t("feedAddGoogle")}
-        </a>
-        <a
-          href={outlookUrl ?? "#"}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center justify-center gap-2 rounded-xl border border-accent px-4 py-2.5 text-sm font-bold text-accent active:bg-surface-2"
-        >
-          <CalendarDays className="size-4" /> {t("feedAddOutlook")}
-        </a>
+        {platform !== "android" ? (
+          <a
+            href={webcalUrl ?? "#"}
+            className="flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground active:opacity-90"
+          >
+            <CalendarDays className="size-4" /> {t("feedAddApple")}
+          </a>
+        ) : null}
+        {platform === "desktop" ? (
+          <>
+            <a
+              href={googleUrl ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 rounded-xl border border-accent px-4 py-2.5 text-sm font-bold text-accent active:bg-surface-2"
+            >
+              <CalendarDays className="size-4" /> {t("feedAddGoogle")}
+            </a>
+            <a
+              href={outlookUrl ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 rounded-xl border border-accent px-4 py-2.5 text-sm font-bold text-accent active:bg-surface-2"
+            >
+              <CalendarDays className="size-4" /> {t("feedAddOutlook")}
+            </a>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-border bg-surface-2 px-3.5 py-3">
+            <p className="text-sm font-semibold text-neutral-800">{t("feedMobileTitle")}</p>
+            <p className="mt-1 text-xs text-neutral-600">{t("feedMobileHint")}</p>
+            <button
+              type="button"
+              onClick={() => copy(feedUrl, "https")}
+              className="mt-3 w-full rounded-xl border border-accent bg-surface-1 px-3 py-2.5 text-xs font-semibold text-accent active:bg-surface-2"
+            >
+              {copied === "https" ? (
+                <span className="inline-flex items-center gap-1">
+                  <Check className="size-3" /> {t("feedCopied")}
+                </span>
+              ) : (
+                t("feedCopyLink")
+              )}
+            </button>
+            <p className="mt-3 text-xs text-neutral-600">{t("feedMobileGoogleSync")}</p>
+          </div>
+        )}
       </div>
 
       {/* Handmatige terugval: links kopiëren + stappen per provider. */}
