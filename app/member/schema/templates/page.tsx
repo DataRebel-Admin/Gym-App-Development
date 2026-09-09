@@ -2,13 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireMember } from "@/lib/member";
 import { prisma } from "@/lib/db";
-import { requireMemberSchemaEnabled, resolveFramework } from "@/lib/member-schema";
+import { requireMemberSchemaEnabled } from "@/lib/member-schema";
 import { getMemberCatalog } from "@/lib/member-catalog";
 import {
   CATALOG_DAYS_OPTIONS,
   CATALOG_LEVEL_LABELS,
   catalogHref,
-  exceedsFrameworkDays,
   filterCatalog,
   hasActiveCatalogFilter,
   parseCatalogFilters,
@@ -69,14 +68,11 @@ function FilterChip({ href, active, children }: { href: string; active: boolean;
 function TemplateCard({
   row,
   memberGoals,
-  maxDays,
 }: {
   row: CatalogRow;
   memberGoals: string[];
-  maxDays: number | null;
 }) {
   const matched = hasGoalOverlap(row.goals, memberGoals);
-  const blocked = exceedsFrameworkDays(row, maxDays);
   const meta =
     row.type === "week"
       ? `${row.dayCount} ${row.dayCount === 1 ? "dag" : "dagen"} · ${row.exerciseCount} oefeningen`
@@ -103,11 +99,6 @@ function TemplateCard({
         </span>
         <span className="mt-1.5 flex flex-wrap items-center gap-1">
           <SchemaBadges badges={row.badges} size="xs" max={3} />
-          {blocked ? (
-            <span className="inline-flex items-center rounded-full bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
-              Max {maxDays} dagen in jouw kader
-            </span>
-          ) : null}
         </span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-neutral-300" />
@@ -124,13 +115,11 @@ export default async function MemberTemplateCatalogPage({
   await requireMemberSchemaEnabled(member.tenantId);
   const filters = parseCatalogFilters(await searchParams);
 
-  const [tenant, user, framework] = await Promise.all([
+  const [tenant, user] = await Promise.all([
     getCurrentTenant(),
     prisma.user.findUnique({ where: { id: member.id }, select: { trainingGoals: true } }),
-    resolveFramework(member.tenantId, member.id),
   ]);
   const memberGoals = parseTrainingGoals(user?.trainingGoals);
-  const maxDays = framework?.limits.maxDays ?? null;
 
   const catalog = await getMemberCatalog(member.tenantId, { logoUrl: tenant?.logoUrl ?? null });
   const rows = sortByGoalMatch(filterCatalog(catalog, filters), memberGoals, (r) => r.goals);
@@ -276,12 +265,7 @@ export default async function MemberTemplateCatalogPage({
             <h2 className="text-sm font-semibold text-neutral-900">Complete schema&apos;s</h2>
           ) : null}
           {weeks.map((row) => (
-            <TemplateCard
-              key={`${row.source}:${row.id}`}
-              row={row}
-              memberGoals={memberGoals}
-              maxDays={maxDays}
-            />
+            <TemplateCard key={`${row.source}:${row.id}`} row={row} memberGoals={memberGoals} />
           ))}
         </section>
       ) : null}
@@ -292,12 +276,7 @@ export default async function MemberTemplateCatalogPage({
             <h2 className="text-sm font-semibold text-neutral-900">Losse trainingsdagen</h2>
           ) : null}
           {days.map((row) => (
-            <TemplateCard
-              key={`${row.source}:${row.id}`}
-              row={row}
-              memberGoals={memberGoals}
-              maxDays={maxDays}
-            />
+            <TemplateCard key={`${row.source}:${row.id}`} row={row} memberGoals={memberGoals} />
           ))}
         </section>
       ) : null}

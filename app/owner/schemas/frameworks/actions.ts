@@ -102,7 +102,9 @@ export async function saveFramework(formData: FormData) {
         allowedTypes,
         allowedExerciseIds,
         minDays: intOrNull(formData.get("minDays")),
-        maxDays: intOrNull(formData.get("maxDays")),
+        // Dag-maximum is verwijderd; converge bestaande rijen naar null zodat
+        // een oude waarde nooit ergens opduikt (de kolom blijft, geen migratie).
+        maxDays: null,
         minExercisesPerDay: intOrNull(formData.get("minExercisesPerDay")),
         maxExercisesPerDay: intOrNull(formData.get("maxExercisesPerDay")),
         setsMin: intOrNull(formData.get("setsMin")),

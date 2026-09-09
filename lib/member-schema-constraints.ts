@@ -10,12 +10,16 @@ import {
   type InputValues,
 } from "@/lib/exercise-params";
 
-/** Beperkingen-subset van een SchemaFramework (leeg/null = geen beperking). */
+/**
+ * Beperkingen-subset van een SchemaFramework (leeg/null = geen beperking).
+ * Bewust GEEN dag-maximum: een lid mag altijd dagen toevoegen (besluit eigenaar
+ * 2026-09-09) — de `maxDays`-kolom bestaat nog in de DB maar wordt nergens meer
+ * gelezen of geschreven.
+ */
 export type FrameworkLimits = {
   allowedExerciseIds: string[];
   allowedTypes: string[];
   minDays: number | null;
-  maxDays: number | null;
   minExercisesPerDay: number | null;
   maxExercisesPerDay: number | null;
   setsMin: number | null;
@@ -58,10 +62,7 @@ export function validateAgainstFramework(
     limits.allowedExerciseIds.length > 0 ? new Set(limits.allowedExerciseIds) : null;
   const allowedTypes = limits.allowedTypes.length > 0 ? new Set(limits.allowedTypes) : null;
 
-  // Dag-aantal.
-  if (limits.maxDays != null && days.length > limits.maxDays) {
-    violations.push(`Maximaal ${limits.maxDays} ${limits.maxDays === 1 ? "dag" : "dagen"} toegestaan.`);
-  }
+  // Dag-aantal (alleen een minimum bij indienen; een maximum bestaat niet).
   if (opts.enforceMinimums && limits.minDays != null && days.length < limits.minDays) {
     violations.push(`Minimaal ${limits.minDays} ${limits.minDays === 1 ? "dag" : "dagen"} vereist.`);
   }
@@ -137,7 +138,6 @@ export function hasAnyLimit(limits: FrameworkLimits | null): boolean {
     limits.allowedExerciseIds.length > 0 ||
     limits.allowedTypes.length > 0 ||
     limits.minDays != null ||
-    limits.maxDays != null ||
     limits.minExercisesPerDay != null ||
     limits.maxExercisesPerDay != null ||
     limits.setsMin != null ||
@@ -153,7 +153,6 @@ export function hasAnyLimit(limits: FrameworkLimits | null): boolean {
 export function describeLimits(limits: FrameworkLimits | null): string[] {
   if (!limits) return [];
   const out: string[] = [];
-  if (limits.maxDays != null) out.push(`max ${limits.maxDays} dagen`);
   if (limits.minDays != null) out.push(`min ${limits.minDays} dagen`);
   if (limits.maxExercisesPerDay != null) out.push(`max ${limits.maxExercisesPerDay} oef./dag`);
   if (limits.setsMin != null || limits.setsMax != null)

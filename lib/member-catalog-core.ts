@@ -130,15 +130,3 @@ export function filterCatalog(rows: CatalogRow[], f: CatalogFilters): CatalogRow
 export function hasActiveCatalogFilter(f: CatalogFilters): boolean {
   return Boolean(f.type || f.goal || f.days || f.level || f.q);
 }
-
-/**
- * Past een week-template niet binnen het dag-maximum van het kader van dit lid?
- * (De catalogus toont dan een waarschuwing en blokkeert overnemen — anders
- * loopt het lid direct na de start tegen een autosave-fout aan.)
- */
-export function exceedsFrameworkDays(
-  row: Pick<CatalogRow, "type" | "dayCount">,
-  maxDays: number | null | undefined
-): boolean {
-  return maxDays != null && row.type === "week" && row.dayCount > maxDays;
-}

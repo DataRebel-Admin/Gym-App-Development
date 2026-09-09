@@ -47,7 +47,6 @@ export default async function FrameworksPage() {
               allowedExerciseIds: f.allowedExerciseIds,
               allowedTypes: f.allowedTypes,
               minDays: f.minDays,
-              maxDays: f.maxDays,
               minExercisesPerDay: f.minExercisesPerDay,
               maxExercisesPerDay: f.maxExercisesPerDay,
               setsMin: f.setsMin,

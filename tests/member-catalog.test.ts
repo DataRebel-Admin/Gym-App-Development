@@ -4,7 +4,6 @@ import {
   CATALOG_LEVEL_LABELS,
   catalogHref,
   catalogStartSource,
-  exceedsFrameworkDays,
   filterCatalog,
   hasActiveCatalogFilter,
   parseCatalogFilters,
@@ -167,13 +166,6 @@ test("filterCatalog: type, doel, dagen, niveau en zoekterm versmallen", () => {
     ["sl"]
   );
   assert.deepEqual(filterCatalog(rows, { ...none, q: "strong" }).map((r) => r.id), ["sl"]);
-});
-
-test("exceedsFrameworkDays geldt alleen voor week-templates met een dag-maximum", () => {
-  assert.equal(exceedsFrameworkDays(row({ type: "week", dayCount: 6 }), 3), true);
-  assert.equal(exceedsFrameworkDays(row({ type: "week", dayCount: 3 }), 3), false);
-  assert.equal(exceedsFrameworkDays(row({ type: "day", dayCount: 1 }), 0), false);
-  assert.equal(exceedsFrameworkDays(row({ type: "week", dayCount: 6 }), null), false);
 });
 
 // ---------------------------------------------------------------------------

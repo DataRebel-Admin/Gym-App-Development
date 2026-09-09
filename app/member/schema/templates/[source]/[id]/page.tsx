@@ -2,17 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireMember } from "@/lib/member";
 import { prisma } from "@/lib/db";
-import {
-  requireMemberSchemaEnabled,
-  getMemberSchemas,
-  resolveFramework,
-} from "@/lib/member-schema";
+import { requireMemberSchemaEnabled, getMemberSchemas } from "@/lib/member-schema";
 import { isEditableMemberStatus } from "@/lib/member-schema-status";
 import { getCatalogDetail } from "@/lib/member-catalog";
 import {
   CATALOG_LEVEL_LABELS,
   catalogStartSource,
-  exceedsFrameworkDays,
   parseCatalogSource,
 } from "@/lib/member-catalog-core";
 import { hasGoalOverlap, parseTrainingGoals } from "@/lib/training-goals";
@@ -27,10 +22,8 @@ export const metadata = { title: "Template" };
 
 export default async function MemberTemplateDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ source: string; id: string }>;
-  searchParams: Promise<{ err?: string }>;
 }) {
   const member = await requireMember();
   await requireMemberSchemaEnabled(member.tenantId);
@@ -39,12 +32,10 @@ export default async function MemberTemplateDetailPage({
   const source = parseCatalogSource(rawSource);
   if (!source) notFound();
   const id = decodeURIComponent(rawId);
-  const { err } = await searchParams;
 
-  const [tenant, user, framework] = await Promise.all([
+  const [tenant, user] = await Promise.all([
     getCurrentTenant(),
     prisma.user.findUnique({ where: { id: member.id }, select: { trainingGoals: true } }),
-    resolveFramework(member.tenantId, member.id),
   ]);
   const detail = await getCatalogDetail(source, id, member.tenantId, {
     logoUrl: tenant?.logoUrl ?? null,
@@ -54,8 +45,6 @@ export default async function MemberTemplateDetailPage({
 
   const memberGoals = parseTrainingGoals(user?.trainingGoals);
   const matched = hasGoalOverlap(row.goals, memberGoals);
-  const maxDays = framework?.limits.maxDays ?? null;
-  const blocked = exceedsFrameworkDays(row, maxDays);
 
   // Doel-schema's voor "dag toevoegen": eigen, nu bewerkbare schema's.
   const targets =
@@ -105,27 +94,12 @@ export default async function MemberTemplateDetailPage({
         ) : null}
       </div>
 
-      {err === "maxdays" ? (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Deze dag past niet meer in je schema: je sportschool staat maximaal {maxDays}{" "}
-          {maxDays === 1 ? "dag" : "dagen"} toe in jouw kader.
-        </div>
-      ) : null}
-
       {newExerciseCount > 0 ? (
         <div className="rounded-2xl border border-border bg-surface-1 px-4 py-3 text-sm text-neutral-600">
           Dit template voegt <span className="font-semibold text-neutral-900">{newExerciseCount}</span>{" "}
           {newExerciseCount === 1 ? "oefening" : "oefeningen"} toe die nieuw{" "}
           {newExerciseCount === 1 ? "is" : "zijn"} voor jouw sportschool. Niet elke oefening
           staat mogelijk op apparatuur die er is; je kunt oefeningen daarna gewoon vervangen.
-        </div>
-      ) : null}
-
-      {blocked ? (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Dit schema heeft {row.dayCount} dagen, maar jouw sportschool staat maximaal {maxDays}{" "}
-          {maxDays === 1 ? "dag" : "dagen"} toe. Kies een korter template of vraag je coach om
-          ruimere kaders.
         </div>
       ) : null}
 
@@ -186,21 +160,15 @@ export default async function MemberTemplateDetailPage({
 
       {/* Acties */}
       <div className="sticky bottom-20 flex flex-col gap-2">
-        {blocked ? (
-          <div className="rounded-2xl bg-surface-2 px-6 py-4 text-center text-base font-bold text-neutral-400">
-            Past niet binnen jouw kaders
-          </div>
-        ) : (
-          <form action={startMemberSchema}>
-            <input type="hidden" name="source" value={catalogStartSource(row)} />
-            <button
-              type="submit"
-              className="w-full rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
-            >
-              {row.type === "week" ? "Gebruik dit schema" : "Start als los schema"}
-            </button>
-          </form>
-        )}
+        <form action={startMemberSchema}>
+          <input type="hidden" name="source" value={catalogStartSource(row)} />
+          <button
+            type="submit"
+            className="w-full rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
+          >
+            {row.type === "week" ? "Gebruik dit schema" : "Start als los schema"}
+          </button>
+        </form>
 
         {row.type === "day" && targets.length > 0 ? (
           <form

@@ -375,8 +375,8 @@ export async function startMemberSchema(formData: FormData) {
  * Voeg een dag-template (gecureerd of vrijgegeven door de gym) als extra dag
  * toe aan een bestaand, bewerkbaar eigen schema. Zelfde poorten als de builder
  * (`assertEditAllowed` dekt zelf-gebouwd én — bij `memberCanEditAssigned` —
- * een toegewezen schema); het dag-maximum van een kader geldt alleen op een
- * zelf-gebouwd schema (op het schema van de trainer is de coach leidend).
+ * een toegewezen schema). Een dag-maximum bestaat niet: dagen toevoegen mag
+ * altijd (besluit eigenaar 2026-09-09).
  */
 export async function addDayFromTemplate(formData: FormData) {
   const member = await requireMember();
@@ -389,7 +389,6 @@ export async function addDayFromTemplate(formData: FormData) {
   if (blocked) redirect("/member/schema/builder");
 
   // Bron: gecureerd dag-template of vrijgegeven gym-dag-template.
-  let detailHref: string;
   let dayName: string;
   let items: Prisma.WorkoutExerciseItemUncheckedCreateWithoutDayInput[] = [];
   const templateId = assignment.template.id;
@@ -399,7 +398,6 @@ export async function addDayFromTemplate(formData: FormData) {
     const key = ref.slice("day:".length);
     const def = getMemberDayTemplate(key);
     if (!def) redirect("/member/schema/templates");
-    detailHref = `/member/schema/templates/day/${key}`;
     const bySlug = await ensureLibraryExercises(member.tenantId, dayTemplateSlugs(def));
     const spec = specFromDayTemplate(def, bySlug);
     dayName = spec.name;
@@ -412,7 +410,6 @@ export async function addDayFromTemplate(formData: FormData) {
     });
     const day = source?.days[0];
     if (!source || !day) redirect("/member/schema/templates");
-    detailHref = `/member/schema/templates/tenantday/${id}`;
     dayName = day.name;
     items = day.items.map((it) => ({
       ...base,
@@ -440,13 +437,6 @@ export async function addDayFromTemplate(formData: FormData) {
   }
 
   const dayCount = await prisma.workoutDay.count({ where: { templateId } });
-  if (assignment.origin === "MEMBER") {
-    const framework = await resolveFramework(member.tenantId, member.id);
-    const maxDays = framework?.limits.maxDays ?? null;
-    if (maxDays != null && dayCount + 1 > maxDays) {
-      redirect(`${detailHref}?err=maxdays`);
-    }
-  }
 
   await prisma.workoutDay.create({
     data: {

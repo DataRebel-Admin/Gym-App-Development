@@ -117,7 +117,19 @@ export default async function FrameworkEditPage({
 
         <fieldset className="flex flex-col gap-2 rounded-xl border border-border p-4">
           <legend className="px-1 text-sm font-semibold text-neutral-900">Grenzen</legend>
-          <MinMax label="Aantal dagen" minName="minDays" maxName="maxDays" minVal={framework.minDays} maxVal={framework.maxDays} />
+          {/* Alleen een minimum: een dag-maximum bestaat niet meer — leden mogen
+              altijd dagen toevoegen (besluit eigenaar 2026-09-09). */}
+          <div className="flex items-center gap-2 text-sm text-neutral-700">
+            <span className="w-40 shrink-0">Minimaal aantal dagen</span>
+            <input
+              name="minDays"
+              type="number"
+              min={0}
+              placeholder="min"
+              defaultValue={framework.minDays ?? ""}
+              className={num}
+            />
+          </div>
           <MinMax
             label="Oefeningen per dag"
             minName="minExercisesPerDay"

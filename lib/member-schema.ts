@@ -161,7 +161,6 @@ export async function resolveFramework(
       allowedExerciseIds: framework.allowedExerciseIds,
       allowedTypes: framework.allowedTypes,
       minDays: framework.minDays,
-      maxDays: framework.maxDays,
       minExercisesPerDay: framework.minExercisesPerDay,
       maxExercisesPerDay: framework.maxExercisesPerDay,
       setsMin: framework.setsMin,
