@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { saveSchema, type SchemaSaveState } from "@/app/owner/schemas/actions";
 import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
 import { searchPickerMatches } from "@/lib/exercise-library/search-text";
+import { suggestAlternatives } from "@/lib/exercise-suggestions";
 import Link from "next/link";
 import { Info, TrendingDown, X } from "@/components/ui/icons";
 import {
@@ -87,6 +88,12 @@ export type AvailableExercise = {
   thumbUrl: string | null;
   /** Machine-naam (indien gekoppeld) — het lid ziet die ook. */
   machineName: string | null;
+  /** Spier-/materiaal-context voor de alternatieven-suggesties
+   *  (lib/exercise-suggestions.ts) — gevuld door getPickerExercises. */
+  muscles: string[];
+  secondaryMuscles: string[];
+  bodyPart: string | null;
+  equipment: string | null;
 };
 
 /** Herbruikbare dag (kind=DAY) om als blok in te voegen. */
@@ -533,11 +540,25 @@ function DayCard({
 }) {
   const sensors = useSensors(useSensor(PointerSensor));
   const [query, setQuery] = useState("");
+  // Laatst toegevoegde oefening → toon een strook met alternatieven (variatie /
+  // zelfde spiergroep). Sluiten of dag wisselen laat 'm verdwijnen.
+  const [altFor, setAltFor] = useState<AvailableExercise | null>(null);
 
   const sourceById = useMemo(
     () => new Map(availableExercises.map((e) => [e.id, e.source])),
     [availableExercises]
   );
+
+  // Suggesties opnieuw berekenen zodra de dag verandert: wat al in de dag
+  // staat valt automatisch weg (ook een zojuist toegevoegde suggestie).
+  const altSuggestions = useMemo(() => {
+    if (!altFor) return [];
+    return suggestAlternatives(
+      availableExercises,
+      altFor,
+      day.items.map((i) => i.exerciseId)
+    );
+  }, [altFor, availableExercises, day.items]);
 
   // Groep-metadata per item-key (welke items horen bij een echte groep).
   const groupInfo = useMemo(() => {
@@ -670,7 +691,7 @@ function DayCard({
               <li key={e.id}>
                 <button
                   type="button"
-                  onClick={() => { onAdd(day.key, e); setQuery(""); }}
+                  onClick={() => { onAdd(day.key, e); setQuery(""); setAltFor(e); }}
                   className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-neutral-50"
                 >
                   <span className="flex min-w-0 items-center gap-2">
@@ -684,6 +705,39 @@ function DayCard({
           </ul>
         ) : null}
       </div>
+
+      {/* Alternatieven voor de zojuist toegevoegde oefening (zelfde spiergroep /
+          variatie). Tik = ook toevoegen; wat al in de dag staat verschijnt niet. */}
+      {altFor && altSuggestions.length > 0 ? (
+        <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[11px] font-medium text-neutral-500">
+              Alternatieven voor <span className="font-semibold text-neutral-700">{altFor.name}</span>
+            </p>
+            <button
+              type="button"
+              aria-label="Alternatieven verbergen"
+              onClick={() => setAltFor(null)}
+              className="shrink-0 text-xs text-neutral-400 hover:text-neutral-700"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {altSuggestions.map((s) => (
+              <button
+                key={s.exercise.id}
+                type="button"
+                title={s.reason}
+                onClick={() => onAdd(day.key, s.exercise)}
+                className="rounded-full border border-border bg-surface-1 px-2.5 py-1 text-xs font-medium text-neutral-700 hover:border-accent hover:text-accent"
+              >
+                + {s.exercise.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
