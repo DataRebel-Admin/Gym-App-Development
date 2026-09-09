@@ -1425,6 +1425,14 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
   `getRunningSessionStart`): elke server-render zet of ruimt 'm op, dus afronden/annuleren/
   5-uur-timeout wist 'm vanzelf. Kanttekening: wordt de app hard gekild, dan blijft de
   melding staan tot de eerstvolgende app-open (tik opent de app en de layout ruimt op).
+  - **EEN TIJDSTEMPEL UIT JS LEES JE MET `call.getData().optLong(...)`, NOOIT MET
+    `call.getDouble(...)`.** Capacitors `PluginCall.getDouble` kent alleen `Double`,
+    `Float` en `Integer`; een epoch in ms (~1,76e12) valt buiten Integer, komt door de
+    JSON-laag als `Long` binnen en levert dus **stil de standaardwaarde** op. Daardoor
+    viel `showOngoing` altijd in z'n eigen null-guard: geen melding, geen fout, niets in
+    logcat — alleen `dumpsys notification` liet zien dat id 41001 nooit gepost werd
+    (de rusttimer werkte wél, want `inMs` past in een Integer). `optLong` dekt Integer,
+    Long én Double. Gevonden op build 4, gerepareerd in build 5.
 - **Concept-invoer overleeft navigatie**: ingetypte-maar-nog-niet-afgevinkte reps/kg en
   logvelden staan per sessie in **sessionStorage** (`gymrebel-session-draft-<id>`,
   active-session.tsx) en worden bij mount over de serverstaat gelegd — alléén op rijen

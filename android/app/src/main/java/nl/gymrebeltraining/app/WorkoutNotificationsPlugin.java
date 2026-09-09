@@ -97,11 +97,15 @@ public class WorkoutNotificationsPlugin extends Plugin {
     public void showOngoing(PluginCall call) {
         String title = call.getString("title", "Training bezig");
         String text = call.getString("text", "");
-        // JS-getallen komen als double over de bridge; een epoch in ms past daar
-        // exact in (PluginCall heeft geen getLong).
-        Double startedAtMs = call.getDouble("startedAtMs");
+        // NIET call.getDouble() gebruiken voor een epoch in ms. Die helper kent
+        // alleen Double, Float en Integer; een tijdstempel (~1,76e12) valt buiten
+        // Integer, komt door de JSON-laag als Long binnen en levert dus stil de
+        // standaardwaarde op. Gevolg: deze methode viel altijd in de guard
+        // hieronder en er verscheen nooit een melding, zonder enige fout.
+        // optLong() op de ruwe JSON dekt Integer, Long én Double.
+        long startedAtMs = call.getData().optLong("startedAtMs", 0L);
         String url = call.getString("url", "");
-        if (!canNotify() || startedAtMs == null || url == null || url.isEmpty()) {
+        if (!canNotify() || startedAtMs <= 0 || url == null || url.isEmpty()) {
             call.resolve();
             return;
         }
@@ -116,7 +120,7 @@ public class WorkoutNotificationsPlugin extends Plugin {
             .setSilent(true)
             // Chronometer: het systeem laat de verstreken tijd zelf meelopen —
             // geen wakker houden van de WebView nodig.
-            .setWhen(startedAtMs.longValue())
+            .setWhen(startedAtMs)
             .setShowWhen(true)
             .setUsesChronometer(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
