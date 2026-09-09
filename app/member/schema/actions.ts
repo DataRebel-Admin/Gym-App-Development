@@ -85,6 +85,14 @@ export async function startSession(formData?: FormData) {
     { locationId, requestedDayId }
   );
   if (!sessionId) redirect("/member/schema");
+  // De "training bezig"-balk én de blijvende native melding hangen aan
+  // `getRunningSessionStart` in de member-**layout**. Een layout rendert niet
+  // opnieuw bij navigatie binnen datzelfde segment, en `revalidatePath(path)`
+  // raakt alleen de pagina. Zonder de expliciete "layout"-variant bleef de
+  // layout dus de stand van vóór het starten vasthouden: geen balk, geen
+  // melding, tot er toevallig een volledige herrender langskwam (dat is de
+  // "hij komt een paar minuten later vanzelf"-klacht).
+  revalidatePath("/member", "layout");
   redirect("/member/schema/active");
 }
 
@@ -144,6 +152,9 @@ export async function endSession(formData: FormData) {
     revalidatePath("/member/trophies");
   }
   revalidatePath("/member/history");
+  // Spiegelt startSession: de layout moet de balk en de blijvende melding
+  // meteen opruimen, niet pas bij een toevallige volledige herrender.
+  revalidatePath("/member", "layout");
   redirect("/member/history");
 }
 
@@ -216,6 +227,9 @@ export async function cancelSession(formData: FormData) {
   await cancelSessionCore({ tenantId: member.tenantId, userId: member.id }, sessionId);
   revalidatePath("/member");
   revalidatePath("/member/schema");
+  // Zie startSession: zonder de layout-variant blijven balk en melding staan
+  // terwijl de sessie al weg is.
+  revalidatePath("/member", "layout");
   redirect("/member/schema");
 }
 

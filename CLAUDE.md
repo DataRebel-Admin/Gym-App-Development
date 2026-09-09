@@ -1378,6 +1378,15 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
   de publieke QR-pagina `/m/[qrToken]` (alleen bij een ingelogd lid) mounten dezelfde
   balk, zodat een lid dat tussendoor z'n instellingen opent of een apparaat scant de
   klok blijft zien en met één tik terug is in de training.
+  - **WIE DE SESSIESTAAT WIJZIGT, REVALIDEERT DE LAYOUT: `revalidatePath("/member",
+    "layout")`.** De balk én de blijvende native melding hangen aan één waarde in de
+    member-**layout**, en een layout rendert niet opnieuw bij navigatie binnen hetzelfde
+    segment; `revalidatePath(path)` raakt bovendien alleen de *pagina*. `startSession`
+    deed geen enkele revalidatie, dus na het starten hield de layout de stand van
+    ervóór vast: geen balk en geen melding, tot er toevallig een volledige herrender
+    langskwam (symptoom: "hij verschijnt een paar minuten later vanzelf"). Nu doen
+    `startSession`, `endSession` en `cancelSession` het alle drie. Elke nieuwe
+    call-site die een `WorkoutSession` opent of sluit hoort dit mee te nemen.
   - **STICKY ZIT OP DE WRAPPER, NIET OP DE BALK.** Header + balk plakken samen als één
     `sticky top-0`-blok in de member-layout. Geef je de balk een eigen `top`-offset, dan moet
     dat getal exact de headerhoogte raken — die is 61px (`py-3` + de `size-9`-belknop), niet
