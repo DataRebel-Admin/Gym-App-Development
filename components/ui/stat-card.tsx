@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { animate, useInView, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
+import { ChevronRight } from "@/components/ui/icons";
 
 /** Referentiegrootte (px) waarop de verborgen meet-span de eindwaarde meet. */
 const REF_FONT_PX = 30; // = text-3xl
@@ -35,6 +37,7 @@ export function StatCard({
   icon,
   hint,
   trend,
+  href,
   className,
 }: {
   label: string;
@@ -44,6 +47,8 @@ export function StatCard({
   hint?: string;
   /** ±% t.o.v. vorige periode; toont een gekleurde trend-pill. */
   trend?: number | null;
+  /** Maakt de hele kaart een link naar een detailpagina (chevron + tik-feedback). */
+  href?: string;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -89,11 +94,12 @@ export function StatCard({
     return () => ro.disconnect();
   }, [value]);
 
-  return (
+  const card = (
     <div
       ref={ref}
       className={cn(
-        "panel-sheen relative flex flex-col gap-2 overflow-hidden rounded-2xl border border-border bg-surface-1 p-5 shadow-sm",
+        "panel-sheen relative flex h-full flex-col gap-2 overflow-hidden rounded-2xl border border-border bg-surface-1 p-5 shadow-sm",
+        href && "transition-colors active:bg-surface-2",
         className
       )}
     >
@@ -152,7 +158,18 @@ export function StatCard({
           </span>
         ) : null}
         {hint ? <span className="text-xs text-neutral-500">{hint}</span> : null}
+        {href ? (
+          <ChevronRight className="ml-auto size-3.5 shrink-0 text-neutral-300" />
+        ) : null}
       </div>
     </div>
+  );
+
+  return href ? (
+    <Link href={href} className="block active:scale-[0.99]">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

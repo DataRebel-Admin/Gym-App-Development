@@ -318,6 +318,66 @@ export async function getMemberStats(
   };
 }
 
+export type ExerciseVolumeRow = {
+  exerciseId: string;
+  name: string;
+  /** Σ(reps·kg) van deze oefening binnen het venster. */
+  volume: number;
+  sets: number;
+  /** Zwaarste set binnen het venster (hoogste gewicht; bij gelijk gewicht de meeste reps). */
+  topWeightKg: number;
+  topReps: number;
+};
+
+/**
+ * Opbouw van het volume per oefening — dezelfde telling als `thisWeekVolume` resp.
+ * `totalVolume` in [[getMemberStats]] (álle sessies in het venster, óók een nog
+ * lopende), zodat de uitsplitsing exact optelt tot het dashboard-getal.
+ * `range: "week"` = vanaf maandag (de dashboard-tegel), `"all"` = all-time (de
+ * historie-KPI). Oefeningen zonder gewichtsvolume (cardio/bodyweight) bouwen dat
+ * getal niet op en blijven buiten de lijst.
+ */
+export async function getVolumeByExercise(
+  memberId: string,
+  tenantId: string,
+  range: "week" | "all" = "week"
+): Promise<ExerciseVolumeRow[]> {
+  const sessions = await loadMemberSessions(memberId, tenantId);
+  const cutoff = range === "week" ? startOfWeek(new Date()).getTime() : null;
+
+  const byExercise = new Map<string, ExerciseVolumeRow>();
+  for (const s of sessions) {
+    if (cutoff != null && s.startedAt.getTime() < cutoff) continue;
+    for (const e of s.performanceEntries) {
+      const row =
+        byExercise.get(e.exerciseId) ??
+        ({
+          exerciseId: e.exerciseId,
+          name: e.exercise.name,
+          volume: 0,
+          sets: 0,
+          topWeightKg: 0,
+          topReps: 0,
+        } satisfies ExerciseVolumeRow);
+      row.volume += e.reps * e.weightKg;
+      row.sets += 1;
+      if (
+        e.weightKg > row.topWeightKg ||
+        (e.weightKg === row.topWeightKg && e.reps > row.topReps)
+      ) {
+        row.topWeightKg = e.weightKg;
+        row.topReps = e.reps;
+      }
+      byExercise.set(e.exerciseId, row);
+    }
+  }
+
+  return [...byExercise.values()]
+    .filter((r) => r.volume > 0)
+    .map((r) => ({ ...r, volume: Math.round(r.volume) }))
+    .sort((a, b) => b.volume - a.volume);
+}
+
 export type RecentSession = {
   id: string;
   startedAt: Date;
