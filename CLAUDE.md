@@ -2268,6 +2268,36 @@ een gevaarlijke melding blokkeert het apparaat direct.
   `defects` (`defect.create/confirm/…/digest.sent/cleanup`); AVG-export bevat
   eigen niet-anonieme meldingen. Seed: `seedDefects("gymrebel")`.
 
+### In-app meldingen: wegvegen + terug-knop sluit het paneel
+
+Het meldingenpaneel (`components/nav/notification-bell.tsx`, gedeeld door de
+member- en owner-layout) laat meldingen wegvegen en gebruikt de terug-knop als
+sluitknop.
+
+- **Wegvegen = hard delete** (`dismissNotification`/`dismissAllNotifications` in
+  `app/account/notification-actions.ts`, gescoped op de eigen `userId`). Er komt
+  bewust geen `dismissedAt`-kolom: een melding is geen forensische data, dat is
+  het auditlog. Om die reden ook **geen audit** (te veel ruis, patroon van de
+  QR-scans). "Wis alles" vraagt om een tweede tik in plaats van een dialoog.
+- **Vegen alleen met de vinger** (`pointerType !== "mouse"`), `touch-pan-y` op de
+  rij zodat verticaal scrollen van de lijst blijft werken en wij alleen het
+  horizontale gebaar afhandelen; een as-lock op de eerste 8px voorkomt dat een
+  scrollpoging een rij meesleept. De veeg eindigt óók in een `click`, dus een
+  vlag onderdrukt het openen erna. Met muis/toetsenbord doet het kruisje
+  hetzelfde werk.
+- **Optimistisch verbergen zonder resetten**: weggeveegde ids blijven lokaal
+  verborgen (de server heeft ze verwijderd, ze komen niet terug). Bewust géén
+  `useEffect` die de optimistische laag reset op nieuwe props: setState in een
+  effect is een lintfout (React-Compiler-regels) en het is niet nodig.
+- **`Dropdown` heeft `closeOnBack`** (opt-in, aan op de bel): zolang het paneel
+  open is staat er een extra history-entry, en `popstate` sluit het paneel in
+  plaats van weg te navigeren. Dat is de Android-hardwareknop in de native app.
+  Sluit de gebruiker zelf, dan haalt `close()` die entry er met `history.back()`
+  weer af, anders doet terug een keer "niets". **Ga je vanuit het paneel
+  navigeren, gebruik dan `close({ keepHistory: true })`** — een `back()` vecht
+  daar met de navigatie (die entry wijst naar dezelfde pagina en is onschadelijk).
+  Daarom opt-in: menu's waarvan élk item direct navigeert hebben er niets aan.
+
 ### Logging & Audit Trail
 
 - **Centrale service** `lib/audit.ts` → `audit(action, opts)` schrijft naar het append-only
