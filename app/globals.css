@@ -8,6 +8,15 @@
  * (accent-soft, gradient, ring) gebruiken color-mix zodat ze met élke
  * tenant-kleur kloppen. Niets hardcoded merk-specifiek.
  *
+ * ⚠️ Die injectie staat op <html> (= dit :root-blok) en moet daar blijven.
+ * Een custom property die var(--tenant-accent) bevat wordt gesubstitueerd op
+ * het element waar hij gedeclareerd staat. Alles hieronder is op :root
+ * gedeclareerd, dus een tenant-kleur die pas op <body> gezet werd bereikte de
+ * afgeleiden nooit: --accent-soft, --accent-ring, --accent-gradient,
+ * --shadow-accent, --app-bg en de aurora-orbs bleven Rebel Orange terwijl
+ * bg-accent/text-accent (die de var pas op het element zelf oplossen) wél
+ * meekleurden. Zet nieuwe afgeleiden dus hier neer, niet op een tussenlaag.
+ *
  * De *defaults* (zonder tenant) volgen het GymRebel Brand Book:
  *   Rebel Orange #FF4D00 · Deep Orange #FF6A1A · Charcoal #111111
  *   Slate #1E1E1E · Black #000000 · White #FFFFFF

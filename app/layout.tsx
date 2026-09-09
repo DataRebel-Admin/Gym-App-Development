@@ -73,19 +73,35 @@ export default async function RootLayout({
 
   // Whitelabel: injecteer de tenant-huisstijl als CSS custom properties zodat
   // `bg-accent`/`text-accent` (+ secondary/font) runtime per tenant kleuren.
-  const vars: Record<string, string> = {};
+  //
+  // ⚠️ DE TENANT-VARS HOREN OP `<html>` (= `:root`), NIET OP `<body>`.
+  // Alle afgeleide tokens (--accent-soft, --accent-ring, --accent-gradient,
+  // --shadow-accent, --app-bg, --orb-*) worden in globals.css op `:root`
+  // berekend met color-mix(var(--tenant-accent) …). Een custom property met een
+  // var()-verwijzing wordt gesubstitueerd op het element waar hij gedeclareerd
+  // staat — dus op `:root`, met de daar geldende --tenant-accent. Stond de
+  // tenant-kleur op <body>, dan bleven al die afgeleiden op de default Rebel
+  // Orange staan terwijl `bg-accent` (die de var pas op het element zelf
+  // oplost) wél meekleurde: een zwart/gele sportschool kreeg oranje aurora-orbs,
+  // accent-washes, ringen en schaduwen. Op `<html>` wint de inline-stijl in de
+  // cascade, dus ook de dark-mode-varianten van die tokens rekenen mee.
+  const brandVars: Record<string, string> = {};
   if (tenant?.accentColor) {
-    vars["--tenant-accent"] = tenant.accentColor;
+    brandVars["--tenant-accent"] = tenant.accentColor;
     // Leesbare tekstkleur ÓP het accent (wit of donkergrijs). Zonder dit bleef
     // `--tenant-accent-foreground` op #fff staan → wit-op-licht bij een lichte
     // tenant-huisstijl. Zelfde luminantie-logica als e-mails/QR (lib/color.ts).
-    vars["--tenant-accent-foreground"] = readableText(tenant.accentColor);
+    brandVars["--tenant-accent-foreground"] = readableText(tenant.accentColor);
   }
-  if (tenant?.secondaryColor) vars["--tenant-secondary"] = tenant.secondaryColor;
-  // Eigen lettertype overschrijft de default (Geist) alleen als de tenant 'm zet.
-  if (tenant?.fontFamily) vars["fontFamily"] = tenant.fontFamily;
-  const themeStyle =
-    Object.keys(vars).length > 0 ? (vars as CSSProperties) : undefined;
+  if (tenant?.secondaryColor) brandVars["--tenant-secondary"] = tenant.secondaryColor;
+  const htmlStyle =
+    Object.keys(brandVars).length > 0 ? (brandVars as CSSProperties) : undefined;
+
+  // Het eigen lettertype blijft bewust op <body>: `body { font-family: … }` in
+  // globals.css zou een van <html> geërfde waarde overschrijven.
+  const bodyStyle: CSSProperties | undefined = tenant?.fontFamily
+    ? { fontFamily: tenant.fontFamily }
+    : undefined;
 
   // `<html lang>` volgt de actieve UI-locale (niet langer de tenant-taal).
   const htmlLang = isLocale(locale) ? LOCALE_META[locale].bcp47 : "nl-NL";
@@ -96,8 +112,9 @@ export default async function RootLayout({
       data-theme={theme}
       data-bg-parallax={parallax ? "on" : "off"}
       className={`${geistSans.variable} ${geistMono.variable} ${displayFont.variable} h-full antialiased`}
+      style={htmlStyle}
     >
-      <body className="min-h-full flex flex-col" style={themeStyle}>
+      <body className="min-h-full flex flex-col" style={bodyStyle}>
         {/* Levende aurora-achtergrond — achter alle content (zie .app-bg). */}
         <AppBackground />
         <NextIntlClientProvider locale={locale} messages={messages}>
