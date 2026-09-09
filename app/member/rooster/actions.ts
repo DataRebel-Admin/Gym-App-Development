@@ -21,9 +21,33 @@ import {
 /** Terugkoppeling op /member/rooster (`?msg=`); vertaald in de pagina. */
 export type RoosterMessage = EnrollDecision | "unenrolled";
 
-function back(msg?: RoosterMessage, overlap = false): never {
+/**
+ * Zoekparameters van /member/rooster die we ná een actie terugzetten:
+ * weergave, maand, gekozen dag en de filters. Bewust een vaste lijst — `q`
+ * komt uit een verborgen formulierveld en is dus gebruikersinvoer.
+ */
+const KEEP_PARAMS = ["view", "loc", "type", "m", "d"] as const;
+
+function returnQuery(formData: FormData): string {
+  const raw = String(formData.get("q") ?? "");
+  if (!raw) return "";
+  const src = new URLSearchParams(raw);
+  const out = new URLSearchParams();
+  for (const key of KEEP_PARAMS) {
+    const value = src.get(key);
+    if (value) out.set(key, value.slice(0, 64));
+  }
+  return out.toString();
+}
+
+/** Terug naar de lessenpagina, in dezelfde weergave/filters als ervoor. */
+function back(q: string, msg?: RoosterMessage, overlap = false): never {
   revalidatePath("/member/rooster");
-  redirect(msg ? `/member/rooster?msg=${msg}${overlap ? "&overlap=1" : ""}` : "/member/rooster");
+  const p = new URLSearchParams(q);
+  if (msg) p.set("msg", msg);
+  if (msg && overlap) p.set("overlap", "1");
+  const query = p.toString();
+  redirect(query ? `/member/rooster?${query}` : "/member/rooster");
 }
 
 /**
@@ -39,7 +63,8 @@ export async function enroll(formData: FormData) {
   const member = await requireMember();
   if (!(await areClassesEnabled(member.tenantId))) redirect("/member");
   const sessionId = String(formData.get("sessionId") ?? "");
-  if (!sessionId) back();
+  const q = returnQuery(formData);
+  if (!sessionId) back(q);
 
   const result = await withSerializableRetry(() =>
     prisma.$transaction(
@@ -94,7 +119,7 @@ export async function enroll(formData: FormData) {
     )
   );
 
-  if (!result) back();
+  if (!result) back(q);
   const { decision, session } = result;
   // Dubbelboeking is toegestaan (soms bewust), maar wél het melden waard:
   // overlapt deze les met een andere waarvoor het lid al (wachtlijst-)staat?
@@ -128,7 +153,7 @@ export async function enroll(formData: FormData) {
       actor: member,
     });
   }
-  back(decision, overlap);
+  back(q, decision, overlap);
 }
 
 /**
@@ -143,7 +168,8 @@ export async function unenroll(formData: FormData) {
   // (lib/classes.ts); aanmeldingen blijven bewaard tot heractivering.
   if (!(await areClassesEnabled(member.tenantId))) redirect("/member");
   const sessionId = String(formData.get("sessionId") ?? "");
-  if (!sessionId) back();
+  const q = returnQuery(formData);
+  if (!sessionId) back(q);
 
   const result = await withSerializableRetry(() =>
     prisma.$transaction(
@@ -167,7 +193,7 @@ export async function unenroll(formData: FormData) {
     )
   );
 
-  if (result.kind !== "unenrolled") back(result.kind);
+  if (result.kind !== "unenrolled") back(q, result.kind);
   await audit("class.unenroll", {
     actor: member,
     tenantId: member.tenantId,
@@ -184,5 +210,5 @@ export async function unenroll(formData: FormData) {
       actor: member,
     });
   }
-  back("unenrolled");
+  back(q, "unenrolled");
 }

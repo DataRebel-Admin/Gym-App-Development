@@ -795,6 +795,35 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   `class.session.create/update/delete`, `class.enroll/waitlist/unenroll`,
   `class.notify.sent`, `class.reminder.sent` naast de bestaande
   `class.attendance.*`.
+- **"Rooster" heet in de UI "Lessen"** (besluit eigenaar 2026-09-09). Alleen labels:
+  nav (member + owner), paginatitels, de dashboard-snelkoppeling, de e-mailknop, de
+  404-suggesties en de auditcategorie `schedule`, in nl/en/fy (EN "Classes"). De
+  **URL's blijven `/member/rooster` en `/owner/rooster`**: die staan in meldingslinks
+  (`lib/class-notify.ts`) en in bladwijzers. Interne sleutels (`RoosterMessage`, de
+  i18n-namespace `rooster`) zijn bewust ongemoeid.
+- **Lestype = `GroupClass`.** De omschrijving die de sportschool bij het aanmaken
+  invult (`GroupClass.description`, bestond al) is op de lessenpagina géén alinea meer
+  maar zit achter een **info-knop** (`components/classes/class-info.tsx`: klik-popover
+  op `Dropdown` + `closeOnBack`, geen hover — op een telefoon bestaat hover niet).
+  Hetzelfde lestype staat vaak meerdere keren per week in de lijst, dus die tekst bij
+  elke sessie herhalen was ruis. Zonder omschrijving rendert de knop niet.
+  **Zet hem nooit in een `overflow-x-auto`-rij** (de filterchips): die klipt het
+  absoluut gepositioneerde paneel weg. Daarom staat de info-knop van het gekozen
+  lestype op een eigen regel ónder de chips.
+- **Twee weergaven op `/member/rooster`** via `?view=agenda`: de bestaande lijst
+  (horizon `ROSTER_HORIZON_DAYS`, alleen wat eraan komt) en een **maandkalender van het
+  aanbod** (`components/classes/class-calendar.tsx`, server component — dagselectie via
+  `?d=`/`?m=`, zodat de aanmeldknop een gewone server-action-form blijft). Bewust een
+  eigen kalender naast `components/calendar/agenda-calendar.tsx`: die toont de
+  persoonlijke agenda, deze het aanbod van de gym (óók lessen waar je niet voor bent
+  aangemeld, én het verleden). Dag-bucketing via `getMemberCalendarTimezone` +
+  `dayKeyInTz`; de lestíjd zelf blijft in de venue-klok.
+- **Filter op lestype** (`?type=<classId>`, chips uit álle aangemaakte `GroupClass`-rijen,
+  ook zonder geplande sessie) werkt in beide weergaven, naast het vestiging-filter.
+- **`enroll`/`unenroll` brengen je terug in dezelfde weergave**: de forms sturen een
+  verborgen `q` mee en `returnQuery` (actions.ts) laat daaruit alleen de bekende
+  sleutels door (`view`/`loc`/`type`/`m`/`d`) — het is gebruikersinvoer. Zonder dat
+  landde je na aanmelden weer in de kale lijstweergave.
 - **Bewust niet**: geen annuleerdeadline vóór de start (één regel: tot de start),
   geen per-lid limiet op aantal aanmeldingen, geen blokkade op overlappende
   aanmeldingen (alleen de waarschuwing), geen instructeur-FK

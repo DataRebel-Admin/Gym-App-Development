@@ -61,7 +61,7 @@ export const CATEGORY_META: Record<
   machines: { label: "Machines", icon: "⚙️", tone: "neutral" },
   measurements: { label: "Metingen", icon: "📏", tone: "accent" },
   engagement: { label: "Betrokkenheid", icon: "🏆", tone: "success" },
-  schedule: { label: "Rooster", icon: "📅", tone: "accent" },
+  schedule: { label: "Lessen", icon: "📅", tone: "accent" },
   tenant: { label: "Tenant", icon: "🏢", tone: "neutral" },
   email: { label: "E-mailtemplates", icon: "✉️", tone: "accent" },
   support: { label: "Support", icon: "🛟", tone: "accent" },

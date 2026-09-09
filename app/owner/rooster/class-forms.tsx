@@ -61,6 +61,7 @@ function ClassFields({ t, values }: { t: ReturnType<typeof useTranslations>; val
           placeholder={t("optional")}
           className={inputClass}
         />
+        <span className="text-xs text-neutral-500">{t("descriptionHint")}</span>
       </label>
     </>
   );

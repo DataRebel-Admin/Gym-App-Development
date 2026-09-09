@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
-import { useTranslations } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 import { requireMember } from "@/lib/member";
 import { areClassesEnabled } from "@/lib/classes";
 import Link from "next/link";
@@ -14,41 +13,29 @@ import {
 } from "@/lib/class-attendance";
 import { getTenantLocations } from "@/lib/locations";
 import { resolveActiveLocationId } from "@/lib/location-resolve";
-import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
+import { getMemberCalendarTimezone } from "@/lib/calendar";
+import {
+  isValidDayKey,
+  isValidMonthKey,
+  monthGridDayKeys,
+  monthKeyOfDayKey,
+  nextMonthKey,
+  prevMonthKey,
+} from "@/lib/calendar-plan";
+import { dayKeyInTz } from "@/lib/metrics/definitions";
+import { zonedInputToDate } from "@/lib/tz";
 import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CalendarDays, Clock, MapPin, Users, Check } from "@/components/ui/icons";
-import { enroll, unenroll, type RoosterMessage } from "./actions";
+import { CalendarDays } from "@/components/ui/icons";
+import { ClassInfoButton } from "@/components/classes/class-info";
+import { ClassCalendar } from "@/components/classes/class-calendar";
+import { ClassCard, type SessionCard } from "@/components/classes/class-card";
+import { type RoosterMessage } from "./actions";
 
 export async function generateMetadata() {
   const t = await getTranslations("member.rooster");
   return { title: t("metaTitle") };
 }
-
-type SessionCard = {
-  id: string;
-  startsAt: Date;
-  endsAt: Date;
-  timezone: string;
-  locationId: string;
-  /** Vestiging-naam (alleen gezet bij een multi-vestiging-organisatie). */
-  venueName: string | null;
-  location: string | null;
-  className: string;
-  description: string | null;
-  instructorName: string | null;
-  /** Eigen status: aangemeld, op de wachtlijst (met positie) of niets. */
-  mine: "enrolled" | "waitlisted" | null;
-  waitlistPosition: number | null;
-  waitlistCount: number;
-  full: boolean;
-  started: boolean;
-  /** Geannuleerd door de sportschool: zichtbaar als mededeling, geen acties. */
-  cancelled: boolean;
-  spotsLeft: number;
-  count: number;
-  max: number;
-};
 
 const MESSAGES: Record<RoosterMessage, string> = {
   enrolled: "msgEnrolled",
@@ -58,130 +45,42 @@ const MESSAGES: Record<RoosterMessage, string> = {
   unenrolled: "msgUnenrolled",
 };
 
-function ClassCard({ s }: { s: SessionCard }) {
-  const t = useTranslations("member.rooster");
-  const highlighted = s.mine !== null;
-  return (
-    <div
-      className={`rounded-2xl border p-4 shadow-sm ${
-        highlighted ? "border-accent ring-1 ring-accent/20 bg-accent-soft" : "border-border bg-surface-1"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-display text-base font-bold text-neutral-900">{s.className}</p>
-          {s.instructorName ? (
-            <p className="text-xs text-neutral-500">{t("withInstructor", { name: s.instructorName })}</p>
-          ) : null}
-        </div>
-        {s.cancelled ? (
-          <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">
-            {t("cancelled")}
-          </span>
-        ) : s.mine === "enrolled" ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-accent-foreground">
-            <Check className="size-3" /> {t("enrolled")}
-          </span>
-        ) : s.mine === "waitlisted" ? (
-          <span className="shrink-0 rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-800">
-            {s.waitlistPosition ? t("waitlistPosition", { position: s.waitlistPosition }) : t("waitlisted")}
-          </span>
-        ) : s.started ? (
-          <span className="shrink-0 rounded-full bg-neutral-200 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
-            {t("started")}
-          </span>
-        ) : s.full ? (
-          <span className="shrink-0 rounded-full bg-neutral-200 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
-            {t("full")}
-          </span>
-        ) : (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-            <Users className="size-3" /> {t("spotsLeft", { count: s.spotsLeft })}
-          </span>
-        )}
-      </div>
-
-      {s.description ? (
-        <p className="mt-2 text-sm text-neutral-600">{s.description}</p>
-      ) : null}
-
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-neutral-600">
-        <span className="inline-flex items-center gap-1.5">
-          <CalendarDays className="size-4 text-accent" />
-          <span className="capitalize">{formatSessionStart(s.startsAt, s.timezone)}</span>
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Clock className="size-4 text-accent" />
-          {formatTimeRange(s.startsAt, s.endsAt, s.timezone)}
-        </span>
-        {s.venueName || s.location ? (
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="size-4 text-accent" />
-            {[s.venueName, s.location].filter(Boolean).join(" · ")}
-          </span>
-        ) : null}
-        {s.full && s.waitlistCount > 0 && s.mine === null ? (
-          <span className="text-xs text-neutral-500">{t("waitlistCount", { count: s.waitlistCount })}</span>
-        ) : null}
-      </div>
-
-      <div className="mt-3.5">
-        {s.cancelled ? null : s.mine !== null ? (
-          s.started ? null : (
-            <form action={unenroll}>
-              <input type="hidden" name="sessionId" value={s.id} />
-              <button
-                type="submit"
-                className="w-full rounded-xl border border-border bg-surface-1 px-4 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
-              >
-                {s.mine === "waitlisted" ? t("leaveWaitlist") : t("unenroll")}
-              </button>
-            </form>
-          )
-        ) : s.started ? (
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-semibold text-neutral-400"
-          >
-            {t("started")}
-          </button>
-        ) : (
-          <form action={enroll}>
-            <input type="hidden" name="sessionId" value={s.id} />
-            <button
-              type="submit"
-              className={`w-full rounded-xl px-4 py-2.5 text-sm font-bold active:opacity-90 ${
-                s.full
-                  ? "border border-accent bg-surface-1 text-accent"
-                  : "bg-accent text-accent-foreground"
-              }`}
-            >
-              {s.full ? t("joinWaitlist") : t("enroll")}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default async function MemberRoosterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ loc?: string; msg?: string; overlap?: string }>;
+  searchParams: Promise<{
+    loc?: string;
+    msg?: string;
+    overlap?: string;
+    view?: string;
+    type?: string;
+    m?: string;
+    d?: string;
+  }>;
 }) {
   const member = await requireMember();
   if (!(await areClassesEnabled(member.tenantId))) notFound();
-  const t = await getTranslations("member.rooster");
-  const { loc, msg, overlap } = await searchParams;
+  const [t, ta, locale] = await Promise.all([
+    getTranslations("member.rooster"),
+    getTranslations("member.agenda"),
+    getLocale(),
+  ]);
+  const { loc, msg, overlap, view, type, m, d } = await searchParams;
   const now = new Date();
+  const agendaView = view === "agenda";
 
-  const [locations, me] = await Promise.all([
+  const [locations, me, classTypes] = await Promise.all([
     getTenantLocations(member.tenantId),
     prisma.user.findFirst({
       where: { id: member.id, tenantId: member.tenantId },
       select: { homeLocationId: true },
+    }),
+    // Filterchips + omschrijvingen: álle lestypes die de sportschool heeft
+    // aangemaakt, ook als er deze maand geen sessie van gepland staat.
+    prisma.groupClass.findMany({
+      where: { tenantId: member.tenantId },
+      select: { id: true, name: true, description: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
@@ -202,6 +101,9 @@ export default async function MemberRoosterPage({
             homeLocationId: me?.homeLocationId,
           });
 
+  // Lestype-filter: alleen een id dat echt van deze sportschool is.
+  const selectedTypeId = type && classTypes.some((c) => c.id === type) ? type : null;
+
   const MINE_STATUSES: EnrollmentStatus[] = ["ENROLLED", "WAITLISTED"];
   const sessionInclude = {
     groupClass: {
@@ -220,23 +122,45 @@ export default async function MemberRoosterPage({
     },
   } satisfies Prisma.ClassSessionInclude;
 
+  // Dag-bucketing in de tijdzone van het lid (thuisvestiging → default →
+  // Europe/Amsterdam), net als de persoonlijke agenda. De lestíjd zelf blijft
+  // in de venue-klok staan; dat is een andere vraag dan "op welke dag valt dit".
+  const tz = await getMemberCalendarTimezone(member.id, member.tenantId);
+  const todayKey = dayKeyInTz(now, tz);
+  const monthKey = m && isValidMonthKey(m) ? m : monthKeyOfDayKey(todayKey);
+  const gridKeys = monthGridDayKeys(monthKey);
+
+  const typeWhere = selectedTypeId ? { classId: selectedTypeId } : {};
+  const locationWhere = selectedLocationId ? { locationId: selectedLocationId } : {};
+
   // Vaste horizon i.p.v. een rij-limiet: met een paar wekelijkse reeksen kapte
   // `take: 40` het rooster al na ±2 weken stil af — een datumgrens is
   // voorspelbaar ("je ziet altijd 3 weken vooruit"). De take blijft als
   // vangnet tegen een extreem vol rooster.
   const horizon = new Date(now.getTime() + ROSTER_HORIZON_DAYS * 24 * 3_600_000);
 
-  const [upcomingRows, mineRows] = await Promise.all([
+  // In de agenda-weergave telt het hele maandraster (maandag vóór de 1e t/m
+  // zondag ná de laatste), inclusief het verleden: de kalender is er juist ook
+  // om terug te kijken. In de lijst blijft het "wat komt eraan".
+  const monthStart =
+    zonedInputToDate(`${gridKeys[0]}T00:00`, tz) ?? new Date(`${gridKeys[0]}T00:00:00Z`);
+  const monthEnd =
+    zonedInputToDate(`${gridKeys[gridKeys.length - 1]}T23:59`, tz) ??
+    new Date(`${gridKeys[gridKeys.length - 1]}T23:59:59Z`);
+
+  const [listRows, mineRows] = await Promise.all([
     prisma.classSession.findMany({
       where: {
         tenantId: member.tenantId,
-        // Lopende lessen blijven even zichtbaar (gestart, niet meer boekbaar).
-        endsAt: { gte: now },
-        startsAt: { lte: horizon },
-        ...(selectedLocationId ? { locationId: selectedLocationId } : {}),
+        ...(agendaView
+          ? { startsAt: { gte: monthStart, lte: monthEnd } }
+          : // Lopende lessen blijven even zichtbaar (gestart, niet meer boekbaar).
+            { endsAt: { gte: now }, startsAt: { lte: horizon } }),
+        ...locationWhere,
+        ...typeWhere,
       },
       orderBy: { startsAt: "asc" },
-      take: 200,
+      take: agendaView ? 400 : 200,
       include: sessionInclude,
     }),
     // "Mijn lessen" blijft bewust ongefilterd: eigen aanmeldingen zie je altijd.
@@ -251,7 +175,7 @@ export default async function MemberRoosterPage({
     }),
   ]);
 
-  const toCard = (s: (typeof upcomingRows)[number]): SessionCard => {
+  const toCard = (s: (typeof listRows)[number]): SessionCard => {
     const waiting = s.enrollments.filter((e) => e.status === "WAITLISTED");
     const own = s.enrollments.find((e) => e.userId === member.id);
     const max = sessionCapacity(s);
@@ -268,6 +192,7 @@ export default async function MemberRoosterPage({
       description: s.groupClass.description,
       instructorName: s.groupClass.instructorName,
       cancelled: s.cancelledAt !== null,
+      past: s.endsAt < now,
       mine: own ? (own.status === "ENROLLED" ? "enrolled" : "waitlisted") : null,
       waitlistPosition:
         own?.status === "WAITLISTED" ? waiting.findIndex((e) => e.userId === member.id) + 1 : null,
@@ -281,7 +206,54 @@ export default async function MemberRoosterPage({
   };
 
   const mine = mineRows.map(toCard);
-  const upcoming = upcomingRows.map(toCard);
+  const listCards = listRows.map(toCard);
+
+  // Agenda: tellingen per dag + de dagen waarop het lid zelf staat ingeschreven.
+  const counts: Record<string, number> = {};
+  const mineDays: Record<string, boolean> = {};
+  const byDay: Record<string, SessionCard[]> = {};
+  if (agendaView) {
+    for (const card of listCards) {
+      const key = dayKeyInTz(card.startsAt, tz);
+      counts[key] = (counts[key] ?? 0) + 1;
+      if (card.mine !== null) mineDays[key] = true;
+      const bucket = byDay[key];
+      if (bucket) bucket.push(card);
+      else byDay[key] = [card];
+    }
+  }
+
+  // De dagkeuze zit in `ClassCalendar` (overlay, geen navigatie). `?d=` blijft
+  // alleen bestaan als deelbare link die meteen op die dag opent — bewust
+  // zónder terugval op vandaag, anders springt de overlay bij élk bezoek open.
+  const gridSet = new Set(gridKeys);
+  const initialDayKey = agendaView && d && isValidDayKey(d) && gridSet.has(d) ? d : null;
+
+  // Links behouden de andere filters. `msg`/`overlap` gaan bewust niet mee:
+  // dat is een eenmalige terugkoppeling op een actie.
+  const currentParams: Record<string, string | null> = {
+    view: agendaView ? "agenda" : null,
+    loc: loc ?? null,
+    type: selectedTypeId,
+    m: agendaView && monthKey !== monthKeyOfDayKey(todayKey) ? monthKey : null,
+  };
+  const hrefWith = (overrides: Record<string, string | null> = {}) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...currentParams, ...overrides })) if (v) p.set(k, v);
+    const query = p.toString();
+    return query ? `/member/rooster?${query}` : "/member/rooster";
+  };
+  // Gaat mee met aan-/afmelden zodat je ná de actie terugkomt in dezelfde
+  // weergave, maand en filters (de action laat alleen bekende sleutels door).
+  const formQuery = hrefWith().split("?")[1] ?? "";
+
+  const [year, monthNo] = monthKey.split("-").map(Number);
+  const monthTitle = new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, monthNo - 1, 1)));
+
   const message = msg && msg in MESSAGES ? MESSAGES[msg as RoosterMessage] : null;
   const messageTone =
     msg === "closed" || msg === "unchanged" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-green-200 bg-green-50 text-green-900";
@@ -290,6 +262,12 @@ export default async function MemberRoosterPage({
     active
       ? "shrink-0 rounded-full bg-accent px-3.5 py-1.5 text-xs font-bold text-accent-foreground"
       : "shrink-0 rounded-full border border-border bg-surface-1 px-3.5 py-1.5 text-xs font-medium text-neutral-600 active:bg-surface-2";
+  const viewTab = (active: boolean) =>
+    active
+      ? "flex-1 rounded-lg bg-surface-1 px-3 py-1.5 text-center text-sm font-bold text-neutral-900 shadow-sm"
+      : "flex-1 rounded-lg px-3 py-1.5 text-center text-sm font-medium text-neutral-500";
+
+  const selectedType = classTypes.find((c) => c.id === selectedTypeId) ?? null;
 
   return (
     <Reveal stagger className="flex flex-1 flex-col gap-6 px-5 py-8">
@@ -316,7 +294,7 @@ export default async function MemberRoosterPage({
           <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">{t("myClasses")}</h2>
           <div className="flex flex-col gap-2.5">
             {mine.map((s) => (
-              <ClassCard key={`mine-${s.id}`} s={s} />
+              <ClassCard key={`mine-${s.id}`} s={s} q={formQuery} />
             ))}
           </div>
         </RevealItem>
@@ -325,29 +303,78 @@ export default async function MemberRoosterPage({
       <RevealItem className="flex flex-col gap-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">{t("upcoming")}</h2>
 
+        {/* Weergave: lijst (wat komt eraan) of agenda (maandoverzicht). */}
+        <div className="flex gap-1 rounded-xl bg-surface-2 p-1">
+          <Link href={hrefWith({ view: null, m: null, d: null })} className={viewTab(!agendaView)}>
+            {t("viewList")}
+          </Link>
+          <Link href={hrefWith({ view: "agenda" })} className={viewTab(agendaView)}>
+            {t("viewAgenda")}
+          </Link>
+        </div>
+
+        {/* Filter op lestype. Let op: geen info-icoon in deze rij, een
+            `overflow-x-auto`-container klipt het popover-paneel weg. */}
+        {classTypes.length > 1 ? (
+          <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
+            <Link href={hrefWith({ type: null })} className={filterTab(selectedTypeId === null)}>
+              {t("allTypes")}
+            </Link>
+            {classTypes.map((c) => (
+              <Link key={c.id} href={hrefWith({ type: c.id })} className={filterTab(selectedTypeId === c.id)}>
+                {c.name}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Het gekozen lestype met z'n info-knop, buiten de scrollrij. */}
+        {selectedType?.description ? (
+          <div className="flex items-center gap-1 text-sm text-neutral-500">
+            <span>{t("filteredOn", { name: selectedType.name })}</span>
+            <ClassInfoButton name={selectedType.name} description={selectedType.description} align="start" />
+          </div>
+        ) : null}
+
         {multiLocation ? (
           <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
-            <Link href="/member/rooster?loc=all" className={filterTab(selectedLocationId === null)}>
+            <Link href={hrefWith({ loc: "all" })} className={filterTab(selectedLocationId === null)}>
               {t("allLocations")}
             </Link>
             {locations.map((l) => (
-              <Link key={l.id} href={`/member/rooster?loc=${l.id}`} className={filterTab(selectedLocationId === l.id)}>
+              <Link key={l.id} href={hrefWith({ loc: l.id })} className={filterTab(selectedLocationId === l.id)}>
                 {l.name}
               </Link>
             ))}
           </div>
         ) : null}
 
-        {upcoming.length === 0 ? (
+        {agendaView ? (
+          <ClassCalendar
+            monthKey={monthKey}
+            todayKey={todayKey}
+            counts={counts}
+            mineDays={mineDays}
+            sessionsByDay={byDay}
+            initialDayKey={initialDayKey}
+            formQuery={formQuery}
+            monthTitle={monthTitle}
+            weekdayLabels={[1, 2, 3, 4, 5, 6, 7].map((n) => ta(`wd${n}`))}
+            prevHref={hrefWith({ m: prevMonthKey(monthKey) })}
+            nextHref={hrefWith({ m: nextMonthKey(monthKey) })}
+            prevLabel={ta("monthPrev")}
+            nextLabel={ta("monthNext")}
+          />
+        ) : listCards.length === 0 ? (
           <EmptyState
             icon={<CalendarDays className="size-7 text-accent" />}
             title={t("emptyTitle")}
-            description={t("emptyDesc")}
+            description={selectedTypeId ? t("emptyTypeDesc") : t("emptyDesc")}
           />
         ) : (
           <div className="flex flex-col gap-2.5">
-            {upcoming.map((s) => (
-              <ClassCard key={s.id} s={s} />
+            {listCards.map((s) => (
+              <ClassCard key={s.id} s={s} q={formQuery} />
             ))}
           </div>
         )}

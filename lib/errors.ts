@@ -163,7 +163,7 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { href: "/member", label: "Mijn dashboard", audience: "TENANT_MEMBER" },
   { href: "/member/schema", label: "Mijn schema", audience: "TENANT_MEMBER" },
   { href: "/member/history", label: "Mijn voortgang", audience: "TENANT_MEMBER" },
-  { href: "/member/rooster", label: "Rooster", audience: "TENANT_MEMBER", feature: "group_classes" },
+  { href: "/member/rooster", label: "Lessen", audience: "TENANT_MEMBER", feature: "group_classes" },
   { href: "/member/scan", label: "QR scannen", audience: "TENANT_MEMBER" },
   // Owner
   { href: "/owner", label: "Dashboard", audience: "TENANT_ADMIN" },
@@ -171,7 +171,7 @@ export const KNOWN_ROUTES: KnownRoute[] = [
   { href: "/owner/schemas", label: "Schema's", audience: "TENANT_ADMIN" },
   { href: "/owner/exercises", label: "Oefeningen", audience: "TENANT_ADMIN" },
   { href: "/owner/machines", label: "Apparatuur", audience: "TENANT_ADMIN" },
-  { href: "/owner/rooster", label: "Rooster", audience: "TENANT_ADMIN", feature: "group_classes" },
+  { href: "/owner/rooster", label: "Lessen", audience: "TENANT_ADMIN", feature: "group_classes" },
   { href: "/owner/insights", label: "Inzichten", audience: "TENANT_ADMIN" },
   { href: "/owner/audit", label: "Activiteit", audience: "TENANT_ADMIN" },
   { href: "/owner/settings", label: "Instellingen", audience: "TENANT_ADMIN" },

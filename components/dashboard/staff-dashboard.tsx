@@ -127,7 +127,7 @@ export async function StaffDashboard({
   const quickActions: { label: string; href: string }[] = [];
   if (canSchemas) quickActions.push({ label: "Schema maken", href: "/owner/schemas" });
   if (permissions.has("members:view")) quickActions.push({ label: "Leden bekijken", href: "/owner/members" });
-  if (canSchedule) quickActions.push({ label: "Rooster beheren", href: "/owner/rooster" });
+  if (canSchedule) quickActions.push({ label: "Lessen beheren", href: "/owner/rooster" });
   if (permissions.has("exercises:manage")) quickActions.push({ label: "Eigen oefeningen", href: "/owner/exercises" });
 
   return (
