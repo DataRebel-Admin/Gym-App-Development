@@ -456,6 +456,27 @@ zijn het twee types op één model.
 - **Bewust niet**: geen aparte kind-filter-tab in de coach-queue (de tabs blijven
   status-gebaseerd, het type staat als badge op de rij).
 
+### Personalisatie op sporterdoelen (/account/doelen)
+
+`User.trainingGoals` (gekozen op `/account/doelen`) deelt bewust één woordenschat met
+`WorkoutTemplate.goal` (registry `lib/training-goals.ts`) — de match zelf zit in drie
+pure, geteste helpers in diezelfde registry (`tests/training-goals.test.ts`):
+
+- **`sortByGoalMatch` + `hasGoalOverlap`**: stabiele sortering (passend eerst, geen
+  filter; zonder gekozen doelen verandert er níéts — personalisatie is een lens).
+  Gebruikt door de builder-startpagina (`/member/schema/builder/new`): vrijgegeven
+  sjablonen én blueprints sorteren op doel-overlap, met badge "Past bij jouw doel";
+  het best passende blueprint is daardoor meteen de voorselectie. Blueprints dragen
+  hiervoor `goals: string[]` (`lib/member-schema-blueprints.ts`); een test dwingt af
+  dat élk sporterdoel minstens één blueprint naar boven sorteert.
+- **`preferredRequestGoal`**: mapt het eerste sporterdoel mét duidelijke tegenhanger
+  naar `SchemaRequestGoal` (veld `requestGoal` per registry-record; mobiliteit/
+  stabiliteit/gezondheid/sport mappen bewust niet — liever geen prefill dan "Anders"
+  gokken). Prefillt de doel-select op `/member/requests` (nieuw-schema-formulier) en
+  "Mijn doel" op de builder-startpagina.
+- **Losstaand hiervan**: `goalsAchieved`/`profileComplete` (achievements) lezen
+  `trainingGoals` al langer; die telling is niet gewijzigd.
+
 ### Leden bouwen zelf een schema (self-service, coach houdt controle)
 
 Een lid kan **zelf een trainingsschema samenstellen** binnen door de sportschool
@@ -500,7 +521,10 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
     een bewerkronde van het lid mag de notitie van de coach niet wissen.
   - Verwijderen blijft beperkt tot DRAFT/REJECTED (historie beschermen).
 - **Kaders (`SchemaFramework`, tenant-scoped + RLS)**: toegestane oefeningen/types,
-  min/max dagen, oefeningen-per-dag, sets/reps/rust, en `requireApproval`-override.
+  min dagen, oefeningen-per-dag, sets/reps/rust, en `requireApproval`-override.
+  **GEEN dag-maximum**: leden mogen altijd dagen toevoegen (besluit eigenaar
+  2026-09-09) — de `maxDays`-kolom bestaat nog in de DB maar wordt nergens gelezen;
+  `saveFramework` schrijft 'm actief naar null. Niet herintroduceren.
   Resolutie per lid: **per-lid koppeling (`MemberFrameworkAssignment`, uniek per lid) →
   tenant-default (`isDefault`) → geen** (vrij). Owner beheert op
   `/owner/schemas/frameworks` (+ `[id]`) en koppelt per lid op het lid-schema-profiel.
@@ -566,6 +590,51 @@ oefeningstypes/params en de `AssignedWorkout`-zichtbaarheidslogica.
   activate/pause` + `schema.framework.save/delete/assign`.
 - **Bewust**: de 3-weg-sync/bulk-edit gelden alleen voor coach-master-schema's; zelf-gebouwde
   schema's hebben geen master (`sourceTemplateId = null`).
+
+### Template-catalogus voor leden (kant-en-klare workouts)
+
+Leden bladeren op **`/member/schema/templates`** door één catalogus met volledig
+ingevulde templates (oefeningen + sets/reps/rust) en nemen die als bewerkbare
+kopie over in de bestaande builder-flow. **Géén DB-migratie** — alles hergebruikt
+`WorkoutTemplate`/`LibraryWorkoutTemplate` + code-registries. Gegate achter
+`memberSchemaMode` (catalogus is onderdeel van zelf-samenstellen).
+
+- **Vier bronnen, twee types** (pure kern **`lib/member-catalog-core.ts`**, getest in
+  `tests/member-catalog.test.ts`; server-assemblage **`lib/member-catalog.ts`**):
+  week-templates = RepDB-voorbeeldschema's (`repdb:<slug>`, rechtstreeks — niet langer
+  alleen via de owner) + vrijgegeven gym-schema's (`tenant:`, `MEMBER_LIBRARY_WHERE`);
+  dag-templates = gecureerde code-registry **`lib/member-day-templates.ts`**
+  (`day:<key>`, RepDB-slugs als oefening-referentie, geverifieerd tegen de bundel) +
+  vrijgegeven gym-dag-templates (`tenantday:`, nieuwe constante
+  **`MEMBER_DAY_LIBRARY_WHERE`** — `setTemplateMemberVisible` accepteert nu ook
+  `kind=DAY`, de vrijgeef-sectie staat op élke template-pagina). **Dedupe**: een
+  geïmporteerd én vrijgegeven RepDB-schema toont alleen de gym-versie
+  (match op `libraryTemplateId`); een niet-vrijgegeven import verbergt niets.
+- **Filters/personalisatie**: type (week/dag), doel (`training-goals`), dagen per week,
+  niveau, zoekterm (`filterCatalog`, puur); sortering `sortByGoalMatch`; covers via
+  `schemaImage`/`libraryTemplateImage` (dag-registry hergebruikt bestaande
+  `LIBRARY_TEMPLATE_PHOTOS`-slugs — geen nieuwe assets). Detailpagina
+  (`[source]/[id]`) toont per dag de oefeningen mét thumbnails.
+- **Overname = gedeelde kern `lib/library-exercise-sync.ts`** (`ensureLibraryExercises`,
+  geëxtraheerd uit `importLibraryTemplate`): ontbrekende RepDB-oefeningen worden als
+  tenant-Exercise aangemaakt. **Bewuste uitzondering op "alleen apparatuur in jouw gym"**
+  — zichtbaar gemaakt: de detailpagina meldt "voegt N oefeningen toe die nieuw zijn voor
+  jouw sportschool" (`countNewLibraryExercises`) + "nieuw"-chip per oefening. Kopie-regels
+  ongewijzigd: cover hard meeschrijven, nooit `libraryTemplateId` op de kopie.
+- **Actions** (`app/member/schema/builder/actions.ts`): `startMemberSchema` kent naast
+  `template:`/`blueprint:` nu `repdb:`/`day:`/`tenantday:` (reps-notaties via
+  `parseTemplateReps`, shape-helper `parseLibraryTemplateDays` in
+  `lib/exercise-library/mapping.ts`); **`addDayFromTemplate`** voegt een dag-template
+  toe aan een bestaand bewerkbaar eigen schema (zelfde poorten via `assertEditAllowed`;
+  geen dag-limiet — het dag-maximum is uit de kaders verwijderd).
+  Audit: `schema.member.start` draagt `source` + `newExercises`.
+- **Kaders staan los van de catalogus**: geen kader-badges of geblokkeerde CTA's —
+  elk template is te zien én te pakken. N.B. eigenaar twijfelt of kaders überhaupt
+  blijven — niet verder in investeren zonder overleg.
+- **Blueprints blijven** als secundaire "zelf opbouwen"-route: `/member/schema/builder/new`
+  verloor de sjablonen-sectie (die zit in de catalogus) en linkt bovenaan naar de
+  catalogus; "Mijn schema's" heeft de catalogus als primaire knop. "Dag toevoegen" in de
+  lid-editor is altijd actief (het dag-maximum dat 'm eerder blokkeerde bestaat niet meer).
 
 ### Groepslessen (rooster, inschrijven, wachtlijst, meldingen)
 
@@ -1331,6 +1400,51 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
   achteraf niet te herleiden.
 - **Tests**: `tests/session-overrides.test.ts` (`node:test` via tsx, `npm test` — geen nieuwe
   dep). i18n-keys onder `member.active`/`member.schema` (nl+en+fy).
+
+### Actieve workout: timer-persistentie, meldingen & navigatiecontext
+
+- **De rusttimer/stopwatch overleeft een schermwissel/reload**: `useRestTimer(persistKey)`
+  (rest-timer.tsx) persist de staat als **timestamps** in localStorage
+  (`gymrebel-session-resttimer-<sessionId>`); verstreken tijd is altijd afgeleid van de
+  klok. Een countdown die afliep terwijl de timer niet in beeld was herstelt als "klaar"
+  **zonder** piep/trilling (de melding heeft dat moment al gedekt — dedupe).
+- **Meldingen bij het aflopen** via **`lib/workout-notifications.ts`** (client-only, idioom
+  lib/app-lock.ts) + lokale Capacitor-plugin **`WorkoutNotificationsPlugin.java`**
+  (geregistreerd in MainActivity; eigen kanalen `gymrebel-workout-timer` (importance HIGH)
+  en `gymrebel-workout-ongoing` (LOW, stil) — bewust LOS van de FCM-categoriekanalen in
+  lib/push-channels.ts, waarvan de driewegkoppeling met strings.xml getest is).
+  - **Native wordt de melding bij het stárten van de timer vooruit ingepland**
+    (Handler.postDelayed; de WebView throttlet JS in de achtergrond, dus plannen bij
+    `finish()` is te laat) en geannuleerd bij pauze/sluiten/in-beeld-aflopen. Web/PWA
+    toont 'm alleen als de pagina op het eindmoment verborgen is (SW `showNotification`
+    met vaste `tag` → nooit dubbel; public/sw.js's `notificationclick` opent `data.url`).
+- **Blijvende "training bezig"-notificatie (native)**: `showOngoing` = ongoing notification
+  met **chronometer** (`setUsesChronometer`, geen JS nodig), tik = https-intent naar
+  MainActivity → `appUrlOpen` → `/member/schema/active`. Gesynct door
+  `components/member/workout-ongoing-notification.tsx` in de **member-layout** (prop =
+  `getRunningSessionStart`): elke server-render zet of ruimt 'm op, dus afronden/annuleren/
+  5-uur-timeout wist 'm vanzelf. Kanttekening: wordt de app hard gekild, dan blijft de
+  melding staan tot de eerstvolgende app-open (tik opent de app en de layout ruimt op).
+- **Concept-invoer overleeft navigatie**: ingetypte-maar-nog-niet-afgevinkte reps/kg en
+  logvelden staan per sessie in **sessionStorage** (`gymrebel-session-draft-<id>`,
+  active-session.tsx) en worden bij mount over de serverstaat gelegd — alléén op rijen
+  zonder opgeslagen set (server wint).
+- **Navigatiecontext `?van=training`**: de oefening-links uit de actieve sessie (alle drie
+  de blokken) dragen 'm; de detailpagina geeft 'm door aan de alternatieven-links
+  (`ExerciseDetailView.linkQuery`) en `BackButton` krijgt dan `href="/member/schema/active"`
+  ("Terug naar training") — hoe diep je ook doorklikt door alternatieven, terug = de training.
+- **BigStepper** (exercise-block.tsx, ook gebruikt door de geleide groep-flow) laat de
+  lettergrootte meekrimpen bij lange waarden ("102.5") en heeft een echte minimumbreedte —
+  driecijferige gewichten passen op 5-inch.
+- **Alternatieven in de schema-pickers**: pure matcher **`lib/exercise-suggestions.ts`**
+  (`suggestAlternatives`, spiegelt de scoring van findAlternatives; getest in
+  `tests/exercise-suggestions.test.ts`) draait client-side over de al geladen picker-lijst —
+  géén extra roundtrip. `getPickerExercises`/`AvailableExercise` dragen daarvoor
+  bron-bewuste `muscles`/`secondaryMuscles`/`bodyPart`/`equipment`. Na het toevoegen van
+  een oefening tonen de owner-editor én de lid-builder een sluitbare chiprij
+  "Alternatieven voor …"; de lid-builder berekent ze uit `allowed` (kader-filter gratis).
+- **Cardio-typen**: alle add-paden kopiëren `exerciseType` uit de bron; één verouderde
+  demo-rij (Air Bike, van vóór die kopie) is in de DB gerepareerd (strength → cardio).
 
 ### Groeperen (supersets/giant/circuit/AMRAP), dropsets & per-lid notitie
 
