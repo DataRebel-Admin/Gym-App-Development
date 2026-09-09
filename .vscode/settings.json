@@ -1,0 +1,11 @@
+{
+  // De Java- en Gradle-extensies van VS Code zijn hier niet nodig: de Android-kant
+  // is een Capacitor-wrapper met drie eigen Java-bestanden, en bouwen gaat via
+  // ./android/gradlew in de terminal. Hun achtergrond-import van het Gradle-project
+  // vergrendelde node_modules/@capacitor/android/.../classes, waardoor
+  // ":app:assembleRelease" faalde op "Unable to delete directory".
+  "java.import.gradle.enabled": false,
+  "java.import.exclusions": ["**/node_modules/**", "**/android/**"],
+  "java.autobuild.enabled": false,
+  "gradle.autoDetect": "off"
+}
