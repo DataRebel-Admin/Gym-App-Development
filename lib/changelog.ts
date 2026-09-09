@@ -41,6 +41,63 @@ export type ChangelogEntry = {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2026.17",
+    date: "2026-09-09",
+    title: "Een agenda voor je leden",
+    summary:
+      "Leden plannen hun trainingsdagen, koppelen die aan hun eigen agenda-app en kiezen zelf een kant-en-klaar schema. De app houdt tijdens het trainen zichtbaar dat er een training loopt.",
+    changes: [
+      {
+        type: "new",
+        text: "Ledenagenda: een maandkalender met geplande trainingsdagen, afgeronde trainingen en groepslessen bij elkaar. Leden plannen per trainingsdag op welke weekdagen die valt, en zien in een oogopslag wat ze gemist hebben.",
+      },
+      {
+        type: "new",
+        text: "Agendakoppeling: leden zetten hun trainingen en lessen met een tik in Google Agenda, Apple Agenda of Outlook. De koppeling ververst zichzelf, dus een verplaatste les schuift vanzelf mee.",
+      },
+      {
+        type: "new",
+        text: "Kant-en-klare schema's voor leden: een bladerbare catalogus met complete week- en dagschema's, te filteren op doel, niveau en aantal dagen. Een lid neemt er een over als eigen schema en past het aan. Jij bepaalt welke van jouw eigen schema's en losse trainingsdagen daarin meedoen.",
+      },
+      {
+        type: "new",
+        text: "Meldingen tijdens het trainen in de app: een seintje zodra de rusttijd voorbij is, ook als het scherm uit staat, en een blijvende melding met meelopende tijd zolang de training loopt.",
+      },
+      {
+        type: "new",
+        text: "Op elk scherm zichtbaar dat er een training loopt, met de tijd erbij en een knop om verder te gaan. Ook op de instellingen en na het scannen van een apparaat.",
+      },
+      {
+        type: "new",
+        text: "Leden klikken door op de cijfers van hun dashboard en zien waar een reeks, een record of een aantal trainingen vandaan komt.",
+      },
+      {
+        type: "improved",
+        text: "Elke sportschool krijgt de volledige oefeningenbibliotheek van ruim 600 oefeningen meteen bij de hand. Wat er bij jou niet staat, haal je weg; je hoeft niets meer stuk voor stuk toe te voegen.",
+      },
+      {
+        type: "improved",
+        text: "Na het toevoegen van een oefening aan een schema stelt de app direct alternatieven voor die dezelfde spieren trainen. Zowel in jouw schema-editor als bij een lid dat zelf bouwt.",
+      },
+      {
+        type: "improved",
+        text: "De doelen die een lid kiest sturen nu de suggesties: passende startsjablonen komen bovenaan en een schema-aanvraag staat al op het juiste doel.",
+      },
+      {
+        type: "improved",
+        text: "Jouw huisstijlkleur werkt overal door, ook in de achtergronden en accenten. Een kleur die te licht of te donker uitvalt wordt automatisch leesbaar gehouden, in zowel de lichte als de donkere weergave.",
+      },
+      {
+        type: "fixed",
+        text: "Een geüpload logo verscheen niet in e-mails aan je leden. Dat is opgelost, in de app en in de mailberichten.",
+      },
+      {
+        type: "fixed",
+        text: "Leden kunnen altijd een trainingsdag toevoegen aan een zelfgebouwd schema; de bovengrens op het aantal dagen is vervallen.",
+      },
+    ],
+  },
+  {
     version: "2026.16",
     date: "2026-09-07",
     title: "Spieren in beeld & zoeken dat meedenkt",
