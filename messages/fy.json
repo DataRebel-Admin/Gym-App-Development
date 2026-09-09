@@ -1884,7 +1884,7 @@
   "auth": {
     "metaTitle": "Ynlogge",
     "title": "Ynlogge",
-    "subtitle": "Wolkom werom by <name>{name}</name>.",
+    "loginPrompt": "Log yn om fierder te gean.",
     "welcomeBack": "Wolkom werom",
     "heroLine1": "Train tûker.",
     "heroLine2": "Hâld dyn fuortgong fêst.",

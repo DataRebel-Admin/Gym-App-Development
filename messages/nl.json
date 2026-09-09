@@ -2014,7 +2014,7 @@
   "auth": {
     "metaTitle": "Inloggen",
     "title": "Inloggen",
-    "subtitle": "Welkom terug bij <name>{name}</name>.",
+    "loginPrompt": "Log in om verder te gaan.",
     "welcomeBack": "Welkom terug",
     "heroLine1": "Train slimmer.",
     "heroLine2": "Houd je voortgang vast.",

@@ -2014,7 +2014,7 @@
   "auth": {
     "metaTitle": "Log in",
     "title": "Log in",
-    "subtitle": "Welcome back to <name>{name}</name>.",
+    "loginPrompt": "Log in to continue.",
     "welcomeBack": "Welcome back",
     "heroLine1": "Train smarter.",
     "heroLine2": "Keep track of your progress.",

@@ -55,27 +55,27 @@ export default async function LoginPage() {
             }}
           />
 
-          <div className="relative flex items-center gap-3">
+          <div className="relative flex items-center gap-4">
             {tenant?.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={tenant.logoUrl}
                 alt=""
-                className="h-11 w-11 rounded-2xl bg-white/15 object-contain p-1.5 ring-1 ring-white/25"
+                className="h-14 w-14 rounded-2xl bg-white/15 object-contain p-2 ring-1 ring-white/25"
               />
             ) : tenant ? (
-              <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25">
+              <span className="flex size-14 items-center justify-center rounded-2xl bg-white/15 text-2xl font-bold ring-1 ring-white/25">
                 {initial}
               </span>
             ) : (
               // Géén sportschool in beeld → GymRebel is zélf de afzender. Het
               // beeldmerk erft `currentColor` (wit op het accent-paneel), want
               // oranje-op-oranje zou wegvallen.
-              <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-                <GymRebelMark className="w-7 h-auto" />
+              <span className="flex size-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+                <GymRebelMark className="w-9 h-auto" />
               </span>
             )}
-            <span className="font-display text-lg font-semibold tracking-tight">
+            <span className="font-display text-xl font-semibold tracking-tight">
               {name}
             </span>
           </div>
@@ -118,32 +118,28 @@ export default async function LoginPage() {
         <div className="flex flex-col justify-center px-6 py-10 sm:px-10 sm:py-12">
           {/* Merk-koptekst — op mobiel zichtbaar (brand-paneel is desktop-only). */}
           <div className="mb-7 text-center sm:mb-8">
+            {/* De sportschool is hier de afzender: groot logo + naam als kop,
+                zodat een lid direct ziet bij wélke gym hij inlogt. */}
             {tenant?.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={tenant.logoUrl}
                 alt=""
-                className="mx-auto mb-4 h-14 w-14 rounded-2xl object-contain shadow-sm lg:hidden"
+                className="mx-auto mb-4 h-20 w-20 rounded-3xl object-contain shadow-sm lg:hidden"
               />
             ) : tenant ? (
-              <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-gradient text-xl font-bold text-accent-foreground shadow-accent lg:hidden">
+              <span className="mx-auto mb-4 flex size-20 items-center justify-center rounded-3xl bg-accent-gradient text-3xl font-bold text-accent-foreground shadow-accent lg:hidden">
                 {initial}
               </span>
             ) : (
-              <span className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent-gradient text-accent-foreground shadow-accent lg:hidden">
-                <GymRebelMark className="w-9 h-auto" />
+              <span className="mx-auto mb-4 flex size-20 items-center justify-center rounded-3xl bg-accent-gradient text-accent-foreground shadow-accent lg:hidden">
+                <GymRebelMark className="w-12 h-auto" />
               </span>
             )}
             <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-              {t("title")}
+              {name}
             </h1>
-            <p className="mt-1.5 text-sm text-neutral-500">
-              {t.rich("subtitle", {
-                name: () => (
-                  <span className="font-medium text-neutral-700">{name}</span>
-                ),
-              })}
-            </p>
+            <p className="mt-1.5 text-sm text-neutral-500">{t("loginPrompt")}</p>
           </div>
 
           <LoginForm tenant={slug} oauth={oauth} />
