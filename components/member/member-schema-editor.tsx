@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { MemberSchemaStatus } from "@prisma/client";
 import { EXERCISE_SOURCE_META, type ExerciseSource } from "@/lib/exercise-library/source";
 import { searchPickerMatches } from "@/lib/exercise-library/search-text";
+import { suggestAlternatives } from "@/lib/exercise-suggestions";
 import {
   NO_GROUP,
   serializeEditorDay,
@@ -371,6 +372,10 @@ function DayCard({
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
   const [query, setQuery] = useState("");
+  // Laatst toegevoegde oefening → chiprij met alternatieven (zelfde spiergroep /
+  // variatie). Suggesties komen uit de al geladen lijst en respecteren het
+  // kader automatisch (ze worden uit `allowed` berekend).
+  const [altFor, setAltFor] = useState<AvailableExercise | null>(null);
 
   // Alleen toegestane, niet-verborgen oefeningen in de picker.
   const allowed = useMemo(
@@ -378,6 +383,16 @@ function DayCard({
     [available, limits]
   );
   const sourceById = useMemo(() => new Map(allowed.map((e) => [e.id, e.source])), [allowed]);
+
+  const altSuggestions = useMemo(() => {
+    if (!altFor) return [];
+    return suggestAlternatives(
+      allowed,
+      altFor,
+      day.items.map((i) => i.exerciseId),
+      3
+    );
+  }, [altFor, allowed, day.items]);
 
   // Groep-metadata per item-key (voor accentrand + positie-badge + kop-samenvatting).
   const groupPosById = useMemo(() => {
@@ -524,6 +539,7 @@ function DayCard({
                     onClick={() => {
                       onAdd(day.key, e);
                       setQuery("");
+                      setAltFor(e);
                     }}
                     className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left text-sm active:bg-neutral-50"
                   >
@@ -551,6 +567,39 @@ function DayCard({
           ) : null}
         </div>
       )}
+
+      {/* Alternatieven voor de laatst toegevoegde oefening — tik = ook
+          toevoegen. Al toegevoegde en niet-toegestane oefeningen vallen weg. */}
+      {!dayFull && altFor && altSuggestions.length > 0 ? (
+        <div className="flex flex-col gap-1.5 rounded-xl bg-surface-2 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[11px] font-medium text-neutral-500">
+              Lijkt op <span className="font-semibold text-neutral-700">{altFor.name}</span>
+            </p>
+            <button
+              type="button"
+              aria-label="Suggesties verbergen"
+              onClick={() => setAltFor(null)}
+              className="shrink-0 text-xs text-neutral-400 active:text-neutral-700"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {altSuggestions.map((s) => (
+              <button
+                key={s.exercise.id}
+                type="button"
+                title={s.reason}
+                onClick={() => onAdd(day.key, s.exercise)}
+                className="rounded-full border border-border bg-surface-1 px-2.5 py-1 text-xs font-medium text-neutral-700 active:border-accent active:text-accent"
+              >
+                + {s.exercise.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -640,8 +689,6 @@ export function MemberSchemaEditor({
     return () => clearTimeout(t);
   }, [serialized, name, description]);
 
-  const maxDays = limits?.maxDays ?? null;
-  const maxReached = maxDays != null && days.length >= maxDays;
   const dayKeys = days.map((d) => ({ key: d.key, name: d.name.trim() || "Dag" }));
   const totalItems = days.reduce((n, d) => n + d.items.length, 0);
   const limitChips = describeLimits(limits);
@@ -650,7 +697,6 @@ export function MemberSchemaEditor({
     setDays((prev) => prev.map((d) => (d.key === dayKey ? fn(d) : d)));
   }
   function addDay() {
-    if (maxReached) return;
     setDays((prev) => [
       ...prev,
       { key: `d-${dayCounter++}`, name: `Dag ${prev.length + 1}`, notes: "", items: [] },
@@ -874,30 +920,13 @@ export function MemberSchemaEditor({
         ))}
       </div>
 
-      {maxReached ? (
-        // Niet een stil uitgegrijsde knop: leg uit wáárom er geen dag bij kan
-        // (het kader van de sportschool), anders lijkt de editor kapot.
-        <p className="rounded-xl border border-dashed border-border-strong px-4 py-2.5 text-center text-sm text-neutral-500">
-          Je zit op het maximum van{" "}
-          <span className="font-semibold text-neutral-700">
-            {maxDays} {maxDays === 1 ? "dag" : "dagen"}
-          </span>{" "}
-          dat je sportschool toestaat. Verwijder eerst een dag om een andere toe te voegen.
-        </p>
-      ) : (
-        <button
-          type="button"
-          onClick={addDay}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-border-strong px-4 py-2.5 text-sm font-semibold text-neutral-900 active:bg-surface-2"
-        >
-          <Plus className="size-4" /> Dag toevoegen
-          {maxDays != null ? (
-            <span className="font-normal text-neutral-400">
-              ({days.length}/{maxDays})
-            </span>
-          ) : null}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={addDay}
+        className="flex items-center justify-center gap-1.5 rounded-xl border border-border-strong px-4 py-2.5 text-sm font-semibold text-neutral-900 active:bg-surface-2"
+      >
+        <Plus className="size-4" /> Dag toevoegen
+      </button>
 
       {/* Live voorbeeld */}
       {totalItems > 0 ? (
