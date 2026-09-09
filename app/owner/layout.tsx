@@ -1,5 +1,7 @@
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
+import { POST_LOGIN_SPLASH_COOKIE } from "@/lib/constants";
+import { PostLoginSplash } from "@/components/post-login-splash";
 import { requireTenantUser } from "@/lib/staff";
 import { getCurrentTenant } from "@/lib/tenant";
 import { areClassesEnabled } from "@/lib/classes";
@@ -160,6 +162,10 @@ export default async function OwnerLayout({
   const badge = await getUserBadge(user.id);
   const notifications = await getNotificationOverview(user.id);
   const tenants = user.email ? await getUserTenants(user.email) : [];
+  // Vers ingelogd? Dan staat de splash-cookie er en tonen we één keer de
+  // gebrande splash (server-side gelezen zodat de overlay al in de SSR-HTML
+  // zit; de client verwijdert de cookie na het tonen).
+  const showSplash = (await cookies()).has(POST_LOGIN_SPLASH_COOKIE);
 
   // "Contact opnemen"-gegevens (auto-fill). De server-action leidt de echte
   // waarden opnieuw af — dit is puur voor de UX (read-only tonen).
@@ -177,31 +183,23 @@ export default async function OwnerLayout({
       <header className="glass sticky top-0 z-40 border-b border-border">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3 lg:gap-4">
-            <Link
-              href="/owner"
-              className="flex min-w-0 shrink-0 items-center gap-2 font-display text-lg font-bold text-neutral-900"
-            >
-              {tenant?.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={tenant.logoUrl}
-                  alt=""
-                  className="h-7 w-7 rounded-md object-contain"
-                />
-              ) : (
-                <span className="flex size-7 items-center justify-center rounded-md bg-accent-gradient text-sm text-accent-foreground">
-                  {(tenant?.name ?? "G").charAt(0)}
-                </span>
-              )}
-              <span className="max-w-[14rem] truncate lg:max-w-[9rem] xl:max-w-[14rem]">{tenant?.name ?? "GymRebel"}</span>
-            </Link>
-            <span className="hidden shrink-0 sm:inline-flex">
+            {/* Logo + naam; bij meerdere sportscholen is de naam zelf de
+                switcher (zie TenantSwitcher) — geen losse knop in de nav-rij. */}
+            <TenantSwitcher
+              tenants={tenants}
+              currentSlug={tenant?.slug ?? null}
+              name={tenant?.name ?? "GymRebel"}
+              logoUrl={tenant?.logoUrl ?? null}
+              homeHref="/owner"
+            />
+            {/* De rolbadge verdwijnt op de krappe lg-breedte (nav + belknop
+                strijden daar om elke pixel) en komt op xl terug. */}
+            <span className="hidden shrink-0 sm:inline-flex lg:hidden xl:inline-flex">
               <Badge tone={isAdmin ? "accent" : "neutral"}>
                 {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
               </Badge>
             </span>
-            <div className="hidden items-center gap-2 lg:flex xl:gap-4">
-              <TenantSwitcher tenants={tenants} currentSlug={tenant?.slug ?? null} />
+            <div className="hidden min-w-0 items-center lg:flex">
               <OwnerNav entries={NAV} rootHref="/owner" />
             </div>
           </div>
@@ -243,6 +241,7 @@ export default async function OwnerLayout({
       </main>
       <NativePushRegister configured={nativePushConfigured()} />
       <AppLockGate />
+      <PostLoginSplash show={showSplash} />
     </div>
   );
 }

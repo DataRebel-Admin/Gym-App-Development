@@ -106,7 +106,10 @@ export function OwnerNav({
   return (
     <nav
       ref={navRef}
-      className="flex items-center gap-0.5"
+      /* shrink-0: bij ruimtegebrek krimpt de truncatable buur (het merkblok
+         met de gym-naam/switcher), nooit de nav-items zelf — die schoven
+         anders onder de knoppen rechts in de header. */
+      className="flex shrink-0 items-center gap-0.5"
       onMouseLeave={() => setOpen(null)}
     >
       {entries.map((entry) => {
@@ -118,7 +121,7 @@ export function OwnerNav({
               href={entry.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors xl:px-3",
                 active
                   ? "bg-accent-soft text-accent ring-1 ring-inset ring-accent/15"
                   : "text-neutral-500 hover:bg-neutral-100/70 hover:text-neutral-900",
@@ -144,7 +147,7 @@ export function OwnerNav({
               aria-expanded={isOpen}
               onClick={() => setOpen(isOpen ? null : entry.key)}
               className={cn(
-                "relative flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                "relative flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors xl:px-3",
                 active || isOpen
                   ? "text-accent"
                   : "text-neutral-500 hover:bg-neutral-100/70 hover:text-neutral-900",
