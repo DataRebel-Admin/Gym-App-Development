@@ -14,7 +14,6 @@ import { prisma } from "@/lib/db";
 /** Default weekdoel (aantal trainingen). Nog geen DB-veld — later configureerbaar. */
 export const MEMBER_WEEKLY_GOAL = 3;
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Maandag 00:00 van de week waarin `d` valt (lokale tijd). */
@@ -30,6 +29,43 @@ function startOfDay(d: Date): Date {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   return x;
+}
+
+/**
+ * `n` weken verder (negatief = terug) vanaf een maandag-00:00-sleutel, via de
+ * kalender in plaats van 7x24u. Twee opeenvolgende maandagen liggen rond de
+ * zomer-/wintertijd namelijk 1 uur meer of minder uit elkaar; met vaste
+ * milliseconden vielen die weken naast de sleutels van `startOfWeek` en
+ * verdween er twee keer per jaar stil een week uit de trend en de streak.
+ */
+function addWeeks(weekStart: number, n: number): number {
+  const d = new Date(weekStart);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n * 7).getTime();
+}
+
+/** Aantal weken in de weekvolume-trend (sparkline op /member, staaf in de historie). */
+export const VOLUME_TREND_WEEKS = 12;
+
+/**
+ * `YYYY-MM-DD` van de maandag van de week waarin `d` valt — de URL-sleutel van
+ * een trendweek (`?week=`). Lokale datum, dus zonder tijdzone-verschuiving.
+ */
+export function weekKey(d: Date): string {
+  const w = startOfWeek(d);
+  return `${w.getFullYear()}-${String(w.getMonth() + 1).padStart(2, "0")}-${String(w.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Omgekeerde van [[weekKey]] → maandag 00:00, of `null` bij een onzinnige sleutel.
+ * De roundtrip-controle vangt overloop af (`2026-02-31` wordt anders stil maart).
+ */
+export function parseWeekKey(raw: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(year, month - 1, day);
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return startOfWeek(d);
 }
 
 function epley(weightKg: number, reps: number): number {
@@ -151,13 +187,13 @@ function computeStreaks(weekKeys: Set<number>, currentWeekKey: number) {
   // Huidige streak: start bij deze week, of (grace) bij vorige week.
   let anchor = weekKeys.has(currentWeekKey)
     ? currentWeekKey
-    : weekKeys.has(currentWeekKey - WEEK_MS)
-      ? currentWeekKey - WEEK_MS
+    : weekKeys.has(addWeeks(currentWeekKey, -1))
+      ? addWeeks(currentWeekKey, -1)
       : null;
   let current = 0;
   while (anchor != null && weekKeys.has(anchor)) {
     current += 1;
-    anchor -= WEEK_MS;
+    anchor = addWeeks(anchor, -1);
   }
 
   // Langste streak: scan alle weken chronologisch.
@@ -166,7 +202,7 @@ function computeStreaks(weekKeys: Set<number>, currentWeekKey: number) {
   let run = 0;
   let prev: number | null = null;
   for (const k of sorted) {
-    run = prev != null && k - prev === WEEK_MS ? run + 1 : 1;
+    run = prev != null && addWeeks(prev, 1) === k ? run + 1 : 1;
     longest = Math.max(longest, run);
     prev = k;
   }
@@ -259,8 +295,8 @@ export async function getMemberStats(
 
   // Laatste 12 weken volume (incl. lege weken).
   const weekVolume: WeekVolumePoint[] = [];
-  for (let i = 11; i >= 0; i--) {
-    const ws = weekStart - i * WEEK_MS;
+  for (let i = VOLUME_TREND_WEEKS - 1; i >= 0; i--) {
+    const ws = addWeeks(weekStart, -i);
     const d = new Date(ws);
     weekVolume.push({
       label: `${d.getDate()}/${d.getMonth() + 1}`,
@@ -318,6 +354,75 @@ export async function getMemberStats(
   };
 }
 
+/**
+ * Venster waarover volume geteld wordt: de lopende week, alles, of één specifieke
+ * week (de `Date` mag elke dag in die week zijn — hij wordt naar maandag geklemd).
+ */
+export type VolumeRange = "week" | "all" | Date;
+
+type Window = { from: number; to: number };
+
+function resolveVolumeRange(range: VolumeRange): Window | null {
+  if (range === "all") return null;
+  const start = startOfWeek(range === "week" ? new Date() : range).getTime();
+  return { from: start, to: range === "week" ? Infinity : addWeeks(start, 1) };
+}
+
+function inWindow(d: Date, w: Window): boolean {
+  const t = d.getTime();
+  return t >= w.from && t < w.to;
+}
+
+export type WeekVolumeRow = {
+  /** `YYYY-MM-DD` van de maandag — de `?week=`-parameter van de drilldown. */
+  key: string;
+  start: Date;
+  /** Zondag van deze week (inclusief), puur voor weergave van het bereik. */
+  end: Date;
+  volume: number;
+  /** Afgeronde trainingen, dezelfde telling als `workoutsThisWeek`. */
+  workouts: number;
+  isCurrent: boolean;
+};
+
+/**
+ * De trend achter de weekvolume-sparkline, per week uitgesplitst (nieuwste eerst,
+ * lege weken inbegrepen). Zelfde bron en telling als `weekVolume` in
+ * [[getMemberStats]], dus de balken en deze lijst tonen gegarandeerd hetzelfde.
+ */
+export async function getWeeklyVolume(
+  memberId: string,
+  tenantId: string,
+  weeks = VOLUME_TREND_WEEKS
+): Promise<WeekVolumeRow[]> {
+  const sessions = await loadMemberSessions(memberId, tenantId);
+  const thisWeek = startOfWeek(new Date()).getTime();
+
+  const acc = new Map<number, { volume: number; workouts: number }>();
+  for (let i = 0; i < weeks; i++) acc.set(addWeeks(thisWeek, -i), { volume: 0, workouts: 0 });
+
+  for (const s of sessions) {
+    const row = acc.get(startOfWeek(s.startedAt).getTime());
+    if (!row) continue;
+    if (s.endedAt != null) row.workouts += 1;
+    for (const e of s.performanceEntries) row.volume += e.reps * e.weightKg;
+  }
+
+  return [...acc.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([ws, row]) => {
+      const start = new Date(ws);
+      return {
+        key: weekKey(start),
+        start,
+        end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6),
+        volume: Math.round(row.volume),
+        workouts: row.workouts,
+        isCurrent: ws === thisWeek,
+      };
+    });
+}
+
 export type ExerciseVolumeRow = {
   exerciseId: string;
   name: string;
@@ -334,20 +439,21 @@ export type ExerciseVolumeRow = {
  * `totalVolume` in [[getMemberStats]] (álle sessies in het venster, óók een nog
  * lopende), zodat de uitsplitsing exact optelt tot het dashboard-getal.
  * `range: "week"` = vanaf maandag (de dashboard-tegel), `"all"` = all-time (de
- * historie-KPI). Oefeningen zonder gewichtsvolume (cardio/bodyweight) bouwen dat
- * getal niet op en blijven buiten de lijst.
+ * historie-KPI), een `Date` = de week waarin die datum valt (een balk uit de
+ * trend). Oefeningen zonder gewichtsvolume (cardio/bodyweight) bouwen dat getal
+ * niet op en blijven buiten de lijst.
  */
 export async function getVolumeByExercise(
   memberId: string,
   tenantId: string,
-  range: "week" | "all" = "week"
+  range: VolumeRange = "week"
 ): Promise<ExerciseVolumeRow[]> {
   const sessions = await loadMemberSessions(memberId, tenantId);
-  const cutoff = range === "week" ? startOfWeek(new Date()).getTime() : null;
+  const window = resolveVolumeRange(range);
 
   const byExercise = new Map<string, ExerciseVolumeRow>();
   for (const s of sessions) {
-    if (cutoff != null && s.startedAt.getTime() < cutoff) continue;
+    if (window && !inWindow(s.startedAt, window)) continue;
     for (const e of s.performanceEntries) {
       const row =
         byExercise.get(e.exerciseId) ??

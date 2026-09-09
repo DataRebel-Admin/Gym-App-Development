@@ -203,11 +203,19 @@ export default async function MemberHistoryPage() {
             </RevealItem>
           ) : null}
 
-          {/* Weekvolume */}
+          {/* Weekvolume — de kop linkt door, de grafiek zelf blijft aantikbaar (tooltip). */}
           <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-neutral-400">
-              {t("weekVolume")}
-            </p>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                {t("weekVolume")}
+              </p>
+              <Link
+                href="/member/history/stat/volume?range=weeks"
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-accent"
+              >
+                {t("weekVolumeCta")} <ChevronRight className="size-3.5" />
+              </Link>
+            </div>
             <MiniBarChart
               data={stats.weekVolume.map((w) => ({ label: w.label, value: w.volume }))}
               unit="kg"

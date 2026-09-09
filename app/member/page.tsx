@@ -268,20 +268,28 @@ export default async function MemberHome() {
         </Link>
       </RevealItem>
 
-      {/* Weekvolume-trend */}
+      {/* Weekvolume-trend — doorklikbaar naar de opbouw per week en per oefening. */}
       {stats.totalWorkouts > 0 ? (
-        <RevealItem className="rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-                {t("weekVolume")}
-              </p>
-              <p className="mt-0.5 font-display text-xl font-bold text-neutral-900">
-                {t("last12Weeks")}
-              </p>
+        <RevealItem>
+          <Link
+            href="/member/history/stat/volume?range=weeks"
+            className="block rounded-3xl border border-border bg-surface-1 p-5 shadow-sm transition-colors active:bg-surface-2"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  {t("weekVolume")}
+                </p>
+                <p className="mt-0.5 font-display text-xl font-bold text-neutral-900">
+                  {t("last12Weeks")}
+                </p>
+              </div>
+              <Sparkline data={stats.weekVolume.map((w) => w.volume)} width={120} height={40} />
             </div>
-            <Sparkline data={stats.weekVolume.map((w) => w.volume)} width={120} height={40} />
-          </div>
+            <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-accent">
+              {t("weekVolumeCta")} <ChevronRight className="size-4" />
+            </p>
+          </Link>
         </RevealItem>
       ) : null}
 
