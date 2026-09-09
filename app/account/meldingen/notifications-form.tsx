@@ -111,6 +111,23 @@ export function NotificationsForm({ initial }: { initial: Prefs | null }) {
     setTick((t) => t + 1);
   }
 
+  // Hoofdschakelaar per kanaal: zet het kanaal in één keer aan of uit voor
+  // álle categorieën. "Aan" tonen we alleen als echt alles aanstaat.
+  function allOn(channel: Channel) {
+    return CATEGORIES.every((c) => prefs[c.key][channel]);
+  }
+
+  function setAll(channel: Channel, value: boolean) {
+    setPrefs((p) => {
+      const next: Prefs = { ...p };
+      for (const c of CATEGORIES) {
+        next[c.key] = { ...next[c.key], [channel]: value };
+      }
+      return next;
+    });
+    setTick((t) => t + 1);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-start justify-between gap-3">
@@ -134,6 +151,26 @@ export function NotificationsForm({ initial }: { initial: Prefs | null }) {
             {CHANNELS.map((ch) => (
               <span key={ch.key} className="text-center">{ch.label}</span>
             ))}
+          </div>
+          <div className="border-b border-border bg-neutral-50 px-4 py-3 sm:grid sm:grid-cols-[1fr_repeat(3,72px)] sm:items-center sm:gap-2">
+            <span className="text-sm font-semibold text-neutral-900">
+              Alles
+              <span className="mt-0.5 block text-xs font-normal text-neutral-500">
+                Zet een kanaal in één keer aan of uit
+              </span>
+            </span>
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3 sm:contents sm:mt-0">
+              {CHANNELS.map((ch) => (
+                <span key={ch.key} className="flex items-center gap-2 sm:justify-center">
+                  <Toggle
+                    checked={allOn(ch.key)}
+                    onChange={(v) => setAll(ch.key, v)}
+                    label={`Alle meldingen – ${ch.label}`}
+                  />
+                  <span className="text-xs font-medium text-neutral-500 sm:hidden">{ch.label}</span>
+                </span>
+              ))}
+            </div>
           </div>
           {CATEGORIES.map((cat) => (
             <div
