@@ -16,8 +16,10 @@ function fmtClock(totalSec: number): string {
 }
 
 /**
- * Doorlopende balk die op élke member-pagina laat zien dat er een training
- * loopt, met de meelopende klok en een directe ingang om verder te gaan.
+ * Doorlopende balk die overal in de app laat zien dat er een training loopt,
+ * met de meelopende klok en een directe ingang om verder te gaan. Gemount
+ * onder de header van de member-layout, de account-layout (instellingen) en
+ * bovenaan de publieke QR-pagina (`/m/[qrToken]`, alleen voor een ingelogd lid).
  * Zonder dit was een lopende sessie alleen op het dashboard te zien en liep
  * iemand het risico 'm te vergeten (tot de 5-uur-timeout 'm afsloot).
  *

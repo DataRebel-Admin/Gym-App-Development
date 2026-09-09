@@ -1190,7 +1190,11 @@ zodat er niets doorloopt na skippen/vervangen/afronden/annuleren.
   geen write op elke navigatie) voedt `components/member/active-workout-bar.tsx` vanuit
   `app/member/layout.tsx`. Op élke member-pagina, met meelopende klok en directe ingang;
   verbergt zichzelf op `/member/schema/active` (daar staat dezelfde klok al in de
-  voortgangsbalk) en toont een sessie voorbij de 5-uur-grens niet meer.
+  voortgangsbalk) en toont een sessie voorbij de 5-uur-grens niet meer. **Ook buiten
+  de member-layout**: de account-layout (`/account/*`, alleen voor `TENANT_MEMBER`) en
+  de publieke QR-pagina `/m/[qrToken]` (alleen bij een ingelogd lid) mounten dezelfde
+  balk, zodat een lid dat tussendoor z'n instellingen opent of een apparaat scant de
+  klok blijft zien en met één tik terug is in de training.
   - **STICKY ZIT OP DE WRAPPER, NIET OP DE BALK.** Header + balk plakken samen als één
     `sticky top-0`-blok in de member-layout. Geef je de balk een eigen `top`-offset, dan moet
     dat getal exact de headerhoogte raken — die is 61px (`py-3` + de `size-9`-belknop), niet

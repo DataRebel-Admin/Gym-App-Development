@@ -14,6 +14,8 @@ import { ReportDefectButton } from "@/components/defects/report-defect-modal";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { machineWarningMap } from "@/lib/defects-server";
 import { AlertTriangle } from "@/components/ui/icons";
+import { ActiveWorkoutBar } from "@/components/member/active-workout-bar";
+import { getRunningSessionStart } from "@/lib/session-timeout";
 import { addMachineToSchema } from "./actions";
 
 export async function generateMetadata({
@@ -90,7 +92,19 @@ export default async function MachinePublicPage({
   // Defect melden: alleen voor ingelogde leden, gegate op de feature-flag.
   const canReportDefect = isMember && (await isFeatureEnabled(tenant.id, "defects"));
 
+  // Een lid dat midden in z'n training een apparaat scant, ziet ook hier de
+  // "training bezig"-balk met klok en een directe weg terug naar de sessie.
+  const activeStartedAt = isMember
+    ? await getRunningSessionStart(tenant.id, session!.user.id)
+    : null;
+
   return (
+    <>
+      {activeStartedAt ? (
+        <div className="sticky top-0 z-40">
+          <ActiveWorkoutBar startedAt={activeStartedAt} />
+        </div>
+      ) : null}
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-6 sm:max-w-lg">
       {/* Registreert de scan (client-beacon, dedupe per sessie). */}
       <TrackScan qrToken={qrToken} />
@@ -250,5 +264,6 @@ export default async function MachinePublicPage({
         </div>
       </div>
     </div>
+    </>
   );
 }
