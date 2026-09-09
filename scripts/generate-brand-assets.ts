@@ -235,10 +235,19 @@ write("public/brand/gymrebel-logo-mono.svg", lockup(BRAND.white, BRAND.white));
 write("public/brand/gymrebel-app-icon.svg", appIcon({ rounded: true, scale: 1 }));
 write("public/favicon.svg", faviconSvg());
 
-// E-maillogo: **PNG, geen SVG** — Gmail en Outlook weigeren SVG in <img>. Wit op
-// transparant, want de mailheader is altijd een accentbalk (zie lib/email/layout.ts).
-// 480 px breed = 3× de weergavebreedte van 160 px, dus scherp op retina.
-write("public/brand/gymrebel-logo-email.png", png(lockup(BRAND.white, BRAND.white), 480));
+// E-maillogo: **PNG, geen SVG** — Gmail en Outlook weigeren SVG in <img>.
+// Full-color (charcoal "GYM" + oranje), want het logo staat in de mailheader op
+// een **witte badge** (zie lib/email/layout.ts) — wit-op-transparant zou daar
+// wegvallen. 480 px breed = 3× de weergavebreedte van 160 px, dus scherp op retina.
+write("public/brand/gymrebel-logo-email.png", png(lockup(BRAND.charcoal), 480));
+
+// PNG-versie van het beeldmerk voor de demo-tenant (prisma/seed.ts →
+// Tenant.logoUrl): een tenant-logo belandt ook in de mailheader en dáár is SVG
+// onbruikbaar (zie hierboven). In de app-UI is PNG net zo goed.
+write(
+  "public/brand/gymrebel-mark.png",
+  png(svg(`0 0 ${MARK_W} ${MARK_H}`, markBody(BRAND.orange), "GymRebel"), 480)
+);
 
 // ── Raster ───────────────────────────────────────────────────────────────────
 // Afgerond vlak voor de "any"/apple-iconen; full-bleed + kleinere mark (veilige

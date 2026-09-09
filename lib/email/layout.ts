@@ -50,12 +50,26 @@ const DARK_RULES = `
   .dm-panel{background:#1f2937!important;border-color:#374151!important}
   .dm-divider{border-color:#374151!important}`;
 
-/** Header: tenant-logo (of tekst-wordmark) op een accentbalk. */
+/**
+ * Header: tenant-logo (of tekst-wordmark) op een accentbalk.
+ *
+ * Het logo staat op een **witte badge**, niet rechtstreeks op het accent: een
+ * tenant-logo is een vrije upload en kan elke kleur hebben — een oranje merk op
+ * een oranje accentbalk (de demo-tenant!) was onzichtbaar. Wit garandeert
+ * contrast met de balk én met vrijwel elk logo (logo's zijn voor lichte
+ * ondergronden ontworpen; zo toont de app ze zelf ook). De badge is inline
+ * gekleurd en draagt bewust géén dm-klasse: ook in dark mode blijft hij wit.
+ * De geneste table is voor Outlook (dat centreert een blok-element niet).
+ */
 function header(branding: EmailBranding): string {
   const inner = branding.logoUrl
-    ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${escapeHtml(
-        branding.name
-      )}" width="160" style="display:block;max-width:160px;height:auto;border:0;margin:0 auto" />`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto"><tr>
+        <td style="background:#ffffff;border-radius:10px;padding:10px 16px" align="center"><img src="${escapeHtml(
+          branding.logoUrl
+        )}" alt="${escapeHtml(
+          branding.name
+        )}" width="160" style="display:block;max-width:160px;height:auto;border:0;margin:0 auto" /></td>
+      </tr></table>`
     : `<span style="font-size:22px;font-weight:800;letter-spacing:-0.02em;color:${branding.accentText}">${escapeHtml(
         branding.name
       )}</span>`;

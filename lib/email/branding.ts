@@ -28,11 +28,45 @@ const DEFAULT_ACCENT = "#ff4d00";
 
 /**
  * Het GymRebel-woordmerk voor de mailheader. **PNG, geen SVG**: Gmail en Outlook
- * weigeren SVG in `<img>`. Wit-op-transparant, want de header is altijd een
- * accentbalk (zie `renderEmailLayout`). Wordt door `npm run brand:assets`
- * gegenereerd en hieronder absoluut gemaakt.
+ * weigeren SVG in `<img>`. Full-color (charcoal + oranje), want het logo staat
+ * in de mailheader op een witte badge (zie `renderEmailLayout`). Wordt door
+ * `npm run brand:assets` gegenereerd en hieronder absoluut gemaakt.
  */
 const PLATFORM_LOGO_PATH = "/brand/gymrebel-logo-email.png";
+
+/**
+ * E-mailclients tonen niet elk beeldformaat of adres:
+ * - Gmail en Outlook weigeren **SVG** in `<img>` (gebroken-afbeelding-icoon);
+ * - Gmail blokkeert **`data:`-URL's** (die ontstaan lokaal als een logo-upload
+ *   zonder Blob-token draait);
+ * - een **localhost-URL** (dev: `APP_BASE_URL=http://localhost:3001` maakt een
+ *   relatief `/brand/…`-pad daarmee absoluut) is vanuit een mailbox per
+ *   definitie onbereikbaar — de mail wordt op jouw machine gebouwd maar in
+ *   Gmail/Outlook gelezen.
+ * Zo'n logo laten we bewust weg — de layout valt dan terug op de tekst-wordmark,
+ * die altijd rendert. Liever geen logo dan een gebroken afbeelding.
+ */
+function isEmailSafeImage(url: string): boolean {
+  if (/^data:/i.test(url)) return false;
+  const path = url.split(/[?#]/)[0] ?? "";
+  if (/\.svg$/i.test(path)) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      host === "[::1]" ||
+      host.endsWith(".localhost") ||
+      host.endsWith(".local")
+    ) {
+      return false;
+    }
+  } catch {
+    return false; // geen parsebare absolute URL → niet bruikbaar in een mail
+  }
+  return true;
+}
 
 /**
  * Het logo voor de mailheader.
@@ -43,9 +77,11 @@ const PLATFORM_LOGO_PATH = "/brand/gymrebel-logo-email.png";
  *   tekst-wordmark. Hier het GymRebel-logo tonen zou de whitelabel-belofte breken.
  * - Relatieve paden worden absoluut gemaakt: in een mailbox bestaat `/brand/…`
  *   niet. Dat gold ook voor de demo-tenant, die een `/brand/…`-logo heeft.
+ * - SVG-/data-logo's vallen terug op de tekst-wordmark (`isEmailSafeImage`).
  */
 function emailLogoUrl(tenant: TenantBrandingInput | null): string | null {
-  return toAbsoluteUrl(tenant ? tenant.logoUrl : PLATFORM_LOGO_PATH);
+  const url = toAbsoluteUrl(tenant ? tenant.logoUrl : PLATFORM_LOGO_PATH);
+  return url && isEmailSafeImage(url) ? url : null;
 }
 const DEFAULT_FONT =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
