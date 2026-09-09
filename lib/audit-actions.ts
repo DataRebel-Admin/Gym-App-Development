@@ -222,6 +222,14 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "members", label: "Wachtwoord ingesteld", icon: "🔐", tone: "success",
     sentence: ({ actor }) => `${actor} heeft bij activatie een wachtwoord ingesteld`,
   },
+  "user.2fa.reset": {
+    category: "members", label: "2FA gereset", icon: "🛡️", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft de tweestapsverificatie van een gebruiker uitgeschakeld`,
+  },
+  "user.sessions.revoke": {
+    category: "members", label: "Sessies beëindigd", icon: "🚪", tone: "warning",
+    sentence: ({ actor }) => `${actor} heeft alle sessies van een gebruiker beëindigd`,
+  },
   "user.permissions.change": {
     category: "members", label: "Rechten aangepast", icon: "🛡️", tone: "accent",
     sentence: ({ actor, meta }) =>

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { listPendingInvitations } from "@/lib/invitation";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { SectionHeading } from "@/components/ui/section-heading";
 import {
@@ -12,34 +12,21 @@ import {
   Thead,
   Th,
   Tbody,
-  Tr,
   Td,
 } from "@/components/ui/table";
 import { MobileListCard } from "@/components/ui/mobile-list-card";
+import { TableRowLink } from "@/components/ui/table-row-link";
 import { PendingInvitationsTable } from "@/components/invitations/pending-invitations-table";
 import { InviteUserForm } from "./invite-user-form";
 import { resendInvitation, revokeInvitation } from "./actions";
-
-const ROLE_LABEL: Record<string, string> = {
-  SUPERADMIN: "Superadmin",
-  TENANT_ADMIN: "Tenant-admin",
-  TENANT_STAFF: "Medewerker",
-  TENANT_MEMBER: "Lid",
-};
-
-const ROLE_TONE: Record<string, BadgeTone> = {
-  SUPERADMIN: "danger",
-  TENANT_ADMIN: "accent",
-  TENANT_STAFF: "info",
-  TENANT_MEMBER: "neutral",
-};
+import { ROLE_LABEL, ROLE_TONE } from "./role-meta";
 
 export const metadata = { title: "Gebruikers" };
 
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; deleted?: string }>;
 }) {
   await requireSuperadmin();
   const sp = await searchParams;
@@ -78,8 +65,14 @@ export default async function AdminUsersPage({
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <SectionHeading
         title="Alle gebruikers"
-        description="Elke gebruiker over alle tenants van het platform."
+        description="Elke gebruiker over alle tenants van het platform. Klik op een gebruiker om te bewerken."
       />
+
+      {sp.deleted === "1" ? (
+        <p className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          De gebruiker is verwijderd.
+        </p>
+      ) : null}
 
       <Card className="flex flex-col gap-3 p-5">
         <div>
@@ -123,7 +116,7 @@ export default async function AdminUsersPage({
       <div className="flex flex-col gap-3 md:hidden">
         {users.map((u) => (
           <MobileListCard key={u.id}>
-            <div className="flex items-start justify-between gap-3">
+            <Link href={`/admin/users/${u.id}`} className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <Avatar name={u.name ?? u.email} status={u.active ? "online" : "offline"} />
                 <div className="min-w-0">
@@ -132,7 +125,7 @@ export default async function AdminUsersPage({
                 </div>
               </div>
               <Badge tone={ROLE_TONE[u.role] ?? "neutral"}>{ROLE_LABEL[u.role]}</Badge>
-            </div>
+            </Link>
             <div className="mt-3 flex items-center justify-between text-sm">
               <span className="text-neutral-500">
                 {u.tenant ? (
@@ -143,11 +136,16 @@ export default async function AdminUsersPage({
                   <span className="text-neutral-400">platform</span>
                 )}
               </span>
-              {u.active ? (
-                <span className="text-green-600">actief</span>
-              ) : (
-                <span className="text-neutral-400">inactief</span>
-              )}
+              <span className="flex items-center gap-3">
+                {u.active ? (
+                  <span className="text-green-600">actief</span>
+                ) : (
+                  <span className="text-neutral-400">inactief</span>
+                )}
+                <Link href={`/admin/users/${u.id}`} className="font-medium text-accent hover:underline">
+                  Bewerken
+                </Link>
+              </span>
             </div>
           </MobileListCard>
         ))}
@@ -161,11 +159,14 @@ export default async function AdminUsersPage({
               <Th>Rol</Th>
               <Th>Tenant</Th>
               <Th>Status</Th>
+              <Th>
+                <span className="sr-only">Acties</span>
+              </Th>
             </tr>
           </Thead>
           <Tbody>
             {users.map((u) => (
-              <Tr key={u.id}>
+              <TableRowLink key={u.id} href={`/admin/users/${u.id}`} label={`${u.name ?? u.email} bewerken`}>
                 <Td>
                   <div className="flex items-center gap-3">
                     <Avatar name={u.name ?? u.email} status={u.active ? "online" : "offline"} />
@@ -194,7 +195,12 @@ export default async function AdminUsersPage({
                     <span className="text-neutral-400">inactief</span>
                   )}
                 </Td>
-              </Tr>
+                <Td className="text-right">
+                  <Link href={`/admin/users/${u.id}`} className="text-sm font-medium text-accent hover:underline">
+                    Bewerken
+                  </Link>
+                </Td>
+              </TableRowLink>
             ))}
           </Tbody>
         </Table>

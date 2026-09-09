@@ -1790,6 +1790,14 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
   `deletedAt`), huisstijl-editor (accent/secundair/logo/favicon/font — runtime in `app/layout.tsx`),
   ledenbeheer + uitnodigingen per tenant, globale gebruikers (`/admin/users`), audit-viewer
   (`/admin/audit`).
+- **Gebruikersdetail `/admin/users/[id]`**: de globale lijst is doorklikbaar (rij + "Bewerken").
+  Bewerken van naam/e-mail/rol (`updateUser`, rol alleen voor tenant-gebruikers; eigen rol nooit),
+  (de)activeren, **overal uitloggen** (`sessionsValidFrom` + device-sessies, audit
+  `user.sessions.revoke`), **2FA uitschakelen** als support-actie (audit `user.2fa.reset`) en
+  definitief verwijderen (met `releaseMemberClassSpots` vóór de delete, zoals de tenant-kant).
+  Zelfbescherming: jezelf niet deactiveren/verwijderen/degraderen. E-mailwijziging hier is
+  zonder verificatie (superadmin is vertrouwd) en wist een openstaand zelf-service-verzoek.
+  Rol-labels gedeeld in `app/admin/users/role-meta.ts`.
 - **Tenant-admin** beheert eigen leden op `/owner/members` (uitnodigen, (de)activeren,
   verwijderen — niet zichzelf). Server-actions zijn gescoped op `owner.tenantId`.
 - **Invitations**: `Invitation`-model (token + 7d vervaldatum); mail naar server-console in dev
