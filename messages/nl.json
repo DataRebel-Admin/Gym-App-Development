@@ -436,7 +436,7 @@
       "metaTitle": "Oefeningen",
       "title": "Oefeningen",
       "subtitle": "Bekijk uitleg, animaties en stappenplan van elke oefening in jouw sportschool.",
-      "searchPlaceholder": "Zoek op naam, spier of materiaal…",
+      "searchPlaceholder": "Zoek op naam, spier, lichaamsdeel of soort…",
       "clear": "Wissen",
       "all": "Alles",
       "favorites": "Favorieten",
@@ -444,7 +444,16 @@
       "emptyTitle": "Geen oefeningen gevonden",
       "emptyNone": "Je sportschool heeft nog geen oefeningen toegevoegd.",
       "emptyFilter": "Pas je zoekopdracht of filter aan.",
-      "view": "Bekijk"
+      "view": "Bekijk",
+      "kindLabel": "Soort",
+      "kinds": {
+        "strength": "Kracht",
+        "cardio": "Cardio",
+        "core": "Core",
+        "stretch": "Stretching",
+        "yoga": "Yoga",
+        "pilates": "Pilates"
+      }
     },
     "history": {
       "metaTitle": "Geschiedenis",
@@ -1093,7 +1102,7 @@
       "tabCustom": "Eigen oefeningen",
       "catalogCount": "{count} oefeningen in de catalogus. Selecteer er meerdere (of alle resultaten) en voeg ze in één keer toe aan jouw sportschool.",
       "search": "Zoeken",
-      "namePlaceholder": "naam…",
+      "namePlaceholder": "naam, spier, lichaamsdeel…",
       "filterBodyPart": "Lichaamsdeel",
       "filterEquipment": "Apparatuur",
       "filterTarget": "Doelspier",
@@ -1102,6 +1111,10 @@
       "clear": "Wissen",
       "all": "Alle",
       "noResults": "Geen oefeningen gevonden.",
+      "filterInGym": "In mijn sportschool",
+      "inGymMissing": "Nog niet in mijn sportschool",
+      "inGymPresent": "Al in mijn sportschool",
+      "noResultsMissing": "Alle oefeningen uit de bibliotheek staan al in je sportschool.",
       "noResultsMyEq": "Geen oefeningen gevonden voor jouw apparatuur.",
       "prev": "← Vorige",
       "next": "Volgende →",

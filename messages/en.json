@@ -436,7 +436,7 @@
       "metaTitle": "Exercises",
       "title": "Exercises",
       "subtitle": "View instructions, animations and step-by-step guides for every exercise in your gym.",
-      "searchPlaceholder": "Search by name, muscle or equipment…",
+      "searchPlaceholder": "Search by name, muscle, body part or type…",
       "clear": "Clear",
       "all": "All",
       "favorites": "Favorites",
@@ -444,7 +444,16 @@
       "emptyTitle": "No exercises found",
       "emptyNone": "Your gym hasn't added any exercises yet.",
       "emptyFilter": "Adjust your search or filter.",
-      "view": "View"
+      "view": "View",
+      "kindLabel": "Type",
+      "kinds": {
+        "strength": "Strength",
+        "cardio": "Cardio",
+        "core": "Core",
+        "stretch": "Stretching",
+        "yoga": "Yoga",
+        "pilates": "Pilates"
+      }
     },
     "history": {
       "metaTitle": "History",
@@ -1093,7 +1102,7 @@
       "tabCustom": "Custom exercises",
       "catalogCount": "{count} exercises in the catalog. Select several (or all results) and add them to your gym in one go.",
       "search": "Search",
-      "namePlaceholder": "name…",
+      "namePlaceholder": "name, muscle, body part…",
       "filterBodyPart": "Body part",
       "filterEquipment": "Equipment",
       "filterTarget": "Target muscle",
@@ -1102,6 +1111,10 @@
       "clear": "Clear",
       "all": "All",
       "noResults": "No exercises found.",
+      "filterInGym": "In my gym",
+      "inGymMissing": "Not in my gym yet",
+      "inGymPresent": "Already in my gym",
+      "noResultsMissing": "Every exercise in the library is already in your gym.",
       "noResultsMyEq": "No exercises found for your equipment.",
       "prev": "← Previous",
       "next": "Next →",

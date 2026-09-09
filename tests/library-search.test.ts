@@ -6,6 +6,7 @@ import {
   rankLibraryMatches,
   expandQuery,
   searchPickerMatches,
+  disciplineTerms,
   NL_QUERY_TERMS,
   type SearchableLibraryExercise,
 } from "../lib/exercise-library/search-text";
@@ -94,6 +95,54 @@ test("Nederlandse zoekterm vindt de Engelse oefening", () => {
   assert.equal(rankLibraryMatches("kniebuigen", LIB)[0], "squat");
 });
 
+test("expandQuery: vulwoorden leveren een gestripte variant op", () => {
+  assert.ok(expandQuery("yoga oefeningen").includes("yoga"));
+  assert.ok(expandQuery("workout voor benen").includes("benen"));
+  // Alles vulwoord → geen lege variant erbij.
+  assert.deepEqual(expandQuery("oefeningen"), ["oefeningen"]);
+});
+
+test("NL-discipline-/doeltermen expanderen naar de dataset-woordenschat", () => {
+  assert.ok(expandQuery("rekken").includes("stretching"));
+  assert.ok(expandQuery("lenigheid").includes("mobility"));
+  assert.ok(expandQuery("spiermassa").includes("hypertrophy"));
+  assert.ok(expandQuery("opwarmen").includes("warm up"));
+});
+
+// --- disciplines (yoga/pilates, afgeleid) -----------------------------------
+
+test("disciplineTerms: yoga uit pose-naam of Sanskriet-synoniem", () => {
+  assert.deepEqual(disciplineTerms(["Boat Pose", "navasana"]), ["yoga"]);
+  assert.deepEqual(disciplineTerms(["Cat-Cow", "marjaryasana bitilasana"]), ["yoga"]);
+  assert.deepEqual(disciplineTerms(["Garland Pose", "malasana", "yogi squat"]), ["yoga"]);
+});
+
+test("disciplineTerms: pilates uit naam of synoniem, niets bij gewone kracht", () => {
+  assert.deepEqual(disciplineTerms(["Pilates Leg Pull Back", "leg pull back"]), ["pilates"]);
+  assert.deepEqual(disciplineTerms(["Bicycle Crunch", "pilates criss-cross"]), ["pilates"]);
+  assert.deepEqual(disciplineTerms(["Bench Press", "chest press"]), []);
+  // "posterior"/"exposed" mogen nooit als "pose" gelden.
+  assert.deepEqual(disciplineTerms(["Posterior Chain Raise"]), []);
+});
+
+test("zoeken op yoga/pilates/stretching vindt via de meta", () => {
+  const withDisciplines: SearchableLibraryExercise[] = [
+    { id: "boat-pose", names: ["Boat Pose"], synonyms: ["navasana"], meta: ["yoga", "core"] },
+    { id: "pilates-hundred", names: ["Pilates Hundred"], synonyms: [], meta: ["pilates"] },
+    { id: "camel-pose", names: ["Camel Pose"], synonyms: ["ustrasana"], meta: ["yoga", "stretching"] },
+    { id: "bench-press", names: ["Bench Press"], synonyms: [], meta: ["strength", "chest"] },
+  ];
+  assert.deepEqual(
+    new Set(rankLibraryMatches("yoga", withDisciplines)),
+    new Set(["boat-pose", "camel-pose"])
+  );
+  assert.deepEqual(rankLibraryMatches("yoga oefeningen", withDisciplines).length, 2);
+  assert.ok(rankLibraryMatches("pilates", withDisciplines).includes("pilates-hundred"));
+  // NL-term via glossarium + meta-categorie.
+  assert.deepEqual(rankLibraryMatches("rekken", withDisciplines), ["camel-pose"]);
+  assert.ok(rankLibraryMatches("kracht", withDisciplines).includes("bench-press"));
+});
+
 // --- meta (spier/materiaal, lager gewicht) ----------------------------------
 
 test("meta matcht, maar een naam-treffer rankt erboven", () => {
@@ -155,4 +204,91 @@ test("scoreLibraryExercise: null zonder match, hoger voor exacter", () => {
   const s1 = scoreLibraryExercise("squat", squat)!;
   const s2 = scoreLibraryExercise("squat", front)!;
   assert.ok(s1 > s2);
+});
+
+// --- lichaamsregio's, categorieën en soorten --------------------------------
+
+/** Kandidaten zoals de serverlaag ze bouwt: rauwe dataset-waarden + het
+ *  Nederlandse label dat de UI toont. */
+const REGIONS: SearchableLibraryExercise[] = [
+  {
+    id: "squat",
+    names: ["Squat"],
+    synonyms: [],
+    meta: ["upper_legs", "Bovenbenen", "strength", "Kracht", "quadriceps", "Quadriceps"],
+  },
+  {
+    id: "calf-raise",
+    names: ["Calf Raise"],
+    synonyms: [],
+    meta: ["lower_legs", "Onderbenen", "strength", "Kracht", "gastrocnemius"],
+  },
+  {
+    id: "bicep-curl",
+    names: ["Bicep Curl"],
+    synonyms: [],
+    meta: ["upper_arms", "Bovenarmen", "strength", "Kracht", "biceps"],
+  },
+  {
+    id: "boat-pose",
+    names: ["Boat Pose"],
+    synonyms: ["navasana"],
+    meta: ["core", "Core", "stretching", "Stretching", "mobility", "yoga"],
+  },
+  {
+    id: "pilates-saw",
+    names: ["Pilates Saw"],
+    synonyms: [],
+    meta: ["core", "Core", "stretching", "Stretching", "pilates"],
+  },
+];
+
+test("Nederlandse lichaamsregio's vinden de dataset-waarde", () => {
+  // De dataset zegt "upper_legs", de gebruiker typt wat de chip toont.
+  assert.deepEqual(rankLibraryMatches("bovenbenen", REGIONS), ["squat"]);
+  assert.deepEqual(rankLibraryMatches("onderbenen", REGIONS), ["calf-raise"]);
+  assert.deepEqual(rankLibraryMatches("bovenarmen", REGIONS), ["bicep-curl"]);
+});
+
+test("categorie en soort zijn doorzoekbaar (chip = zoekterm)", () => {
+  assert.deepEqual(rankLibraryMatches("yoga", REGIONS), ["boat-pose"]);
+  assert.deepEqual(rankLibraryMatches("pilates", REGIONS), ["pilates-saw"]);
+  // "rekken" → "stretching" via het glossarium; beide houdingen zijn stretching.
+  assert.deepEqual(rankLibraryMatches("rekken", REGIONS).sort(), [
+    "boat-pose",
+    "pilates-saw",
+  ]);
+  assert.equal(rankLibraryMatches("kracht", REGIONS).length, 3);
+});
+
+test("naam-treffer rankt boven een regio-treffer", () => {
+  const ids = rankLibraryMatches("squat", REGIONS);
+  assert.equal(ids[0], "squat");
+});
+
+test("searchPickerMatches matcht ook op lichaamsdeel en materiaal", () => {
+  const picker = [
+    {
+      id: "1",
+      name: "Squat",
+      targetMuscle: "Quadriceps",
+      bodyPart: "upper_legs",
+      equipment: "barbell",
+      muscles: ["quadriceps"],
+      secondaryMuscles: ["glutes"],
+    },
+    {
+      id: "2",
+      name: "Bench Press",
+      targetMuscle: "Borst",
+      bodyPart: "chest",
+      equipment: "barbell",
+      muscles: ["pectoralis_major"],
+      secondaryMuscles: [],
+    },
+  ];
+  assert.deepEqual(searchPickerMatches("bovenbenen", picker, 10).map((i) => i.id), ["1"]);
+  assert.deepEqual(searchPickerMatches("barbell", picker, 10).map((i) => i.id).sort(), ["1", "2"]);
+  // Hulpspier telt mee (bilspieren → glutes).
+  assert.deepEqual(searchPickerMatches("bilspieren", picker, 10).map((i) => i.id), ["1"]);
 });

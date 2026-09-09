@@ -15,12 +15,9 @@ import {
   type CatalogPreview,
   type LibraryPreview,
 } from "@/lib/exercise";
-import { buildLibraryQuery, myLibraryEquipmentSlugs } from "@/lib/exercise-library/search";
-import {
-  datasetLocalePreference,
-  machineTypeFromLibrary,
-  pickJsonName,
-} from "@/lib/exercise-library/mapping";
+import { buildLibraryQuery, libraryQueryContext } from "@/lib/exercise-library/search";
+import { addLibraryExercisesToTenant } from "@/lib/exercise-library/tenant-sync";
+import { datasetLocalePreference } from "@/lib/exercise-library/mapping";
 import { OWN_EXERCISE_WHERE } from "@/lib/exercise-library/source";
 import { formatExerciseName } from "@/lib/exercise-name";
 import { getCurrentTenant } from "@/lib/tenant";
@@ -259,6 +256,7 @@ const bulkAddLibrarySchema = z.object({
       difficulty: z.string().optional(),
       goal: z.string().optional(),
       onlyMyEquipment: z.boolean().optional(),
+      inGym: z.enum(["missing", "present"]).optional(),
     })
     .optional(),
   autoMachine: z.boolean().optional(),
@@ -283,10 +281,10 @@ export async function bulkAddLibraryToGym(
   // 1) Doel-ids bepalen (expliciete selectie óf alle filter-resultaten).
   let ids: string[];
   if (allMatchingFilter && filter) {
-    const myEquipment = filter.onlyMyEquipment
-      ? await myLibraryEquipmentSlugs(owner.tenantId)
-      : null;
-    const { where } = await buildLibraryQuery(filter, myEquipment);
+    const { where } = await buildLibraryQuery(
+      filter,
+      await libraryQueryContext(owner.tenantId, filter)
+    );
     const rows = await prisma.libraryExercise.findMany({
       where,
       select: { id: true },
@@ -298,85 +296,21 @@ export async function bulkAddLibraryToGym(
   }
   if (ids.length === 0) return { added: 0, skipped: 0 };
 
-  // 2) Reeds toegevoegd? Overslaan.
-  const existing = await prisma.exercise.findMany({
-    where: { tenantId: owner.tenantId, libraryId: { in: ids } },
-    select: { libraryId: true },
+  // 2) Toevoegen via de gedeelde kern (zelfde pad als seed/tenant-aanmaak/
+  //    backfill): naam uit de en-tekstrij, spier-snapshot in de taal van de
+  //    lezer (herleidbaar door `resolveRegion` — zie
+  //    `tests/library-lookups-nl.test.ts`), type uit de import-inferentie,
+  //    optioneel auto-machine via het materiaal-afgeleide machinetype.
+  const { added, skipped } = await addLibraryExercisesToTenant(prisma, owner.tenantId, {
+    ids,
+    localePref: datasetLocalePreference(
+      await getContentLocale((await getCurrentTenant())?.locale)
+    ),
+    autoMachine: Boolean(autoMachine),
   });
-  const existingSet = new Set(existing.map((e) => e.libraryId));
-  const toAddIds = ids.filter((id) => !existingSet.has(id));
-  const skipped = ids.length - toAddIds.length;
-  if (toAddIds.length === 0) {
+  if (added === 0) {
     revalidatePath("/owner/exercises");
     return { added: 0, skipped };
-  }
-
-  // 3) Bibliotheek-velden + optionele machine-koppeling.
-  const [libRows, equipment] = await Promise.all([
-    prisma.libraryExercise.findMany({
-      where: { id: { in: toAddIds } },
-      select: {
-        id: true,
-        primaryMuscles: true,
-        equipmentSlug: true,
-        exerciseType: true,
-        texts: { where: { locale: "en" }, select: { name: true } },
-      },
-    }),
-    prisma.libraryEquipment.findMany({ select: { id: true, tags: true } }),
-  ]);
-  const equipTags = new Map(equipment.map((e) => [e.id, e.tags]));
-
-  const muscleIds = [...new Set(libRows.flatMap((l) => l.primaryMuscles[0] ?? []))];
-  const muscles = muscleIds.length
-    ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
-    : [];
-  // Spier-snapshot in `Exercise.targetMuscle`: Nederlands (anatomie is wél vertaald,
-  // in tegenstelling tot de oefeningnaam). Elke nl-naam is herleidbaar door
-  // `resolveRegion`, zodat de spier-heatmap blijft kleuren — zie
-  // `tests/library-lookups-nl.test.ts`.
-  const musclePref = datasetLocalePreference(
-    await getContentLocale((await getCurrentTenant())?.locale)
-  );
-  const muscleName = new Map(
-    muscles.map((m) => [m.id, pickJsonName(m.names, musclePref) ?? m.id.replace(/_/g, " ")])
-  );
-
-  const machineByType = new Map<string, string>();
-  if (autoMachine) {
-    const machines = await prisma.machine.findMany({
-      where: { tenantId: owner.tenantId },
-      select: { id: true, type: true },
-    });
-    for (const m of machines) {
-      if (!machineByType.has(m.type)) machineByType.set(m.type, m.id);
-    }
-  }
-
-  const data = libRows.map((l) => ({
-    tenantId: owner.tenantId,
-    name: l.texts[0]?.name ?? l.id,
-    targetMuscle: l.primaryMuscles[0]
-      ? (muscleName.get(l.primaryMuscles[0]) ?? null)
-      : null,
-    libraryId: l.id,
-    exerciseType: l.exerciseType,
-    machineId: autoMachine
-      ? (machineByType.get(
-          machineTypeFromLibrary(l.equipmentSlug, equipTags.get(l.equipmentSlug ?? "") ?? [])
-        ) ?? null)
-      : null,
-  }));
-
-  // 4) Batched insert.
-  let added = 0;
-  const CHUNK = 500;
-  for (let i = 0; i < data.length; i += CHUNK) {
-    const res = await prisma.exercise.createMany({
-      data: data.slice(i, i + CHUNK),
-      skipDuplicates: true,
-    });
-    added += res.count;
   }
 
   await audit("exercise.import", {

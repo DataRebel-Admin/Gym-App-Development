@@ -5,7 +5,7 @@ import { isFeatureEnabled } from "@/lib/features/service";
 import type { ExerciseCatalog, Prisma } from "@prisma/client";
 import {
   buildLibraryQuery,
-  myLibraryEquipmentSlugs,
+  libraryQueryContext,
   LIBRARY_ORDER_BY,
   type LibraryFilter,
 } from "@/lib/exercise-library/search";
@@ -36,6 +36,8 @@ export type LibraryTabSearchParams = {
   goal?: string;
   /** "1" = alleen oefeningen voor de eigen apparatuur. */
   myeq?: string;
+  /** Koppelstatus: "missing" = nog niet in mijn sportschool, "present" = al wel. */
+  ingym?: string;
   page?: string;
   /** Klassieke terugval-sectie: "1" = expliciet opengeklapt; lpage = paginering. */
   lopen?: string;
@@ -86,11 +88,12 @@ export async function LibraryTab({
     difficulty: sp.difficulty || undefined,
     goal: sp.goal || undefined,
     onlyMyEquipment: sp.myeq === "1",
+    inGym: sp.ingym === "missing" || sp.ingym === "present" ? sp.ingym : undefined,
   };
-  const myEquipment = filter.onlyMyEquipment
-    ? await myLibraryEquipmentSlugs(tenantId)
-    : null;
-  const { where, rankedIds } = await buildLibraryQuery(filter, myEquipment);
+  const { where, rankedIds } = await buildLibraryQuery(
+    filter,
+    await libraryQueryContext(tenantId, filter)
+  );
 
   const textsInclude = {
     texts: { where: { locale: "en" as const }, select: { name: true } },
@@ -244,6 +247,19 @@ export async function LibraryTab({
           options={Object.entries(LIBRARY_GOAL_LABEL).map(([value, label]) => ({ value, label }))}
           allLabel={t("all")}
         />
+        {/* Koppelstatus: "nog niet in mijn sportschool" + "selecteer alle
+            resultaten" = in één keer bijwerken na een dataset-update of na
+            het (per ongeluk) verwijderen van oefeningen. */}
+        <FilterSelect
+          label={t("filterInGym")}
+          name="ingym"
+          value={filter.inGym}
+          options={[
+            { value: "missing", label: t("inGymMissing") },
+            { value: "present", label: t("inGymPresent") },
+          ]}
+          allLabel={t("all")}
+        />
         <label className="flex items-center gap-2 pb-2 text-sm text-neutral-600">
           <input type="checkbox" name="myeq" value="1" defaultChecked={filter.onlyMyEquipment} />
           {t("forMyEquipment")}
@@ -264,7 +280,11 @@ export async function LibraryTab({
 
       {items.length === 0 ? (
         <p className="text-sm text-neutral-500">
-          {filter.onlyMyEquipment ? t("noResultsMyEq") : t("noResults")}
+          {filter.inGym === "missing" && !filter.q
+            ? t("noResultsMissing")
+            : filter.onlyMyEquipment
+              ? t("noResultsMyEq")
+              : t("noResults")}
         </p>
       ) : (
         <CatalogBulkGrid items={gridItems} total={total} filter={filter} source="library" />

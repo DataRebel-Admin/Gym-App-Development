@@ -2,6 +2,9 @@ import { PrismaClient, MachineType, Role, Locale, MeasurementSource, GoalMetric 
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { snapshotOf } from "../lib/schema-diff";
+import { libraryMediaBaseUrl } from "../lib/exercise-library/media";
+import { datasetLocalePreference } from "../lib/exercise-library/mapping";
+import { addLibraryExercisesToTenant } from "../lib/exercise-library/tenant-sync";
 import { formatExerciseName } from "../lib/exercise-name";
 import {
   assertTenantUnchanged,
@@ -531,6 +534,18 @@ async function seedTenant(spec: TenantSpec) {
   const exercises = created.map((c) => c.row);
   const exerciseByName = new Map(created.map((c) => [c.key, c.row]));
 
+  // Daarbovenop krijgt élke sportschool standaard de hele RepDB-bibliotheek
+  // (zelfde kern als tenant-aanmaak, backfill en owner-bulk-add; de demo-
+  // koppelingen hierboven blijven staan — die slugs worden overgeslagen).
+  // Auto-machine aan, net als de UI-default: bibliotheek-oefeningen hangen
+  // zo aan de eerste demo-machine van het passende type. De aanvullende
+  // (klassieke) collectie blijft bewust opt-in.
+  const library = await addLibraryExercisesToTenant(prisma, tenant.id, {
+    ids: "all",
+    localePref: datasetLocalePreference(spec.locale),
+    autoMachine: true,
+  });
+
   // Library-schema's (kind = SCHEMA), met dagen, coach-notities en tempo.
   for (const tpl of spec.templates) {
     await createTemplate(tenant.id, exerciseByName, {
@@ -558,7 +573,8 @@ async function seedTenant(spec: TenantSpec) {
   console.log(
     `✓ ${spec.name} (${spec.slug}): ${locations.length} vestiging(en), 1 owner, ` +
       `${spec.members.length} members, ${machines.length} machines, ` +
-      `${exercises.length} oefeningen, ${spec.templates.length} schema's, ` +
+      `${exercises.length} demo-oefeningen + ${library.added} uit de bibliotheek, ` +
+      `${spec.templates.length} schema's, ` +
       `${(spec.dayTemplates ?? []).length} dag-templates.`
   );
 }
@@ -1042,7 +1058,6 @@ async function seedFrameworks(slug: string) {
         "Ruime kaders voor ervaren leden: bijna vrij samenstellen, de coach kijkt mee.",
       isDefault: true,
       minDays: 2,
-      maxDays: 5,
       minExercisesPerDay: 3,
       maxExercisesPerDay: 8,
       setsMin: 2,
@@ -1061,7 +1076,6 @@ async function seedFrameworks(slug: string) {
       description:
         "Veilige, overzichtelijke kaders voor nieuwe leden. Altijd eerst goedkeuring door de coach.",
       minDays: 2,
-      maxDays: 3,
       minExercisesPerDay: 3,
       maxExercisesPerDay: 5,
       setsMin: 2,
@@ -1114,12 +1128,16 @@ async function main() {
     slug: "gymrebel",
     name: "GymRebel Sportschool",
     // Rebel Orange (Brand Book) — deze demo-tenant ís het merk, dus ook het
-    // echte logo. Relatieve URL's naar `public/brand/` (uit `npm run brand:assets`):
-    // prima voor de UI. E-mail/PDF halen een logo op via fetch en slaan een
-    // relatief pad best-effort over — een échte sportschool uploadt een absolute
-    // Blob-URL via /owner/settings.
+    // echte logo. Een **absolute, publiek bereikbare PNG-URL**, zoals een échte
+    // sportschool via /owner/settings een Blob-URL uploadt:
+    // - PNG, geen SVG: het logo belandt ook in de mailheader en Gmail/Outlook
+    //   weigeren SVG in <img> (gebroken afbeelding in de magic-link-mail);
+    // - absoluut, niet `/brand/…`: in dev maakt APP_BASE_URL=localhost een
+    //   relatief pad onbereikbaar voor mailclients (isEmailSafeImage laat het
+    //   logo dan weg). Het bestand staat in de eigen publieke media-container
+    //   (`images/brand/`, naast `images/schema-templates/` — eigen curatie).
     accentColor: "#FF4D00",
-    logoUrl: "/brand/gymrebel-mark.svg",
+    logoUrl: `${libraryMediaBaseUrl()}/images/brand/gymrebel-mark.png`,
     faviconUrl: "/favicon.svg",
     locale: Locale.NL,
     contact: {

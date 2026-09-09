@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { audit } from "@/lib/audit";
 import { uploadTenantAsset, type AssetUploadResult } from "@/lib/blob";
+import { datasetLocalePreference } from "@/lib/exercise-library/mapping";
+import { addLibraryExercisesToTenant } from "@/lib/exercise-library/tenant-sync";
 
 const slugSchema = z
   .string()
@@ -50,24 +52,32 @@ export async function createTenant(
   const clash = await prisma.tenant.findUnique({ where: { slug } });
   if (clash) return { error: `Slug '${slug}' bestaat al` };
 
-  // Tenant + default-vestiging in één transactie: élke tenant heeft minstens één
-  // vestiging (invariant van de vestigingen-architectuur — machines, sessies en
-  // rooster vereisen een locationId; zie lib/locations.ts getDefaultLocationId).
-  const tenant = await prisma.$transaction(async (tx) => {
+  // Tenant + default-vestiging + de volledige oefeningen-bibliotheek in één
+  // transactie: élke tenant heeft minstens één vestiging (invariant van de
+  // vestigingen-architectuur — machines, sessies en rooster vereisen een
+  // locationId; zie lib/locations.ts getDefaultLocationId) én start met álle
+  // RepDB-oefeningen als tenant-Exercise (de eigenaar verwijdert wat er niet
+  // staat, in plaats van 608 oefeningen handmatig toe te voegen). De
+  // aanvullende (klassieke) collectie blijft bewust opt-in.
+  const { tenant, exercises } = await prisma.$transaction(async (tx) => {
     const created = await tx.tenant.create({
       data: { slug, name, locale, accentColor: accentColor || null },
     });
     await tx.location.create({
       data: { tenantId: created.id, name: "Hoofdvestiging", isDefault: true },
     });
-    return created;
+    const added = await addLibraryExercisesToTenant(tx, created.id, {
+      ids: "all",
+      localePref: datasetLocalePreference(locale),
+    });
+    return { tenant: created, exercises: added };
   });
   await audit("tenant.create", {
     actor: admin,
     tenantId: tenant.id,
     targetType: "Tenant",
     targetId: tenant.id,
-    metadata: { slug, name },
+    metadata: { slug, name, libraryExercises: exercises.added },
   });
 
   revalidatePath("/admin/tenants");

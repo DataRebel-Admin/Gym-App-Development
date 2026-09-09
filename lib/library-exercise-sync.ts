@@ -2,17 +2,18 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { getCurrentTenant } from "@/lib/tenant";
 import { getContentLocale } from "@/lib/i18n/content-locale";
-import { datasetLocalePreference, pickJsonName } from "@/lib/exercise-library/mapping";
+import { datasetLocalePreference } from "@/lib/exercise-library/mapping";
+import { addLibraryExercisesToTenant } from "@/lib/exercise-library/tenant-sync";
 
 /**
  * Zorg dat élke opgegeven RepDB-oefening (slug = LibraryExercise.id) als
  * tenant-Exercise bestaat en lever de mapping slug → Exercise.id.
  *
  * Geëxtraheerd uit `importLibraryTemplate` (app/owner/schemas/actions.ts) zodat
- * ook de lid-catalogus (week-/dag-templates overnemen) hetzelfde pad gebruikt:
- * naam uit de **en**-tekstrij (naamsbeleid: oefeningnamen niet vertalen),
- * spier-snapshot in de taal van de lezer, `exerciseType` uit de import-inferentie,
- * idempotent via `skipDuplicates` op de bestaande unieke koppeling.
+ * ook de lid-catalogus (week-/dag-templates overnemen) hetzelfde pad gebruikt.
+ * Het aanmaken zelf loopt via de gedeelde kern `addLibraryExercisesToTenant`
+ * (naam uit de **en**-tekstrij, spier-snapshot in de taal van de lezer,
+ * `exerciseType` uit de import-inferentie, bestaande koppelingen overgeslagen).
  *
  * Onbekende slugs (niet in de bibliotheek, of geretireerd zonder tenant-rij)
  * ontbreken simpelweg in de resultaat-map — de aanroeper slaat die items over
@@ -33,39 +34,14 @@ export async function ensureLibraryExercises(
   const missing = unique.filter((s) => !bySlug.has(s));
   if (missing.length === 0) return bySlug;
 
-  const libRows = await prisma.libraryExercise.findMany({
-    where: { id: { in: missing } },
-    select: {
-      id: true,
-      primaryMuscles: true,
-      exerciseType: true,
-      texts: { where: { locale: "en" }, select: { name: true } },
-    },
+  const { added } = await addLibraryExercisesToTenant(prisma, tenantId, {
+    ids: missing,
+    localePref: datasetLocalePreference(
+      await getContentLocale((await getCurrentTenant())?.locale)
+    ),
   });
-  if (libRows.length === 0) return bySlug;
+  if (added === 0) return bySlug;
 
-  const muscleIds = [...new Set(libRows.map((l) => l.primaryMuscles[0]).filter(Boolean))];
-  const muscles = muscleIds.length
-    ? await prisma.libraryMuscle.findMany({ where: { id: { in: muscleIds } } })
-    : [];
-  // Spier-snapshot in het Nederlands (anatomie is vertaald; de oefeningnaam
-  // blijft Engels). Zelfde regel als `bulkAddLibraryToGym`.
-  const musclePref = datasetLocalePreference(
-    await getContentLocale((await getCurrentTenant())?.locale)
-  );
-  const muscleName = new Map(
-    muscles.map((m) => [m.id, pickJsonName(m.names, musclePref) ?? m.id.replace(/_/g, " ")])
-  );
-  await prisma.exercise.createMany({
-    data: libRows.map((l) => ({
-      tenantId,
-      name: l.texts[0]?.name ?? l.id,
-      targetMuscle: l.primaryMuscles[0] ? (muscleName.get(l.primaryMuscles[0]) ?? null) : null,
-      libraryId: l.id,
-      exerciseType: l.exerciseType,
-    })),
-    skipDuplicates: true,
-  });
   const created = await prisma.exercise.findMany({
     where: { tenantId, libraryId: { in: missing } },
     select: { id: true, libraryId: true },

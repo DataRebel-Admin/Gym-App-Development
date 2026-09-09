@@ -306,7 +306,7 @@
       "metaTitle": "Oefeningen",
       "title": "Oefeningen",
       "subtitle": "Besjoch útlis, animaasjes en it stappeplan fan elke oefening yn dyn sportskoalle.",
-      "searchPlaceholder": "Sykje op namme, spier of materiaal…",
+      "searchPlaceholder": "Sykje op namme, spier, lichemsdiel of soart…",
       "favorites": "Favoriten",
       "favoriteToggle": "Markearje as favoryt",
       "clear": "Wiskje",
@@ -314,7 +314,16 @@
       "emptyTitle": "Gjin oefeningen fûn",
       "emptyNone": "Dyn sportskoalle hat noch gjin oefeningen tafoege.",
       "emptyFilter": "Pas dyn sykopdracht of filter oan.",
-      "view": "Besjoch"
+      "view": "Besjoch",
+      "kindLabel": "Soarte",
+      "kinds": {
+        "strength": "Krêft",
+        "cardio": "Cardio",
+        "core": "Core",
+        "stretch": "Stretching",
+        "yoga": "Yoga",
+        "pilates": "Pilates"
+      }
     },
     "history": {
       "metaTitle": "Skiednis",
@@ -963,7 +972,7 @@
       "tabCustom": "Eigen oefeningen",
       "catalogCount": "{count} oefeningen yn de katalogus. Selektearje der meardere (of alle resultaten) en foegje se yn ien kear ta oan dyn sportskoalle.",
       "search": "Sykje",
-      "namePlaceholder": "namme…",
+      "namePlaceholder": "namme, spier, lichemsdiel…",
       "filterBodyPart": "Lichemsdiel",
       "filterEquipment": "Apparatuer",
       "filterTarget": "Doelspier",
@@ -972,6 +981,10 @@
       "clear": "Wiskje",
       "all": "Alle",
       "noResults": "Gjin oefeningen fûn.",
+      "filterInGym": "Yn myn sportskoalle",
+      "inGymMissing": "Noch net yn myn sportskoalle",
+      "inGymPresent": "Al yn myn sportskoalle",
+      "noResultsMissing": "Alle oefeningen út de biblioteek steane al yn dyn sportskoalle.",
       "noResultsMyEq": "Gjin oefeningen fûn foar dyn apparatuer.",
       "prev": "← Foarige",
       "next": "Folgjende →",

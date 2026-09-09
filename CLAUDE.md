@@ -838,17 +838,94 @@ sinds deze ronde de bron van de anatomische heatmap op `/member/muscles` — zie
     (nieuwe term = één regel; sleutels genormaliseerd, test dwingt af) —
     "bankdrukken" probeert ook "bench press"; de best scorende variant wint.
     Oefeningnamen blijven Engels (naamsbeleid), dit raakt alleen het zoeken.
-  - **Spier/materiaal matchen mee met lager gewicht** (`meta`-veld op de
-    searchable): bibliotheek = slugs + lookup-namen/-synoniemen (alle talen),
-    catalogus = target/bodyPart/equipment/muscleGroup/secondaryMuscles.
-    Naam > synoniem > meta in de ranking.
-  - **De schema-pickers (owner-SchemaEditor + mobiele lid-builder) gebruiken
-    dezélfde matcher** via `searchPickerMatches` (naam + doelspier) — niet
-    opnieuw een kale `includes` introduceren.
+  - **Spier/materiaal/categorie matchen mee met lager gewicht** (`meta`-veld op
+    de searchable): bibliotheek = spier-/materiaal-slugs + lookup-namen/-synoniemen
+    (alle talen) + `category`/`goals`/`tags`/`exerciseType`/bodyweight,
+    catalogus = category/target/bodyPart/equipment/muscleGroup/secondaryMuscles.
+    Naam > synoniem > meta in de ranking. Zo werken ook "stretching",
+    "mobility", "cardio" e.d. — met NL-tegenhangers ("rekken", "lenigheid",
+    "conditie", "spiermassa", "opwarmen", …) in `NL_QUERY_TERMS`.
+  - **ELK ZICHTBAAR LABEL IS DOORZOEKBAAR.** Naast de rauwe dataset-waarde gaat
+    óók het Nederlandse label dat de UI toont de meta in (`bodyPartLabel`,
+    `LIBRARY_CATEGORY_LABEL`, `LIBRARY_GOAL_LABEL`, `LIBRARY_DIFFICULTY_LABEL`;
+    de catalogus krijgt `bodyPartLabel`). Anders staat er een chip "Bovenbenen"
+    die als zoekterm nul treffers geeft. Daarnaast dekken lichaamsdeel-regels
+    in `NL_QUERY_TERMS` de dataset-indeling zelf (`bovenbenen` → "upper legs",
+    óók `onderbenen`/`bovenarmen`/`onderarmen`/`romp`/`hele lichaam`) zodat het
+    ook werkt waar geen labeltabel is (pickers).
+  - **Veiligheidstags blijven uit de zoek-meta** (`isSearchableTag` in
+    search.ts): `*_safe` + `no_axial_load` staan op 250-300 oefeningen elk en
+    worden nergens getoond. Ze mátchten wel: "schouders" gaf élke
+    `shoulder_safe`-oefening, "onderbenen" viel over `lower_back_safe`. De
+    inhoudelijke tags (`leg_day`, `calisthenics`, `stretching`, `warm_up`, …)
+    doen gewoon mee.
+  - **Frase-bonus op de meta** (`scoreVariant`): staat de héle zoekterm als
+    frase in één meta-veld, dan telt dat als échte label-treffer (180/150) en
+    niet als toevallige spreiding over losse velden — "lower legs" hoort bij
+    het lichaamsdeel, niet bij een upper-legs-oefening met een tag die
+    "lower" bevat. Bewust `Math.max` en geen vroege return: een naam-treffer
+    wint altijd.
+  - **De query-expansie draait één keer per zoekopdracht**, niet per oefening
+    (`rankLibraryMatches` hoist't `expandQuery`) — 600 oefeningen × ~120
+    glossarium-vervangingen was de dominante kostenpost.
+  - **Yoga/pilates = afgeleide discipline-labels** (`disciplineTerms` in
+    search-text.ts): RepDB labelt yoga/pilates nergens (geen categorie/tag) —
+    herkenbaar zijn ze alleen aan de naam ("… Pose") en Sanskriet-synoniemen
+    ("navasana", "asana"). De helper leidt "yoga"/"pilates" af uit
+    slug+namen+synoniemen en zet ze in de meta; bewust ruim (glute bridge heet
+    óók "bridge pose"). Beide zoek-lagen (bibliotheek + catalogus) gebruiken 'm.
+  - **Vulwoorden worden genegeerd** (`SEARCH_FILLER_WORDS` in `expandQuery`):
+    "yoga oefeningen"/"workout voor benen" proberen ook de gestripte variant —
+    extra variant, dus het kan alleen treffers opleveren, nooit kosten.
+  - **Alle vier de zoekvlakken gebruiken dezélfde matcher** — niet opnieuw een
+    kale `includes` introduceren: owner-bibliotheek + aanvullende catalogus
+    (server), de schema-pickers via `searchPickerMatches` (naam + spier +
+    hulpspier + lichaamsdeel + materiaal; `AvailableExercise` draagt die velden
+    al) en de **ledenbibliotheek** `/member/exercises`. Die laatste filterde tot
+    deze ronde met `name/muscle/equipment.includes(q)`, waardoor "bovenbenen"
+    en "yoga" daar niets vonden terwijl de chip ernaast wél bestond. De pagina
+    stuurt daarvoor per oefening een `terms`-array mee (rauw lichaamsdeel,
+    categorie + label, `KIND_SEARCH_TERMS` van de soort-chips, RepDB-synoniemen)
+    en rankt client-side; het invoerveld draait op `useDeferredValue` zodat
+    typen op een telefoon niet hapert (±600 oefeningen fuzzy ranken kost
+    tientallen ms).
+  - **`KIND_SEARCH_TERMS`** (kinds.ts) houdt chip en zoekterm gelijk: de
+    soort-chip "Stretching" en het woord "stretching"/"rekken" leveren dezelfde
+    set. Bewust alléén Engelse woorden — Nederlands staat uitsluitend in
+    `NL_QUERY_TERMS`.
   - **Live zoeken** op de Standaard-tab: `components/ui/live-search-input.tsx`
     (debounced `router.replace`; reset `page`/`lpage`/`lopen`; Enter/Filter
     blijven werken als terugval).
   Tests: `tests/exercise-library.test.ts`, `tests/library-search.test.ts`.
+- **ELKE SPORTSCHOOL KRIJGT STANDAARD DE HELE BIBLIOTHEEK** (besluit eigenaar):
+  de eigenaar verwijdert liever wat er niet staat dan dat hij 608 oefeningen
+  handmatig toevoegt. Dit ging mis: de demo-gym had 483 van de 608 gekoppeld
+  (alles van vóór v1.39), dus "yoga"/"pilates" vond niets — de zoekfunctie
+  werkte, de oefeningen hingen alleen niet aan de gym. Eén kern
+  **`lib/exercise-library/tenant-sync.ts`** (`addLibraryExercisesToTenant(db,
+  tenantId, { ids: "all" | slugs, localePref, autoMachine })`, géén `server-only`,
+  Prisma-client als parameter zodat seed/transactie/script 'm ook kunnen
+  gebruiken) is het enige pad dat bibliotheek-oefeningen als tenant-Exercise
+  aanmaakt: seed (`seedTenant`), superadmin-tenant-aanmaak (`createTenant`,
+  binnen dezelfde transactie als de default-vestiging), `bulkAddLibraryToGym`,
+  `ensureLibraryExercises` én **`npm run library:backfill`**
+  (`scripts/backfill-library-exercises.ts`, `--tenant=<slug>` of `--all`,
+  `--dry-run`, `--no-auto-machine`) voor bestaande tenants en ná een
+  dataset-update (nieuwe slugs hangen dan nog bij niemand). Idempotent via
+  expliciete voorfiltering — er is **geen unique** op (tenantId, libraryId),
+  `skipDuplicates` alleen houdt dubbelen dus niet tegen. De aanvullende
+  (klassieke) collectie blijft bewust opt-in. Let op: het backfill-script
+  brengt ook oefeningen terug die een eigenaar bewust verwijderde — vandaar
+  nooit stilzwijgend `--all` op productie.
+  - **Filter "In mijn sportschool"** op de Standaard-tab (`?ingym=missing|present`,
+    `LibraryFilter.inGym`): "Nog niet in mijn sportschool" + "Selecteer alle
+    resultaten" = in bulk bijwerken. `buildLibraryQuery(filter, ctx)` krijgt de
+    tenant-context uit **`libraryQueryContext(tenantId, filter)`** (eigen
+    apparatuur + gekoppelde slugs, alleen geladen als het filter erom vraagt);
+    de id-voorwaarden stapelen in `AND` zodat de zoekterm (`where.id = in
+    rankedIds`) en de koppelstatus elkaar niet overschrijven. Beide call-sites
+    (paginaweergave + bulk-add) gebruiken die helper — nooit weer een losse
+    `myEquipment`-berekening.
 - **Tenant-koppeling**: `Exercise.libraryId` naast het verouderde `catalogId`;
   **CHECK-constraint**: nooit beide (migratie `20260730140000_exercise_library`). Herkomst
   = `exerciseSourceOf` → `"standaard"` (bibliotheek) | `"klassiek"` (oude catalogus) |

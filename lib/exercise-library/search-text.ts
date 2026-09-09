@@ -74,16 +74,111 @@ export const NL_QUERY_TERMS: Record<string, string> = {
   buik: "abs",
   onderrug: "lower back",
   nek: "neck",
+  // lichaamsdelen zoals de dataset ze indeelt (RepDB `bodyPart` = `upper_legs`
+  // → genormaliseerd "upper legs"; de aanvullende catalogus gebruikt dezelfde
+  // woorden). Zonder deze regels vond "bovenbenen" nul oefeningen terwijl de
+  // filterchip in de UI wél "Bovenbenen" heet.
+  bovenbenen: "upper legs",
+  bovenbeen: "upper legs",
+  dijbeen: "upper legs",
+  dijbenen: "upper legs",
+  onderbenen: "lower legs",
+  onderbeen: "lower legs",
+  bovenarmen: "upper arms",
+  bovenarm: "upper arms",
+  onderarmen: "lower arms",
+  onderarm: "lower arms",
+  romp: "core",
+  taille: "waist",
+  "hele lichaam": "full body",
+  "heel lichaam": "full body",
+  "volledige lichaam": "full body",
+  // disciplines/doelen/categorieën — matchen via de meta (categorie, doelen,
+  // tags, oefeningstype), die de serverlaag meegeeft.
+  rekken: "stretching",
+  strekken: "stretching",
+  stretchen: "stretching",
+  rekoefening: "stretching",
+  rekoefeningen: "stretching",
+  lenigheid: "mobility",
+  mobiliteit: "mobility",
+  kracht: "strength",
+  krachttraining: "strength",
+  conditie: "cardio",
+  uithoudingsvermogen: "endurance",
+  spiermassa: "hypertrophy",
+  spieropbouw: "hypertrophy",
+  explosiviteit: "power",
+  herstel: "rehabilitation",
+  revalidatie: "rehabilitation",
+  opwarmen: "warm up",
+  opwarming: "warm up",
+  lichaamsgewicht: "bodyweight",
+  olympisch: "olympic",
+  gewichtheffen: "olympic",
+  plyometrie: "plyometrics",
+  plyometrisch: "plyometrics",
+  sprongkracht: "plyometrics",
 };
 
 /**
- * Zoekvarianten voor een query: de genormaliseerde invoer zelf plus, per
- * gevonden NL-term, een variant waarin die term door de Engelse tegenhanger is
+ * Generieke vulwoorden die in een zoekterm niets toevoegen ("yoga oefeningen",
+ * "workout voor benen"). {@link expandQuery} probeert náást de letterlijke
+ * invoer ook een variant zonder deze woorden — de best scorende variant wint,
+ * dus strippen kan alleen treffers opleveren, nooit kosten.
+ */
+export const SEARCH_FILLER_WORDS = new Set([
+  "oefening",
+  "oefeningen",
+  "exercise",
+  "exercises",
+  "workout",
+  "workouts",
+  "training",
+  "voor",
+  "de",
+  "het",
+  "een",
+]);
+
+/**
+ * Afgeleide discipline-labels ("yoga", "pilates") voor de zoek-meta. RepDB
+ * labelt yoga/pilates niet als categorie of tag; herkenbaar zijn ze wél aan de
+ * naam ("Boat Pose") en de Sanskriet-synoniemen ("navasana"). Liever een
+ * enkele ruime treffer (glute bridge heet óók "bridge pose") dan dat "yoga"
+ * niets oplevert. Puur — de serverlaag geeft slug + namen + synoniemen mee.
+ */
+export function disciplineTerms(texts: string[]): string[] {
+  const out = new Set<string>();
+  for (const raw of texts) {
+    const t = ` ${normalizeSearchText(raw)} `;
+    if (t.includes(" pilates ")) out.add("pilates");
+    if (
+      t.includes(" yoga ") ||
+      t.includes(" yogi ") ||
+      t.includes(" pose ") ||
+      /[a-z]asana\b|\basana /.test(t)
+    ) {
+      out.add("yoga");
+    }
+  }
+  return [...out];
+}
+
+/**
+ * Zoekvarianten voor een query: de genormaliseerde invoer zelf, een variant
+ * zonder generieke vulwoorden ("yoga oefeningen" → "yoga") plus, per gevonden
+ * NL-term, een variant waarin die term door de Engelse tegenhanger is
  * vervangen (woordgrens-veilig via spatie-padding).
  */
 export function expandQuery(query: string): string[] {
   const norm = normalizeSearchText(query);
   const variants = new Set<string>(norm ? [norm] : []);
+  const stripped = norm
+    .split(" ")
+    .filter((w) => !SEARCH_FILLER_WORDS.has(w))
+    .join(" ");
+  if (stripped && stripped !== norm) variants.add(stripped);
   for (const [nl, en] of Object.entries(NL_QUERY_TERMS)) {
     for (const v of [...variants]) {
       const replaced = ` ${v} `.split(` ${nl} `).join(` ${en} `).trim();
@@ -196,7 +291,19 @@ function scoreVariant(q: string, cand: Candidate): number | null {
     if (best === 0) return null;
     score += best;
   }
-  return score - cand.lengthTiebreak;
+
+  // Staat de héle zoekterm als frase in één meta-veld, dan is dat een echte
+  // treffer op dat label en geen toevallige spreiding over losse velden:
+  // "lower legs" hoort bij het lichaamsdeel, niet bij een oefening die
+  // "upper legs" is met een tag "lower back safe". Bewust lager dan een
+  // frase in naam/synoniem, en `Math.max` (geen vroege return) zodat een
+  // sterkere naam-treffer altijd wint.
+  let metaPhrase = 0;
+  for (const m of cand.meta) {
+    if (m.text === q) metaPhrase = Math.max(metaPhrase, 180);
+    else if (m.text.includes(q)) metaPhrase = Math.max(metaPhrase, 150);
+  }
+  return Math.max(score, metaPhrase) - cand.lengthTiebreak;
 }
 
 /**
@@ -211,9 +318,13 @@ export function scoreLibraryExercise(
   query: string,
   ex: SearchableLibraryExercise
 ): number | null {
-  const cand = toCandidate(ex);
+  return scoreVariants(expandQuery(query), toCandidate(ex));
+}
+
+/** Beste score over de al berekende zoekvarianten (zie {@link expandQuery}). */
+function scoreVariants(variants: string[], cand: Candidate): number | null {
   let best: number | null = null;
-  for (const variant of expandQuery(query)) {
+  for (const variant of variants) {
     const s = scoreVariant(variant, cand);
     if (s != null && (best == null || s > best)) best = s;
   }
@@ -223,13 +334,19 @@ export function scoreLibraryExercise(
 /**
  * Alle matches voor de zoekterm, gesorteerd op relevantie (beste eerst,
  * tiebreak op id voor een stabiele volgorde). Lege/onbruikbare zoekterm → [].
+ *
+ * De zoekvarianten (NL→EN-expansie) worden **één keer** berekend en daarna
+ * tegen elke kandidaat gescoord — per kandidaat expanderen liep bij ±600
+ * oefeningen tegen de honderd glossarium-vervangingen per rij op.
  */
 export function rankLibraryMatches(
   query: string,
   exercises: SearchableLibraryExercise[]
 ): string[] {
+  const variants = expandQuery(query);
+  if (variants.length === 0) return [];
   return exercises
-    .map((ex) => ({ id: ex.id, score: scoreLibraryExercise(query, ex) }))
+    .map((ex) => ({ id: ex.id, score: scoreVariants(variants, toCandidate(ex)) }))
     .filter((m): m is { id: string; score: number } => m.score != null)
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
     .map((m) => m.id);
@@ -237,12 +354,27 @@ export function rankLibraryMatches(
 
 /**
  * Client-side variant voor de oefening-pickers (owner-SchemaEditor + mobiele
- * lid-builder): matcht op naam + doelspier met dezelfde fuzzy regels en geeft
- * de items op relevantie terug (max `limit`). Vervangt de kale
- * `name.includes(q)`-filter, zodat typo's en woordvolgorde daar ook werken.
+ * lid-builder): matcht op naam + spier/lichaamsdeel/materiaal met dezelfde
+ * fuzzy regels en geeft de items op relevantie terug (max `limit`). Vervangt
+ * de kale `name.includes(q)`-filter, zodat typo's en woordvolgorde daar ook
+ * werken.
+ *
+ * De extra velden zijn optioneel maar wél de reden dat "bovenbenen" of
+ * "triceps" hier iets vindt: `AvailableExercise` draagt ze al (gevuld door
+ * `getPickerExercises`). `bodyPart` is de rauwe dataset-waarde (`upper_legs`
+ * → "upper legs"); de Nederlandse invoer landt daarop via
+ * {@link NL_QUERY_TERMS}, dus er is hier geen labeltabel nodig.
  */
 export function searchPickerMatches<
-  T extends { id: string; name: string; targetMuscle?: string | null }
+  T extends {
+    id: string;
+    name: string;
+    targetMuscle?: string | null;
+    muscles?: string[];
+    secondaryMuscles?: string[];
+    bodyPart?: string | null;
+    equipment?: string | null;
+  }
 >(query: string, items: T[], limit: number): T[] {
   const ranked = rankLibraryMatches(
     query,
@@ -250,7 +382,13 @@ export function searchPickerMatches<
       id: i.id,
       names: [i.name],
       synonyms: [],
-      meta: i.targetMuscle ? [i.targetMuscle] : [],
+      meta: [
+        i.targetMuscle,
+        ...(i.muscles ?? []),
+        ...(i.secondaryMuscles ?? []),
+        i.bodyPart,
+        i.equipment,
+      ].filter((v): v is string => Boolean(v)),
     }))
   );
   const byId = new Map(items.map((i) => [i.id, i]));
