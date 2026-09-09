@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { logout } from "@/app/login/actions";
 import { Fingerprint } from "@/components/ui/icons";
 import {
   appLockEnabled,
@@ -26,9 +27,13 @@ export function AppLockGate() {
 
   useEffect(() => {
     if (!isNativeApp() || isUnlockedThisLaunch() || !appLockEnabled()) return;
-    setLocked(true);
-    void attempt();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // In een rAF-callback, niet synchroon in het effect: de overlay verscheen
+    // toch al pas ná de eerste paint (useEffect draait na de commit).
+    const raf = requestAnimationFrame(() => {
+      setLocked(true);
+      void attempt();
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   async function attempt() {
@@ -66,12 +71,14 @@ export function AppLockGate() {
         <Fingerprint className="size-5" />
         {busy ? t("busy") : t("retry")}
       </button>
-      <a
-        href="/api/auth/signout"
-        className="text-sm font-medium text-neutral-500 active:text-neutral-900"
-      >
-        {t("useLogin")}
-      </a>
+      <form action={logout}>
+        <button
+          type="submit"
+          className="text-sm font-medium text-neutral-500 active:text-neutral-900"
+        >
+          {t("useLogin")}
+        </button>
+      </form>
     </div>
   );
 }

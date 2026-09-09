@@ -53,7 +53,6 @@ export function PasskeyLoginButton() {
     if (!supported || autoTried.current || !isPasskeyDevice()) return;
     autoTried.current = true;
     void login(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supported]);
 
   if (!supported) return null;
