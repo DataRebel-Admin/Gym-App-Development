@@ -90,6 +90,39 @@ export default async function MemberHistoryPage() {
           select: { id: true, conductedById: true },
         })
       : [];
+  // Eenmalige workouts (catalogus of ander schema) krijgen hun schemanaam als
+  // label — die horen niet bij het actieve schema en zijn anders niet te
+  // onderscheiden van een gewone trainingsdag.
+  const oneOffRows =
+    sessions.length > 0
+      ? await prisma.workoutSession.findMany({
+          where: {
+            tenantId: member.tenantId,
+            userId: member.id,
+            id: { in: sessions.map((s) => s.id) },
+            oneOff: true,
+            templateId: { not: null },
+          },
+          select: { id: true, templateId: true },
+        })
+      : [];
+  const oneOffTemplates =
+    oneOffRows.length > 0
+      ? await prisma.workoutTemplate.findMany({
+          where: {
+            tenantId: member.tenantId,
+            id: { in: oneOffRows.map((r) => r.templateId!) },
+          },
+          select: { id: true, name: true },
+        })
+      : [];
+  const templateName = new Map(oneOffTemplates.map((t) => [t.id, t.name]));
+  const oneOffName = new Map(
+    oneOffRows.flatMap((r) => {
+      const name = r.templateId ? templateName.get(r.templateId) : null;
+      return name ? [[r.id, name] as const] : [];
+    })
+  );
   const conductorIds = [...new Set(conductedRows.map((r) => r.conductedById!).filter(Boolean))];
   const conductors =
     conductorIds.length > 0
@@ -268,6 +301,12 @@ export default async function MemberHistoryPage() {
                             className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600"
                           >
                             {m}
+                    {oneOffName.get(s.id) ? (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+                        <Dumbbell className="size-3.5 text-accent" />
+                        {t("oneOffSession", { name: oneOffName.get(s.id)! })}
+                      </p>
+                    ) : null}
                           </span>
                         ))}
                       </div>

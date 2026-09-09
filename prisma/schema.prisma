@@ -1776,6 +1776,18 @@ model WorkoutSession {
   // dag te filteren. Geen FK-relatie → overleeft dagwijzigingen in het schema.
   dayId     String?
 
+  // Het schema (WorkoutTemplate) waaruit deze sessie draait. Wordt bij het
+  // starten vastgelegd zodat de training aan zíjn schema blijft hangen, ook als
+  // het lid ondertussen van actief schema wisselt of de coach iets nieuws
+  // toewijst. NULL = oude sessie van vóór dit veld → terugval op het actieve
+  // schema (lib/active-session-view.ts). Geen FK (zoals dayId): een verwijderd
+  // schema laat de historie intact.
+  templateId String?
+  // Eenmalige workout: gestart vanuit de catalogus of vanuit een niet-actief
+  // schema, zónder het actieve schema te wijzigen. Bij een catalogusbron wijst
+  // `templateId` naar een verborgen kopie zonder AssignedWorkout.
+  oneOff     Boolean  @default(false)
+
   // Trainer die deze sessie namens het lid heeft gedraaid (PT-sessie vastleggen).
   // NULL = het lid loggde zelf. Puur attributie/audit — géén FK (zoals
   // AssignedWorkout.assignedById); de naam wordt read-time opgelost. De sessie

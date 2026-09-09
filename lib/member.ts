@@ -4,6 +4,7 @@ import { redirect, unauthorized, forbidden } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { EXERCISE_THUMB_RELATIONS } from "@/lib/exercise-thumb";
+import { isTrainableSchema } from "@/lib/schema-switch";
 
 /** Vereist een ingelogde TENANT_MEMBER; retourneert de session-user met een
  *  gegarandeerd niet-null `tenantId`. Niet ingelogd → premium 401; verkeerde
@@ -63,33 +64,58 @@ export async function hasActiveCoachSchema(
  * zuiver read-time, geen achtergrondjob nodig voor zichtbaarheid.
  */
 export async function getAssignedSchema(memberId: string, tenantId: string) {
-  const itemInclude = {
-    orderBy: { order: "asc" },
-    include: {
-      exercise: {
-        include: {
-          machine: true,
-          // Bron-bewust beeld (bibliotheek → klassiek → eigen): de bibliotheek
-          // is de standaardbron, dus `catalog` alléén levert bijna nooit een
-          // afbeelding op. Gebruikt door het schema-overzicht en de PDF.
-          ...EXERCISE_THUMB_RELATIONS,
-        },
-      },
-    },
-  } as const;
-
   const now = new Date();
   return prisma.assignedWorkout.findFirst({
     where: activeAssignmentWhere(memberId, tenantId, now),
     orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    include: {
-      template: {
-        include: {
-          days: { orderBy: { order: "asc" }, include: { items: itemInclude } },
-          items: itemInclude,
-        },
+    include: { template: { include: SCHEMA_TEMPLATE_INCLUDE } },
+  });
+}
+
+const schemaItemInclude = {
+  orderBy: { order: "asc" },
+  include: {
+    exercise: {
+      include: {
+        machine: true,
+        // Bron-bewust beeld (bibliotheek → klassiek → eigen): de bibliotheek
+        // is de standaardbron, dus `catalog` alléén levert bijna nooit een
+        // afbeelding op. Gebruikt door het schema-overzicht en de PDF.
+        ...EXERCISE_THUMB_RELATIONS,
       },
     },
+  },
+} as const;
+
+/**
+ * Dé include voor "een schema met dagen + oefeningen" zoals de trainingsflow
+ * die leest. Gedeeld door `getAssignedSchema` (het actieve schema) en
+ * `getSessionTemplate` (het schema dat een lopende sessie draait) zodat beide
+ * exact dezelfde vorm opleveren.
+ */
+export const SCHEMA_TEMPLATE_INCLUDE = {
+  days: { orderBy: { order: "asc" }, include: { items: schemaItemInclude } },
+  items: schemaItemInclude,
+} as const;
+
+export type SessionTemplate = NonNullable<
+  Awaited<ReturnType<typeof getAssignedSchema>>
+>["template"];
+
+/**
+ * Het schema waar een sessie op draait (`WorkoutSession.templateId`), tenant-
+ * gescoped. `null` als het schema inmiddels is verwijderd — de aanroeper valt
+ * dan terug op het actieve schema. Bewust géén lid-check op het template: een
+ * eenmalige kopie uit de catalogus heeft geen AssignedWorkout, en de sessie
+ * zelf is al op (tenantId, userId) gescoped.
+ */
+export async function getSessionTemplate(
+  tenantId: string,
+  templateId: string
+): Promise<SessionTemplate | null> {
+  return prisma.workoutTemplate.findFirst({
+    where: { id: templateId, tenantId },
+    include: SCHEMA_TEMPLATE_INCLUDE,
   });
 }
 
@@ -233,4 +259,52 @@ export async function getExerciseProgress(
       .slice(0, 20)
       .map((s) => ({ date: s.date, maxWeight: s.maxWeight, sets: s.sets })),
   };
+}
+
+/**
+ * Alle schema's waar het lid naartoe kan wisselen of eenmalig op kan trainen
+ * (regels in lib/schema-switch.ts), mét markering welk schema nu actief is —
+ * dezelfde keuze als `getAssignedSchema`, dus de wisselpagina en de trainings-
+ * flow spreken elkaar nooit tegen. Gesorteerd: actief eerst, dan meest recent.
+ */
+export async function getSwitchableSchemas(memberId: string, tenantId: string) {
+  const now = new Date();
+  const [rows, active] = await Promise.all([
+    prisma.assignedWorkout.findMany({
+      where: { tenantId, userId: memberId },
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        origin: true,
+        status: true,
+        memberStatus: true,
+        availableFrom: true,
+        endDate: true,
+        publishedAt: true,
+        archivedAt: true,
+        createdAt: true,
+        template: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            libraryTemplateId: true,
+            badges: true,
+            days: { orderBy: { order: "asc" }, select: { id: true, name: true } },
+            _count: { select: { items: true } },
+          },
+        },
+      },
+    }),
+    prisma.assignedWorkout.findFirst({
+      where: activeAssignmentWhere(memberId, tenantId, now),
+      orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    }),
+  ]);
+  const candidates = rows
+    .filter((r) => isTrainableSchema({ ...r, hasTemplate: r.template !== null }, now))
+    .map((r) => ({ ...r, isActive: r.id === active?.id }));
+  return candidates.sort((a, b) => Number(b.isActive) - Number(a.isActive));
 }

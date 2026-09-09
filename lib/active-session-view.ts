@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/db";
-import { getAssignedSchema } from "@/lib/member";
+import { getAssignedSchema, getSessionTemplate } from "@/lib/member";
 import { getWorkoutContext } from "@/lib/member-stats";
 import { targetSummaryFromItem, itemToInputValues } from "@/lib/exercise-params";
 import { exerciseThumbUrl, EXERCISE_THUMB_SELECT } from "@/lib/exercise-thumb";
@@ -40,8 +40,16 @@ export async function buildActiveSessionView(
   });
   if (!open) return null;
 
-  const assignment = await getAssignedSchema(memberId, tenantId);
-  if (!assignment?.template) return null;
+  // Het schema van de sessie zelf wint: zo blijft een training aan zíjn schema
+  // hangen als het lid ondertussen wisselt of de coach iets nieuws toewijst, en
+  // zo draait een eenmalige workout op een kopie zonder toewijzing. Sessies van
+  // vóór `templateId` (en een inmiddels verwijderd schema) vallen terug op het
+  // actieve schema.
+  const template =
+    (open.templateId ? await getSessionTemplate(tenantId, open.templateId) : null) ??
+    (await getAssignedSchema(memberId, tenantId))?.template ??
+    null;
+  if (!template) return null;
 
   const entries = await prisma.performanceEntry.findMany({
     where: { sessionId: open.id },
@@ -54,8 +62,6 @@ export async function buildActiveSessionView(
       notes: true,
     },
   });
-
-  const template = assignment.template;
 
   // Sessie-scoped aanpassingen (overslaan + vervangen) — muteren het template niet.
   const overrides = parseOverrides(open.overrides);

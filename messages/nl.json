@@ -297,7 +297,10 @@
       "progressNeverTrained": "Nog geen workout op dit schema",
       "progressDayLast": "{days, plural, =0 {vandaag} one {gisteren} other {# dagen geleden}}",
       "progressDayNever": "nog niet gedaan",
-      "progressViewAll": "Bekijk je volledige voortgang"
+      "progressViewAll": "Bekijk je volledige voortgang",
+      "switchSchema": "Ander schema kiezen",
+      "switchedTitle": "Schema gewisseld",
+      "switchedDesc": "Je traint nu met dit schema. Je vorige schema staat klaar om weer naar terug te wisselen."
     },
     "program": {
       "title": "Wat je gaat doen",
@@ -494,6 +497,7 @@
       "volumeTitle": "Volume deze week",
       "volumeSubtitle": "De opbouw van je weekvolume: per oefening het totaal getilde gewicht (herhalingen × kg).",
       "volumeAllTitle": "Volume totaal",
+      "oneOffSession": "Eenmalig: {name}",
       "volumeAllSubtitle": "De opbouw van al je getilde gewicht: per oefening het totaal (herhalingen × kg).",
       "timeTitle": "Tijd deze week",
       "timeSubtitle": "Je trainingen van deze week en hoe lang ze duurden.",

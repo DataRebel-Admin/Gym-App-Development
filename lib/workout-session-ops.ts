@@ -49,14 +49,37 @@ async function loadOpenSession(ctx: SessionSubject, sessionId: string) {
  * `locationId` = de vestiging waar getraind wordt (resolutie door de aanroeper,
  * zie lib/location-resolve.ts); alleen relevant bij het aanmaken — een hervatte
  * sessie behoudt zijn oorspronkelijke vestiging.
- * Retourneert de sessie-id, of `null` als het lid geen actief schema heeft.
+ * `templateId` = eenmalig een ánder schema draaien dan het actieve (catalogus-
+ * kopie of een niet-actief eigen/coach-schema): de sessie wordt `oneOff` en het
+ * actieve schema blijft onaangeroerd. Zonder `templateId` draait de sessie op
+ * het actieve schema; ook dán wordt het schema op de sessie vastgelegd, zodat
+ * de training niet meeverandert als het lid ondertussen wisselt.
+ * Retourneert de sessie-id, of `null` als er geen schema is om op te trainen.
  */
 export async function startOrResumeSession(
   ctx: SessionSubject,
-  opts: { locationId: string; requestedDayId?: string | null; conductedById?: string | null }
+  opts: {
+    locationId: string;
+    requestedDayId?: string | null;
+    conductedById?: string | null;
+    templateId?: string | null;
+  }
 ): Promise<string | null> {
-  const assignment = await getAssignedSchema(ctx.userId, ctx.tenantId);
-  if (!assignment) return null;
+  let templateId: string | null = null;
+  if (opts.templateId) {
+    // Eenmalig: het template moet van deze tenant zijn; of het lid erbij mag is
+    // door de aanroeper al bepaald (catalogus-kopie of eigen toewijzing).
+    const tpl = await prisma.workoutTemplate.findFirst({
+      where: { id: opts.templateId, tenantId: ctx.tenantId },
+      select: { id: true },
+    });
+    if (!tpl) return null;
+    templateId = tpl.id;
+  } else {
+    const assignment = await getAssignedSchema(ctx.userId, ctx.tenantId);
+    if (!assignment) return null;
+    templateId = assignment.template?.id ?? null;
+  }
 
   const open = await prisma.workoutSession.findFirst({
     where: { tenantId: ctx.tenantId, userId: ctx.userId, endedAt: null },
@@ -74,13 +97,9 @@ export async function startOrResumeSession(
 
   // Optionele dagkeuze: alleen accepteren als de dag echt bij dit schema hoort.
   let dayId: string | null = null;
-  if (opts.requestedDayId && assignment.template) {
+  if (opts.requestedDayId && templateId) {
     const day = await prisma.workoutDay.findFirst({
-      where: {
-        id: opts.requestedDayId,
-        tenantId: ctx.tenantId,
-        templateId: assignment.template.id,
-      },
+      where: { id: opts.requestedDayId, tenantId: ctx.tenantId, templateId },
       select: { id: true },
     });
     dayId = day?.id ?? null;
@@ -92,6 +111,8 @@ export async function startOrResumeSession(
       userId: ctx.userId,
       locationId: opts.locationId,
       dayId,
+      templateId,
+      oneOff: Boolean(opts.templateId),
       conductedById: opts.conductedById ?? null,
     },
   });
@@ -542,7 +563,39 @@ export async function finishSession(
 
 /** Annuleer de actieve sessie: verwijder 'm hard (entries cascaden) → telt niet mee. */
 export async function cancelSession(ctx: SessionSubject, sessionId: string): Promise<void> {
-  await prisma.workoutSession.deleteMany({
+  const open = await prisma.workoutSession.findFirst({
     where: { id: sessionId, tenantId: ctx.tenantId, userId: ctx.userId, endedAt: null },
+    select: { id: true, oneOff: true, templateId: true },
   });
+  if (!open) return;
+  await prisma.workoutSession.delete({ where: { id: open.id } });
+  // Een geannuleerde eenmalige workout uit de catalogus laat anders een
+  // verweesde kopie achter. Alleen opruimen als niets anders er nog naar wijst:
+  // geen toewijzing (dan was het een eigen/coach-schema) en geen andere sessie.
+  if (open.oneOff && open.templateId) {
+    await deleteOrphanOneOffTemplate(ctx.tenantId, open.templateId);
+  }
+}
+
+/**
+ * Verwijder de verborgen kopie van een eenmalige catalogus-workout zodra er
+ * niets meer naar verwijst. Best-effort: een achtergebleven kopie is onzichtbaar
+ * (geen AssignedWorkout, niet-library), dus falen mag nooit de actie breken.
+ */
+export async function deleteOrphanOneOffTemplate(
+  tenantId: string,
+  templateId: string
+): Promise<void> {
+  try {
+    const [assigned, sessions] = await Promise.all([
+      prisma.assignedWorkout.count({ where: { tenantId, templateId } }),
+      prisma.workoutSession.count({ where: { tenantId, templateId } }),
+    ]);
+    if (assigned > 0 || sessions > 0) return;
+    await prisma.workoutTemplate.deleteMany({
+      where: { id: templateId, tenantId, isLibrary: false },
+    });
+  } catch {
+    // zie boven
+  }
 }

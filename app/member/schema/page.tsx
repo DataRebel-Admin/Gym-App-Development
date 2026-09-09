@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
-import { requireMember, getAssignedSchema } from "@/lib/member";
+import { requireMember, getAssignedSchema, getSwitchableSchemas } from "@/lib/member";
 import { getMemberSchemaMode, canEditAssignedSchema } from "@/lib/member-schema";
 import { isEditableMemberStatus } from "@/lib/member-schema-status";
 import { enforceSessionTimeout } from "@/lib/session-timeout";
 import { MarkAutoStopSeen } from "@/components/member/mark-auto-stop-seen";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding, Pencil } from "@/components/ui/icons";
+import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding, Pencil, Repeat } from "@/components/ui/icons";
 import {
   SchemaOverview,
   type OverviewItem,
@@ -79,15 +79,28 @@ export async function generateMetadata() {
   return { title: t("metaTitle") };
 }
 
-export default async function MemberSchemaPage() {
+export default async function MemberSchemaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ switched?: string }>;
+}) {
   const member = await requireMember();
+  const { switched } = await searchParams;
 
   // Automatische 5-uur-timeout: sluit een te lang openstaande sessie af als het
   // lid hier terugkomt na de app lang gesloten te hebben gehad.
   await enforceSessionTimeout(member.tenantId, member.id);
 
-  const [assignment, t, memberSchemaMode, assignedEditable, autoStopped, locations, me] =
-    await Promise.all([
+  const [
+    assignment,
+    t,
+    memberSchemaMode,
+    assignedEditable,
+    autoStopped,
+    locations,
+    me,
+    switchable,
+  ] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getTranslations("member.schema"),
     getMemberSchemaMode(member.tenantId),
@@ -107,7 +120,26 @@ export default async function MemberSchemaPage() {
       where: { id: member.id, tenantId: member.tenantId },
       select: { homeLocationId: true },
     }),
+    getSwitchableSchemas(member.id, member.tenantId),
   ]);
+  // Wisselen is pas zinvol met een tweede schema (eigen of eerder van de
+  // trainer). Zonder actief schema maar mét een gepauzeerd schema is het juist
+  // dé uitweg — daarom ook in de lege staat.
+  const canSwitch = switchable.some((s) => !s.isActive);
+  const switchLink = canSwitch ? (
+    <Link
+      href="/member/schema/wisselen"
+      className="flex items-center justify-center gap-2 rounded-2xl border border-border px-6 py-3 text-center text-sm font-medium text-neutral-700 active:bg-surface-2"
+    >
+      <Repeat className="size-4 text-accent" /> {t("switchSchema")}
+    </Link>
+  ) : null;
+  const switchedBanner = switched ? (
+    <div className="rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3">
+      <p className="text-sm font-semibold text-neutral-900">{t("switchedTitle")}</p>
+      <p className="mt-0.5 text-sm text-neutral-600">{t("switchedDesc")}</p>
+    </div>
+  ) : null;
   // Actieve vestiging (device-cookie → thuisvestiging → default) — de sessie
   // start hierop; bij multi-vestiging toont de switcher de keuze.
   const activeLocationId = await resolveActiveLocationId(member.tenantId, {
@@ -158,10 +190,22 @@ export default async function MemberSchemaPage() {
           description={t("emptyDesc")}
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
+              {canSwitch ? (
+                <Link
+                  href="/member/schema/wisselen"
+                  className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+                >
+                  <Repeat className="size-4" /> {t("switchSchema")}
+                </Link>
+              ) : null}
               {canBuild ? (
                 <Link
                   href="/member/schema/builder"
-                  className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+                  className={
+                    canSwitch
+                      ? "inline-flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-neutral-700 active:bg-surface-2"
+                      : "inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+                  }
                 >
                   <Dumbbell className="size-4" /> {t("buildSelf")}
                 </Link>
@@ -222,6 +266,7 @@ export default async function MemberSchemaPage() {
     <div className="flex flex-1 flex-col gap-5 px-5 py-8">
       {isNew ? <MarkSchemaSeen /> : null}
       {autoStopBanner}
+      {switchedBanner}
       {/* Banner i.p.v. de volle 3:2-kaart: op een telefoonscherm moet de titel
           en de startknop zonder scrollen in beeld blijven. */}
       <SchemaCover
@@ -352,6 +397,10 @@ export default async function MemberSchemaPage() {
           />
         </form>
       )}
+
+      {/* Wisselen staat direct onder het starten: dit is de plek waar je
+          beslist wáármee je vandaag traint. */}
+      {switchLink}
 
       <SchemaProgressCard progress={progress} dayNames={dayOptions.map((d) => d.name)} />
 

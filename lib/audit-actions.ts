@@ -538,6 +538,16 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
   "schema.framework.delete": {
     category: "schemas", label: "Kader verwijderd", icon: "🗑️", tone: "danger",
     sentence: ({ actor, meta }) =>
+  "schema.switch": {
+    category: "schemas", label: "Schema gewisseld", icon: "🔀", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} is gewisseld naar schema '${s(meta, "name") ?? ""}'`.trim(),
+  },
+  "session.oneoff.start": {
+    category: "schemas", label: "Eenmalige workout gestart", icon: "⚡", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} startte eenmalig de workout '${s(meta, "name") ?? ""}'`.trim(),
+  },
       `${actor} heeft kader '${s(meta, "name") ?? ""}' verwijderd`.trim(),
   },
   "schema.framework.assign": {

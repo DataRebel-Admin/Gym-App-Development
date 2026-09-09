@@ -636,6 +636,56 @@ kopie over in de bestaande builder-flow. **Géén DB-migratie** — alles hergeb
   catalogus; "Mijn schema's" heeft de catalogus als primaire knop. "Dag toevoegen" in de
   lid-editor is altijd actief (het dag-maximum dat 'm eerder blokkeerde bestaat niet meer).
 
+### Schema's afwisselen & eenmalige workouts
+
+Een lid wisselt met één tik van actief schema en kan een workout **eenmalig**
+doen (uit de catalogus of vanuit een niet-actief schema) zonder z'n actieve
+schema te wijzigen. Migratie `20260909120000_session_template` (additief op
+`WorkoutSession`, geen RLS-wijziging).
+
+- **DE SESSIE KENT HAAR EIGEN SCHEMA: `WorkoutSession.templateId` + `oneOff`.**
+  `startOrResumeSession` (lib/workout-session-ops.ts) legt bij élke nieuwe sessie
+  het template vast (zonder `templateId`-optie = het actieve schema) en
+  `buildActiveSessionView` leest **eerst** `open.templateId` (`getSessionTemplate`,
+  lib/member.ts) en valt pas daarna terug op `getAssignedSchema` (sessies van vóór
+  dit veld, of een inmiddels verwijderd schema). Daardoor blijft een lopende
+  training op haar eigen schema staan als het lid wisselt of de coach iets nieuws
+  toewijst. Geen FK (zoals `dayId`): een verwijderd schema laat de historie intact.
+  `SCHEMA_TEMPLATE_INCLUDE` is de gedeelde include zodat beide paden dezelfde vorm
+  opleveren.
+- **Pure regels `lib/schema-switch.ts`** (getest, `tests/schema-switch.test.ts`):
+  `isTrainableSchema` (eenmalig trainen mag op eigen schema's zodra vastgelegd —
+  óók IN_REVIEW — en op coach-schema's die PUBLISHED of ARCHIVED zijn, mits niet
+  verlopen/nog niet vrijgegeven en mét template) en `canMakeActive` (als trainen,
+  behalve IN_REVIEW: activeren zou de beoordeling omzeilen). Concept/geweigerd/
+  gepland blijven verborgen. `getSwitchableSchemas` (lib/member.ts) past ze toe en
+  markeert het actieve schema met dezelfde keuze als `getAssignedSchema`.
+- **Wisselen = `switchActiveSchema`** (app/member/schema/actions.ts, pagina
+  `/member/schema/wisselen`, ingang "Ander schema kiezen" op `/member/schema` zodra
+  er een tweede schema is — ook in de lege staat): wat live staat wordt ARCHIVED
+  + `archivedAt` (eigen ACTIVE → PAUSED; IN_REVIEW houdt z'n memberStatus), het
+  doel wordt PUBLISHED met behoud van de oorspronkelijke `publishedAt` (nullijn
+  voortgang/geldigheid) en `archivedAt: null`. **Besluit eigenaar (2026-09-09): een
+  door een nieuwere toewijzing vervangen coach-schema mag het lid zelf weer actief
+  maken.** Zelfde capture/apply-paar voor de weekdagplanning als elk ander
+  archiveer-en-vervang-pad. Audit `schema.switch`.
+- **Eenmalig uit de catalogus = `startOneOffWorkout`** (builder/actions.ts, knop
+  "Eenmalig doen" op de catalogus-detailpagina, dagkeuze per index bij een
+  weekschema; zelfde gate als de catalogus: `requireMemberSchemaEnabled`). De bron
+  wordt via het gedeelde `resolveStartSource`/`createTemplateFromSpec` (uit
+  `startMemberSchema` geëxtraheerd) als **verborgen kopie** aangemaakt: niet-library
+  WorkoutTemplate zónder AssignedWorkout — onzichtbaar in "Mijn schema's" en de
+  owner-overzichten. `cancelSession` ruimt zo'n kopie op zodra niets er meer naar
+  wijst (`deleteOrphanOneOffTemplate`); een afgeronde sessie houdt 'm (historie).
+  Eenmalig vanuit een eigen/coach-schema = `startOneOffFromAssignment` (geen kopie,
+  `templateId` = het template van de toewijzing). Audit `session.oneoff.start`.
+- **Doorwerking**: een eenmalige sessie telt gewoon mee in stats/PR's/trofeeën/
+  spieranalyse (het werk is echt gedaan), maar **niet** als geplande schemadag in de
+  agenda (`lib/calendar.ts` laat `oneOff`-sessies uit `sessionLite`), en niet in
+  `getSchemaProgress` (andere dayIds). `/member/history` labelt 'm "Eenmalig: naam".
+  Een lopende training blokkeert "Eenmalig trainen" op de wisselpagina niet hard:
+  de action hervat de lopende sessie (één workout tegelijk).
+
 ### Groepslessen (rooster, inschrijven, wachtlijst, meldingen)
 
 De rooster-module uit prompt 12 is een ronde verder: tijdzone-correct, race-vrij,

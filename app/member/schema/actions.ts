@@ -4,8 +4,11 @@ import { z } from "zod";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { requireMember } from "@/lib/member";
+import { requireMember, getAssignedSchema } from "@/lib/member";
 import { resolveActiveLocationId } from "@/lib/location-resolve";
+import { audit } from "@/lib/audit";
+import { applyCarriedPlan, capturePlanForCarryOver } from "@/lib/calendar";
+import { canMakeActive, isTrainableSchema } from "@/lib/schema-switch";
 import { isMood } from "@/lib/workout-moods";
 import type { AlternativeSuggestion } from "@/lib/exercise-alternatives";
 import {
@@ -73,13 +76,7 @@ export async function startSession(formData?: FormData) {
   const member = await requireMember();
   const requestedDayId = formData ? String(formData.get("dayId") ?? "") : "";
   // Vestiging: device-cookie (switcher) → thuisvestiging → default (D8).
-  const me = await prisma.user.findFirst({
-    where: { id: member.id, tenantId: member.tenantId },
-    select: { homeLocationId: true },
-  });
-  const locationId = await resolveActiveLocationId(member.tenantId, {
-    homeLocationId: me?.homeLocationId,
-  });
+  const locationId = await sessionLocationFor(member);
   const sessionId = await startOrResumeSession(
     { tenantId: member.tenantId, userId: member.id },
     { locationId, requestedDayId }
@@ -231,6 +228,150 @@ export async function cancelSession(formData: FormData) {
   // terwijl de sessie al weg is.
   revalidatePath("/member", "layout");
   redirect("/member/schema");
+}
+
+/** Vestiging voor een nieuwe sessie: device-cookie (switcher) → thuisvestiging → default. */
+async function sessionLocationFor(member: { id: string; tenantId: string }): Promise<string> {
+  const me = await prisma.user.findFirst({
+    where: { id: member.id, tenantId: member.tenantId },
+    select: { homeLocationId: true },
+  });
+  return resolveActiveLocationId(member.tenantId, { homeLocationId: me?.homeLocationId });
+}
+
+/**
+ * Wissel van actief schema: het gekozen schema wordt actief, wat nu actief is
+ * wordt gepauzeerd (eigen) of gearchiveerd (coach) — zonder iets weg te gooien,
+ * dus terugwisselen kan altijd. Een lopende training merkt er niets van: die
+ * hangt aan haar eigen `WorkoutSession.templateId`. Weekdagplanning blijft per
+ * schema bewaard; een schema zónder planning erft die van het vorige (zelfde
+ * capture/apply-paar als elk ander archiveer-en-vervang-pad, lib/calendar.ts).
+ */
+export async function switchActiveSchema(formData: FormData) {
+  const member = await requireMember();
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  const now = new Date();
+
+  const target = await prisma.assignedWorkout.findFirst({
+    where: { id: assignmentId, tenantId: member.tenantId, userId: member.id },
+    select: {
+      id: true,
+      origin: true,
+      status: true,
+      memberStatus: true,
+      availableFrom: true,
+      endDate: true,
+      publishedAt: true,
+      template: { select: { name: true } },
+    },
+  });
+  if (!target || !canMakeActive({ ...target, hasTemplate: target.template !== null }, now)) {
+    redirect("/member/schema/wisselen?err=1");
+  }
+  const current = await getAssignedSchema(member.id, member.tenantId);
+  if (current?.id === target.id) redirect("/member/schema");
+
+  await prisma.$transaction(async (tx) => {
+    const carried = await capturePlanForCarryOver(tx, member.tenantId, member.id, target.id);
+    // Wat nu live staat opzij zetten. Een eigen schema wordt gepauzeerd (zoals
+    // `pauseMemberSchema`); een schema in beoordeling houdt z'n memberStatus,
+    // anders zou de coach een verdwenen indiening beoordelen.
+    const priors = await tx.assignedWorkout.findMany({
+      where: { tenantId: member.tenantId, userId: member.id, status: "PUBLISHED", id: { not: target.id } },
+      select: { id: true, origin: true, memberStatus: true },
+    });
+    for (const p of priors) {
+      await tx.assignedWorkout.update({
+        where: { id: p.id },
+        data: {
+          status: "ARCHIVED",
+          archivedAt: now,
+          ...(p.origin === "MEMBER" && p.memberStatus === "ACTIVE" ? { memberStatus: "PAUSED" } : {}),
+        },
+      });
+    }
+    // Het doel live zetten. De oorspronkelijke publicatiedatum blijft de nullijn
+    // voor voortgang en geldigheid (zelfde keuze als `activate()` in de builder).
+    await tx.assignedWorkout.update({
+      where: { id: target.id },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: target.publishedAt ?? now,
+        availableFrom: null,
+        archivedAt: null,
+        ...(target.origin === "MEMBER" ? { memberStatus: "ACTIVE", seenAt: now } : {}),
+      },
+    });
+    await applyCarriedPlan(tx, { tenantId: member.tenantId, assignmentId: target.id, carried });
+  });
+
+  await audit("schema.switch", {
+    actor: { id: member.id, email: member.email, role: member.role },
+    tenantId: member.tenantId,
+    targetType: "AssignedWorkout",
+    targetId: target.id,
+    metadata: {
+      name: target.template?.name ?? "schema",
+      origin: target.origin,
+      previous: current?.template?.name ?? null,
+    },
+  });
+
+  revalidatePath("/member");
+  revalidatePath("/member/schema");
+  revalidatePath("/member/schema/wisselen");
+  revalidatePath("/member/schema/builder");
+  revalidatePath("/member/agenda");
+  redirect("/member/schema?switched=1");
+}
+
+/**
+ * Eenmalig trainen op een ander schema van het lid (gepauzeerd, goedgekeurd of
+ * een eerder trainer-schema) zonder het actieve schema te wijzigen. De sessie
+ * krijgt `templateId` + `oneOff`; een lopende training wordt gewoon hervat.
+ */
+export async function startOneOffFromAssignment(formData: FormData) {
+  const member = await requireMember();
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  const requestedDayId = String(formData.get("dayId") ?? "");
+
+  const target = await prisma.assignedWorkout.findFirst({
+    where: { id: assignmentId, tenantId: member.tenantId, userId: member.id },
+    select: {
+      id: true,
+      origin: true,
+      status: true,
+      memberStatus: true,
+      availableFrom: true,
+      endDate: true,
+      templateId: true,
+      template: { select: { name: true } },
+    },
+  });
+  if (
+    !target?.templateId ||
+    !isTrainableSchema({ ...target, hasTemplate: true }, new Date())
+  ) {
+    redirect("/member/schema/wisselen?err=1");
+  }
+
+  const locationId = await sessionLocationFor(member);
+  const sessionId = await startOrResumeSession(
+    { tenantId: member.tenantId, userId: member.id },
+    { locationId, requestedDayId, templateId: target.templateId }
+  );
+  if (!sessionId) redirect("/member/schema/wisselen?err=1");
+
+  await audit("session.oneoff.start", {
+    actor: { id: member.id, email: member.email, role: member.role },
+    tenantId: member.tenantId,
+    targetType: "WorkoutSession",
+    targetId: sessionId,
+    metadata: { name: target.template?.name ?? "schema", source: "assignment" },
+  });
+  // Zie startSession: de balk en de blijvende melding hangen aan de layout.
+  revalidatePath("/member", "layout");
+  redirect("/member/schema/active");
 }
 
 /**

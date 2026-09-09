@@ -230,7 +230,7 @@ async function assembleAgendaDays(
         startedAt: { gte: wideStart, lt: wideEnd },
       },
       orderBy: { startedAt: "asc" },
-      select: { id: true, dayId: true, startedAt: true, endedAt: true, mood: true },
+      select: { id: true, dayId: true, oneOff: true, startedAt: true, endedAt: true, mood: true },
     }),
     prisma.classEnrollment.findMany({
       where: {
@@ -292,7 +292,9 @@ async function assembleAgendaDays(
   const sessionLite: { dayId: string | null; dayKey: string }[] = [];
   for (const s of sessions) {
     const key = dayKeyInTz(s.startedAt, tz);
-    sessionLite.push({ dayId: s.dayId, dayKey: key });
+    // Een eenmalige workout (catalogus of ander schema) is géén geplande
+    // schemadag: die mag een geplande dag niet stilzwijgend "gedaan" maken.
+    if (!s.oneOff) sessionLite.push({ dayId: s.dayId, dayKey: key });
     const list = sessionsByDay.get(key) ?? [];
     list.push(s);
     sessionsByDay.set(key, list);

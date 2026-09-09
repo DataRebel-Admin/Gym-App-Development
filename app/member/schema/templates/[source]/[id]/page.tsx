@@ -15,8 +15,12 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { Badge } from "@/components/ui/badge";
 import { SchemaBadges } from "@/components/schema/schema-badges";
 import { SchemaCover } from "@/components/schema/schema-cover";
-import { ChevronLeft, Clock, Plus } from "@/components/ui/icons";
-import { startMemberSchema, addDayFromTemplate } from "../../../builder/actions";
+import { ChevronLeft, Clock, Play, Plus } from "@/components/ui/icons";
+import {
+  startMemberSchema,
+  addDayFromTemplate,
+  startOneOffWorkout,
+} from "../../../builder/actions";
 
 export const metadata = { title: "Template" };
 
@@ -167,6 +171,40 @@ export default async function MemberTemplateDetailPage({
             className="w-full rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
           >
             {row.type === "week" ? "Gebruik dit schema" : "Start als los schema"}
+          </button>
+        </form>
+
+        {/* Eenmalig: meteen trainen zonder je actieve schema te wijzigen. Bij een
+            weekschema kies je welke dag; de kopie blijft verborgen (geen
+            toewijzing) en verdwijnt weer als je de training annuleert. */}
+        <form
+          action={startOneOffWorkout}
+          className="flex items-center gap-2 rounded-2xl border border-border bg-surface-1 p-2"
+        >
+          <input type="hidden" name="source" value={catalogStartSource(row)} />
+          {days.length > 1 ? (
+            <select
+              name="day"
+              aria-label="Welke dag wil je eenmalig doen?"
+              className="min-w-0 flex-1 rounded-xl border border-border bg-surface-0 px-3 py-2.5 text-sm text-neutral-900 outline-none focus:border-accent"
+              defaultValue="0"
+            >
+              {days.map((d, i) => (
+                <option key={i} value={i}>
+                  {d.name} · {d.items.length} oef.
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="min-w-0 flex-1 px-2 text-sm text-neutral-600">
+              Zonder je schema te wijzigen
+            </span>
+          )}
+          <button
+            type="submit"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground active:opacity-90"
+          >
+            <Play className="size-4 fill-current" /> Eenmalig doen
           </button>
         </form>
 

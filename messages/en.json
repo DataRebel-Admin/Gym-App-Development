@@ -297,7 +297,10 @@
       "progressNeverTrained": "No workout on this schema yet",
       "progressDayLast": "{days, plural, =0 {today} one {yesterday} other {# days ago}}",
       "progressDayNever": "not done yet",
-      "progressViewAll": "View your full progress"
+      "progressViewAll": "View your full progress",
+      "switchSchema": "Choose another plan",
+      "switchedTitle": "Plan switched",
+      "switchedDesc": "You are now training with this plan. Your previous plan is ready to switch back to."
     },
     "program": {
       "title": "What you'll be doing",
@@ -494,6 +497,7 @@
       "volumeTitle": "Volume this week",
       "volumeSubtitle": "How your weekly volume is built up: total weight lifted per exercise (reps × kg).",
       "volumeAllTitle": "Total volume",
+      "oneOffSession": "One-off: {name}",
       "volumeAllSubtitle": "How your all-time volume is built up: total weight lifted per exercise (reps × kg).",
       "timeTitle": "Time this week",
       "timeSubtitle": "This week's workouts and how long they took.",

@@ -13,6 +13,8 @@ import { isExerciseType, DEFAULT_EXERCISE_TYPE } from "@/lib/exercise-types";
 import { normalizeGroupColumns } from "@/lib/exercise-groups";
 import { paramsFromInputValues, itemColumnsFromParams } from "@/lib/exercise-params";
 import { applyCarriedPlan, capturePlanForCarryOver } from "@/lib/calendar";
+import { resolveActiveLocationId } from "@/lib/location-resolve";
+import { startOrResumeSession } from "@/lib/workout-session-ops";
 import {
   requireMemberSchemaEnabled,
   getMemberSchemaMode,
@@ -180,7 +182,132 @@ export async function startMemberSchema(formData: FormData) {
   const focusNote = String(formData.get("focusNote") ?? "").trim().slice(0, 500) || null;
 
   const framework = await resolveFramework(member.tenantId, member.id);
+  const spec = await resolveStartSource(member.tenantId, source);
 
+  const created = await prisma.$transaction(async (tx) => {
+    const templateId = await createTemplateFromSpec(tx, member.tenantId, spec);
+    const assignment = await tx.assignedWorkout.create({
+      data: {
+        tenantId: member.tenantId,
+        userId: member.id,
+        templateId,
+        assignedById: member.id,
+        origin: "MEMBER",
+        memberStatus: "DRAFT",
+        status: "DRAFT",
+        goal,
+        focusNote,
+        frameworkId: framework?.id ?? null,
+      },
+    });
+    return assignment;
+  });
+
+  await audit("schema.member.start", {
+    actor: { id: member.id, email: member.email, role: member.role },
+    tenantId: member.tenantId,
+    targetType: "AssignedWorkout",
+    targetId: created.id,
+    metadata: {
+      name: spec.name,
+      source: source.split(":")[0],
+      ...(spec.newExercises > 0 ? { newExercises: spec.newExercises } : {}),
+    },
+  });
+
+  redirect(`/member/schema/builder/${created.id}`);
+}
+
+/**
+ * Eenmalige workout uit de catalogus: dezelfde bron als "Gebruik dit schema",
+ * maar de kopie krijgt géén toewijzing — het actieve schema blijft wat het is.
+ * De sessie start meteen op de gekozen dag (`day` = index in de bron; een
+ * dag-template heeft er één). Een al lopende training wordt gewoon hervat.
+ * Annuleren ruimt de kopie weer op (lib/workout-session-ops.ts `cancelSession`).
+ */
+export async function startOneOffWorkout(formData: FormData) {
+  const member = await requireMember();
+  await requireMemberSchemaEnabled(member.tenantId);
+
+  const source = String(formData.get("source") ?? "");
+  const dayIndex = Math.max(0, Number.parseInt(String(formData.get("day") ?? "0"), 10) || 0);
+  if (!source || source.startsWith("blueprint:") || source === "scratch") {
+    redirect("/member/schema/templates");
+  }
+
+  // Loopt er al een training? Dan geen tweede kopie aanmaken — hervatten.
+  const open = await prisma.workoutSession.findFirst({
+    where: { tenantId: member.tenantId, userId: member.id, endedAt: null },
+    select: { id: true },
+  });
+  if (open) redirect("/member/schema/active");
+
+  const spec = await resolveStartSource(member.tenantId, source);
+  const templateId = await prisma.$transaction((tx) =>
+    createTemplateFromSpec(tx, member.tenantId, spec)
+  );
+  const days = await prisma.workoutDay.findMany({
+    where: { tenantId: member.tenantId, templateId },
+    orderBy: { order: "asc" },
+    select: { id: true },
+  });
+  const dayId = days[dayIndex]?.id ?? days[0]?.id ?? null;
+
+  const me = await prisma.user.findFirst({
+    where: { id: member.id, tenantId: member.tenantId },
+    select: { homeLocationId: true },
+  });
+  const locationId = await resolveActiveLocationId(member.tenantId, {
+    homeLocationId: me?.homeLocationId,
+  });
+  const sessionId = await startOrResumeSession(
+    { tenantId: member.tenantId, userId: member.id },
+    { locationId, requestedDayId: dayId, templateId }
+  );
+  if (!sessionId) redirect("/member/schema/templates");
+
+  await audit("session.oneoff.start", {
+    actor: { id: member.id, email: member.email, role: member.role },
+    tenantId: member.tenantId,
+    targetType: "WorkoutSession",
+    targetId: sessionId,
+    metadata: {
+      name: spec.name,
+      source: source.split(":")[0],
+      ...(spec.newExercises > 0 ? { newExercises: spec.newExercises } : {}),
+    },
+  });
+  // Zie startSession (app/member/schema/actions.ts): balk + blijvende melding
+  // hangen aan de member-layout.
+  revalidatePath("/member", "layout");
+  redirect("/member/schema/active");
+}
+
+/** Alles wat nodig is om uit een startbron een nieuw WorkoutTemplate te bouwen. */
+type StartSpec = {
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  templateGoal: string | null;
+  badges: string[];
+  newExercises: number;
+  /** Lege dagen (blueprint/scratch). */
+  dayNames: string[];
+  /** Ingevulde dagen (RepDB-/dag-template-bron). */
+  daySpecs: SpecDay[] | null;
+  /** Te klonen tenant-template (vrijgegeven gym-schema of -dag). */
+  clonedFrom: Prisma.WorkoutTemplateGetPayload<{
+    include: { days: { include: { items: true } } };
+  }> | null;
+};
+
+/**
+ * Vertaal een startbron (`template:`/`tenantday:`/`repdb:`/`day:`/`blueprint:`/
+ * scratch) naar een `StartSpec`. Gedeeld door "zelf een schema beginnen" en
+ * "eenmalig doen" zodat beide dezelfde autoritatieve hercontrole van de bron
+ * doen (nooit de client vertrouwen). Onbekende bron → terug naar de catalogus.
+ */
+async function resolveStartSource(tenantId: string, source: string): Promise<StartSpec> {
   // Bepaal naam + dag-structuur op basis van de bron.
   let name = "Mijn schema";
   let dayNames: string[] = ["Dag 1"];
@@ -190,11 +317,7 @@ export async function startMemberSchema(formData: FormData) {
   let badges: string[] = [];
   let newExercises = 0;
   let daySpecs: SpecDay[] | null = null;
-  let clonedFrom:
-    | Prisma.WorkoutTemplateGetPayload<{
-        include: { days: { include: { items: true } } };
-      }>
-    | null = null;
+  let clonedFrom: StartSpec["clonedFrom"] = null;
 
   if (source.startsWith("template:") || source.startsWith("tenantday:")) {
     const isDay = source.startsWith("tenantday:");
@@ -205,7 +328,7 @@ export async function startMemberSchema(formData: FormData) {
       // lib/member-library-rules.ts voor waarom dit één constante is.
       where: {
         id: templateId,
-        tenantId: member.tenantId,
+        tenantId,
         ...(isDay ? MEMBER_DAY_LIBRARY_WHERE : MEMBER_LIBRARY_WHERE),
       },
       include: { days: { orderBy: { order: "asc" }, include: { items: { orderBy: { order: "asc" } } } } },
@@ -226,8 +349,8 @@ export async function startMemberSchema(formData: FormData) {
     if (!tpl) redirect("/member/schema/templates");
     const days = parseLibraryTemplateDays(tpl.days);
     const slugs = days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id));
-    newExercises = await countNewLibraryExercises(member.tenantId, slugs);
-    const bySlug = await ensureLibraryExercises(member.tenantId, slugs);
+    newExercises = await countNewLibraryExercises(tenantId, slugs);
+    const bySlug = await ensureLibraryExercises(tenantId, slugs);
     name = pickJsonName(tpl.names, ["nl", "en"]) ?? tpl.id;
     description = pickJsonName(tpl.descriptions, ["nl", "en"]);
     // Herkomst-foto hard meeschrijven; bewust nooit `libraryTemplateId` op de
@@ -241,8 +364,8 @@ export async function startMemberSchema(formData: FormData) {
     const def = getMemberDayTemplate(source.slice("day:".length));
     if (!def) redirect("/member/schema/templates");
     const slugs = dayTemplateSlugs(def);
-    newExercises = await countNewLibraryExercises(member.tenantId, slugs);
-    const bySlug = await ensureLibraryExercises(member.tenantId, slugs);
+    newExercises = await countNewLibraryExercises(tenantId, slugs);
+    const bySlug = await ensureLibraryExercises(tenantId, slugs);
     name = def.name;
     description = def.description;
     imageUrl = libraryTemplateImage(def.photoSlug, def.goals[0] ?? null)?.url ?? null;
@@ -257,10 +380,24 @@ export async function startMemberSchema(formData: FormData) {
     }
   }
 
-  const created = await prisma.$transaction(async (tx) => {
-    const tpl = await tx.workoutTemplate.create({
+  return { name, description, imageUrl, templateGoal, badges, newExercises, dayNames, daySpecs, clonedFrom };
+}
+
+/**
+ * Maak een niet-library WorkoutTemplate (+ dagen + oefeningen) uit een
+ * `StartSpec`. Hangt bewust nog nergens aan: de aanroeper koppelt er een
+ * AssignedWorkout (eigen schema) of een WorkoutSession (eenmalig) aan.
+ */
+async function createTemplateFromSpec(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  spec: StartSpec
+): Promise<string> {
+  const { name, description, imageUrl, templateGoal, badges, dayNames, daySpecs, clonedFrom } =
+    spec;
+  const tpl = await tx.workoutTemplate.create({
       data: {
-        tenantId: member.tenantId,
+        tenantId,
         name,
         description,
         imageUrl,
@@ -274,14 +411,14 @@ export async function startMemberSchema(formData: FormData) {
       for (const d of clonedFrom.days) {
         await tx.workoutDay.create({
           data: {
-            tenantId: member.tenantId,
+            tenantId,
             templateId: tpl.id,
             order: d.order,
             name: d.name,
             notes: d.notes,
             items: {
               create: d.items.map((it) => ({
-                tenantId: member.tenantId,
+                tenantId,
                 templateId: tpl.id,
                 exerciseId: it.exerciseId,
                 order: it.order,
@@ -310,13 +447,13 @@ export async function startMemberSchema(formData: FormData) {
       for (const [i, d] of daySpecs.entries()) {
         await tx.workoutDay.create({
           data: {
-            tenantId: member.tenantId,
+            tenantId,
             templateId: tpl.id,
             order: i,
             name: d.name,
             items: {
               create: d.items.map((it) => ({
-                tenantId: member.tenantId,
+                tenantId,
                 templateId: tpl.id,
                 exerciseId: it.exerciseId,
                 order: it.order,
@@ -333,42 +470,13 @@ export async function startMemberSchema(formData: FormData) {
       await Promise.all(
         dayNames.map((dn, i) =>
           tx.workoutDay.create({
-            data: { tenantId: member.tenantId, templateId: tpl.id, order: i, name: dn },
+            data: { tenantId, templateId: tpl.id, order: i, name: dn },
           })
         )
       );
     }
 
-    const assignment = await tx.assignedWorkout.create({
-      data: {
-        tenantId: member.tenantId,
-        userId: member.id,
-        templateId: tpl.id,
-        assignedById: member.id,
-        origin: "MEMBER",
-        memberStatus: "DRAFT",
-        status: "DRAFT",
-        goal,
-        focusNote,
-        frameworkId: framework?.id ?? null,
-      },
-    });
-    return assignment;
-  });
-
-  await audit("schema.member.start", {
-    actor: { id: member.id, email: member.email, role: member.role },
-    tenantId: member.tenantId,
-    targetType: "AssignedWorkout",
-    targetId: created.id,
-    metadata: {
-      name,
-      source: source.split(":")[0],
-      ...(newExercises > 0 ? { newExercises } : {}),
-    },
-  });
-
-  redirect(`/member/schema/builder/${created.id}`);
+  return tpl.id;
 }
 
 /**
