@@ -812,14 +812,54 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   lestype op een eigen regel ónder de chips.
 - **Twee weergaven op `/member/rooster`** via `?view=agenda`: de bestaande lijst
   (horizon `ROSTER_HORIZON_DAYS`, alleen wat eraan komt) en een **maandkalender van het
-  aanbod** (`components/classes/class-calendar.tsx`, server component — dagselectie via
-  `?d=`/`?m=`, zodat de aanmeldknop een gewone server-action-form blijft). Bewust een
+  aanbod** (`components/classes/class-calendar.tsx`). Bewust een
   eigen kalender naast `components/calendar/agenda-calendar.tsx`: die toont de
   persoonlijke agenda, deze het aanbod van de gym (óók lessen waar je niet voor bent
   aangemeld, én het verleden). Dag-bucketing via `getMemberCalendarTimezone` +
   `dayKeyInTz`; de lestíjd zelf blijft in de venue-klok.
+  - **EEN TIK OP EEN DAG OPENT EEN OVERLAY, GEEN UITKLAP ERONDER** (besluit eigenaar;
+    zelfde regel als de dagenstrip op `/member`). De kalender is daarom een **client
+    component** met de dagkeuze in `useState` + `Modal`. Dat liep eerst via `?d=` en dus
+    via een navigatie: de pagina sprong bij élke tik naar boven en de lijst schoof uit
+    beeld. `?d=` bestaat nog als **deelbare link** die die dag meteen opent
+    (`initialDayKey`), bewust zónder terugval op vandaag — anders springt de overlay bij
+    élk bezoek open — en zit niet meer in de filter-/formulierlinks. De maandnavigatie
+    blijft een echte `Link` (andere maand = andere data), met `scroll={false}`.
+  - **`ClassCard` (components/classes/class-card.tsx) is client** zodat lijst én overlay
+    dezelfde kaart delen; de aanmeldknop blijft een gewone server-action-form. De
+    dag-overlay groepeert bewust **niet** (een dag heeft een handvol lessen, en je wilt
+    daar juist per tijdstip kiezen).
+- **De lijst is gegroepeerd per lestype en uitklapbaar**
+  (`components/classes/class-group-list.tsx`, server component met native
+  `<details>/<summary>` — het uitklap-idioom van deze repo). Met een paar wekelijkse
+  reeksen was de lijst een scrollmarathon van dezelfde vier lessen.
+  - **GROEPEREN GAAT OP `classId`, NOOIT OP DE NAAM**: `GroupClass` heeft geen
+    `@@unique([tenantId, name])` en de naam is vrije tekst, dus twee lestypes mogen
+    dezelfde naam dragen. `SessionCard` draagt daarvoor `classId` (kwam al mee: de
+    queries gebruiken `include`, dus alle `ClassSession`-scalars zitten in de rij).
+  - **Pure kern `lib/class-groups.ts`** (`groupSessionsByClass`, `nextBookableSession`;
+    tests `tests/class-groups.test.ts`) bewaart de aangeleverde volgorde — de query is al
+    `startsAt asc`, dus de groepsvolgorde is automatisch die van de eerstvolgende les.
+  - **De eerstvolgende les blijft ingeklapt zichtbaar** (wens eigenaar): de kop toont
+    subtiel wanneer die is, plus het aantal lessen en een "Aangemeld"-badge zodra het lid
+    ergens in de groep zit. Dat is **niet** zomaar `sessions[0]`: de lijst bevat ook
+    lopende (`endsAt >= now`) en geannuleerde sessies, die vallen af; een **volle** les
+    telt wél mee (vol = wachtlijst, geen dichte deur). Zonder kandidaat valt het terug op
+    de eerste sessie, zodat een groep nooit leeg oogt. Eén groep = standaard open.
+  - Géén `overflow-hidden`-hoogteanimatie op de uitklap: die knipt het absoluut
+    gepositioneerde paneel van `ClassInfoButton` in de kaarten weg. "Mijn lessen" blijft
+    bewust ongegroepeerd — eigen aanmeldingen staan altijd bovenaan open, wat meteen
+    dekt dat een melding op de kale `/member/rooster` landt.
 - **Filter op lestype** (`?type=<classId>`, chips uit álle aangemaakte `GroupClass`-rijen,
   ook zonder geplande sessie) werkt in beide weergaven, naast het vestiging-filter.
+- **ELKE `Link` OP `/member/rooster` DRAAGT `scroll={false}`** (weergave-tabs, lestype-
+  chips, vestiging-chips, maandnavigatie). De searchParams zitten ín de segmentsleutel van
+  Next, dus een filterwissel telt als een **nieuw segment**: de router maakt een verse
+  `scrollRef` aan en `layout-router.js` zet `documentElement.scrollTop` op 0. Die
+  chiprijen staan ónder de sectie "Mijn lessen" en dus vaak onder de vouw, dus je werd bij
+  élke tik naar boven gegooid en moest terugscrollen naar de rij die je net aanraakte.
+  `loading.tsx` is hier **niet** de dader: bij een searchParams-only navigatie strípt de
+  React-key van het segment juist de query, dus die boundary wordt niet opnieuw gemount.
 - **`enroll`/`unenroll` brengen je terug in dezelfde weergave**: de forms sturen een
   verborgen `q` mee en `returnQuery` (actions.ts) laat daaruit alleen de bekende
   sleutels door (`view`/`loc`/`type`/`m`/`d`) — het is gebruikersinvoer. Zonder dat

@@ -16,6 +16,8 @@ import { enroll, unenroll } from "@/app/member/rooster/actions";
  */
 export type SessionCard = {
   id: string;
+  /** Stabiele identiteit van het lestype (`GroupClass.id`) — de groepeersleutel. */
+  classId: string;
   startsAt: Date;
   endsAt: Date;
   timezone: string;

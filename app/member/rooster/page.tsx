@@ -30,6 +30,7 @@ import { CalendarDays } from "@/components/ui/icons";
 import { ClassInfoButton } from "@/components/classes/class-info";
 import { ClassCalendar } from "@/components/classes/class-calendar";
 import { ClassCard, type SessionCard } from "@/components/classes/class-card";
+import { ClassGroupList } from "@/components/classes/class-group-list";
 import { type RoosterMessage } from "./actions";
 
 export async function generateMetadata() {
@@ -182,6 +183,7 @@ export default async function MemberRoosterPage({
     const count = s._count.enrollments;
     return {
       id: s.id,
+      classId: s.classId,
       startsAt: s.startsAt,
       endsAt: s.endsAt,
       timezone: s.venueLocation.timezone,
@@ -303,12 +305,21 @@ export default async function MemberRoosterPage({
       <RevealItem className="flex flex-col gap-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">{t("upcoming")}</h2>
 
-        {/* Weergave: lijst (wat komt eraan) of agenda (maandoverzicht). */}
+        {/* Weergave: lijst (wat komt eraan) of agenda (maandoverzicht).
+
+            ELKE LINK OP DEZE PAGINA DRAAGT `scroll={false}`. De searchParams
+            zitten in de segmentsleutel van Next, dus een filterwissel telt als
+            een nieuw segment: de router maakt een verse scrollRef aan en zet
+            `documentElement.scrollTop` op 0. Deze chiprijen staan onder de
+            sectie "Mijn lessen" en dus vaak onder de vouw — zonder de vlag
+            sprong de pagina bij élke tik naar boven en moest je terugscrollen
+            naar de rij die je net had aangeraakt. De maandnavigatie in
+            class-calendar.tsx deed dit al. */}
         <div className="flex gap-1 rounded-xl bg-surface-2 p-1">
-          <Link href={hrefWith({ view: null, m: null, d: null })} className={viewTab(!agendaView)}>
+          <Link href={hrefWith({ view: null, m: null, d: null })} scroll={false} className={viewTab(!agendaView)}>
             {t("viewList")}
           </Link>
-          <Link href={hrefWith({ view: "agenda" })} className={viewTab(agendaView)}>
+          <Link href={hrefWith({ view: "agenda" })} scroll={false} className={viewTab(agendaView)}>
             {t("viewAgenda")}
           </Link>
         </div>
@@ -317,11 +328,16 @@ export default async function MemberRoosterPage({
             `overflow-x-auto`-container klipt het popover-paneel weg. */}
         {classTypes.length > 1 ? (
           <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
-            <Link href={hrefWith({ type: null })} className={filterTab(selectedTypeId === null)}>
+            <Link href={hrefWith({ type: null })} scroll={false} className={filterTab(selectedTypeId === null)}>
               {t("allTypes")}
             </Link>
             {classTypes.map((c) => (
-              <Link key={c.id} href={hrefWith({ type: c.id })} className={filterTab(selectedTypeId === c.id)}>
+              <Link
+                key={c.id}
+                href={hrefWith({ type: c.id })}
+                scroll={false}
+                className={filterTab(selectedTypeId === c.id)}
+              >
                 {c.name}
               </Link>
             ))}
@@ -338,11 +354,16 @@ export default async function MemberRoosterPage({
 
         {multiLocation ? (
           <div className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1">
-            <Link href={hrefWith({ loc: "all" })} className={filterTab(selectedLocationId === null)}>
+            <Link href={hrefWith({ loc: "all" })} scroll={false} className={filterTab(selectedLocationId === null)}>
               {t("allLocations")}
             </Link>
             {locations.map((l) => (
-              <Link key={l.id} href={hrefWith({ loc: l.id })} className={filterTab(selectedLocationId === l.id)}>
+              <Link
+                key={l.id}
+                href={hrefWith({ loc: l.id })}
+                scroll={false}
+                className={filterTab(selectedLocationId === l.id)}
+              >
                 {l.name}
               </Link>
             ))}
@@ -372,11 +393,7 @@ export default async function MemberRoosterPage({
             description={selectedTypeId ? t("emptyTypeDesc") : t("emptyDesc")}
           />
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {listCards.map((s) => (
-              <ClassCard key={s.id} s={s} q={formQuery} />
-            ))}
-          </div>
+          <ClassGroupList sessions={listCards} q={formQuery} />
         )}
       </RevealItem>
     </Reveal>
