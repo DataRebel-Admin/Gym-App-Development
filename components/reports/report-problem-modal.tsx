@@ -159,7 +159,7 @@ export function ReportProblemModal({
           </Button>
         </div>
       ) : (
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form onSubmit={submit} className="flex flex-col gap-3">
           <p className="text-sm text-neutral-600">{t("intro")}</p>
 
           <Field label={t("form.type")}>
@@ -192,7 +192,7 @@ export function ReportProblemModal({
               required
               minLength={10}
               maxLength={5000}
-              rows={5}
+              rows={4}
               defaultValue={
                 prefill?.description ?? (prefill?.crash ? t("crash.description") : "")
               }

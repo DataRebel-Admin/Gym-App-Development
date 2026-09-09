@@ -596,6 +596,14 @@ body::after {
   display: none;
 }
 
+/* Modal-paneel: past altijd binnen het zíchtbare viewport. svh rekent met de
+   kleinste viewport (mobiele browserbalk uitgeschoven) en verspringt niet
+   terwijl die balk animeert; vh blijft staan als terugval. */
+.modal-fit {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100svh - 2rem);
+}
+
 /* Custom scrollbar */
 * {
   scrollbar-width: thin;
