@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { contrastRatio, readableText } from "../lib/color";
+import {
+  MIN_ACCENT_CONTRAST,
+  accentForTheme,
+  contrastRatio,
+  readableText,
+} from "../lib/color";
 
 // `readableText` bepaalt de tekstkleur óp het tenant-accent: het knoplabel in
 // élke uitgaande e-mail, de wordmark in de mailheader en de web-UI-variabele
@@ -47,4 +52,90 @@ test("e-mailpalet: elke tekst/achtergrond-combinatie is leesbaar", () => {
     const ratio = contrastRatio(fg, bg);
     assert.ok(ratio >= 4.5, `${label}: ${fg} op ${bg} = ${ratio.toFixed(2)}:1`);
   }
+});
+
+/* ------------------------------------------------------------------
+ * accentForTheme — contrastgarantie op het tenant-accent
+ * ------------------------------------------------------------------
+ * Whitelabel laat élke merkkleur toe, ook een die in precies één thema
+ * wegvalt. `accentForTheme` mengt zo'n kleur minimaal bij tot de 3:1-grens
+ * tegen het kaartoppervlak (#ffffff licht / #111111 donker) en laat de rest
+ * onaangeraakt. De opgeslagen Tenant.accentColor verandert nooit.
+ */
+
+// Het kaartoppervlak per thema; spiegelt --surface-1 in globals.css.
+const SURFACE = { light: "#ffffff", dark: "#111111" } as const;
+const THEMES = ["light", "dark"] as const;
+
+test("een accent met genoeg contrast blijft exact ongewijzigd", () => {
+  // Rebel Orange haalt 3,33:1 op wit en 5,68:1 op de donkere kaart. Het
+  // platform-accent mag dus nooit stilletjes verschuiven — anders wijkt de
+  // demo-tenant af van de hardgecodeerde fallback in globals.css.
+  assert.equal(accentForTheme("#ff4d00", "light"), "#ff4d00");
+  assert.equal(accentForTheme("#ff4d00", "dark"), "#ff4d00");
+  assert.equal(accentForTheme("#2563eb", "light"), "#2563eb");
+  assert.equal(accentForTheme("#16a34a", "dark"), "#16a34a");
+});
+
+test("een zwart merk wordt alléén in de donkere modus opgelicht", () => {
+  // Fitness Fabriek Dokkum: #000000. Op wit is dat 21:1 (prima), op de bijna
+  // zwarte donkere modus 1,11:1 — daar verdwijnt text-accent en de aurora.
+  assert.equal(accentForTheme("#000000", "light"), "#000000");
+  const dark = accentForTheme("#000000", "dark");
+  assert.notEqual(dark, "#000000");
+  assert.ok(contrastRatio(dark, SURFACE.dark) >= MIN_ACCENT_CONTRAST);
+});
+
+test("een knalgeel merk wordt alléén in de lichte modus verdonkerd", () => {
+  // Spiegelbeeld: 16,42:1 op donker, 1,15:1 op wit.
+  assert.equal(accentForTheme("#f7f700", "dark"), "#f7f700");
+  const light = accentForTheme("#f7f700", "light");
+  assert.notEqual(light, "#f7f700");
+  assert.ok(contrastRatio(light, SURFACE.light) >= MIN_ACCENT_CONTRAST);
+});
+
+test("élk accent haalt in beide thema's de 3:1-grens tegen de kaart", () => {
+  const accents = [
+    "#ff4d00", "#000000", "#111111", "#f7f700", "#ffffff", "#1e3a8a",
+    "#2563eb", "#16a34a", "#7c3aed", "#facc15", "#a3e635", "#f472b6",
+    "#0f172a", "#fefce8", "#06b6d4",
+  ];
+  for (const accent of accents) {
+    for (const theme of THEMES) {
+      const shown = accentForTheme(accent, theme);
+      const ratio = contrastRatio(shown, SURFACE[theme]);
+      assert.ok(
+        ratio >= MIN_ACCENT_CONTRAST,
+        `${accent} (${theme}) → ${shown} is maar ${ratio.toFixed(2)}:1`,
+      );
+    }
+  }
+});
+
+test("de correctie is idempotent — nog een ronde verandert niets meer", () => {
+  for (const accent of ["#000000", "#f7f700", "#1e3a8a", "#ff4d00"]) {
+    for (const theme of THEMES) {
+      const once = accentForTheme(accent, theme);
+      assert.equal(accentForTheme(once, theme), once);
+    }
+  }
+});
+
+test("de knoptekst blijft leesbaar óp het gecorrigeerde accent", () => {
+  // --tenant-accent-fg-* wordt in app/layout.tsx van de gecorrigeerde kleur
+  // afgeleid, niet van de ruwe merkkleur; die combinatie moet kloppen.
+  for (const accent of ["#000000", "#f7f700", "#1e3a8a", "#ff4d00", "#ffffff"]) {
+    for (const theme of THEMES) {
+      const shown = accentForTheme(accent, theme);
+      const ratio = contrastRatio(readableText(shown), shown);
+      assert.ok(ratio >= 3, `${shown}: ${ratio.toFixed(2)}:1`);
+    }
+  }
+});
+
+test("een niet-hex kleur gaat ongemoeid door", () => {
+  // Van een CSS-kleurnaam is geen luminantie te berekenen; stil vervangen is
+  // erger dan niet corrigeren.
+  assert.equal(accentForTheme("rebeccapurple", "dark"), "rebeccapurple");
+  assert.equal(accentForTheme("", "light"), "");
 });

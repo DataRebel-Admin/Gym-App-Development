@@ -50,9 +50,19 @@
   --border-strong: #d4d4d4;
   --muted-foreground: #6b7280;
 
-  /* Tenant-overschrijfbaar: standaard Rebel Orange (Brand Book) */
-  --tenant-accent: #ff4d00;
-  --tenant-accent-foreground: #ffffff;
+  /* Tenant-overschrijfbaar: standaard Rebel Orange (Brand Book).
+
+     Het accent wordt NIET rechtstreeks geïnjecteerd maar via twee inputs die
+     app/layout.tsx per tenant op <html> zet: `--tenant-accent-light` en
+     `--tenant-accent-dark`. Die zijn daar al door `accentForTheme` (lib/color.ts)
+     contrast-gecorrigeerd, zodat een merkkleur die in een van beide thema's
+     wegvalt (zwart op de bijna zwarte donkere modus, knalgeel op wit) toch
+     leesbaar blijft. Waarom via de cascade en niet server-side: de themawissel
+     zet alleen `data-theme` op <html> om, zonder server-render, dus een enkele
+     vooraf gekozen waarde zou na het omschakelen op de oude variant blijven
+     staan. De fallback is de Brand Book-kleur (geen tenant = platform). */
+  --tenant-accent: var(--tenant-accent-light, #ff4d00);
+  --tenant-accent-foreground: var(--tenant-accent-fg-light, #ffffff);
   /* Default secundair: lichtere tint van het accent → klopt voor elke tenant.
      Wordt overschreven als de tenant een eigen secondaryColor heeft. */
   --tenant-secondary: color-mix(in srgb, var(--tenant-accent) 62%, white);
@@ -163,6 +173,10 @@
   --border: #292929;
   --border-strong: #3a3a3a;
   --muted-foreground: #9a9a9a;
+
+  /* Donkere variant van het accent (zie de toelichting in :root hierboven). */
+  --tenant-accent: var(--tenant-accent-dark, #ff4d00);
+  --tenant-accent-foreground: var(--tenant-accent-fg-dark, #ffffff);
 
   --tenant-secondary: color-mix(in srgb, var(--tenant-accent) 70%, #ffffff);
   --accent-soft: color-mix(in srgb, var(--tenant-accent) 22%, transparent);

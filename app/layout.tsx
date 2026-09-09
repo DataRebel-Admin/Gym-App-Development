@@ -8,7 +8,7 @@ import { getCurrentTenant } from "@/lib/tenant";
 import { getResolvedTheme } from "@/lib/theme";
 import { getBackgroundParallax } from "@/lib/background-motion";
 import { rootMetadata } from "@/lib/metadata";
-import { readableText } from "@/lib/color";
+import { accentForTheme, readableText } from "@/lib/color";
 import { LOCALE_META, isLocale } from "@/lib/i18n/config";
 import { TenantProvider, type TenantInfo } from "@/components/tenant-provider";
 import { MotionProvider } from "@/components/motion/motion-provider";
@@ -85,13 +85,26 @@ export default async function RootLayout({
   // oplost) wél meekleurde: een zwart/gele sportschool kreeg oranje aurora-orbs,
   // accent-washes, ringen en schaduwen. Op `<html>` wint de inline-stijl in de
   // cascade, dus ook de dark-mode-varianten van die tokens rekenen mee.
+  //
+  // Het accent gaat als twee thema-varianten mee, niet als één waarde: een
+  // merkkleur kan in precies één van beide thema's wegvallen (zwart op de
+  // bijna zwarte donkere modus, knalgeel op wit). `accentForTheme` mengt zo'n
+  // kleur minimaal bij tot 3:1 tegen het kaartoppervlak en laat een accent dat
+  // al genoeg contrast heeft — het GymRebel-oranje bijvoorbeeld — exact met
+  // rust. De keuze tussen de twee doet de cascade in globals.css, want de
+  // themawissel zet alleen `data-theme` om zonder server-render.
   const brandVars: Record<string, string> = {};
   if (tenant?.accentColor) {
-    brandVars["--tenant-accent"] = tenant.accentColor;
-    // Leesbare tekstkleur ÓP het accent (wit of donkergrijs). Zonder dit bleef
+    const lightAccent = accentForTheme(tenant.accentColor, "light");
+    const darkAccent = accentForTheme(tenant.accentColor, "dark");
+    brandVars["--tenant-accent-light"] = lightAccent;
+    brandVars["--tenant-accent-dark"] = darkAccent;
+    // Leesbare tekstkleur ÓP het accent (wit of donkergrijs), per thema afgeleid
+    // van de kleur die daar écht getoond wordt. Zonder dit bleef
     // `--tenant-accent-foreground` op #fff staan → wit-op-licht bij een lichte
     // tenant-huisstijl. Zelfde luminantie-logica als e-mails/QR (lib/color.ts).
-    brandVars["--tenant-accent-foreground"] = readableText(tenant.accentColor);
+    brandVars["--tenant-accent-fg-light"] = readableText(lightAccent);
+    brandVars["--tenant-accent-fg-dark"] = readableText(darkAccent);
   }
   if (tenant?.secondaryColor) brandVars["--tenant-secondary"] = tenant.secondaryColor;
   const htmlStyle =

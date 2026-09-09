@@ -167,9 +167,37 @@ Loopt parallel onder leiding van Keimpe (huisstijl, marktstrategie, pricing). De
     veranderen daar niet van, dus geprinte stickers blijven bij zo'n overstap geldig.
   - **`Tenant.slug` is na de eerste QR-print onveranderlijk**: die slug staat als
     subdomein op fysieke stickers bij de apparaten.
-- **Whitelabel theming.** De root-layout injecteert `--tenant-accent` (uit `tenant.accentColor`)
-  als inline CSS-var op `<body>`; `bg-accent`/`text-accent` kleuren daardoor per tenant.
-  `<html lang>` volgt sinds de i18n-ronde de **UI-locale** (niet `tenant.locale`).
+- **Whitelabel theming.** De root-layout injecteert de tenant-huisstijl als inline
+  CSS-vars op **`<html>`**; `bg-accent`/`text-accent` en álle afgeleide tokens kleuren
+  daardoor per tenant. `<html lang>` volgt sinds de i18n-ronde de **UI-locale** (niet
+  `tenant.locale`).
+  - **DE TENANT-VARS HOREN OP `<html>` (= `:root`), NOOIT OP `<body>`.** Dat ging mis:
+    de kleur stond op `<body>`, terwijl `--accent-soft(-strong/-solid)`, `--accent-ring`,
+    `--accent-gradient`, `--shadow-accent`, `--app-bg` en de aurora-orbs (`--orb-*`) in
+    globals.css op `:root` met `color-mix(var(--tenant-accent) …)` worden berekend. Een
+    custom property met een `var()`-verwijzing wordt gesubstitueerd op het element waar
+    hij **gedeclareerd** staat, dus die afgeleiden bleven allemaal Rebel Orange terwijl
+    `bg-accent`/`text-accent` (die de var pas op het element zelf oplossen) wél
+    meekleurden. Zichtbaar geworden bij de eerste niet-oranje tenant: zwart/gele
+    sportschool met een oranje aurora. Zet nieuwe afgeleide tokens dus in het
+    `:root`-blok, niet op een tussenlaag. `fontFamily` blijft bewust op `<body>` — de
+    `body { font-family: … }`-regel zou een van `<html>` geërfde waarde overschrijven.
+  - **Contrastgarantie per thema (`accentForTheme`, lib/color.ts, puur + getest).** Een
+    merkkleur mag in precies één thema wegvallen: zwart (#000000) haalt 1,1:1 op de
+    bijna zwarte donkere modus, knalgeel 1,15:1 op wit. De helper mengt zo'n accent
+    minimaal bij (naar wit op donker, naar zwart op licht) tot **3:1** tegen het
+    kaartoppervlak (`--surface-1`: #ffffff / #111111) en laat een accent dat het al
+    haalt **exact** met rust — het GymRebel-oranje (3,33:1 licht, 5,68:1 donker) wordt
+    nooit aangeraakt. `Tenant.accentColor` blijft de échte merkkleur; dit is puur een
+    weergavelaag (e-mail/PDF/QR gebruiken bewust de ruwe waarde, die renderen op eigen
+    wit papier).
+  - **Beide varianten gaan mee, de cascade kiest.** De layout zet
+    `--tenant-accent-light`/`-dark` (+ `--tenant-accent-fg-light`/`-dark`, afgeleid van
+    de gecorrigeerde kleur) en globals.css doet `--tenant-accent: var(--tenant-accent-light)`
+    in `:root` en `var(--tenant-accent-dark)` in `:root[data-theme="dark"]`. Bewust niet
+    server-side één waarde kiezen: de `ThemeToggle` zet alleen `data-theme` op `<html>`
+    om, zónder server-render, dus die ene waarde zou na het omschakelen op de oude
+    variant blijven hangen.
 - **RLS-runtime.** `lib/tenant-db.ts` (`getTenantDb()` / `tenantDbFor(id)`) is een Prisma
   `$extends`-client die elke operatie in één transactie wrapt met
   `set_config('app.current_tenant', id, true)`. Gebruik deze voor tenant-business-data.
