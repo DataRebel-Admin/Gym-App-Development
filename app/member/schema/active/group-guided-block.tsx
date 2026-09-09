@@ -338,7 +338,7 @@ export function GroupGuidedBlock({
             {/* Huidige oefening */}
             <div className="rounded-2xl border border-border bg-surface-0 p-3">
               <Link
-                href={`/member/history/exercise/${stepEx.exerciseId}`}
+                href={`/member/history/exercise/${stepEx.exerciseId}?van=training`}
                 className="flex items-start gap-3 transition-opacity active:opacity-70"
                 aria-label={t("viewExplanationOf", { name: stepEx.name })}
               >

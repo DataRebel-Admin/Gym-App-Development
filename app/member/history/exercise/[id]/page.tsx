@@ -34,10 +34,16 @@ export async function generateMetadata({
 
 export default async function ExerciseProgressPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ van?: string }>;
 }) {
   const { id } = await params;
+  // Vanuit de actieve training geopend (?van=training)? Dan is "terug" altijd
+  // de training zelf — óók na doorklikken door een keten van alternatieven —
+  // en dragen de alternatieven-links de context door.
+  const fromTraining = (await searchParams).van === "training";
   const member = await requireMember();
   const tenant = await getCurrentTenant();
   const contentLocale = await getContentLocale(tenant?.locale);
@@ -120,10 +126,15 @@ export default async function ExerciseProgressPage({
 
   return (
     <div className="flex flex-1 flex-col gap-5 px-5 py-6">
-      <BackButton fallback="/member/exercises" />
+      <BackButton
+        fallback="/member/exercises"
+        href={fromTraining ? "/member/schema/active" : undefined}
+        label={fromTraining ? "Terug naar training" : undefined}
+      />
       <ExerciseDetailView
         detail={resolved}
         alternatives={alternatives}
+        linkQuery={fromTraining ? "?van=training" : ""}
         progressSlot={progressSlot}
         assistantSlot={
           aiEnabled ? (

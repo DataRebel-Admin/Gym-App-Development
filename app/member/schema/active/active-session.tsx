@@ -197,9 +197,43 @@ function sessionTimerKey(sessionId: string) {
   return `gymrebel-session-timers-${sessionId}`;
 }
 
+/** localStorage-sleutel voor de lopende rusttimer/stopwatch van deze sessie —
+ *  zo blijft een gestarte timer gewoon doorlopen als het lid even naar een
+ *  ander scherm gaat (oefening-uitleg, dashboard) en terugkomt. */
+function sessionRestTimerKey(sessionId: string) {
+  return `gymrebel-session-resttimer-${sessionId}`;
+}
+
 /** localStorage-sleutel voor de groepen die in lijst- i.p.v. geleide weergave staan. */
 function guidedViewKey(sessionId: string) {
   return `gymrebel-session-listview-${sessionId}`;
+}
+
+/**
+ * Concept-invoer (ingetypt maar nog niet afgevinkt/opgeslagen) per sessie in
+ * sessionStorage. Afgevinkte sets staan op de server; dít vangt precies het gat
+ * daaromheen: wie halverwege het invullen naar de oefening-uitleg of het
+ * dashboard navigeert en terugkomt, ziet z'n getallen gewoon nog staan.
+ */
+type SessionDraft = {
+  sets: Record<string, { reps: string; kg: string }[]>;
+  dyn: Record<string, InputValues[]>;
+};
+
+function sessionDraftKey(sessionId: string) {
+  return `gymrebel-session-draft-${sessionId}`;
+}
+
+function loadSessionDraft(sessionId: string): SessionDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(sessionDraftKey(sessionId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionDraft;
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function fmtClock(totalSec: number) {
@@ -330,7 +364,7 @@ export function ActiveSession({
 }) {
   const t = useTranslations("member.active");
   const toast = useToast();
-  const timer = useRestTimer();
+  const timer = useRestTimer(sessionRestTimerKey(sessionId));
   const [, startTransition] = useTransition();
 
   // Lokale (mutable) oefeningenlijst: een gekozen alternatief vervangt de identiteit
@@ -387,6 +421,9 @@ export function ActiveSession({
     }
   }
 
+  // Concept-invoer van een eerdere mount van deze sessie (schermwissel/reload).
+  const [sessionDraft] = useState<SessionDraft | null>(() => loadSessionDraft(sessionId));
+
   // Set-state alleen voor kracht-oefeningen (klassiek reps×kg-pad). In een
   // échte groep telt het rondetal als set-aantal (geleide flow: ronde r = set r).
   const [setState, setSetState] = useState<Record<string, SetValue[]>>(() => {
@@ -397,7 +434,18 @@ export function ActiveSession({
       // Sessie-aantal wint van het schema-aantal; een gelogde set verdwijnt nooit.
       const desired = rounds.get(ex.originalExerciseId) ?? ex.sessionSets ?? ex.sets;
       const len = Math.max(desired, maxLoggedSet(ex.entries), 1);
-      init[ex.exerciseId] = strengthRowsFrom(ex.entries, len);
+      const rows = strengthRowsFrom(ex.entries, len);
+      // Concept-overlay: alleen op rijen zonder opgeslagen set (server wint).
+      const draftRows = sessionDraft?.sets?.[ex.exerciseId];
+      if (draftRows) {
+        for (let i = 0; i < rows.length; i++) {
+          const d = draftRows[i];
+          if (d && !rows[i].done && !rows[i].reps && !rows[i].kg) {
+            rows[i] = { ...rows[i], reps: d.reps ?? "", kg: d.kg ?? "" };
+          }
+        }
+      }
+      init[ex.exerciseId] = rows;
     }
     return init;
   });
@@ -416,10 +464,46 @@ export function ActiveSession({
         ex.sessionSets ??
         (single ? 1 : Math.max(ex.sets, 1));
       const len = Math.max(desired, maxLoggedSet(ex.entries), 1);
-      init[ex.exerciseId] = dynRowsFrom(ex.entries, ex.exerciseType, len);
+      const rows = dynRowsFrom(ex.entries, ex.exerciseType, len);
+      // Concept-overlay: alleen op nog niet opgeslagen, lege rijen.
+      const draftRows = sessionDraft?.dyn?.[ex.exerciseId];
+      if (draftRows) {
+        for (let i = 0; i < rows.length; i++) {
+          const d = draftRows[i];
+          const empty = Object.values(rows[i].values).every((v) => !String(v ?? "").trim());
+          if (d && !rows[i].saved && empty) {
+            rows[i] = { ...rows[i], values: { ...rows[i].values, ...d } };
+          }
+        }
+      }
+      init[ex.exerciseId] = rows;
     }
     return init;
   });
+
+  // Concept-invoer live bijhouden (sessionStorage) — klein, dus elke wijziging.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const draft: SessionDraft = {
+        sets: Object.fromEntries(
+          Object.entries(setState).map(([id, rows]) => [
+            id,
+            rows.map((r) => ({ reps: r.done ? "" : r.reps, kg: r.done ? "" : r.kg })),
+          ])
+        ),
+        dyn: Object.fromEntries(
+          Object.entries(dynRows).map(([id, rows]) => [
+            id,
+            rows.map((r) => (r.saved ? {} : r.values)),
+          ])
+        ),
+      };
+      window.sessionStorage.setItem(sessionDraftKey(sessionId), JSON.stringify(draft));
+    } catch {
+      /* genegeerd — concept is een extraatje */
+    }
+  }, [sessionId, setState, dynRows]);
 
   const [notes, setNotes] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};

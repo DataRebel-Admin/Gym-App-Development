@@ -81,12 +81,16 @@ export function ExerciseDetailView({
   alternatives,
   progressSlot,
   assistantSlot,
+  linkQuery = "",
 }: {
   detail: ExerciseDetail;
   alternatives: ExerciseAlternative[];
   progressSlot?: React.ReactNode;
   /** Optionele contextbewuste AI-assistent (uitleg/alternatieven/techniek). */
   assistantSlot?: React.ReactNode;
+  /** Querystring (bv. "?van=training") die meegaat op de alternatieven-links,
+   *  zodat herkomst-context behouden blijft hoe diep je ook doorklikt. */
+  linkQuery?: string;
 }) {
   const muscles = [detail.primaryMuscle, ...detail.secondaryMuscles].filter(
     (m): m is string => Boolean(m)
@@ -369,7 +373,7 @@ export function ExerciseDetailView({
             {alternatives.map((alt) => (
               <li key={alt.id}>
                 <Link
-                  href={`/member/history/exercise/${alt.id}`}
+                  href={`/member/history/exercise/${alt.id}${linkQuery}`}
                   className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-2.5 shadow-sm active:bg-surface-2"
                 >
                   {alt.thumbUrl ? (

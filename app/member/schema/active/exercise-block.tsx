@@ -37,6 +37,11 @@ export function BigStepper({
     const next = Math.max(0, Math.round((cur + delta) * 100) / 100);
     onChange(String(next));
   }
+  // Driecijferige gewichten ("100", "102.5") moeten in het veld passen, ook op
+  // een smal toestel naast de −/+-knoppen: laat de letter meekrimpen zodra de
+  // waarde (of de placeholder die erdoorheen schijnt) langer wordt.
+  const shown = value || placeholder || "";
+  const sizeClass = shown.length >= 6 ? "text-base" : shown.length >= 4 ? "text-lg" : "text-xl";
   return (
     <div className="flex w-full flex-col items-center">
       <span className="mb-1 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
@@ -47,7 +52,7 @@ export function BigStepper({
           type="button"
           aria-label={t("unitDown", { unit })}
           onClick={() => bump(-step)}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl font-bold text-neutral-600 active:scale-90"
+          className="flex h-12 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl font-bold text-neutral-600 active:scale-90"
         >
           −
         </button>
@@ -59,13 +64,13 @@ export function BigStepper({
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
           {...selectOnFocus}
-          className="w-full min-w-0 rounded-xl border border-border bg-surface-0 px-1 py-2 text-center font-display text-xl font-bold leading-none tabular-nums text-neutral-900 outline-none placeholder:font-bold placeholder:text-neutral-300 focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          className={`w-full min-w-14 rounded-xl border border-border bg-surface-0 px-0.5 py-2 text-center font-display ${sizeClass} font-bold leading-none tabular-nums text-neutral-900 outline-none placeholder:font-bold placeholder:text-neutral-300 focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none`}
         />
         <button
           type="button"
           aria-label={t("unitUp", { unit })}
           onClick={() => bump(step)}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl font-bold text-neutral-600 active:scale-90"
+          className="flex h-12 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl font-bold text-neutral-600 active:scale-90"
         >
           +
         </button>
@@ -136,7 +141,7 @@ export function ExerciseBlock({
     >
       {/* Kop — tik om de oefening-uitleg te openen */}
       <Link
-        href={`/member/history/exercise/${exercise.exerciseId}`}
+        href={`/member/history/exercise/${exercise.exerciseId}?van=training`}
         className="flex items-start gap-3 rounded-xl transition-opacity active:opacity-70"
         aria-label={t("viewExplanationOf", { name: exercise.name })}
       >

@@ -119,7 +119,7 @@ export function DynamicExerciseBlock({
     >
       {/* Kop */}
       <Link
-        href={`/member/history/exercise/${exercise.exerciseId}`}
+        href={`/member/history/exercise/${exercise.exerciseId}?van=training`}
         className="flex items-start gap-3 rounded-xl transition-opacity active:opacity-70"
         aria-label={t("viewExplanationOf", { name: exercise.name })}
       >
