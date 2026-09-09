@@ -530,14 +530,6 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft zelf-schema '${s(meta, "name") ?? ""}' gepauzeerd`.trim(),
   },
-  "schema.framework.save": {
-    category: "schemas", label: "Kader opgeslagen", icon: "🧭", tone: "accent",
-    sentence: ({ actor, meta }) =>
-      `${actor} heeft kader '${s(meta, "name") ?? ""}' voor zelf-schema's opgeslagen`.trim(),
-  },
-  "schema.framework.delete": {
-    category: "schemas", label: "Kader verwijderd", icon: "🗑️", tone: "danger",
-    sentence: ({ actor, meta }) =>
   "schema.switch": {
     category: "schemas", label: "Schema gewisseld", icon: "🔀", tone: "accent",
     sentence: ({ actor, meta }) =>
@@ -548,6 +540,14 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} startte eenmalig de workout '${s(meta, "name") ?? ""}'`.trim(),
   },
+  "schema.framework.save": {
+    category: "schemas", label: "Kader opgeslagen", icon: "🧭", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft kader '${s(meta, "name") ?? ""}' voor zelf-schema's opgeslagen`.trim(),
+  },
+  "schema.framework.delete": {
+    category: "schemas", label: "Kader verwijderd", icon: "🗑️", tone: "danger",
+    sentence: ({ actor, meta }) =>
       `${actor} heeft kader '${s(meta, "name") ?? ""}' verwijderd`.trim(),
   },
   "schema.framework.assign": {

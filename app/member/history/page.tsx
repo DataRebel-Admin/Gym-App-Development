@@ -293,6 +293,12 @@ export default async function MemberHistoryPage() {
                         {t("conductedBy", { trainer: conductedBy.get(s.id)! })}
                       </p>
                     ) : null}
+                    {oneOffName.get(s.id) ? (
+                      <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
+                        <Dumbbell className="size-3.5 text-accent" />
+                        {t("oneOffSession", { name: oneOffName.get(s.id)! })}
+                      </p>
+                    ) : null}
                     {s.muscles.length > 0 ? (
                       <div className="mt-2.5 flex flex-wrap gap-1.5">
                         {s.muscles.map((m) => (
@@ -301,12 +307,6 @@ export default async function MemberHistoryPage() {
                             className="rounded-full bg-surface-2 px-2.5 py-0.5 text-[11px] font-medium text-neutral-600"
                           >
                             {m}
-                    {oneOffName.get(s.id) ? (
-                      <p className="mt-2 flex items-center gap-1.5 text-xs text-neutral-500">
-                        <Dumbbell className="size-3.5 text-accent" />
-                        {t("oneOffSession", { name: oneOffName.get(s.id)! })}
-                      </p>
-                    ) : null}
                           </span>
                         ))}
                       </div>
