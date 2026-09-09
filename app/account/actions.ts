@@ -10,7 +10,8 @@ import { enumFromLocale, type AppLocale } from "@/lib/i18n/config";
 import { requireAccount } from "@/lib/account";
 import { requireOwner } from "@/lib/owner";
 import { withHideQuotes, withHideAchievements, withAllowTrainerPhotos, withDisableSetTimers } from "@/lib/user-preferences";
-import { uploadAvatar } from "@/lib/blob";
+import { deleteOwnBlob, uploadAvatar } from "@/lib/blob";
+import { CONSENT_OPTIONS } from "@/lib/consents";
 import { audit } from "@/lib/audit";
 import { loadTenantBranding } from "@/lib/email/branding";
 import { emailChangeMessage } from "@/lib/email/messages";
@@ -102,7 +103,15 @@ export async function updateAvatar(
     return { error: messages[result.error] };
   }
 
+  // De vorige foto ruimt zichzelf niet op: eerst de oude URL vastleggen, ná de
+  // update de blob opruimen (deleteOwnBlob filtert OAuth-avatars/data-URL's er
+  // zelf uit en is best-effort).
+  const prev = await prisma.user.findUnique({
+    where: { id: session.id },
+    select: { image: true },
+  });
   await prisma.user.update({ where: { id: session.id }, data: { image: result.url } });
+  if (prev?.image && prev.image !== result.url) await deleteOwnBlob(prev.image);
   await audit("profile.avatar", {
     actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),
     tenantId: session.tenantId ?? null,
@@ -277,23 +286,31 @@ export async function setSetTimerPreference(formData: FormData) {
   revalidatePath("/account/meldingen");
 }
 
+// Alleen de bekende toestemmingen uit de registry, met boolean-waarden.
+// Onbekende sleutels worden gestript (zod-default), zodat er nooit
+// willekeurige JSON in `User.consents` belandt.
+const consentsSchema = z.object(
+  Object.fromEntries(CONSENT_OPTIONS.map((c) => [c.key, z.boolean().optional()]))
+);
+
 /** Privacy-toestemmingen opslaan (autosave). */
 export async function saveConsents(
   _prev: AccountFormState,
   formData: FormData
 ): Promise<AccountFormState> {
   const session = await requireAccount();
-  let consents: unknown;
+  let raw: unknown;
   try {
-    consents = JSON.parse(String(formData.get("consents") ?? "{}"));
+    raw = JSON.parse(String(formData.get("consents") ?? "{}"));
   } catch {
     return { error: "Ongeldige invoer" };
   }
-  if (typeof consents !== "object" || consents === null) return { error: "Ongeldige invoer" };
+  const parsed = consentsSchema.safeParse(raw);
+  if (!parsed.success) return { error: "Ongeldige invoer" };
 
   await prisma.user.update({
     where: { id: session.id },
-    data: { consents: consents as object },
+    data: { consents: parsed.data },
   });
   await audit("privacy.consent.update", {
     actor: actorOf({ id: session.id, email: session.email ?? null, role: session.role }),
@@ -305,7 +322,10 @@ export async function saveConsents(
   return { ok: true };
 }
 
-/** Verzoek tot accountverwijdering (zet vlag; daadwerkelijke verwijdering is handmatig). */
+/**
+ * Verzoek tot accountverwijdering (zet vlag; de cron `delete-accounts`
+ * verwijdert automatisch en definitief zodra de bedenktijd is verstreken).
+ */
 export async function requestAccountDeletion(formData: FormData) {
   const session = await requireAccount();
   const cancel = formData.get("cancel") === "true";

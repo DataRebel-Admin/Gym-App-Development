@@ -2,13 +2,8 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import { CONSENT_OPTIONS } from "@/lib/consents";
 import { saveConsents, type AccountFormState } from "../actions";
-
-const CONSENTS = [
-  { key: "product_updates", label: "Productupdates", hint: "Nieuwe functies en verbeteringen." },
-  { key: "marketing", label: "Marketing-e-mails", hint: "Aanbiedingen en nieuwsbrieven." },
-  { key: "usage_analytics", label: "Gebruiksanalyse", hint: "Anonieme statistieken om de app te verbeteren." },
-] as const;
 
 type Consents = Record<string, boolean>;
 
@@ -33,7 +28,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 export function ConsentsForm({ initial }: { initial: Consents | null }) {
   const [consents, setConsents] = useState<Consents>(() => {
     const base: Consents = {};
-    for (const c of CONSENTS) base[c.key] = initial?.[c.key] ?? false;
+    for (const c of CONSENT_OPTIONS) base[c.key] = initial?.[c.key] ?? false;
     return base;
   });
   const [state, save, saving] = useActionState<AccountFormState, FormData>(saveConsents, {});
@@ -62,7 +57,7 @@ export function ConsentsForm({ initial }: { initial: Consents | null }) {
         </span>
       </div>
       <div className="mt-2 divide-y divide-neutral-100">
-        {CONSENTS.map((c) => (
+        {CONSENT_OPTIONS.map((c) => (
           <div key={c.key} className="flex items-center justify-between gap-4 py-3">
             <div>
               <p className="text-sm font-medium text-neutral-900">{c.label}</p>

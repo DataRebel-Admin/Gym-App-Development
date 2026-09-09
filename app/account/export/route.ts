@@ -19,13 +19,95 @@ export async function GET() {
     },
   });
 
+  // Oefeningnaam i.p.v. interne id, en `params` erbij: niet-kracht-logs
+  // (cardio: duur/afstand/…) leven dáár — zonder die twee is de export voor de
+  // gebruiker onleesbaar resp. incompleet (AVG: "intelligible form").
   const sessions = await prisma.workoutSession.findMany({
     where: { userId: me.id },
     orderBy: { startedAt: "desc" },
     select: {
       startedAt: true, endedAt: true,
-      performanceEntries: { select: { exerciseId: true, setNumber: true, reps: true, weightKg: true } },
+      performanceEntries: {
+        orderBy: { setNumber: "asc" },
+        select: {
+          setNumber: true, reps: true, weightKg: true, params: true,
+          exercise: { select: { name: true } },
+        },
+      },
     },
+  });
+
+  // Lichaamsmetingen + voortgangsfoto's: gezondheidsdata, dus verplicht in de
+  // export. De foto-URL's zijn de eigen beelden van het lid.
+  const measurements = await prisma.measurement.findMany({
+    where: { userId: me.id },
+    orderBy: { measuredAt: "desc" },
+    select: {
+      measuredAt: true, source: true, notes: true,
+      weightKg: true, bodyFatPct: true, muscleMassKg: true, fatMassKg: true,
+      bmi: true, waterPct: true, boneMassKg: true, visceralFat: true,
+      bmr: true, metabolicAge: true,
+      chestCm: true, waistCm: true, hipsCm: true, neckCm: true,
+      armLeftCm: true, armRightCm: true, thighLeftCm: true, thighRightCm: true,
+      calfLeftCm: true, calfRightCm: true, restingHrBpm: true, extra: true,
+      photos: { select: { pose: true, url: true, createdAt: true } },
+    },
+  });
+
+  const goals = await prisma.memberGoal.findMany({
+    where: { userId: me.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      metric: true, startValue: true, targetValue: true, targetDate: true,
+      achievedAt: true, createdAt: true,
+    },
+  });
+
+  // Schema-aanvragen: eigen geschreven toelichting/opmerkingen van het lid.
+  const schemaRequests = await prisma.schemaRequest.findMany({
+    where: { userId: me.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      kind: true, goal: true, description: true, notes: true,
+      preferredStart: true, status: true, createdAt: true,
+    },
+  });
+
+  // Zelfgebouwde schema's (origin=MEMBER): volledig eigen invoer van het lid.
+  // Coach-toegewezen schema's blijven er bewust buiten — dat is content van de
+  // sportschool, geen door het lid aangeleverde data.
+  const selfBuiltSchemas = await prisma.assignedWorkout.findMany({
+    where: { userId: me.id, origin: "MEMBER" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      createdAt: true, memberStatus: true, goal: true, focusNote: true,
+      template: {
+        select: {
+          name: true,
+          days: {
+            orderBy: { order: "asc" },
+            select: {
+              name: true,
+              items: {
+                orderBy: { order: "asc" },
+                select: {
+                  sets: true, reps: true, weightKg: true, restSeconds: true,
+                  tempo: true, params: true, notes: true,
+                  exercise: { select: { name: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  // In-app-notificatiegeschiedenis (aan dit account gerichte berichten).
+  const notifications = await prisma.notification.findMany({
+    where: { userId: me.id },
+    orderBy: { createdAt: "desc" },
+    select: { category: true, title: true, body: true, readAt: true, createdAt: true },
   });
 
   const enrollments = await prisma.classEnrollment.findMany({
@@ -77,7 +159,41 @@ export async function GET() {
   const payload = {
     exportedAt: new Date().toISOString(),
     account: user,
-    workoutSessions: sessions,
+    workoutSessions: sessions.map((s) => ({
+      startedAt: s.startedAt,
+      endedAt: s.endedAt,
+      performanceEntries: s.performanceEntries.map((e) => ({
+        exercise: e.exercise.name,
+        setNumber: e.setNumber,
+        reps: e.reps,
+        weightKg: e.weightKg,
+        params: e.params,
+      })),
+    })),
+    measurements,
+    goals,
+    schemaRequests,
+    selfBuiltSchemas: selfBuiltSchemas.map((w) => ({
+      createdAt: w.createdAt,
+      status: w.memberStatus,
+      goal: w.goal,
+      focusNote: w.focusNote,
+      name: w.template?.name ?? null,
+      days: (w.template?.days ?? []).map((d) => ({
+        name: d.name,
+        exercises: d.items.map((i) => ({
+          exercise: i.exercise.name,
+          sets: i.sets,
+          reps: i.reps,
+          weightKg: i.weightKg,
+          restSeconds: i.restSeconds,
+          tempo: i.tempo,
+          params: i.params,
+          notes: i.notes,
+        })),
+      })),
+    })),
+    notifications,
     classEnrollments: enrollments,
     agendaWeekdayPlans: weekdayPlans.map((w) => ({
       schemaName: w.template?.name ?? null,

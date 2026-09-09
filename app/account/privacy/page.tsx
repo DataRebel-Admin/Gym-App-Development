@@ -52,8 +52,9 @@ export default async function PrivacyPage() {
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Je gegevens downloaden</h2>
           <p className="mt-1 text-sm text-neutral-500">
-            Exporteer al je accountgegevens (profiel, sessies, aanmeldingen en je
-            meldingen aan het ontwikkelteam) als JSON.
+            Exporteer al je accountgegevens als JSON: profiel, trainingen, metingen
+            en doelen, zelfgebouwde schema&apos;s en aanvragen, les-aanmeldingen,
+            agenda-planning en je meldingen.
           </p>
         </div>
         <a href="/account/export" className={`${buttonClasses({ variant: "outline" })} self-start`}>

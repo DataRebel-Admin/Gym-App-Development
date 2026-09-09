@@ -1,5 +1,5 @@
 import "server-only";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
 
 /**
@@ -23,6 +23,23 @@ export function blobToken(): string | undefined {
 /** Is Vercel Blob geconfigureerd? (Lokaal vaak niet.) */
 export function blobConfigured(): boolean {
   return Boolean(blobToken());
+}
+
+/**
+ * Verwijder een bestand uit de eigen Vercel Blob-store (best-effort, AVG-
+ * opschoning). Accepteert alléén URL's van de eigen store: `User.image` kan
+ * óók een externe OAuth-avatar of een lokale data-URL zijn, en die horen hier
+ * nooit langs te komen. Een falende delete breekt de aanroepende flow nooit —
+ * opslag-opschoning mag een accountactie of cron-run niet blokkeren.
+ */
+export async function deleteOwnBlob(url: string | null | undefined): Promise<void> {
+  if (!url || !blobConfigured()) return;
+  if (!/^https:\/\/[^/]+\.blob\.vercel-storage\.com\//.test(url)) return;
+  try {
+    await del(url, { token: blobToken() });
+  } catch {
+    // Best-effort: de blob blijft dan hangen, maar de flow gaat door.
+  }
 }
 
 /**
