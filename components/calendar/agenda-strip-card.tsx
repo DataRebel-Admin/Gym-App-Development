@@ -3,8 +3,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/cn";
 import { formatTimeRange } from "@/lib/datetime";
 import { monthKeyOfDayKey } from "@/lib/calendar-plan";
-import { CalendarDays, ChevronRight } from "@/components/ui/icons";
+import { CalendarDays, ChevronRight, Play } from "@/components/ui/icons";
 import { DragScroll } from "@/components/ui/drag-scroll";
+import { startSession } from "@/app/member/schema/actions";
+import { StartSessionButton } from "@/app/member/schema/start-session-button";
 import type { AgendaStrip } from "@/lib/calendar";
 
 /**
@@ -12,6 +14,9 @@ import type { AgendaStrip } from "@/lib/calendar";
  * les, met daaronder een horizontaal scrollbare strip van losse dagblokjes
  * (vandaag + komende dagen, scroll-snap). Elk blokje navigeert naar de agenda
  * met die dag voorgeselecteerd. Server component — de strip is puur CSS.
+ * Is de volgende training een geplande dag van vandaag (van het actieve
+ * schema), dan staat er een directe startknop: form → `startSession` met de
+ * dag-id, een lopende sessie wordt hervat.
  */
 
 function utcOf(dayKey: string): Date {
@@ -70,6 +75,21 @@ export function AgendaStripCard({ strip }: { strip: AgendaStrip }) {
         <span className="min-w-0 truncate">{headline}</span>
       </p>
       <p className="mt-0.5 text-sm capitalize text-neutral-500">{sub}</p>
+
+      {next?.kind === "training" && next.startable && next.dayKey === strip.todayKey ? (
+        <form action={startSession} className="mt-3">
+          <input type="hidden" name="dayId" value={next.dayId} />
+          <StartSessionButton
+            label={t("startTraining")}
+            pendingLabel={t("starting")}
+            className="justify-center px-4 py-3"
+          >
+            <span className="flex w-full items-center justify-center gap-2 text-base">
+              <Play className="size-5 fill-current" /> {t("startTraining")}
+            </span>
+          </StartSessionButton>
+        </form>
+      ) : null}
 
       {/* Dagenstrip: bleedt tot de kaartrand; swipen/slepen zonder zichtbare
           scrollbalk (DragScroll regelt muis-slepen + verbergt de balk). */}

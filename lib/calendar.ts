@@ -61,6 +61,8 @@ export type AgendaPlannedRow = {
   dayId: string;
   dayName: string;
   status: PlannedDayStatus;
+  /** De dag hoort bij het schema dat nú actief is → direct te starten vanuit de agenda. */
+  startable: boolean;
   /** Oefening + type-bewuste doel-samenvatting ("4 × 10 @ 70 kg"). */
   items: { name: string; summary: string }[];
 };
@@ -108,6 +110,8 @@ type PlannedAssignment = {
   plan: WeekdayPlan;
   windowStartKey: string;
   windowEndKey: string | null;
+  /** Actief op dit moment (zelfde regel als `getAssignedSchema`: PUBLISHED, zichtbaar, niet verlopen). */
+  active: boolean;
   dayMeta: Map<string, { name: string; items: { name: string; summary: string }[] }>;
 };
 
@@ -270,7 +274,17 @@ async function assembleAgendaDays(
         },
       ])
     );
-    planned.push({ plan, windowStartKey: window.startKey, windowEndKey: window.endKey, dayMeta });
+    const active =
+      a.status === "PUBLISHED" &&
+      (a.availableFrom === null || a.availableFrom <= now) &&
+      (a.endDate === null || a.endDate >= now);
+    planned.push({
+      plan,
+      windowStartKey: window.startKey,
+      windowEndKey: window.endKey,
+      active,
+      dayMeta,
+    });
   }
 
   // Sessies bucketen op kalenderdag in de lid-tijdzone.
@@ -346,7 +360,7 @@ async function assembleAgendaDays(
         .map(({ dayId, status }) => {
           const meta = owner.dayMeta.get(dayId);
           if (!meta) return null;
-          return { dayId, dayName: meta.name, status, items: meta.items };
+          return { dayId, dayName: meta.name, status, startable: owner.active, items: meta.items };
         })
         .filter((r): r is AgendaPlannedRow => r !== null);
     }
@@ -373,7 +387,7 @@ async function assembleAgendaDays(
 // ---------- Dagenstrip + "volgende training" (dashboard) ----------
 
 export type AgendaNextUp =
-  | { kind: "training"; dayKey: string; dayName: string }
+  | { kind: "training"; dayKey: string; dayId: string; dayName: string; startable: boolean }
   | {
       kind: "class";
       dayKey: string;
@@ -417,7 +431,13 @@ export async function getMemberAgendaStrip(
       (p) => p.status === "upcoming" || p.status === "pending"
     );
     if (training) {
-      nextUp = { kind: "training", dayKey: day.dayKey, dayName: training.dayName };
+      nextUp = {
+        kind: "training",
+        dayKey: day.dayKey,
+        dayId: training.dayId,
+        dayName: training.dayName,
+        startable: training.startable,
+      };
       break;
     }
     const cls = day.classes.find(

@@ -750,6 +750,15 @@ Apple Agenda. Feature-flag **`calendar`** (default aan) gate't pagina, actions
   dagblokjes → `/member/agenda?m=…&d=…`); NIET in de onderbalk (die zit al op
   6 items). De dag-assemblage is gedeeld (`assembleAgendaDays`, maandraster én
   strip) — nieuwe dag-consument = die helper, niet een eigen query.
+  **Doorklik naar de training** vanuit het detailpaneel: een geplande dag van
+  het schema dat nú actief is (`AgendaPlannedRow.startable`, zelfde regel als
+  `getAssignedSchema`) toont op vandaag een "Start training"-knop (form →
+  `startSession` met `dayId`; een lopende sessie wordt hervat) en op andere
+  dagen "Naar je schema"; een gedane training linkt naar haar rij in
+  `/member/history#sessie-<id>` (anker op de sessie-`<li>`). De widget
+  "Volgende training" op `/member` doet hetzelfde: is `nextUp` een startbare
+  geplande dag van vandaag (`AgendaNextUp` draagt `dayId` + `startable`), dan
+  staat daar dezelfde startknop.
 - **ICS-feed**: `User.calendarFeedToken` (randomBytes(24) hex; genereren bij
   opt-in, roteren = oude URL direct dood, intrekken = null) → publieke route
   **`app/api/calendar/[token]/route.ts`** (geen auth — kalenderservers fetchen

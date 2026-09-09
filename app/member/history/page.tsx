@@ -132,10 +132,10 @@ export default async function MemberHistoryPage() {
         <>
           {/* KPI's */}
           <RevealItem className="grid grid-cols-2 gap-3">
-            <StatCard label={t("kpiWorkouts")} value={stats.totalWorkouts} icon={<Activity className="size-4" />} hint={t("kpiTotal")} />
+            <StatCard label={t("kpiWorkouts")} value={stats.totalWorkouts} icon={<Activity className="size-4" />} hint={t("kpiTotal")} href="/member/history/stat/workouts" />
             <StatCard label={t("kpiStreak")} value={stats.currentStreakWeeks} suffix={t("weekSuffix")} icon={<Flame className="size-4" />} hint={t("kpiStreakHint", { count: stats.longestStreakWeeks })} />
-            <StatCard label={t("kpiVolume")} value={stats.totalVolume} suffix=" kg" icon={<Dumbbell className="size-4" />} hint={t("kpiVolumeHint")} />
-            <StatCard label={t("kpiTime")} value={totalHours} suffix={t("hourSuffix")} icon={<Clock className="size-4" />} hint={t("kpiTotal")} />
+            <StatCard label={t("kpiVolume")} value={stats.totalVolume} suffix=" kg" icon={<Dumbbell className="size-4" />} hint={t("kpiVolumeHint")} href="/member/history/stat/volume?range=all" />
+            <StatCard label={t("kpiTime")} value={totalHours} suffix={t("hourSuffix")} icon={<Clock className="size-4" />} hint={t("kpiTotal")} href="/member/history/stat/time?range=all" />
           </RevealItem>
 
           {/* Consistentie-heatmap */}
@@ -233,7 +233,8 @@ export default async function MemberHistoryPage() {
                 {sessions.map((s) => (
                   <li
                     key={s.id}
-                    className="rounded-2xl border border-border bg-surface-1 p-4 shadow-sm"
+                    id={`sessie-${s.id}`}
+                    className="scroll-mt-24 rounded-2xl border border-border bg-surface-1 p-4 shadow-sm"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-display font-bold capitalize text-neutral-900">

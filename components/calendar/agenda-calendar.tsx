@@ -14,7 +14,10 @@ import {
   ChevronRight,
   Clock,
   MapPin,
+  Play,
 } from "@/components/ui/icons";
+import { startSession } from "@/app/member/schema/actions";
+import { StartSessionButton } from "@/app/member/schema/start-session-button";
 import type { AgendaDay, AgendaMonth, AgendaPlannedRow } from "@/lib/calendar";
 
 /**
@@ -25,6 +28,11 @@ import type { AgendaDay, AgendaMonth, AgendaPlannedRow } from "@/lib/calendar";
  *
  * `mode="link"` (historie-preview): tikken navigeert naar de agenda-pagina met
  * de dag voorgeselecteerd (`?m=…&d=…`); er is dan geen detailpaneel.
+ *
+ * Doorklik naar de training: een geplande dag van het actieve schema start
+ * vandaag direct (`startSession` met de dag-id, hervat een lopende sessie) en
+ * linkt op andere dagen naar het schema; een gedane training linkt naar haar
+ * rij in de historie.
  */
 
 const MAX_ITEMS_SHOWN = 3;
@@ -284,6 +292,32 @@ export function AgendaCalendar({
                         ) : null}
                       </ul>
                     ) : null}
+                    {/* Naar de training: vandaag direct starten, anders naar het schema.
+                        Alleen voor het schema dat nú actief is; een al gedane dag
+                        heeft haar sessiekaart hieronder. */}
+                    {p.startable && p.status !== "done" && p.status !== "shifted" ? (
+                      selected.dayKey === todayKey ? (
+                        <form action={startSession} className="mt-3">
+                          <input type="hidden" name="dayId" value={p.dayId} />
+                          <StartSessionButton
+                            label={t("startTraining")}
+                            pendingLabel={t("starting")}
+                            className="justify-center px-4 py-2.5"
+                          >
+                            <span className="flex w-full items-center justify-center gap-2 text-sm">
+                              <Play className="size-4 fill-current" /> {t("startTraining")}
+                            </span>
+                          </StartSessionButton>
+                        </form>
+                      ) : (
+                        <Link
+                          href="/member/schema"
+                          className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-accent"
+                        >
+                          {t("openSchema")} <ChevronRight className="size-3.5" />
+                        </Link>
+                      )
+                    ) : null}
                   </div>
                 ))}
 
@@ -296,7 +330,11 @@ export function AgendaCalendar({
                       : null;
                   const mood = getMood(s.mood);
                   return (
-                    <div key={s.id} className="rounded-2xl bg-accent-soft p-3">
+                    <Link
+                      key={s.id}
+                      href={`/member/history#sessie-${s.id}`}
+                      className="block rounded-2xl bg-accent-soft p-3 active:opacity-80"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <p className="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold text-neutral-800">
                           <Check className="size-4 shrink-0 text-accent" />
@@ -317,7 +355,10 @@ export function AgendaCalendar({
                           ? ` · ${t("durationMin", { count: s.durationMin })}`
                           : null}
                       </p>
-                    </div>
+                      <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-accent">
+                        {t("viewSession")} <ChevronRight className="size-3.5" />
+                      </span>
+                    </Link>
                   );
                 })}
 

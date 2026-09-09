@@ -174,6 +174,7 @@
       "requestSchema": "Schema aanvragen",
       "gym": "Sportschool",
       "agenda": "Agenda",
+      "starting": "Training starten…",
       "nextTrainingTitle": "Volgende training",
       "relToday": "vandaag",
       "relTomorrow": "morgen",
@@ -252,6 +253,10 @@
       "feedAddApple": "Zet in Apple Agenda",
       "feedAddGoogle": "Zet in Google Agenda",
       "feedAddOutlook": "Zet in Outlook",
+      "startTraining": "Start training",
+      "starting": "Training starten…",
+      "openSchema": "Naar je schema",
+      "viewSession": "Bekijk in historie",
       "feedManualTitle": "Liever handmatig? Kopieer de link",
       "dayEmpty": "Niets gepland of gedaan op deze dag."
     },

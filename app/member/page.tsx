@@ -16,7 +16,8 @@ import { MuscleGroupBars } from "@/components/charts/muscle-group-bars";
 import { Sparkline } from "@/components/charts/sparkline";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isFeatureEnabled } from "@/lib/features/service";
-import { getMemberAgendaStrip } from "@/lib/calendar";
+import { getMemberAgendaStrip, getMemberCalendarTimezone } from "@/lib/calendar";
+import { hourPartsInTz } from "@/lib/metrics/definitions";
 import { AgendaStripCard } from "@/components/calendar/agenda-strip-card";
 import {
   Flame,
@@ -36,11 +37,11 @@ export async function generateMetadata() {
   return { title: t("metaTitle") };
 }
 
-function greetingKey(d: Date) {
-  const h = d.getHours();
-  if (h < 6) return "greetingNight";
-  if (h < 12) return "greetingMorning";
-  if (h < 18) return "greetingAfternoon";
+// `hour` is het uur in de tijdzone van het lid — servertijd (UTC op Vercel) loopt uit.
+function greetingKey(hour: number) {
+  if (hour < 6) return "greetingNight";
+  if (hour < 12) return "greetingMorning";
+  if (hour < 18) return "greetingAfternoon";
   return "greetingEvening";
 }
 
@@ -52,9 +53,10 @@ export default async function MemberHome() {
   // dezelfde open-sessie-query niet nogmaals draaien.
   const timeout = await enforceSessionTimeout(member.tenantId, member.id);
   const openSessionId = timeout.autoStopped ? null : timeout.sessionId;
-  const [assignment, stats, t] = await Promise.all([
+  const [assignment, stats, timezone, t] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getMemberStats(member.id, member.tenantId),
+    getMemberCalendarTimezone(member.id, member.tenantId),
     getTranslations("member.home"),
   ]);
   // AI-widget: alleen als de AI-module beschikbaar is (Superadmin-flag én owner-toggle).
@@ -94,7 +96,7 @@ export default async function MemberHome() {
       {/* Begroeting */}
       <RevealItem>
         <h1 className="font-display text-2xl font-bold tracking-tight text-neutral-900">
-          {t(greetingKey(new Date()))}, {firstName} 👋
+          {t(greetingKey(hourPartsInTz(new Date(), timezone).hour))}, {firstName} 👋
         </h1>
         <p className="mt-1 text-neutral-500">{motivation}</p>
       </RevealItem>
@@ -122,75 +124,7 @@ export default async function MemberHome() {
         </RevealItem>
       ) : null}
 
-      {/* Weekdoel + streak */}
-      <RevealItem className="flex items-center gap-4 rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
-        <ProgressRing
-          value={goalPct}
-          size={104}
-          strokeWidth={10}
-          label={`${stats.workoutsThisWeek}/${stats.weeklyGoal}`}
-          sublabel={t("weekGoal")}
-        />
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-            {t("thisWeek")}
-          </p>
-          <p className="mt-0.5 font-display text-lg font-bold leading-tight text-neutral-900">
-            {stats.workoutsThisWeek === 0
-              ? t("notTrainedYet")
-              : t("trainingsThisWeek", { count: stats.workoutsThisWeek })}
-          </p>
-          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
-            <Flame className="size-3.5" />
-            {stats.currentStreakWeeks > 0
-              ? t("streak", { count: stats.currentStreakWeeks })
-              : t("startStreak")}
-          </div>
-        </div>
-      </RevealItem>
-
-      {/* Volgende training + dagenstrip (agenda-widget) */}
-      {agendaStrip ? (
-        <RevealItem>
-          <AgendaStripCard strip={agendaStrip} />
-        </RevealItem>
-      ) : null}
-
-      {/* Quick stats */}
-      <RevealItem className="grid grid-cols-3 gap-3">
-        <StatCard
-          label={t("statVolume")}
-          value={stats.thisWeekVolume}
-          suffix=" kg"
-          icon={<Dumbbell className="size-4" />}
-          hint={t("hintThisWeek")}
-          href="/member/history"
-        />
-        <StatCard
-          label={t("statTime")}
-          value={thisWeekMin}
-          suffix=" m"
-          icon={<Clock className="size-4" />}
-          hint={t("hintThisWeek")}
-          href="/member/history"
-        />
-        <StatCard
-          label={t("statTotal")}
-          value={stats.totalWorkouts}
-          icon={<Activity className="size-4" />}
-          hint={t("hintTrainings")}
-          href="/member/history"
-        />
-      </RevealItem>
-
-      {/* Trofeeën & mijlpalen */}
-      {achievementsView ? (
-        <RevealItem>
-          <AchievementDashboardSummary view={achievementsView} />
-        </RevealItem>
-      ) : null}
-
-      {/* Schema-hero + CTA */}
+      {/* Schema-hero + CTA — de primaire actie staat vóór alle voortgangsblokken */}
       <RevealItem className="panel-sheen relative overflow-hidden rounded-3xl bg-accent-gradient p-6 text-accent-foreground shadow-accent">
         <div
           aria-hidden
@@ -232,6 +166,74 @@ export default async function MemberHome() {
         )}
       </RevealItem>
 
+      {/* Volgende training + dagenstrip (agenda-widget) */}
+      {agendaStrip ? (
+        <RevealItem>
+          <AgendaStripCard strip={agendaStrip} />
+        </RevealItem>
+      ) : null}
+
+      {/* Weekdoel + streak */}
+      <RevealItem className="flex items-center gap-4 rounded-3xl border border-border bg-surface-1 p-5 shadow-sm">
+        <ProgressRing
+          value={goalPct}
+          size={104}
+          strokeWidth={10}
+          label={`${stats.workoutsThisWeek}/${stats.weeklyGoal}`}
+          sublabel={t("weekGoal")}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+            {t("thisWeek")}
+          </p>
+          <p className="mt-0.5 font-display text-lg font-bold leading-tight text-neutral-900">
+            {stats.workoutsThisWeek === 0
+              ? t("notTrainedYet")
+              : t("trainingsThisWeek", { count: stats.workoutsThisWeek })}
+          </p>
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">
+            <Flame className="size-3.5" />
+            {stats.currentStreakWeeks > 0
+              ? t("streak", { count: stats.currentStreakWeeks })
+              : t("startStreak")}
+          </div>
+        </div>
+      </RevealItem>
+
+      {/* Quick stats */}
+      <RevealItem className="grid grid-cols-3 gap-3">
+        <StatCard
+          label={t("statVolume")}
+          value={stats.thisWeekVolume}
+          suffix=" kg"
+          icon={<Dumbbell className="size-4" />}
+          hint={t("hintThisWeek")}
+          href="/member/history/stat/volume"
+        />
+        <StatCard
+          label={t("statTime")}
+          value={thisWeekMin}
+          suffix=" min"
+          icon={<Clock className="size-4" />}
+          hint={t("hintThisWeek")}
+          href="/member/history/stat/time"
+        />
+        <StatCard
+          label={t("statTotal")}
+          value={stats.totalWorkouts}
+          icon={<Activity className="size-4" />}
+          hint={t("hintTrainings")}
+          href="/member/history/stat/workouts"
+        />
+      </RevealItem>
+
+      {/* Trofeeën & mijlpalen */}
+      {achievementsView ? (
+        <RevealItem>
+          <AchievementDashboardSummary view={achievementsView} />
+        </RevealItem>
+      ) : null}
+
       {/* Scan + oefeningen */}
       <RevealItem className="grid grid-cols-2 gap-3">
         <Link
@@ -248,17 +250,19 @@ export default async function MemberHome() {
         </Link>
       </RevealItem>
 
-      {/* Schema aanvragen + sportschool */}
+      {/* Schema aanvragen + sportschool — zonder schema toont de hero de aanvraag-CTA al */}
       <RevealItem className="grid grid-cols-2 gap-3">
-        <Link
-          href="/member/requests"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-center text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
-        >
-          <ClipboardList className="size-5 text-accent" /> {t("requestSchema")}
-        </Link>
+        {schema ? (
+          <Link
+            href="/member/requests"
+            className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-center text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
+          >
+            <ClipboardList className="size-5 text-accent" /> {t("requestSchema")}
+          </Link>
+        ) : null}
         <Link
           href="/member/gym"
-          className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-center text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2"
+          className={`flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface-1 px-4 py-4 text-center text-sm font-semibold text-neutral-900 shadow-sm transition-colors active:bg-surface-2${schema ? "" : " col-span-2"}`}
         >
           <Building2 className="size-5 text-accent" /> {t("gym")}
         </Link>
