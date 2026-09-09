@@ -81,7 +81,7 @@ export async function revokeInvitation(formData: FormData) {
 const roleChangeSchema = z.object({
   tenantId: z.string().min(1),
   userId: z.string().min(1),
-  role: tenantRole,
+  role: z.enum(["TENANT_ADMIN", "TENANT_STAFF", "TENANT_MEMBER"]),
 });
 
 export async function setMemberRole(formData: FormData) {

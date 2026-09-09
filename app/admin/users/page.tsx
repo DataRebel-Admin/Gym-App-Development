@@ -23,12 +23,14 @@ import { resendInvitation, revokeInvitation } from "./actions";
 const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: "Superadmin",
   TENANT_ADMIN: "Tenant-admin",
+  TENANT_STAFF: "Medewerker",
   TENANT_MEMBER: "Lid",
 };
 
 const ROLE_TONE: Record<string, BadgeTone> = {
   SUPERADMIN: "danger",
   TENANT_ADMIN: "accent",
+  TENANT_STAFF: "info",
   TENANT_MEMBER: "neutral",
 };
 

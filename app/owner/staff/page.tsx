@@ -168,7 +168,9 @@ export default async function OwnerStaffPage() {
                     {!self ? (
                       <form action={setMemberRole} className="flex items-center gap-1">
                         <input type="hidden" name="userId" value={s.id} />
-                        <Select name="role" defaultValue={s.role} fieldSize="xs" className="w-36">
+                        {/* key = rol: remount na een geslaagde wijziging, anders
+                            reset React de select terug naar de oude waarde. */}
+                        <Select key={s.role} name="role" defaultValue={s.role} fieldSize="xs" className="w-36">
                           <option value="TENANT_STAFF">{t("roleStaff")}</option>
                           <option value="TENANT_ADMIN">{t("roleAdmin")}</option>
                           <option value="TENANT_MEMBER">{t("roleMember")}</option>

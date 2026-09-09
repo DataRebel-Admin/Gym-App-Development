@@ -19,6 +19,7 @@ import {
 const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: "Superadmin",
   TENANT_ADMIN: "Tenant-admin",
+  TENANT_STAFF: "Medewerker",
   TENANT_MEMBER: "Lid",
 };
 
@@ -186,12 +187,17 @@ export default async function TenantDetailPage({
                   <form action={setMemberRole} className="flex min-w-0 flex-1 items-center gap-1 sm:flex-initial">
                     <input type="hidden" name="tenantId" value={tenant.id} />
                     <input type="hidden" name="userId" value={u.id} />
+                    {/* key = rol: na een geslaagde wijziging remount de select met de
+                        verse waarde. Zonder key reset React het formulier naar de oude
+                        DOM-default en lijkt de wijziging niet door te komen. */}
                     <select
+                      key={u.role}
                       name="role"
                       defaultValue={u.role}
                       className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2 py-1 text-sm sm:flex-initial"
                     >
                       <option value="TENANT_ADMIN">{ROLE_LABEL.TENANT_ADMIN}</option>
+                      <option value="TENANT_STAFF">{ROLE_LABEL.TENANT_STAFF}</option>
                       <option value="TENANT_MEMBER">{ROLE_LABEL.TENANT_MEMBER}</option>
                     </select>
                     <button type="submit" className="shrink-0 rounded-lg border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
