@@ -34,6 +34,8 @@
     "brand:assets": "tsx scripts/generate-brand-assets.ts",
     "ios:plist": "node scripts/patch-ios-plist.mjs",
     "ios:plist:check": "node scripts/patch-ios-plist.mjs --check",
+    "ios:plugins": "node scripts/sync-ios-plugins.mjs",
+    "ios:plugins:check": "node scripts/sync-ios-plugins.mjs --check",
     "version:sync": "node scripts/sync-app-version.mjs",
     "version:bump": "node scripts/sync-app-version.mjs --bump",
     "version:check": "node scripts/sync-app-version.mjs --check",

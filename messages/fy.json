@@ -230,6 +230,8 @@
       "restDone": "Rêst klear 💪",
       "restDoneNotifTitle": "Rêst foarby",
       "restDoneNotifBody": "Tiid foar dyn folgjende set.",
+      "restNotifExtend": "+{seconds}s",
+      "restNotifDone": "Klear",
       "ongoingNotifTitle": "Training dwaande",
       "ongoingNotifText": "Tik om fierder te gean mei dyn training.",
       "rest": "Rêst",

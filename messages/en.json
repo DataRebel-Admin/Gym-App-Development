@@ -360,6 +360,8 @@
       "restDone": "Rest done 💪",
       "restDoneNotifTitle": "Rest over",
       "restDoneNotifBody": "Time for your next set.",
+      "restNotifExtend": "+{seconds}s",
+      "restNotifDone": "Done",
       "ongoingNotifTitle": "Workout in progress",
       "ongoingNotifText": "Tap to continue your workout.",
       "rest": "Rest",

@@ -360,6 +360,8 @@
       "restDone": "Rust klaar 💪",
       "restDoneNotifTitle": "Rust voorbij",
       "restDoneNotifBody": "Tijd voor je volgende set.",
+      "restNotifExtend": "+{seconds}s",
+      "restNotifDone": "Klaar",
       "ongoingNotifTitle": "Training bezig",
       "ongoingNotifText": "Tik om verder te gaan met je training.",
       "rest": "Rust",

@@ -24,7 +24,13 @@ GymRebel is een multitenant SaaS-app voor sportscholen. Elke sportschool is een 
 
 ## Niet-doelen (uitdrukkelijk)
 
-We bouwen GEEN: ledenadministratie/CRM, betalingen, social feed, voedingsadvies, leaderboards, personal-training booking, toegangscontrole, native apps, wearable-integratie, video-on-demand, marketplace.
+We bouwen GEEN: ledenadministratie/CRM, betalingen, social feed, voedingsadvies, leaderboards, personal-training booking, toegangscontrole, video-on-demand, marketplace.
+
+**Herzien:** *native apps* en *wearable-integratie* stonden hier ook. Beide zijn
+inmiddels bewust gebouwd: de Capacitor-wrappers (zie "Native apps") en
+smartwatch-ondersteuning via de meldingslaag (zie "Smartwatches"). Wat nog
+uitdrukkelijk **niet** gebeurt: gezondheidsdata uitlezen of wegschrijven
+(Health Connect, HealthKit, Garmin/Fitbit) en een eigen app óp het horloge.
 
 ## Ontwerpprincipes
 
@@ -2821,6 +2827,76 @@ service-worker-push, dus web-push bereikt alleen browsers en geïnstalleerde PWA
   deze listener opent een magic link de app wél, maar op de startpagina in plaats
   van op de inloglink. Volgt alleen paden binnen de eigen host — een custom scheme
   (`nl.gymrebeltraining.app://`) kan door elke app op het toestel worden afgevuurd.
+
+### Smartwatches (meldingen op de pols, géén watch-app)
+
+Een sporter legt zijn telefoon weg en traint. De koppeling met een smartwatch
+loopt daarom volledig via de **meldingslaag**: Android en iOS spiegelen meldingen
+naar een gekoppeld horloge (Wear OS, Galaxy Watch, Apple Watch) zonder dat er een
+app op het horloge hoeft te staan. Dat gebeurde al; wat ontbrak was dat je er iets
+mee kón. **Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.**
+
+- **DE KNOPPEN WORDEN NATIVE AFGEHANDELD, NOOIT DOOR DE WEBVIEW.** Dat is de hele
+  feature: een actie die MainActivity start opent de app op je telefoon, wat op
+  een horloge "pak je telefoon" betekent. De rustmelding draagt daarom "+30s" en
+  "Klaar" via **`WorkoutActionReceiver`** (BroadcastReceiver, `exported="false"`),
+  die de melding opruimt en een verlenging meteen opnieuw inplant. De acties
+  dragen **`setShowsUserInterface(false)`**: zonder die vlag presenteren Wear OS
+  en Android Auto ze alsnog als "open op je telefoon". Op iOS is het equivalent
+  een `UNNotificationAction` **zonder** `.foreground`.
+- **De wachtrij is de bron van waarheid, niet het event.** Wat je op je pols tikt
+  moet terugkomen in de timer-UI, maar de WebView staat op dat moment stil. De
+  receiver schrijft naar SharedPreferences (iOS: UserDefaults) en
+  `consumePendingActions()` leegt die bij het lezen. Het event `restAction` draagt
+  **bewust geen gegevens** en betekent alleen "consumeer nu" — zou het de actie
+  meedragen, dan zou een luisteraar die daarna óók de wachtrij leest hem twee keer
+  toepassen. `useRestTimer` consumeert op drie momenten (mount, event,
+  `visibilitychange`), want geen ervan is op zichzelf betrouwbaar.
+- **Verlengen corrigeert voor de vertraging**: native plant vanaf het moment van
+  de tik, de web-kant past het pas toe bij terugkeer. De actie draagt `at`, en de
+  timer telt alleen het restant op — anders loopt de timer in beeld vóór op de
+  melding die al is ingepland.
+- **`WATCH_EXTEND_SECONDS` staat op drie plekken** (lib/workout-notifications.ts,
+  `EXTEND_SECONDS` in de Android-plugin en in de Swift-plugin) en moet gelijk
+  blijven: het label wordt web-side gezet, de verlenging native uitgevoerd.
+- **De meldingstekst is zelfdragend**: `startRest(seconds, context)` krijgt de
+  oefeningnaam mee en die wordt de body. Op een 40mm-scherm is "Rust voorbij"
+  alleen te weinig. Bewust **niet** "set 3 van 4": het zichtbare set-aantal is het
+  maximum van groepsrondes, sessie-override en schema-sets, dus een losse telling
+  zou op een verlengde oefening "set 5 van 4" opleveren.
+- **`setLocalOnly(false)` staat expliciet in de code** hoewel het de standaard is
+  — het ís de eigenschap die de melding naar het horloge laat doorstromen, en zo
+  kan een latere wijziging de ondersteuning niet stil uitzetten. De blijvende
+  "training bezig"-melding draagt `CATEGORY_WORKOUT` zodat Wear OS haar als
+  trainingsactiviteit herkent; de chronometer loopt op de pols mee.
+- **Bewust géén knoppen op de web/PWA-melding.** `showNotification` ondersteunt
+  `actions` wel, maar de service worker kan de timer-state (localStorage, van de
+  pagina) niet aanpassen en de pagina die dat wél kan is juist weg op het moment
+  dat de knop ertoe doet. Half werkende knoppen zijn erger dan geen knoppen.
+- **iOS is voorbereid, niet getest** (`native/ios/WorkoutNotificationsPlugin.swift`
+  + `npm run ios:plugins`): `ios/` staat niet in de repo en is niet op Windows te
+  genereren, dus dit wacht op de eerste Mac-build, net als de EventKit-agendasync.
+  De Capacitor-haken zijn wél geverifieerd tegen de Swift-bron in node_modules.
+  Drie verschillen met Android: acties horen bij een **categorie** (die daarom bij
+  elke inplanning opnieuw wordt gezet, want de labels komen uit next-intl),
+  vooruitplannen gaat via `UNTimeIntervalNotificationTrigger` (betrouwbaarder dan
+  `Handler.postDelayed` — overleeft het afsluiten van de app), en er is **geen
+  blijvende melding**: `showOngoing` is een bewuste no-op, want het iOS-equivalent
+  is een Live Activity (ActivityKit) en dat vraagt een aparte widget-extensie.
+  De plugin haakt op `bridge.notificationRouter.**localNotificationHandler**` —
+  `@capacitor/push-notifications` zit op de push-tak, dus geen conflict. Zou
+  `@capacitor/local-notifications` ooit worden toegevoegd, dan claimt die dezelfde
+  slot en verliest een van beide zijn acties.
+- **Xcode-stap blijft handwerk**: `npm run ios:plugins` kopieert het Swift-bestand
+  naar `ios/App/App/`, maar Xcode compileert alleen wat in `project.pbxproj` staat.
+  Dat bestand automatisch patchen is fragieler dan één sleepbeweging, dus het
+  script **controleert** de registratie en waarschuwt — een niet-geregistreerde
+  plugin geeft namelijk geen fout, de JS-aanroep valt gewoon in zijn catch.
+- **Bewust niet**: geen Health Connect / HealthKit (hartslag en calorieën uit de
+  watch blijven handmatig via het bestaande `avgHr`-logveld), geen eigen Wear OS-
+  of watchOS-app, geen Live Activity. Een watch-app is een losse native app: de
+  telefoon-app is een WebView op een remote URL, dus er is geen datamodel om te
+  delen en er zou een eigen API-laag onder moeten.
 
 ### Publieke informatiepagina's (`/privacy`, `/cookies`, `/support`)
 

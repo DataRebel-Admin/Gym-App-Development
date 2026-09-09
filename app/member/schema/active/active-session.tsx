@@ -1071,22 +1071,32 @@ export function ActiveSession({
   }, [exList, listViewGroups]);
 
   /** Start expliciet een rustperiode (o.a. de geleide groep-flow ná een ronde).
-   *  Respecteert de sessie-timer-toggle. */
-  function requestRest(seconds: number) {
+   *  Respecteert de sessie-timer-toggle.
+   *
+   *  `context` beschrijft waar de rust bij hoort en wordt de body van de
+   *  "rust voorbij"-melding. Op een gekoppelde smartwatch is dat de enige regel
+   *  die het lid te zien krijgt, dus zonder context wordt de melding daar een
+   *  kale "Rust voorbij" waarvoor je alsnog je telefoon pakt. */
+  function requestRest(seconds: number, context?: string) {
     if (!timersEnabled || seconds <= 0) return;
     if (timer.vibrateOn) void haptic("light", 15);
-    timer.startRest(seconds);
+    timer.startRest(seconds, context);
   }
 
   /**
    * Start de rusttimer met de juiste duur voor deze oefening. Binnen een groep
    * (superset/circuit) vuurt de timer NIET tussen de oefeningen — pas ná de
    * laatste oefening van de ronde, met de groep-rust. Respecteert de sessie-toggle.
+   *
+   * De oefeningnaam gaat mee als meldingscontext. Bewust alléén de naam en niet
+   * "set 3 van 4": het zichtbare set-aantal is het maximum van groepsrondes,
+   * sessie-override en schema-sets (zie de initialisatie hierboven), dus een
+   * losse telling hier zou op een verlengde oefening "set 5 van 4" opleveren.
    */
   function startRestFor(ex: ActiveExercise, fallback: number) {
     const gm = groupMeta.get(ex.originalExerciseId);
     if (gm?.grouped && !gm.isEnd) return; // geen rust binnen de groep
-    requestRest(gm?.grouped ? gm.restAfter || fallback : fallback);
+    requestRest(gm?.grouped ? gm.restAfter || fallback : fallback, ex.name);
   }
 
   const stats = useMemo(() => {

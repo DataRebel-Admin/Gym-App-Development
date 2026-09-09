@@ -72,6 +72,20 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/default_notification_channel_id" />
 
+        <!--
+            Knoppen op de "rust voorbij"-melding ("+30s" en "Klaar"). Een
+            BroadcastReceiver en geen Activity, zodat een tik vanaf een gekoppelde
+            smartwatch de rust verlengt zonder de telefoon te ontgrendelen; zie
+            WorkoutActionReceiver.java.
+
+            `exported="false"`: alleen onze eigen PendingIntents mogen dit
+            aanroepen. De acties dragen geen gevoelige gegevens, maar een
+            exported receiver laat elke app op het toestel de rusttimer bedienen.
+        -->
+        <receiver
+            android:name=".WorkoutActionReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

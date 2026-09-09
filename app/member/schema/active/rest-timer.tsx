@@ -6,9 +6,13 @@ import { AnimatePresence, m } from "motion/react";
 import { cn } from "@/lib/cn";
 import { haptic } from "@/lib/haptics";
 import {
+  WATCH_EXTEND_SECONDS,
   cancelRestDoneNotification,
+  consumeRestActions,
+  onRestAction,
   scheduleRestDoneNotification,
   showRestDoneWebNotification,
+  type RestDoneText,
 } from "@/lib/workout-notifications";
 
 export type TimerKind = "countdown" | "stopwatch";
@@ -109,7 +113,12 @@ export type RestTimer = {
   elapsed: number;
   soundOn: boolean;
   vibrateOn: boolean;
-  startRest: (seconds: number) => void;
+  /**
+   * `context` beschrijft waar de rust bij hoort (de oefeningnaam) en wordt de
+   * body van de melding — op een smartwatch de enige regel die de gebruiker te
+   * zien krijgt. Weglaten geeft de algemene tekst.
+   */
+  startRest: (seconds: number, context?: string) => void;
   startStopwatch: () => void;
   addTime: (delta: number) => void;
   toggleRun: () => void;
@@ -162,9 +171,35 @@ export function useRestTimer(persistKey?: string): RestTimer {
     return restored.base;
   });
 
-  // Tekst van de "rust voorbij"-melding (native ingepland / web via SW).
-  const notifTextRef = useRef({ title: "", body: "" });
-  notifTextRef.current = { title: t("restDoneNotifTitle"), body: t("restDoneNotifBody") };
+  // Waar deze rust bij hoort ("Bench Press"), gezet door startRest. Op een
+  // smartwatch is dit het verschil tussen een bruikbare melding en een kale
+  // "Rust voorbij" waarvoor je alsnog je telefoon pakt.
+  const restContextRef = useRef("");
+
+  // De vertaalfunctie in een ref, zodat notifText hieronder stabiel kan zijn.
+  // Dat moet: notifText hangt via `finish` aan de 250ms-interval, en een
+  // wisselende identiteit zou die elke render opnieuw opzetten. Bijwerken in
+  // een effect, want een ref schrijven tijdens render is een React-Compiler-fout.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
+  /**
+   * Bouwt de teksten van de "rust voorbij"-melding (native ingepland / web via
+   * SW), inclusief de knoplabels. Bewust een functie en geen klaargezet object:
+   * `startRest` zet de context en plant de melding in dezelfde tik, dus een bij
+   * de vorige render gevulde waarde zou nog de vórige oefening noemen.
+   */
+  const notifText = useCallback((): RestDoneText => {
+    const translate = tRef.current;
+    return {
+      title: translate("restDoneNotifTitle"),
+      body: restContextRef.current || translate("restDoneNotifBody"),
+      extendLabel: translate("restNotifExtend", { seconds: WATCH_EXTEND_SECONDS }),
+      doneLabel: translate("restNotifDone"),
+    };
+  }, []);
 
   // Liep de herstelde countdown al af terwijl we weg waren? Dan heeft de
   // (native) melding z'n werk gedaan — alleen nog opruimen, niets afspelen.
@@ -225,7 +260,7 @@ export function useRestTimer(persistKey?: string): RestTimer {
       if (hidden) {
         // Niet in beeld: web toont een SW-melding (native heeft de vooruit
         // ingeplande melding al) — geen piep die niemand kan plaatsen.
-        void showRestDoneWebNotification(notifTextRef.current);
+        void showRestDoneWebNotification(notifText());
       } else {
         // In beeld: piep + trilling, en de vooruit ingeplande native melding
         // is niet meer nodig (voorkomt een dubbele melding).
@@ -234,7 +269,7 @@ export function useRestTimer(persistKey?: string): RestTimer {
         if (settings.vibrateOn) void haptic("medium", [180, 90, 180]);
       }
     },
-    [duration, settings.soundOn, settings.vibrateOn]
+    [duration, settings.soundOn, settings.vibrateOn, notifText]
   );
 
   useEffect(() => {
@@ -248,18 +283,23 @@ export function useRestTimer(persistKey?: string): RestTimer {
     return () => window.clearInterval(id);
   }, [running, kind, duration, finish]);
 
-  const startRest = useCallback((seconds: number) => {
-    if (seconds <= 0) return;
-    setKind("countdown");
-    setDuration(seconds);
-    baseRef.current = 0;
-    startTsRef.current = Date.now();
-    setDisplayElapsed(0);
-    setFinished(false);
-    setRunning(true);
-    setVisible(true);
-    void scheduleRestDoneNotification(seconds * 1000, notifTextRef.current);
-  }, []);
+  const startRest = useCallback(
+    (seconds: number, context?: string) => {
+      if (seconds <= 0) return;
+      // Vóór het plannen zetten: notifText() leest deze ref meteen.
+      restContextRef.current = context ?? "";
+      setKind("countdown");
+      setDuration(seconds);
+      baseRef.current = 0;
+      startTsRef.current = Date.now();
+      setDisplayElapsed(0);
+      setFinished(false);
+      setRunning(true);
+      setVisible(true);
+      void scheduleRestDoneNotification(seconds * 1000, notifText());
+    },
+    [notifText]
+  );
 
   const startStopwatch = useCallback(() => {
     setKind("stopwatch");
@@ -286,12 +326,12 @@ export function useRestTimer(persistKey?: string): RestTimer {
       if (kind === "countdown") {
         const remaining = duration - baseRef.current;
         if (remaining > 0) {
-          void scheduleRestDoneNotification(remaining * 1000, notifTextRef.current);
+          void scheduleRestDoneNotification(remaining * 1000, notifText());
         }
       }
       return true;
     });
-  }, [kind, duration]);
+  }, [kind, duration, notifText]);
 
   const addTime = useCallback(
     (delta: number) => {
@@ -312,14 +352,14 @@ export function useRestTimer(persistKey?: string): RestTimer {
             : baseRef.current + (Date.now() - startTsRef.current) / 1000;
           const remaining = next - el;
           if (remaining > 0) {
-            void scheduleRestDoneNotification(remaining * 1000, notifTextRef.current);
+            void scheduleRestDoneNotification(remaining * 1000, notifText());
           } else {
             void cancelRestDoneNotification();
           }
         }
       }
     },
-    [kind, finished, running, duration]
+    [kind, finished, running, duration, notifText]
   );
 
   const dismiss = useCallback(() => {
@@ -328,7 +368,61 @@ export function useRestTimer(persistKey?: string): RestTimer {
     setFinished(false);
     baseRef.current = 0;
     setDisplayElapsed(0);
+    restContextRef.current = "";
     void cancelRestDoneNotification();
+  }, []);
+
+  // De laatste versie van de acties, zodat het effect hieronder zich één keer
+  // hoeft te registreren (het idioom van tRef hierboven: refs i.p.v. deps).
+  const addTimeRef = useRef(addTime);
+  const dismissRef = useRef(dismiss);
+  useEffect(() => {
+    addTimeRef.current = addTime;
+    dismissRef.current = dismiss;
+  }, [addTime, dismiss]);
+
+  /**
+   * Speel de knoppen terug die op de melding zijn getikt, bijvoorbeeld vanaf
+   * een gekoppelde smartwatch. Die worden native afgehandeld terwijl de WebView
+   * stilstaat, dus de timer in beeld weet er nog niets van.
+   *
+   * Drie momenten, omdat geen ervan op zichzelf betrouwbaar is: bij mount (de
+   * app kwam net terug), op het plugin-seintje (de app draaide al) en bij
+   * zichtbaar worden (vangnet als het seintje een geThrottlede WebView niet
+   * bereikte). De wachtrij wordt bij het lezen geleegd, dus meerdere bronnen
+   * kunnen dezelfde actie nooit dubbel toepassen.
+   */
+  useEffect(() => {
+    let stopped = false;
+
+    const applyPending = async () => {
+      const actions = await consumeRestActions();
+      if (stopped) return;
+      for (const action of actions) {
+        if (action.type === "done") {
+          dismissRef.current();
+          continue;
+        }
+        // Native plande de verlenging vanaf het moment van de tik; sindsdien is
+        // er tijd verstreken. Alleen het restant toevoegen, anders loopt de
+        // timer in beeld vóór op de melding die al is ingepland.
+        const left = action.seconds - (Date.now() - action.at) / 1000;
+        if (left > 0) addTimeRef.current(left);
+      }
+    };
+
+    void applyPending();
+    const unsubscribe = onRestAction(() => void applyPending());
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void applyPending();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stopped = true;
+      unsubscribe();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, []);
 
   const elapsed = Math.floor(displayElapsed);

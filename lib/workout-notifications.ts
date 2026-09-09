@@ -19,7 +19,56 @@ import { isNativeApp } from "@/lib/app-lock";
  *   naar de actieve training, weg zodra de sessie eindigt.
  *
  * Alles is best-effort: zonder permissie of plugin degradeert elke functie stil.
+ *
+ * ## Smartwatch
+ *
+ * Android spiegelt meldingen naar een gekoppeld horloge (Wear OS, Galaxy Watch),
+ * dus de rustmelding kwam daar altijd al aan — je kon er alleen niets mee. De
+ * rustmelding draagt daarom twee knoppen, `extendLabel` ("+30s") en `doneLabel`
+ * ("Klaar"), die native worden afgehandeld zonder de telefoon te ontgrendelen.
+ *
+ * Wat je op je pols tikt komt via `consumeRestActions()` terug in de timer-UI.
+ * Dat is een **wachtrij**, geen event-payload: de WebView is op dat moment
+ * doorgaans geThrottled of dood, en een gemist event zou de timer in beeld uit
+ * de pas laten lopen met de melding op je pols. `onRestAction()` is enkel een
+ * seintje "consumeer nu"; de wachtrij blijft de bron van waarheid.
+ *
+ * Bewust géén knoppen op de **web/PWA**-melding. `showNotification` ondersteunt
+ * `actions` wel, maar de service worker kan de timer-state (localStorage, van de
+ * pagina) niet aanpassen en de pagina die dat wél kan is juist weg op het moment
+ * dat de knop ertoe doet. Half werkende knoppen zijn erger dan geen knoppen; de
+ * native app is het pad waarop smartwatch-bediening klopt.
  */
+
+/**
+ * Met hoeveel seconden de "+30s"-knop de rust verlengt.
+ *
+ * MOET gelijk blijven aan `EXTEND_SECONDS` in WorkoutNotificationsPlugin.java:
+ * de knop wordt daar native afgehandeld, hier alleen gelabeld en teruggespeeld
+ * in de timer. Lopen ze uiteen, dan telt het label iets anders op dan de melding.
+ */
+export const WATCH_EXTEND_SECONDS = 30;
+
+/** Een knop die op de melding (of op een horloge) is getikt. */
+export type RestAction = {
+  type: "extend" | "done";
+  /** Bij "extend": met hoeveel seconden de rust is verlengd. */
+  seconds: number;
+  /** Tijdstip van de tik (epoch ms), om te corrigeren voor de vertraging. */
+  at: number;
+};
+
+/** Teksten van de "rust voorbij"-melding, inclusief de knoplabels. */
+export type RestDoneText = {
+  title: string;
+  body: string;
+  /** Label van de verleng-knop. Leeg = geen knop. */
+  extendLabel?: string;
+  /** Label van de klaar-knop. Leeg = geen knop. */
+  doneLabel?: string;
+};
+
+type ListenerHandle = { remove: () => Promise<void> };
 
 type WorkoutNotificationsApi = {
   showOngoing(options: {
@@ -34,8 +83,12 @@ type WorkoutNotificationsApi = {
     title: string;
     body: string;
     url: string;
+    extendLabel: string;
+    doneLabel: string;
   }): Promise<void>;
   cancelRestDone(): Promise<void>;
+  consumePendingActions(): Promise<{ actions: RestAction[] }>;
+  addListener(eventName: "restAction", listener: () => void): Promise<ListenerHandle>;
 };
 
 let plugin: WorkoutNotificationsApi | null = null;
@@ -57,7 +110,7 @@ function activeSessionUrl(): string {
 /** Plan de "rust voorbij"-melding vooruit (alleen native; web kan niet vooruitplannen). */
 export async function scheduleRestDoneNotification(
   inMs: number,
-  text: { title: string; body: string }
+  text: RestDoneText
 ): Promise<void> {
   if (!isNativeApp() || inMs <= 0) return;
   try {
@@ -65,6 +118,8 @@ export async function scheduleRestDoneNotification(
       inMs,
       title: text.title,
       body: text.body,
+      extendLabel: text.extendLabel ?? "",
+      doneLabel: text.doneLabel ?? "",
       url: activeSessionUrl(),
     });
   } catch {
@@ -83,14 +138,56 @@ export async function cancelRestDoneNotification(): Promise<void> {
 }
 
 /**
+ * Haal de knoppen op die sinds de vorige keer op de melding zijn getikt, en
+ * leeg de wachtrij. Eenmalig: elke actie komt precies één keer terug.
+ */
+export async function consumeRestActions(): Promise<RestAction[]> {
+  if (!isNativeApp()) return [];
+  try {
+    const result = await workoutNotifications().consumePendingActions();
+    const actions = result?.actions;
+    if (!Array.isArray(actions)) return [];
+    return actions.filter(
+      (a): a is RestAction =>
+        !!a && (a.type === "extend" || a.type === "done") && typeof a.at === "number"
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Seintje dat er een actie klaarstaat. Draagt bewust geen gegevens — de
+ * aanroeper haalt ze op met `consumeRestActions()`, zodat een actie nooit
+ * twee keer wordt toegepast. Geeft een opruimfunctie terug.
+ */
+export function onRestAction(callback: () => void): () => void {
+  if (!isNativeApp()) return () => {};
+  let handle: ListenerHandle | null = null;
+  let cancelled = false;
+  void (async () => {
+    try {
+      const registered = await workoutNotifications().addListener("restAction", callback);
+      // De component kan al zijn opgeruimd terwijl de registratie liep.
+      if (cancelled) void registered.remove();
+      else handle = registered;
+    } catch {
+      /* plugin niet beschikbaar — stil degraderen */
+    }
+  })();
+  return () => {
+    cancelled = true;
+    void handle?.remove();
+    handle = null;
+  };
+}
+
+/**
  * Toon de "rust voorbij"-melding nú via de service worker (web/PWA). Alleen
  * zinvol als de pagina verborgen is — in beeld doen piep + trilling het werk al.
  * De bestaande `notificationclick`-handler in public/sw.js opent `data.url`.
  */
-export async function showRestDoneWebNotification(text: {
-  title: string;
-  body: string;
-}): Promise<void> {
+export async function showRestDoneWebNotification(text: RestDoneText): Promise<void> {
   if (isNativeApp()) return; // native loopt via de vooruit ingeplande melding
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
