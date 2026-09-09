@@ -2054,9 +2054,31 @@ de app. **Whitelabel blijft leidend**: dit is het *platform*merk, geen tenant-hu
   **Android-iconen**. Idempotent — vervangt het oude `icons:generate` met z'n
   placeholder-halter.
 - **E-MAILLOGO IS PNG, NOOIT SVG** (`public/brand/gymrebel-logo-email.png`): Gmail en
-  Outlook weigeren SVG in `<img>`. Wit-op-transparant, want `renderEmailLayout` zet de
-  header altijd op een accentbalk (oranje-op-oranje zou wegvallen). 480 px breed = 3× de
-  weergavemaat van 160 px.
+  Outlook weigeren SVG in `<img>` (gebroken-afbeelding-icoon). Guard in
+  `resolveEmailBranding` (`isEmailSafeImage`): een logo dat SVG, een `data:`-URL óf
+  een **localhost-URL** is (dev: `APP_BASE_URL=http://localhost:3001` maakt een
+  relatief `/brand/…`-pad onbereikbaar voor mailclients) valt in e-mails terug op de
+  **tekst-wordmark** — liever geen logo dan een gebroken afbeelding. Gevolg: in dev
+  toont platformmail de tekst-wordmark; het échte logo zie je pas met een publiek
+  bereikbare URL. Het logo staat in de mailheader op een **witte badge** op de
+  accentbalk (`renderEmailLayout`), want een tenant-logo kan elke kleur hebben en een
+  oranje merk op de oranje accentbalk was onzichtbaar; het platform-e-maillogo is
+  daarom **full-color** (charcoal + oranje, niet meer wit-op-transparant). 480 px
+  breed = 3× de weergavemaat van 160 px. De demo-tenant heeft daarom een **absolute
+  publieke PNG-URL** als `logoUrl`: `<LIBRARY_MEDIA_BASE_URL>/images/brand/
+  gymrebel-mark.png` (eigen curatie-map naast `images/schema-templates/`; bestand =
+  `public/brand/gymrebel-mark.png` uit de generator, geüpload naar de container).
+- **EEN TENANT-LOGO MOET EEN ECHTE URL ZIJN — `uploadTenantAsset` (lib/blob.ts) heeft
+  daarom een opslagketen**: Vercel Blob → **`putPublicMedia`** (de eigen publieke
+  mediacontainer, afgeleid uit `LIBRARY_MEDIA_BASE_URL`, map
+  `images/tenant-branding/<slug>/`) → pas als laatste redmiddel een `data:`-URL.
+  Zonder die middelste stap viel een upload zonder `BLOB_READ_WRITE_TOKEN` terug op
+  base64: in de app zag dat er perfect uit (rauwe `<img>`), maar Gmail en Outlook
+  blokkeren `data:`-URL's, dus verdween het logo uit élke mail terwijl de upload
+  geslaagd léék — een sportschool bleef her-uploaden zonder ooit resultaat te zien.
+  Het bestand belandt niet alleen in de app maar ook in e-mail, PDF en QR-labels, dus
+  "werkt in de browser" is hier niet genoeg. Alleen voor bestanden die publiek mógen
+  zijn: screenshots en defectfoto's blijven achter hun beschermde route.
 - **Android (Capacitor)**: het script overschrijft `android/app/src/main/res` als die map
   bestaat — launcher (5 dichtheden), rond icoon, adaptive **foreground** en de splash in
   alle 11 formaten, plus `values/ic_launcher_background.xml` op Rebel Orange (het
