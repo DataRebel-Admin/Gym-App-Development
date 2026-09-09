@@ -161,7 +161,7 @@ export function LibraryTemplateCard({ data }: { data: LibraryTemplateCardData })
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
                   {day.name}
                 </h3>
-                <ul className="flex flex-col divide-y divide-neutral-100 rounded-xl border border-border">
+                <ul className="flex flex-col divide-y divide-neutral-100 rounded-xl border border-border bg-surface-1">
                   {day.exercises.map((ex, j) => (
                     <li key={j} className="flex items-center gap-3 px-3 py-2">
                       <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-neutral-50">

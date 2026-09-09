@@ -174,7 +174,7 @@ export default async function MemberSchemaPage({
 
       {/* Kader voor zelf-gebouwde schema's */}
       {frameworks.length > 0 ? (
-        <section className="flex max-w-3xl flex-col gap-2 rounded-2xl border border-border p-5">
+        <section className="flex max-w-3xl flex-col gap-2 rounded-2xl border border-border bg-surface-1 p-5">
           <h3 className="text-sm font-semibold text-neutral-900">
             Kader voor zelf-samenstellen
           </h3>
@@ -187,7 +187,7 @@ export default async function MemberSchemaPage({
             <select
               name="frameworkId"
               defaultValue={memberFramework?.frameworkId ?? ""}
-              className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+              className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
             >
               <option value="">
                 {defaultFramework ? `Standaard (${defaultFramework.name})` : "Geen kader"}
@@ -211,7 +211,7 @@ export default async function MemberSchemaPage({
 
       {/* Overzicht van toewijzingen (status + acties) */}
       {liveOrDraft.length > 0 ? (
-        <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+        <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
           <h3 className="text-sm font-semibold text-neutral-900">Toewijzingen</h3>
           <ul className="flex flex-col gap-2">
             {liveOrDraft.map((a) => {
@@ -223,7 +223,7 @@ export default async function MemberSchemaPage({
               return (
                 <li
                   key={a.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border px-3 py-2.5"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-surface-0 px-3 py-2.5"
                 >
                   <span className="font-medium text-neutral-900">
                     {a.template?.name ?? "Schema"}
@@ -302,7 +302,7 @@ export default async function MemberSchemaPage({
 
       {/* Persoonlijke aanpassingen t.o.v. de master (drift) */}
       {personalized && personalDiff ? (
-        <section className="flex max-w-3xl flex-col gap-2 rounded-2xl border border-border p-5">
+        <section className="flex max-w-3xl flex-col gap-2 rounded-2xl border border-border bg-surface-1 p-5">
           <h3 className="text-sm font-semibold text-neutral-900">
             Persoonlijke aanpassingen
           </h3>
@@ -350,7 +350,7 @@ export default async function MemberSchemaPage({
             />
           </div>
 
-          <section className="max-w-3xl rounded-xl border border-border p-4">
+          <section className="max-w-3xl rounded-xl border border-border bg-surface-1 p-4">
             <a
               href={`/owner/schemas/members/${member.id}/pdf`}
               className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
@@ -362,10 +362,10 @@ export default async function MemberSchemaPage({
       ) : null}
 
       {/* Nieuw schema voor dit lid */}
-      <section className="flex max-w-2xl flex-col gap-5 rounded-2xl border border-border p-5">
+      <section className="flex max-w-2xl flex-col gap-5 rounded-2xl border border-border bg-surface-1 p-5">
         <h3 className="text-sm font-semibold text-neutral-900">Nieuw schema voor dit lid</h3>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-0 p-4">
           <span className="text-sm font-medium text-neutral-700">Kopieer van een template</span>
           {libraryTemplates.length === 0 ? (
             <p className="text-sm text-neutral-400">Nog geen templates beschikbaar.</p>
@@ -390,7 +390,7 @@ export default async function MemberSchemaPage({
           )}
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface-0 p-4">
           <span className="text-sm font-medium text-neutral-700">Begin vanuit een dag-template</span>
           {dayTemplates.length === 0 ? (
             <p className="text-sm text-neutral-400">Nog geen dag-templates beschikbaar.</p>

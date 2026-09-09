@@ -142,7 +142,7 @@ export function SchemaAssignPanel({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Zoek leden op naam of e-mail…"
-            className="w-full rounded-lg border border-border py-2 pl-9 pr-3 text-sm outline-none focus:border-accent"
+            className="w-full rounded-lg border border-border bg-surface-1 py-2 pl-9 pr-3 text-sm outline-none focus:border-accent"
           />
         </div>
         <button
@@ -154,7 +154,7 @@ export function SchemaAssignPanel({
         </button>
       </div>
 
-      <div className="max-h-64 overflow-auto rounded-lg border border-border">
+      <div className="max-h-64 overflow-auto rounded-lg border border-border bg-surface-1">
         {filtered.map((m) => {
           const checked = selected.has(m.id);
           return (
@@ -196,8 +196,8 @@ export function SchemaAssignPanel({
             onClick={() => setMode(opt.value)}
             className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors ${
               mode === opt.value
-                ? "border-accent bg-accent-soft"
-                : "border-border hover:bg-neutral-50"
+                ? "border-accent bg-accent-soft-solid"
+                : "border-border bg-surface-1 hover:bg-surface-2"
             }`}
           >
             <span className="flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
@@ -217,7 +217,7 @@ export function SchemaAssignPanel({
               type="datetime-local"
               value={availableFrom}
               onChange={(e) => setAvailableFrom(e.target.value)}
-              className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+              className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
             />
           </label>
         ) : null}
@@ -227,7 +227,7 @@ export function SchemaAssignPanel({
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
@@ -236,7 +236,7 @@ export function SchemaAssignPanel({
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm text-neutral-700 sm:col-span-2">
@@ -247,7 +247,7 @@ export function SchemaAssignPanel({
             rows={2}
             maxLength={1000}
             placeholder="Een aanmoediging of toelichting voor je leden…"
-            className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
           />
         </label>
       </div>

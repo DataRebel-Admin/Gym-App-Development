@@ -10,9 +10,9 @@ import { saveFramework, deleteFramework } from "../actions";
 export const metadata = { title: "Kader bewerken | Schema's" };
 
 const num =
-  "w-24 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent";
+  "w-24 rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent";
 const text =
-  "w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent";
+  "w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent";
 
 function MinMax({
   label,
@@ -115,7 +115,7 @@ export default async function FrameworkEditPage({
           Tenant-standaard (geldt voor leden zonder eigen kader)
         </label>
 
-        <fieldset className="flex flex-col gap-2 rounded-xl border border-border p-4">
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border bg-surface-1 p-4">
           <legend className="px-1 text-sm font-semibold text-neutral-900">Grenzen</legend>
           {/* Alleen een minimum: een dag-maximum bestaat niet meer — leden mogen
               altijd dagen toevoegen (besluit eigenaar 2026-09-09). */}
@@ -142,7 +142,7 @@ export default async function FrameworkEditPage({
           <MinMax label="Rust (seconden)" minName="restMin" maxName="restMax" minVal={framework.restMin} maxVal={framework.restMax} />
         </fieldset>
 
-        <fieldset className="flex flex-col gap-2 rounded-xl border border-border p-4">
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border bg-surface-1 p-4">
           <legend className="px-1 text-sm font-semibold text-neutral-900">
             Toegestane oefeningstypes
           </legend>
@@ -163,7 +163,7 @@ export default async function FrameworkEditPage({
           </div>
         </fieldset>
 
-        <fieldset className="flex flex-col gap-2 rounded-xl border border-border p-4">
+        <fieldset className="flex flex-col gap-2 rounded-xl border border-border bg-surface-1 p-4">
           <legend className="px-1 text-sm font-semibold text-neutral-900">
             Toegestane oefeningen
           </legend>
@@ -193,7 +193,7 @@ export default async function FrameworkEditPage({
         </div>
       </form>
 
-      <section className="flex max-w-2xl flex-col gap-2 rounded-2xl border border-red-200 p-5">
+      <section className="flex max-w-2xl flex-col gap-2 rounded-2xl border border-red-200 bg-surface-1 p-5">
         <h3 className="text-sm font-semibold text-red-700">Verwijderen</h3>
         <ConfirmButton
           action={deleteFramework}

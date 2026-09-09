@@ -128,7 +128,7 @@ export default async function TemplateEditPage({
         dayTemplates={dayTemplates}
       />
 
-      <section className="flex max-w-3xl flex-col gap-4 rounded-2xl border border-border p-5">
+      <section className="flex max-w-3xl flex-col gap-4 rounded-2xl border border-border bg-surface-1 p-5">
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Afbeelding</h2>
           <p className="text-sm text-neutral-500">
@@ -148,7 +148,7 @@ export default async function TemplateEditPage({
         <>
           <SchemaSuggestions masterId={template.id} suggestions={suggestions} />
 
-          <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+          <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
             <div>
               <h2 className="text-sm font-semibold text-neutral-900">Toewijzen aan leden</h2>
               <p className="text-sm text-neutral-500">
@@ -160,7 +160,7 @@ export default async function TemplateEditPage({
             <SchemaAssignPanel templateId={template.id} members={members} />
           </section>
 
-          <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+          <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
             <div>
               <h2 className="text-sm font-semibold text-neutral-900">Toewijzingen</h2>
               <p className="text-sm text-neutral-500">
@@ -172,7 +172,7 @@ export default async function TemplateEditPage({
         </>
       ) : null}
 
-      <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
+      <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border bg-surface-1 p-5">
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Beschikbaar voor leden</h2>
           <p className="text-sm text-neutral-500">
@@ -201,7 +201,7 @@ export default async function TemplateEditPage({
         </form>
       </section>
 
-      <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border p-5">
+      <section className="flex max-w-3xl items-center justify-between gap-3 rounded-2xl border border-border bg-surface-1 p-5">
         <div>
           <h2 className="text-sm font-semibold text-neutral-900">Dupliceren</h2>
           <p className="text-sm text-neutral-500">Maak een kopie van dit schema (incl. dagen).</p>
@@ -214,7 +214,7 @@ export default async function TemplateEditPage({
         </form>
       </section>
 
-      <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-red-200 p-5">
+      <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-red-200 bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-red-700">Verwijderen</h2>
         <ConfirmButton
           action={deleteTemplate}

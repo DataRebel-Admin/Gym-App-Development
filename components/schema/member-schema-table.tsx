@@ -128,7 +128,7 @@ export function MemberSchemaTable({ rows }: { rows: MemberSchemaRow[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Zoek op naam of e-mail…"
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-accent"
+          className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
           <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export function MemberSchemaTable({ rows }: { rows: MemberSchemaRow[] }) {
         {filtered.length} van {rows.length} leden
       </p>
 
-      <div className="overflow-x-auto rounded-xl border border-neutral-200">
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface-1">
         <table className="w-full min-w-[32rem] text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-500">
             <tr>

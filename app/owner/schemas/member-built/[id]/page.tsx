@@ -95,7 +95,7 @@ export default async function MemberBuiltReviewDetail({
       </div>
 
       {canReview ? (
-        <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border p-5">
+        <section className="flex max-w-3xl flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
           <h3 className="text-sm font-semibold text-neutral-900">Beoordelen</h3>
           <p className="text-sm text-neutral-500">
             Pas het schema hieronder eventueel aan en keur het daarna goed of vraag om
@@ -108,7 +108,7 @@ export default async function MemberBuiltReviewDetail({
               rows={2}
               maxLength={1000}
               placeholder="Feedback voor het lid (verplicht bij afwijzen)…"
-              className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+              className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
             />
             <div className="flex flex-wrap gap-2">
               <button

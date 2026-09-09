@@ -105,7 +105,7 @@ export type DayTemplateOption = {
 };
 
 const numClass =
-  "w-16 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent";
+  "w-16 rounded-md border border-border bg-surface-1 px-2 py-1 text-sm outline-none focus:border-accent";
 
 /** Lege groep-velden voor een nieuw/ongegroepeerd item (gedeeld met de lid-builder). */
 export const NO_GROUP: GroupFields = {
@@ -151,7 +151,7 @@ function ParamInput({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-md border border-border px-1.5 py-1 text-sm outline-none focus:border-accent"
+          className="rounded-md border border-border bg-surface-1 px-1.5 py-1 text-sm outline-none focus:border-accent"
         >
           <option value="">—</option>
           {field.options?.map((o) => (
@@ -173,7 +173,7 @@ function ParamInput({
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value)}
           {...selectOnFocus}
-          className="w-20 rounded-md border border-border px-2 py-1 text-sm outline-none focus:border-accent"
+          className="w-20 rounded-md border border-border bg-surface-1 px-2 py-1 text-sm outline-none focus:border-accent"
         />
       </label>
     );
@@ -259,7 +259,7 @@ function SortableRow({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex flex-col gap-2 rounded-lg border bg-surface-1 px-3 py-2 ${
+      className={`flex flex-col gap-2 rounded-lg border bg-surface-0 px-3 py-2 ${
         isDragging ? "opacity-60" : ""
       } ${
         group.grouped
@@ -308,7 +308,7 @@ function SortableRow({
           <select
             value=""
             onChange={(e) => { if (e.target.value) onCopyTo(item.key, e.target.value); }}
-            className="rounded-md border border-border px-1 py-1 text-xs text-neutral-500"
+            className="rounded-md border border-border bg-surface-1 px-1 py-1 text-xs text-neutral-500"
             title="Kopieer naar dag"
           >
             <option value="">⧉ dag…</option>
@@ -388,7 +388,7 @@ function SortableRow({
                 onChange(item.key, { dropsetCount: clampDropsetCount(Number(e.target.value)) ?? 1 })
               }
               {...selectOnFocus}
-              className="w-12 rounded-md border border-border px-1.5 py-0.5 text-xs outline-none focus:border-accent"
+              className="w-12 rounded-md border border-border bg-surface-1 px-1.5 py-0.5 text-xs outline-none focus:border-accent"
             />
           </label>
         ) : null}
@@ -420,7 +420,7 @@ function GroupHeader({
         <select
           value={type}
           onChange={(e) => onChange({ groupType: e.target.value as GroupTypeKey })}
-          className="rounded-md border border-white/50 bg-white/60 px-1.5 py-0.5 text-xs font-medium outline-none"
+          className="rounded-md border border-black/10 bg-white px-1.5 py-0.5 text-xs font-medium outline-none"
           title="Type groep"
         >
           {groupTypeOptions().map((o) => (
@@ -446,7 +446,7 @@ function GroupHeader({
               value={fields.groupRounds ?? DEFAULT_GROUP_ROUNDS}
               onChange={(e) => onChange({ groupRounds: clampRounds(Number(e.target.value)) })}
               {...selectOnFocus}
-              className="w-14 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
+              className="w-14 rounded-md border border-black/10 bg-white px-1.5 py-0.5 outline-none"
             />
           </label>
         ) : null}
@@ -463,7 +463,7 @@ function GroupHeader({
                 onChange({ groupTimeCapSeconds: Number.isFinite(m) && m > 0 ? Math.round(m * 60) : null });
               }}
               {...selectOnFocus}
-              className="w-16 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
+              className="w-16 rounded-md border border-black/10 bg-white px-1.5 py-0.5 outline-none"
             />
           </label>
         ) : null}
@@ -479,7 +479,7 @@ function GroupHeader({
               onChange({ groupRestSeconds: Number.isFinite(n) ? Math.max(0, Math.round(n)) : null });
             }}
             {...selectOnFocus}
-            className="w-16 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
+            className="w-16 rounded-md border border-black/10 bg-white px-1.5 py-0.5 outline-none"
           />
         </label>
         <label className="flex flex-1 items-center gap-1">
@@ -489,7 +489,7 @@ function GroupHeader({
             value={fields.groupLabel ?? ""}
             onChange={(e) => onChange({ groupLabel: e.target.value || null })}
             placeholder="bijv. Finisher"
-            className="min-w-0 flex-1 rounded-md border border-white/50 bg-white/70 px-1.5 py-0.5 outline-none"
+            className="min-w-0 flex-1 rounded-md border border-black/10 bg-white px-1.5 py-0.5 outline-none"
           />
         </label>
       </div>
@@ -589,13 +589,13 @@ function DayCard({
   }, [query, availableExercises]);
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+    <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-4">
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-neutral-400">Dag {index + 1}</span>
         <input
           value={day.name}
           onChange={(e) => onRename(day.key, e.target.value)}
-          className="flex-1 rounded-md border border-transparent px-2 py-1 text-sm font-semibold text-neutral-900 hover:border-border focus:border-accent focus:outline-none"
+          className="flex-1 rounded-md border border-border bg-surface-0 px-2 py-1 text-sm font-semibold text-neutral-900 focus:border-accent focus:outline-none"
         />
         <button type="button" onClick={() => onRemove(day.key)} className="text-xs text-neutral-400 hover:text-red-600">
           Verwijder dag
@@ -607,7 +607,7 @@ function DayCard({
         value={day.notes}
         onChange={(e) => onNotesChange(day.key, e.target.value)}
         placeholder="Dag-notitie voor het lid (optioneel)…"
-        className="w-full rounded-md border border-border bg-transparent px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent"
+        className="w-full rounded-md border border-border bg-surface-1 px-2 py-1 text-xs text-neutral-700 outline-none focus:border-accent"
       />
 
       {/* Groepeer-werkbalk (verschijnt bij ≥2 selecties in deze dag) */}
@@ -683,7 +683,7 @@ function DayCard({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Zoek een oefening om toe te voegen…"
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+          className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
         />
         {matches.length > 0 ? (
           <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface-1 shadow-lg">
@@ -1042,16 +1042,16 @@ export function SchemaEditor({
 
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
           Naam *
-          <input name="name" required value={name} onChange={(e) => setName(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
+          <input name="name" required value={name} onChange={(e) => setName(e.target.value)} className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent" />
         </label>
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
           Beschrijving
-          <textarea name="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
+          <textarea name="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent" />
         </label>
         {showCoachNote ? (
           <label className="flex flex-col gap-1 text-sm text-neutral-700">
             Schema-notitie (zichtbaar voor elk lid met dit schema)
-            <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent" />
+            <textarea name="coachNote" rows={2} value={coachNote} onChange={(e) => setCoachNote(e.target.value)} placeholder="Bijv. Concentreer je op techniek." className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent" />
           </label>
         ) : coachNote.trim() ? (
           // Alleen-lezen: de notitie komt uit de template en geldt voor elk lid dat
@@ -1070,7 +1070,7 @@ export function SchemaEditor({
         ) : null}
         <label className="flex flex-col gap-1 text-sm text-neutral-700">
           Trainingsdoel
-          <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className="rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent">
+          <select name="goal" value={goal} onChange={(e) => setGoal(e.target.value)} className="rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent">
             <option value="">Geen doel</option>
             {trainingGoalOptions().map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -1120,7 +1120,7 @@ export function SchemaEditor({
               value={validityWeeks}
               onChange={(e) => setValidityWeeks(e.target.value)}
               placeholder="Onbeperkt"
-              className="w-32 rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+              className="w-32 rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
             />
             <span className="text-xs text-neutral-400">
               Leeg = onbeperkt. Bepaalt wanneer een lid &quot;Nieuw schema nodig&quot; / &quot;Verlopen&quot; ziet.

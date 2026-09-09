@@ -23,8 +23,8 @@ export function MemberSchemaModeForm({ current }: { current: MemberSchemaMode })
             key={m}
             className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border px-4 py-3 text-sm transition-colors ${
               mode === m
-                ? "border-accent bg-accent-soft"
-                : "border-neutral-200 hover:bg-neutral-50"
+                ? "border-accent bg-accent-soft-solid"
+                : "border-border bg-surface-1 hover:bg-surface-2"
             }`}
           >
             <span className="flex items-center gap-2 font-medium text-neutral-900">

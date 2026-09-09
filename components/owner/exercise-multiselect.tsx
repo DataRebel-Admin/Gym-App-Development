@@ -51,11 +51,11 @@ export function ExerciseMultiSelect({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Zoek een oefening…"
-          className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-accent"
+          className="w-full rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <span className="shrink-0 text-xs text-neutral-500">{selected.size} gekozen</span>
       </div>
-      <div className="max-h-64 overflow-auto rounded-lg border border-border">
+      <div className="max-h-64 overflow-auto rounded-lg border border-border bg-surface-1">
         {filtered.length === 0 ? (
           <p className="px-3 py-4 text-center text-sm text-neutral-400">Geen resultaten.</p>
         ) : (

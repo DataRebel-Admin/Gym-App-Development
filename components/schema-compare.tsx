@@ -100,7 +100,7 @@ export function SchemaDiffView({
         </p>
       ) : null}
       {daysWithChanges.map((d) => (
-        <div key={d.dayIndex} className="rounded-xl border border-border p-3">
+        <div key={d.dayIndex} className="rounded-xl border border-border bg-surface-1 p-3">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-sm font-semibold text-neutral-900">{d.name}</span>
             {d.status === "added" ? <Badge tone="success">Nieuwe dag</Badge> : null}

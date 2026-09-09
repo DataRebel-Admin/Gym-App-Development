@@ -111,7 +111,7 @@ export function RestPicker({
               if (String(n) !== raw) onChange(String(n));
             }}
             aria-label="Rust in seconden"
-            className="w-16 rounded-md border border-border px-2 py-0.5 text-sm outline-none focus:border-accent"
+            className="w-16 rounded-md border border-border bg-surface-1 px-2 py-0.5 text-sm outline-none focus:border-accent"
           />
           sec
         </label>

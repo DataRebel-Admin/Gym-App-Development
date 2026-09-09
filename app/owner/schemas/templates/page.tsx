@@ -27,7 +27,7 @@ function TemplateTable({
   logoUrl: string | null;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-neutral-200">
+    <div className="overflow-x-auto rounded-xl border border-border bg-surface-1">
       <table className="w-full min-w-[24rem] text-left text-sm">
         <thead className="bg-neutral-50 text-neutral-500">
           <tr>

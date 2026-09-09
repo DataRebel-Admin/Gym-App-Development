@@ -59,7 +59,7 @@ export default async function FrameworksPage() {
             return (
               <li
                 key={f.id}
-                className="flex flex-col gap-2 rounded-xl border border-border px-4 py-3"
+                className="flex flex-col gap-2 rounded-xl border border-border bg-surface-1 px-4 py-3"
               >
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-neutral-900">{f.name}</span>

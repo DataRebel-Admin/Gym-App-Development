@@ -54,7 +54,7 @@ export default async function RoosterPage() {
         <p className="text-sm text-neutral-500">{t("desc")}</p>
       </div>
 
-      <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-5">
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("newClass")}</h2>
         <NewClassForm />
       </section>
@@ -71,7 +71,7 @@ export default async function RoosterPage() {
               <li key={c.id}>
                 <Link
                   href={`/owner/rooster/${c.id}`}
-                  className="flex items-center justify-between rounded-xl border border-neutral-200 px-4 py-3 hover:bg-neutral-50"
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface-1 px-4 py-3 hover:bg-surface-2"
                 >
                   <span className="font-medium text-neutral-900">{c.name}</span>
                   <span className="text-sm text-neutral-500">
@@ -95,7 +95,7 @@ export default async function RoosterPage() {
               return (
                 <li
                   key={s.id}
-                  className="flex items-center justify-between rounded-xl border border-neutral-200 px-4 py-3 text-sm"
+                  className="flex items-center justify-between rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm"
                 >
                   <span>
                     <span className="font-medium text-neutral-900">{s.groupClass.name}</span>{" "}

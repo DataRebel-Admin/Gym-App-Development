@@ -106,7 +106,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
     // toont de knop gevallen die de action stil weigert.
     const canDelete = canDeleteSession(s, s.enrollments.length, now);
     return (
-      <li key={s.id} className="flex flex-col gap-2 rounded-xl border border-neutral-200 px-4 py-3 text-sm">
+      <li key={s.id} className="flex flex-col gap-2 rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span>
             <span className={`font-medium ${isCancelled ? "text-neutral-400 line-through" : "text-neutral-900"}`}>
@@ -250,7 +250,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
         ) : null}
       </div>
 
-      <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-5">
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("planSession")}</h2>
         {locations.length === 0 ? (
           <p className="text-sm text-neutral-500">{t("locationNotAllowed")}</p>
@@ -275,7 +275,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
         </section>
       ) : null}
 
-      <section className="flex flex-col gap-3 rounded-xl border border-neutral-200 p-5">
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("editClass")}</h2>
         <EditClassForm
           values={{
@@ -288,7 +288,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
         />
       </section>
 
-      <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-red-200 p-5">
+      <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-red-200 bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-red-700">{t("deleteClass")}</h2>
         <p className="text-sm text-neutral-500">{t("deleteClassDesc")}</p>
         <div>

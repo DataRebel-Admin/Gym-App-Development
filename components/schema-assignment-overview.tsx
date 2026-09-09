@@ -132,7 +132,7 @@ export function SchemaAssignmentOverview({ rows }: { rows: OverviewRow[] }) {
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface-1">
         <table className="w-full text-left text-sm">
           <thead className="bg-surface-2 text-xs uppercase tracking-wide text-neutral-500">
             <tr>

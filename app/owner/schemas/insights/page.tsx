@@ -7,7 +7,7 @@ export const metadata = { title: "Coach-analyse" };
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border border-border p-5">
+    <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5">
       <div>
         <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
         {hint ? <p className="text-sm text-neutral-500">{hint}</p> : null}
