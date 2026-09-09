@@ -41,6 +41,204 @@ export type ChangelogEntry = {
  */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "2026.16",
+    date: "2026-09-07",
+    title: "Spieren in beeld & zoeken dat meedenkt",
+    summary:
+      "Leden zien op een anatomisch lichaamsmodel wat hun schema traint, en de oefeningenbibliotheek groeit door naar ruim 600 oefeningen.",
+    changes: [
+      {
+        type: "new",
+        text: "Anatomische spier-heatmap: leden zien op een realistisch lichaamsmodel welke spieren hun schema traint, in de kleur van jouw sportschool. Filter per trainingsdag, wissel tussen voor- en achterkant en tik op een spier voor de oefeningen die eraan bijdragen.",
+      },
+      {
+        type: "improved",
+        text: "De oefeningenbibliotheek is uitgebreid naar ruim 600 oefeningen, waaronder een flinke set yoga- en pilatesoefeningen.",
+      },
+      {
+        type: "improved",
+        text: "Live zoeken in de oefeningenbibliotheek: resultaten verschijnen terwijl je typt. Ook Nederlandse zoektermen zoals 'bankdrukken' vinden direct de juiste oefening.",
+      },
+      {
+        type: "improved",
+        text: "Inloggen kan alleen nog met een persoonlijk account: de demo-inlog is definitief verwijderd, een stap richting een veilige livegang.",
+      },
+    ],
+  },
+  {
+    version: "2026.15",
+    date: "2026-09-04",
+    title: "Klaar voor de app-stores",
+    summary:
+      "De Android-app is door de eerste echte test heen: betrouwbare pushmeldingen, een vingerafdrukslot en een lesrooster dat tegen een stootje kan.",
+    changes: [
+      {
+        type: "new",
+        text: "Vingerafdrukslot in de app: de app vergrendelt bij een koude start en ontgrendelt met vingerafdruk, gezichtsherkenning of pincode. Zelf aan te zetten onder Account, Beveiliging.",
+      },
+      {
+        type: "improved",
+        text: "Pushmeldingen op Android werken nu volledig: per categorie een eigen meldingskanaal, meldingen komen ook binnen terwijl je de app gebruikt en aantikken opent direct de juiste pagina. Push staat voortaan standaard aan.",
+      },
+      {
+        type: "improved",
+        text: "Inloggen met vingerafdruk of gezicht (passkeys) werkt nu op elk sportschool-subdomein en in de Android-app, met duidelijke meldingen als er iets misgaat.",
+      },
+      {
+        type: "new",
+        text: "Lessen annuleren zonder ze te verwijderen: de aanmeldlijst blijft bewaard en de annulering is terug te draaien. Aangemelde leden krijgen automatisch bericht; e-mail staat voor lesmeldingen nu standaard aan.",
+      },
+      {
+        type: "improved",
+        text: "Rooster verfijnd: leden krijgen een waarschuwing bij overlappende aanmeldingen, aanwezigheid is achteraf te corrigeren en bij een verplaatste les gaat de herinnering opnieuw uit met de nieuwe tijd.",
+      },
+      {
+        type: "improved",
+        text: "Vertrekt een lid, dan komen de lesplekken automatisch vrij en schuift de wachtlijst door.",
+      },
+    ],
+  },
+  {
+    version: "2026.14",
+    date: "2026-08-26",
+    title: "Groepslessen: wachtlijst, herhalen en bewerken",
+    summary:
+      "De roostermodule is volwassen geworden: vol is niet meer definitief vol, en een lesreeks zet je in één keer klaar.",
+    changes: [
+      {
+        type: "new",
+        text: "Wachtlijst bij volle lessen: meldt iemand zich af of verhoog je de capaciteit, dan schuift de eerste wachtende automatisch door en krijgt die direct bericht. Leden zien hun positie op de wachtlijst.",
+      },
+      {
+        type: "new",
+        text: "Lessen bewerken en wekelijks herhalen: zet in één keer een reeks tot 26 weken klaar en pas ook alle volgende sessies in een reeks tegelijk aan of verwijder ze.",
+      },
+      {
+        type: "new",
+        text: "Automatische les-herinneringen: leden krijgen daags voor de les een herinnering via hun eigen voorkeurskanalen.",
+      },
+      {
+        type: "new",
+        text: "Capaciteit per losse sessie instelbaar, naast de standaard van de les.",
+      },
+      {
+        type: "fixed",
+        text: "Lestijden volgen nu altijd de tijdzone van de vestiging: ook rond de zomer- en wintertijdwissel blijft een les van 18:00 gewoon om 18:00.",
+      },
+      {
+        type: "improved",
+        text: "Aanmelden is waterdicht bij drukte: twee leden kunnen nooit meer tegelijk de laatste plek krijgen.",
+      },
+    ],
+  },
+  {
+    version: "2026.13",
+    date: "2026-07-31",
+    title: "Een professionele oefeningenbibliotheek",
+    summary:
+      "Een volledig nieuwe, professioneel samengestelde oefeningenbibliotheek in het Nederlands, omslagfoto's voor schema's en het technische fundament voor de eigen app in de stores.",
+    changes: [
+      {
+        type: "new",
+        text: "Nieuwe standaard-oefeningenbibliotheek met bijna 500 professioneel samengestelde oefeningen: animaties, spierdiagrammen, coach-tips en stapsgewijze uitvoering, volledig in het Nederlands. Oefeningnamen houden bewust de in de sportschool gangbare termen zoals bench press en squat.",
+      },
+      {
+        type: "new",
+        text: "Vijftien kant-en-klare voorbeeldschema's die je met één klik overneemt als eigen template. Elk schema heeft nu bovendien een omslagfoto: je eigen upload, een gecureerde foto of je logo.",
+      },
+      {
+        type: "new",
+        text: "Leden vragen naast een nieuw schema nu ook gericht een aanpassing van hun huidige schema aan. En met een nieuwe instelling mag een lid zijn toegewezen schema zelf bijwerken; jij ziet automatisch dat het is gepersonaliseerd.",
+      },
+      {
+        type: "improved",
+        text: "Tijdens de training: sets toevoegen of verwijderen, een gekozen alternatief terugdraaien zonder gelogd werk te verliezen, en een 'training bezig'-balk op elke pagina zodat je altijd terug kunt naar je actieve workout.",
+      },
+      {
+        type: "improved",
+        text: "De schema-PDF toont nu een afbeelding bij elke oefening met beeld.",
+      },
+      {
+        type: "improved",
+        text: "Ledenlijst en team zijn gescheiden: de ledenlijst bevat alleen nog sporters, je beheerders en medewerkers beheer je apart onder Medewerkers.",
+      },
+      {
+        type: "improved",
+        text: "Onder de motorkap: eigen merkassets, publieke privacy- en supportpagina's, goed leesbare e-mails in donkere modus en het fundament voor de apps in de App Store en Play Store.",
+      },
+    ],
+  },
+  {
+    version: "2026.12",
+    date: "2026-07-29",
+    title: "Vestigingen, meldpunten & vernieuwde inzichten",
+    summary:
+      "Meerdere vestigingen onder één dak, twee nieuwe meldpunten en een inzichten-pagina die echt inzicht geeft.",
+    changes: [
+      {
+        type: "new",
+        text: "Vestigingen: beheer meerdere locaties binnen één sportschool. Leden trainen bij elke vestiging, medewerkers zien alleen hun eigen vestiging(en) en de inzichten vergelijken vestigingen onderling.",
+      },
+      {
+        type: "new",
+        text: "Leden melden een defect apparaat rechtstreeks in de app, met foto en ernst. Een als onveilig gemeld apparaat gaat direct buiten gebruik en je behandelaars krijgen meteen bericht.",
+      },
+      {
+        type: "new",
+        text: "Problemen met de app zelf meld je (net als je leden) met één knop aan het ontwikkelteam, inclusief de technische gegevens die nodig zijn om het op te lossen.",
+      },
+      {
+        type: "new",
+        text: "Aanwezigheid bij groepslessen: vink na afloop af wie er was; wie zonder afmelding wegblijft, wordt automatisch als no-show geregistreerd.",
+      },
+      {
+        type: "new",
+        text: "Geleide superset-flow tijdens de training: de app leidt leden ronde voor ronde door een superset of circuit, met rust op precies het juiste moment.",
+      },
+      {
+        type: "improved",
+        text: "De inzichten-pagina is vernieuwd: duidelijke kerncijfers, trends over de tijd, een bezettings-heatmap met piekmarkering en ranglijsten per vestiging.",
+      },
+      {
+        type: "fixed",
+        text: "Formulieren met automatisch opslaan verliezen je invoer niet meer tijdens het typen.",
+      },
+    ],
+  },
+  {
+    version: "2026.11",
+    date: "2026-07-17",
+    title: "Supersets, circuits & wachtwoordherstel",
+    summary:
+      "Schema's met supersets, dropsets en persoonlijke notities per oefening, en leden die hun wachtwoord zelf herstellen.",
+    changes: [
+      {
+        type: "new",
+        text: "Groepeer oefeningen in de schema-editor tot supersets, giant sets, circuits of AMRAP, met rondes en rust na de groep. Leden zien de groepen duidelijk terug tijdens hun training.",
+      },
+      {
+        type: "new",
+        text: "Markeer dropsets en stel rusttijden met één tik in via presets, in één keer voor een hele trainingsdag als je wilt.",
+      },
+      {
+        type: "new",
+        text: "Schrijf per oefening een persoonlijke notitie aan een lid, naast de algemene schema-notitie die voor iedereen geldt.",
+      },
+      {
+        type: "new",
+        text: "Wachtwoord vergeten? Leden en medewerkers herstellen het nu zelf via een veilige, eenmalige e-maillink.",
+      },
+      {
+        type: "new",
+        text: "Trainers wijzen een workout toe aan een lid en kunnen die ook namens het lid draaien, handig bij begeleiding op de vloer.",
+      },
+      {
+        type: "improved",
+        text: "Het opslaan van sets is robuuster: een korte hapering in de verbinding leidt niet meer tot een foutmelding en afwijkende invoer wordt netjes afgerond in plaats van geweigerd.",
+      },
+    ],
+  },
+  {
     version: "2026.10",
     date: "2026-07-12",
     title: "Installeer als app & inloggen zonder gedoe",
@@ -171,7 +369,7 @@ export const CHANGELOG: ChangelogEntry[] = [
   },
   {
     version: "2026.5",
-    date: "2026-06-28",
+    date: "2026-07-01",
     title: "Trofeeën, mijlpalen & Gym Passport",
     summary:
       "Een motivatielaag die je leden beloont voor hun inzet, optioneel per sportschool aan te zetten.",
