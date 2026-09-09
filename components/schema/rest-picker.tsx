@@ -16,12 +16,12 @@ export function isRestField(field: ParamField): boolean {
   return field.column === "restSeconds";
 }
 
-/** Compacte "Nm"/"Ns"-weergave voor een rust-preset. */
+/** Compacte "N min"/"N s"-weergave voor een rust-preset ("m" alleen zou meter kunnen lezen). */
 export function restPresetLabel(sec: number): string {
-  if (sec < 60) return `${sec}s`;
+  if (sec < 60) return `${sec} s`;
   const m = Math.floor(sec / 60);
   const s = sec % 60;
-  return s === 0 ? `${m}m` : `${m}m${s}`;
+  return s === 0 ? `${m} min` : `${m} min ${s}`;
 }
 
 const PRESETS: readonly number[] = REST_PRESETS_SECONDS;

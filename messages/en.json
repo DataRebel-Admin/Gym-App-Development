@@ -366,7 +366,7 @@
       "goalReached": "🎯 Weekly goal reached, nice!",
       "goalRemaining": "{count} {count, plural, one {workout} other {workouts}} to go until your weekly goal.",
       "continueTraining": "Keep training",
-      "durationMs": "{minutes}m {seconds}s",
+      "durationMs": "{minutes} min {seconds} s",
       "durationS": "{seconds}s",
       "targetSummary": "target: {summary}",
       "setLabel": "Set {number}",
@@ -487,8 +487,8 @@
       "sessionMeta": "{count} ex · {duration}",
       "setsCount": "{count} sets",
       "conductedBy": "Recorded by {trainer}",
-      "durationHm": "{hours}h {minutes}m",
-      "durationM": "{minutes}m"
+      "durationHm": "{hours}h {minutes} min",
+      "durationM": "{minutes} min"
     },
     "statDetail": {
       "volumeTitle": "Volume this week",
@@ -515,8 +515,8 @@
       "hourSuffix": "h",
       "sessionMeta": "{exercises} ex · {sets} sets · {volume} kg",
       "openFullHistory": "View full history",
-      "durationHm": "{hours}h {minutes}m",
-      "durationM": "{minutes}m"
+      "durationHm": "{hours}h {minutes} min",
+      "durationM": "{minutes} min"
     },
     "gym": {
       "metaTitle": "Gym",

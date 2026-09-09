@@ -236,7 +236,7 @@
       "goalReached": "🎯 Wykdoel helle, top!",
       "goalRemaining": "Noch {count} {count, plural, one {training} other {trainingen}} oant dyn wykdoel.",
       "continueTraining": "Fierder traine",
-      "durationMs": "{minutes}m {seconds}s",
+      "durationMs": "{minutes} min {seconds} s",
       "durationS": "{seconds}s",
       "targetSummary": "doel: {summary}",
       "setLabel": "Set {number}",
@@ -357,8 +357,8 @@
       "sessionMeta": "{count} oef · {duration}",
       "setsCount": "{count} sets",
       "conductedBy": "Registrearre troch {trainer}",
-      "durationHm": "{hours}o {minutes}m",
-      "durationM": "{minutes}m"
+      "durationHm": "{hours}o {minutes} min",
+      "durationM": "{minutes} min"
     },
     "statDetail": {
       "volumeTitle": "Folume dizze wike",
@@ -385,8 +385,8 @@
       "hourSuffix": "o",
       "sessionMeta": "{exercises} oef · {sets} sets · {volume} kg",
       "openFullHistory": "Besjoch folsleine skiednis",
-      "durationHm": "{hours}o {minutes}m",
-      "durationM": "{minutes}m"
+      "durationHm": "{hours}o {minutes} min",
+      "durationM": "{minutes} min"
     },
     "gym": {
       "metaTitle": "Sportskoalle",

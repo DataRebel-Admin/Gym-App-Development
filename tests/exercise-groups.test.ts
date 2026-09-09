@@ -73,7 +73,7 @@ test("groupSummary: rondes + rust voor circuit, timecap voor AMRAP", () => {
     item({ groupId: "c", groupType: "circuit", groupRounds: 4, groupRestSeconds: 90 }),
     item({ groupId: "c", groupType: "circuit" }),
   ]);
-  assert.equal(groupSummary(circuit), "Circuit · 4 rondes · rust 1m 30s");
+  assert.equal(groupSummary(circuit), "Circuit · 4 rondes · rust 1 min 30 s");
 
   const [amrap] = groupItems([
     item({ groupId: "a", groupType: "amrap", groupTimeCapSeconds: 720 }),

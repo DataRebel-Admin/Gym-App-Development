@@ -208,7 +208,7 @@ function durationLabel(seconds: number): string {
   const rest = s % 60;
   if (m === 0) return `${rest} sec`;
   if (rest === 0) return `${m} min`;
-  return `${m}m ${rest}s`;
+  return `${m} min ${rest} sec`;
 }
 
 function distanceLabel(meters: number): string {

@@ -238,12 +238,12 @@ export function isRealGroup(group: ItemGroup): boolean {
 
 function durationLabel(seconds: number): string {
   const s = Math.round(seconds);
-  if (s <= 0) return "0s";
+  if (s <= 0) return "0 s";
   const m = Math.floor(s / 60);
   const rest = s % 60;
-  if (m === 0) return `${rest}s`;
+  if (m === 0) return `${rest} s`;
   if (rest === 0) return `${m} min`;
-  return `${m}m ${rest}s`;
+  return `${m} min ${rest} s`;
 }
 
 /**
