@@ -2,6 +2,10 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { readableText } from "@/lib/color";
 import { toAbsoluteUrl } from "@/lib/app-url";
+import {
+  DEFAULT_EMAIL_HEADER_STYLE,
+  type EmailHeaderStyle,
+} from "@/lib/email/header-style";
 
 /**
  * Genormaliseerde huisstijl voor e-mails. Elke uitgaande mail wordt met dit
@@ -21,6 +25,14 @@ export type EmailBranding = {
   address: string | null; // samengevoegd: straat, postcode plaats
   socials: { label: string; url: string }[];
   locale: "NL" | "EN" | "FY";
+  /**
+   * Opmaak van de bovenste balk (zie lib/email/header-style.ts). Platformbreed
+   * instelbaar door de Superadmin, maar het reist mee op de branding omdat
+   * **elke** composer die al doorgeeft — zo hoeft geen enkele verzendplek iets
+   * extra's te laden. De sync `resolveEmailBranding` levert de code-standaard;
+   * de async loaders hieronder halen de opgeslagen variant op.
+   */
+  headerStyle: EmailHeaderStyle;
 };
 
 /** GymRebel-default accent (gelijk aan app/globals.css → --tenant-accent). */
@@ -155,7 +167,33 @@ export function resolveEmailBranding(
     address,
     socials: parseSocials(tenant?.socials),
     locale: tenant?.locale ?? "NL",
+    headerStyle: DEFAULT_EMAIL_HEADER_STYLE,
   };
+}
+
+/**
+ * Huisstijl mét de door de Superadmin ingestelde koptekst-opmaak.
+ *
+ * Aparte async laag omdat `resolveEmailBranding` bewust puur en synchroon is
+ * (de seed en de tests leunen daarop). Elke plek die daadwerkelijk een mail
+ * verstuurt hoort deze te gebruiken, zodat de balk overal hetzelfde oogt.
+ */
+async function withHeaderStyle(branding: EmailBranding): Promise<EmailBranding> {
+  const { getEmailHeaderStyle } = await import("@/lib/platform-settings");
+  try {
+    return { ...branding, headerStyle: await getEmailHeaderStyle() };
+  } catch {
+    return branding; // opslag onbereikbaar → code-standaard, nooit een kale mail
+  }
+}
+
+/**
+ * Platform-huisstijl (GymRebel zelf is de afzender: superadmin-mail, support,
+ * meldingen aan het dev-team). Async tegenhanger van `resolveEmailBranding(null)`
+ * zodat óók die mails de ingestelde koptekst-opmaak krijgen.
+ */
+export async function loadPlatformBranding(): Promise<EmailBranding> {
+  return withHeaderStyle(resolveEmailBranding(null));
 }
 
 /**
@@ -165,7 +203,7 @@ export function resolveEmailBranding(
 export async function loadTenantBranding(
   tenantId: string | null | undefined
 ): Promise<EmailBranding> {
-  if (!tenantId) return resolveEmailBranding(null);
+  if (!tenantId) return loadPlatformBranding();
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     select: {
@@ -184,14 +222,14 @@ export async function loadTenantBranding(
       locale: true,
     },
   });
-  return resolveEmailBranding(tenant);
+  return withHeaderStyle(resolveEmailBranding(tenant));
 }
 
 /** Laad de huisstijl via tenant-slug (bv. magic link uit de login-cookie). */
 export async function loadTenantBrandingBySlug(
   slug: string | null | undefined
 ): Promise<EmailBranding> {
-  if (!slug) return resolveEmailBranding(null);
+  if (!slug) return loadPlatformBranding();
   const tenant = await prisma.tenant.findUnique({
     where: { slug },
     select: {
@@ -210,5 +248,5 @@ export async function loadTenantBrandingBySlug(
       locale: true,
     },
   });
-  return resolveEmailBranding(tenant);
+  return withHeaderStyle(resolveEmailBranding(tenant));
 }

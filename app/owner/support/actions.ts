@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireTenantUser } from "@/lib/staff";
 import { audit } from "@/lib/audit";
 import { getSupportEmail } from "@/lib/platform-settings";
-import { resolveEmailBranding } from "@/lib/email/branding";
+import { loadPlatformBranding } from "@/lib/email/branding";
 import { supportRequestMessage } from "@/lib/email/messages";
 import { sendEmail } from "@/lib/email/send";
 import {
@@ -52,7 +52,7 @@ export async function sendSupportMessage(
   try {
     const to = await getSupportEmail();
     const msg = await supportRequestMessage({
-      branding: resolveEmailBranding(null), // platform-mail → GymRebel-default huisstijl
+      branding: await loadPlatformBranding(), // platform-mail → GymRebel-default huisstijl
       senderName,
       senderEmail,
       gymName,

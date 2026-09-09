@@ -2336,9 +2336,37 @@ huisstijl + verzending blijven gedeeld.
 
 De Superadmin beheert álle systeemmails op **`/admin/email-templates`** (overzicht +
 split-screen editor) — bewerken, live previewen, testen, publiceren — zónder herdeploy.
-**Bewerk-scope = content + onderwerp**: alleen `bodyHtml`/`subject`/`preheader` zijn
-editbaar; de gebrande shell (header/footer/kleuren/logo) blijft per tenant runtime
-toegevoegd door `renderEmailLayout` — branding kan dus niet stuk en blijft whitelabel.
+**Bewerk-scope = content + onderwerp + de opmaak van de bovenste balk**:
+`bodyHtml`/`subject`/`preheader` per template, plus één platformbrede
+koptekst-opmaak (zie hieronder). De rest van de gebrande shell (footer, kaart,
+dark-mode) blijft per tenant runtime toegevoegd door `renderEmailLayout` — branding
+kan dus niet stuk en blijft whitelabel.
+
+- **KOPTEKST-OPMAAK IS INSTELBAAR, MAAR ALLEEN DE CSS — NOOIT DE HTML**
+  (`lib/email/header-style.ts`, puur + getest; paneel "Bovenste balk" in de editor).
+  Vier CSS-velden (balk, vlak onder het logo, logo, tekst-wordmark) + logobreedte in
+  px. **Waarom geen vrij HTML-blok**: Outlook rendert met de Word-engine en negeert
+  een `<style>`-blok voor precies wat hier telt (achtergrond op een `<td>`), dus de
+  opmaak moet inline staan; door de tabelstructuur vast te houden kan een aanpassing
+  de mail niet slopen. De logobreedte is een apart veld omdat Outlook het
+  `width`-attribuut nodig heeft en `max-width` negeert.
+  - **Whitelabel via tokens**: `{{accentColor}}`, `{{accentText}}`, `{{secondaryColor}}`
+    (`applyHeaderTokens`). De standaardbalk gebruikt `{{accentColor}}`, dus zónder die
+    tokens zou élke sportschool dezelfde kleur krijgen — een test bewaakt dat.
+  - **Sanitering is verplicht** (`sanitizeHeaderCss`): `"` zou het style-attribuut
+    sluiten en `<`/`>` nieuwe HTML beginnen. Gebeurt bij schrijven én bij renderen.
+  - **Opslag = `PlatformSetting` key `email.header.style`** (JSON), niet per tenant en
+    niet per template: de balk kleurt al per gym mee via de tokens. Geen rij =
+    code-standaard; "Herstel standaard" verwijdert de rij. Onleesbare JSON valt terug
+    op de standaard — een kapotte rij mag nooit "geen koptekst" betekenen.
+  - **`EmailBranding.headerStyle` is de drager**: élke composer geeft `branding` al
+    door, dus geen enkele verzendplek hoefde iets extra's te laden. De sync
+    `resolveEmailBranding` levert de code-standaard; `loadTenantBranding(BySlug)` en
+    het nieuwe **`loadPlatformBranding()`** halen de opgeslagen variant op. Gebruik bij
+    een platformmail (GymRebel is afzender) `loadPlatformBranding()`, niet
+    `resolveEmailBranding(null)` — anders mist die mail de ingestelde opmaak.
+  - Geen concept/publiceer-stap (het is één instelling, de preview toont het al) en
+    geen versiegeschiedenis. Audit: `email.header.update` / `email.header.reset`.
 
 - **Registry** `lib/email/template-defaults.ts` (géén `server-only`; ook client-bruikbaar)
   = bron van waarheid: per `EmailTemplateKey` één record met `name`, `description`,

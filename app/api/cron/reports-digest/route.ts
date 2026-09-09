@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { cronAuthorized } from "@/lib/cron-auth";
 import { sendEmail } from "@/lib/email/send";
-import { resolveEmailBranding } from "@/lib/email/branding";
+import { loadPlatformBranding } from "@/lib/email/branding";
 import { reportDigestMessage, type ReportEmailSummary } from "@/lib/email/messages";
 import { getSupportEmail } from "@/lib/platform-settings";
 import { formatReportRef } from "@/lib/report-context";
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
   const inboxUrl = `${origin}/admin/meldingen`;
 
   const message = await reportDigestMessage({
-    branding: resolveEmailBranding(null),
+    branding: await loadPlatformBranding(),
     reports: summaries,
     inboxUrl,
   });

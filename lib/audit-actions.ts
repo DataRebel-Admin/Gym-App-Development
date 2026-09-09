@@ -783,6 +783,16 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft template '${s(meta, "name") ?? s(meta, "key") ?? ""}' teruggezet naar de standaard`.trim(),
   },
+  "email.header.update": {
+    category: "email", label: "Koptekst-opmaak gewijzigd", icon: "🎨", tone: "accent",
+    sentence: ({ actor }) =>
+      `${actor} heeft de opmaak van de bovenste balk in e-mails gewijzigd`,
+  },
+  "email.header.reset": {
+    category: "email", label: "Koptekst-opmaak hersteld", icon: "♻️", tone: "neutral",
+    sentence: ({ actor }) =>
+      `${actor} heeft de opmaak van de bovenste balk teruggezet naar de standaard`,
+  },
   "email.test.send": {
     category: "email", label: "Testmail verzonden", icon: "📨", tone: "neutral",
     sentence: ({ actor, meta }) =>

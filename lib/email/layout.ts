@@ -1,6 +1,11 @@
 import "server-only";
 import type { EmailBranding } from "@/lib/email/branding";
 import { escapeHtml } from "@/lib/email/components";
+import {
+  applyHeaderTokens,
+  clampLogoWidth,
+  sanitizeHeaderCss,
+} from "@/lib/email/header-style";
 
 /**
  * Centrale HTML-shell voor álle uitgaande e-mails. Table-based, 600px breed,
@@ -53,28 +58,38 @@ const DARK_RULES = `
 /**
  * Header: tenant-logo (of tekst-wordmark) op een accentbalk.
  *
- * Het logo staat op een **witte badge**, niet rechtstreeks op het accent: een
- * tenant-logo is een vrije upload en kan elke kleur hebben — een oranje merk op
- * een oranje accentbalk (de demo-tenant!) was onzichtbaar. Wit garandeert
- * contrast met de balk én met vrijwel elk logo (logo's zijn voor lichte
- * ondergronden ontworpen; zo toont de app ze zelf ook). De badge is inline
- * gekleurd en draagt bewust géén dm-klasse: ook in dark mode blijft hij wit.
- * De geneste table is voor Outlook (dat centreert een blok-element niet).
+ * Het logo staat standaard op een **witte badge**, niet rechtstreeks op het
+ * accent: een tenant-logo is een vrije upload en kan elke kleur hebben — een
+ * oranje merk op een oranje accentbalk (de demo-tenant!) was onzichtbaar. Wit
+ * garandeert contrast met de balk én met vrijwel elk logo (logo's zijn voor
+ * lichte ondergronden ontworpen; zo toont de app ze zelf ook). De badge draagt
+ * bewust géén dm-klasse: ook in dark mode blijft hij staan.
+ *
+ * De **opmaak is instelbaar** door de Superadmin (`branding.headerStyle`, zie
+ * lib/email/header-style.ts); de tabelstructuur ligt vast, want die is wat de
+ * balk in Outlook overeind houdt. De geneste table centreert de badge daar
+ * (Outlook centreert een blok-element niet).
  */
 function header(branding: EmailBranding): string {
+  const style = branding.headerStyle;
+  const css = (value: string) =>
+    applyHeaderTokens(sanitizeHeaderCss(value), {
+      accentColor: branding.accent,
+      accentText: branding.accentText,
+      secondaryColor: branding.secondary,
+    });
+
   const inner = branding.logoUrl
     ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto"><tr>
-        <td style="background:#ffffff;border-radius:10px;padding:10px 16px" align="center"><img src="${escapeHtml(
+        <td style="${css(style.badgeCss)}" align="center"><img src="${escapeHtml(
           branding.logoUrl
-        )}" alt="${escapeHtml(
-          branding.name
-        )}" width="160" style="display:block;max-width:160px;height:auto;border:0;margin:0 auto" /></td>
+        )}" alt="${escapeHtml(branding.name)}" width="${clampLogoWidth(
+          style.logoWidth
+        )}" style="${css(style.logoCss)}" /></td>
       </tr></table>`
-    : `<span style="font-size:22px;font-weight:800;letter-spacing:-0.02em;color:${branding.accentText}">${escapeHtml(
-        branding.name
-      )}</span>`;
+    : `<span style="${css(style.wordmarkCss)}">${escapeHtml(branding.name)}</span>`;
   return `<tr>
-    <td style="background:${branding.accent};padding:28px 32px;text-align:center" align="center">${inner}</td>
+    <td style="${css(style.barCss)}" align="center">${inner}</td>
   </tr>`;
 }
 

@@ -16,12 +16,23 @@ import type {
 } from "@/lib/email/template-defaults";
 import { validateTemplate } from "@/lib/email/template-validate";
 import {
+  HEADER_CSS_FIELDS,
+  HEADER_CSS_MAX_LENGTH,
+  HEADER_STYLE_TOKENS,
+  LOGO_WIDTH_MAX,
+  LOGO_WIDTH_MIN,
+  isDefaultHeaderStyle,
+  type EmailHeaderStyle,
+} from "@/lib/email/header-style";
+import {
   saveDraft,
   renderPreview,
   publishTemplate,
   restoreVersion,
   resetToDefault,
   sendTestEmail,
+  saveHeaderStyle,
+  resetHeaderStyle,
 } from "./actions";
 
 const CodeEditor = dynamic(() => import("./code-editor"), {
@@ -70,6 +81,7 @@ export function TemplateEditor({
   versions: initialVersions,
   tenants,
   adminEmail,
+  headerStyle: initialHeaderStyle,
 }: {
   templateKey: EmailTemplateKey;
   locale: "NL" | "EN" | "FY";
@@ -87,6 +99,7 @@ export function TemplateEditor({
   versions: Version[];
   tenants: Tenant[];
   adminEmail: string;
+  headerStyle: EmailHeaderStyle;
 }) {
   const toast = useToast();
   const templateKey = templateKeyProp;
@@ -105,6 +118,17 @@ export function TemplateEditor({
   const [useSampleData, setUseSampleData] = useState(true);
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  // Koptekst-opmaak: één platforminstelling, dus bewust géén autosave — de
+  // beheerder bevestigt zelf dat 'ie alle mails wil wijzigen.
+  const [headerStyle, setHeaderStyle] = useState(initialHeaderStyle);
+  const [savedHeaderStyle, setSavedHeaderStyle] = useState(initialHeaderStyle);
+  const [headerOpen, setHeaderOpen] = useState(false);
+  const [headerSaving, setHeaderSaving] = useState(false);
+  const headerDirty = useMemo(
+    () => JSON.stringify(headerStyle) !== JSON.stringify(savedHeaderStyle),
+    [headerStyle, savedHeaderStyle]
+  );
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [publishOpen, setPublishOpen] = useState(false);
@@ -162,6 +186,7 @@ export function TemplateEditor({
           tenantId,
           useSampleData,
           scheme,
+          headerStyle,
         });
         if (reqId === previewReq.current) setPreviewHtml(res.html);
       } finally {
@@ -170,7 +195,7 @@ export function TemplateEditor({
     }, 400);
     return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subject, preheader, bodyHtml, tenantId, useSampleData, scheme]);
+  }, [subject, preheader, bodyHtml, tenantId, useSampleData, scheme, headerStyle]);
 
   const insertPlaceholder = useCallback((token: string) => {
     const view = viewRef.current;
@@ -230,6 +255,7 @@ export function TemplateEditor({
       bodyHtml,
       to: testEmail,
       tenantId,
+      headerStyle,
     });
     setSending(false);
     if (res.ok) {
@@ -256,6 +282,32 @@ export function TemplateEditor({
     if (res.ok && res.content) {
       applyContent(res.content);
       toast.success("Standaardinhoud hersteld in het concept.");
+    } else {
+      toast.error(res.error ?? "Herstellen mislukt");
+    }
+  }
+
+  async function handleSaveHeader() {
+    setHeaderSaving(true);
+    const res = await saveHeaderStyle(headerStyle);
+    setHeaderSaving(false);
+    if (res.ok && res.style) {
+      setHeaderStyle(res.style);
+      setSavedHeaderStyle(res.style);
+      toast.success("Opmaak van de bovenste balk opgeslagen, geldt nu voor alle mails.");
+    } else {
+      toast.error(res.error ?? "Opslaan mislukt");
+    }
+  }
+
+  async function handleResetHeader() {
+    setHeaderSaving(true);
+    const res = await resetHeaderStyle();
+    setHeaderSaving(false);
+    if (res.ok && res.style) {
+      setHeaderStyle(res.style);
+      setSavedHeaderStyle(res.style);
+      toast.success("Standaardopmaak van de bovenste balk hersteld.");
     } else {
       toast.error(res.error ?? "Herstellen mislukt");
     }
@@ -340,6 +392,102 @@ export function TemplateEditor({
             <Field label="Preheader" hint="Korte previewtekst in de inbox-lijst.">
               <Input value={preheader} onChange={(e) => setPreheader(e.target.value)} />
             </Field>
+          </div>
+
+          {/* Bovenste balk: één platforminstelling, hier bewerkbaar omdat de
+              preview ernaast het resultaat direct laat zien. */}
+          <div className="border-b border-border">
+            <button
+              type="button"
+              onClick={() => setHeaderOpen((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-medium text-neutral-900">
+                  Bovenste balk
+                </span>
+                {isDefaultHeaderStyle(headerStyle) ? (
+                  <Badge tone="neutral">Standaard</Badge>
+                ) : (
+                  <Badge tone="info">Aangepast</Badge>
+                )}
+                {headerDirty ? <Badge tone="warning">Niet opgeslagen</Badge> : null}
+              </span>
+              <span className="text-xs text-neutral-400">
+                {headerOpen ? "Verbergen" : "Aanpassen"}
+              </span>
+            </button>
+
+            {headerOpen ? (
+              <div className="flex flex-col gap-3 border-t border-border p-4">
+                <p className="text-xs text-neutral-500">
+                  De CSS van de balk met het logo. Dit geldt voor{" "}
+                  <strong>alle mails en alle sportscholen</strong>. Gebruik{" "}
+                  {HEADER_STYLE_TOKENS.map((t) => (
+                    <code
+                      key={t}
+                      className="mx-0.5 rounded bg-surface-2 px-1 font-mono text-[11px]"
+                    >
+                      {`{{${t}}}`}
+                    </code>
+                  ))}
+                  om de huisstijl van de sportschool te blijven volgen.
+                </p>
+
+                {HEADER_CSS_FIELDS.map((f) => (
+                  <Field key={f.key} label={f.label} hint={f.hint}>
+                    <textarea
+                      value={headerStyle[f.key]}
+                      maxLength={HEADER_CSS_MAX_LENGTH}
+                      spellCheck={false}
+                      onChange={(e) =>
+                        setHeaderStyle((s) => ({ ...s, [f.key]: e.target.value }))
+                      }
+                      rows={2}
+                      className="w-full resize-y rounded-lg border border-border bg-surface-1 px-3 py-2 font-mono text-xs text-neutral-900 outline-none focus:border-accent"
+                    />
+                  </Field>
+                ))}
+
+                <Field
+                  label="Breedte logo (px)"
+                  hint={`Tussen ${LOGO_WIDTH_MIN} en ${LOGO_WIDTH_MAX}. Apart veld omdat Outlook het width-attribuut nodig heeft.`}
+                >
+                  <Input
+                    type="number"
+                    min={LOGO_WIDTH_MIN}
+                    max={LOGO_WIDTH_MAX}
+                    value={headerStyle.logoWidth}
+                    onChange={(e) =>
+                      setHeaderStyle((s) => ({
+                        ...s,
+                        logoWidth: Number(e.target.value) || s.logoWidth,
+                      }))
+                    }
+                  />
+                </Field>
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleResetHeader}
+                    disabled={headerSaving}
+                  >
+                    Herstel standaard
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={headerSaving}
+                    onClick={handleSaveHeader}
+                    disabled={!headerDirty}
+                  >
+                    Opmaak opslaan
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-1.5 border-b border-border p-3">

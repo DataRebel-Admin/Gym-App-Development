@@ -1,5 +1,10 @@
 import "server-only";
 import { prisma } from "@/lib/db";
+import {
+  parseHeaderStyle,
+  serializeHeaderStyle,
+  type EmailHeaderStyle,
+} from "@/lib/email/header-style";
 
 /**
  * Globale platform-instellingen (key/value) die de Superadmin zonder redeploy
@@ -11,6 +16,7 @@ import { prisma } from "@/lib/db";
 export const PLATFORM_SETTING_KEYS = {
   supportEmail: "support.email",
   outgoingEmail: "email.outgoing",
+  emailHeaderStyle: "email.header.style",
 } as const;
 
 /** GymRebel-default; overschrijfbaar via env of via de Superadmin-UI. */
@@ -20,6 +26,11 @@ const DEFAULT_SUPPORT_EMAIL = "admin@datarebel.nl";
 export async function getPlatformSetting(key: string): Promise<string | null> {
   const row = await prisma.platformSetting.findUnique({ where: { key } });
   return row?.value ?? null;
+}
+
+/** Verwijder een platform-instelling → terug naar de code-standaard. */
+export async function clearPlatformSetting(key: string): Promise<void> {
+  await prisma.platformSetting.deleteMany({ where: { key } });
 }
 
 /** Schrijf (upsert) een platform-instelling met auteur-metadata. */
@@ -60,6 +71,35 @@ export async function setSupportEmail(
   actor?: { id?: string | null; email?: string | null }
 ): Promise<void> {
   await setPlatformSetting(PLATFORM_SETTING_KEYS.supportEmail, email, actor);
+}
+
+/**
+ * Opmaak van de bovenste balk in álle uitgaande e-mails (zie
+ * lib/email/header-style.ts). Eén globale instelling, géén per-tenant waarde:
+ * de balk kleurt al per sportschool mee via de `{{accentColor}}`-tokens, dus
+ * whitelabel blijft intact zonder dat elke gym eigen CSS hoeft te beheren.
+ * Geen rij = de code-standaard.
+ */
+export async function getEmailHeaderStyle(): Promise<EmailHeaderStyle> {
+  return parseHeaderStyle(
+    await getPlatformSetting(PLATFORM_SETTING_KEYS.emailHeaderStyle)
+  );
+}
+
+export async function setEmailHeaderStyle(
+  style: EmailHeaderStyle,
+  actor?: { id?: string | null; email?: string | null }
+): Promise<void> {
+  await setPlatformSetting(
+    PLATFORM_SETTING_KEYS.emailHeaderStyle,
+    serializeHeaderStyle(style),
+    actor
+  );
+}
+
+/** Terug naar de code-standaard: de rij wordt verwijderd, niet overschreven. */
+export async function clearEmailHeaderStyle(): Promise<void> {
+  await clearPlatformSetting(PLATFORM_SETTING_KEYS.emailHeaderStyle);
 }
 
 /**

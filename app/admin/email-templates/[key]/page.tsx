@@ -9,6 +9,7 @@ import {
   isEmailTemplateKey,
   placeholdersFor,
 } from "@/lib/email/template-defaults";
+import { getEmailHeaderStyle } from "@/lib/platform-settings";
 import { TemplateEditor } from "./editor";
 
 /** Bewerkbare talen — NL is de bron, EN/FY worden per taal apart onderhouden. */
@@ -46,6 +47,7 @@ export default async function EmailTemplateEditorPage({
   const locale = parseLocale((await searchParams).locale);
 
   const template = await ensureTemplate(key, locale);
+  const headerStyle = await getEmailHeaderStyle();
   const [versions, tenants] = await Promise.all([
     prisma.emailTemplateVersion.findMany({
       where: { templateId: template.id },
@@ -117,6 +119,7 @@ export default async function EmailTemplateEditorPage({
         }))}
         tenants={tenants}
         adminEmail={admin.email ?? ""}
+        headerStyle={headerStyle}
       />
     </div>
   );

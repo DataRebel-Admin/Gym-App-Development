@@ -3,7 +3,7 @@ import type { AppReport } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { sendEmail } from "@/lib/email/send";
-import { resolveEmailBranding, loadTenantBranding } from "@/lib/email/branding";
+import { loadPlatformBranding, loadTenantBranding } from "@/lib/email/branding";
 import {
   reportAlertMessage,
   reportResolvedMessage,
@@ -55,7 +55,7 @@ export async function notifyDevTeamImmediate(
     const inboxUrl = `${ORIGIN()}/admin/meldingen`;
 
     const message = await reportAlertMessage({
-      branding: resolveEmailBranding(null),
+      branding: await loadPlatformBranding(),
       report: summary,
       reason,
       inboxUrl,
