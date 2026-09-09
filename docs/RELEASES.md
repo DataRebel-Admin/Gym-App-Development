@@ -155,7 +155,9 @@ Opgelost
 1. `npm run version:bump` (en `version` ophogen in `app-version.json` als er
    nieuwe functionaliteit in zit)
 2. `CAPACITOR_SERVER_URL` controleren: moet productie zijn, geen tunnel
-3. `npx cap sync android && ./gradlew bundleRelease`
+3. `npm run android:bundle` (doet zelf `cap sync` en `:app:bundleRelease`, kiest
+   een JDK die Gradle aankan en ruimt door OneDrive vergrendelde build-mappen op;
+   `npm run android:apk` levert een APK om zelf op een toestel te zetten)
 4. `docs/TESTPLAN.md` aflopen op een fysiek toestel
 5. Uploaden, releasenaam en opmerkingen invullen volgens dit document
 6. `app-version.json` committen samen met de gewijzigde native bestanden

@@ -2557,6 +2557,20 @@ daar bij elkaar; `store/assets/` bevat alleen gegenereerde store-afbeeldingen).
   `:bump` / `:check` schrijven naar Gradle en Info.plist. Eén buildteller voor
   beide platforms. **Niet verwarren met `lib/changelog.ts`**, dat een marketing-
   label voor release notes is en los mag lopen.
+- **BOUWEN GAAT VIA `npm run android:bundle`** (`scripts/android-build.mjs`;
+  `:apk` voor een APK) en niet via een kale `gradlew`-aanroep. Twee valkuilen op
+  deze machine zitten erin verwerkt: (1) `gradlew.bat` stopt zonder `JAVA_HOME`,
+  en de JBR van Android Studio staat op **Java 25** (klassebestandversie 69) wat
+  Gradle 8.14.3 niet aankan — het script kiest zelf een JDK 17 t/m 24 en zet
+  `JAVA_HOME` alleen voor die aanroep (`GYMREBEL_JDK` overschrijft); (2) de repo
+  staat in **OneDrive**, dat build-uitvoer alleen-lezen maakt met een reparse
+  point, waardoor Gradle faalt op `AccessDeniedException` / `Unable to delete
+  directory` — het script ruimt precies het genoemde pad op (nooit buiten de
+  repo) en probeert één keer opnieuw. Structureel: die build-mappen uitsluiten
+  van OneDrive-synchronisatie. De bouw-JVM staat daarnaast gepind in de
+  gebruikers-`~/.gradle/gradle.properties` (`org.gradle.java.home`, met
+  vooruitstrepen — backslash is daar een escape-teken), buiten de repo omdat het
+  pad machinespecifiek is.
 - **Signing** leest uit `android/keystore.properties` of uit env (CI). Zonder die
   gegevens wordt er géén signingConfig gezet, zodat uploaden zichtbaar faalt in
   plaats van stil een verkeerd getekend artefact op te leveren. Keystores en
