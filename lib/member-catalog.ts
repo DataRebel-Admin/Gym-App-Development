@@ -13,7 +13,8 @@ import {
   pickJsonName,
   trainingGoalFromLibrary,
 } from "@/lib/exercise-library/mapping";
-import { libraryTemplateBadges } from "@/lib/schema-badges";
+import { libraryTemplateBadges, SCHEMA_BADGES } from "@/lib/schema-badges";
+import { trainingGoalLabel } from "@/lib/training-goals";
 import {
   libraryTemplateNl,
   libraryTemplateDayName,
@@ -23,6 +24,7 @@ import {
 import { exerciseThumbUrl, EXERCISE_THUMB_RELATIONS } from "@/lib/exercise-thumb";
 import {
   parseCatalogLevel,
+  CATALOG_LEVEL_LABELS,
   type CatalogRow,
   type CatalogSource,
 } from "@/lib/member-catalog-core";
@@ -35,6 +37,30 @@ import {
  */
 
 type Branding = { logoUrl?: string | null };
+
+/**
+ * Doorzoekbare termen bij een rij, voor de fuzzy matcher in `filterCatalog`.
+ * Naast de losse `extra` (dagnamen, oefening-slugs) gaan de **labels** mee die
+ * het lid op de kaart ziet: een chip "Spieropbouw" die als zoekterm nul
+ * treffers geeft is precies de val die CLAUDE.md beschrijft bij de bibliotheek.
+ * Oefening-slugs kunnen rauw mee: `normalizeSearchText` maakt van "bench-press"
+ * "bench press", waar de NL-expansie ("bankdrukken") op landt.
+ */
+function rowTerms(
+  goals: string[],
+  badges: string[],
+  level: CatalogRow["level"],
+  type: CatalogRow["type"],
+  extra: string[] = []
+): string[] {
+  return [
+    ...goals.map((g) => trainingGoalLabel(g)),
+    ...badges.map((b) => SCHEMA_BADGES[b]?.label ?? ""),
+    level ? CATALOG_LEVEL_LABELS[level] : "",
+    type === "week" ? "weekschema programma" : "losse trainingsdag",
+    ...extra,
+  ].filter((t) => t.trim() !== "");
+}
 
 /** Niveau van een tenant-template: afgeleid uit de beginner-badge (meer is er niet). */
 function tenantLevel(badges: string[]): "beginner" | null {
@@ -62,6 +88,10 @@ function tenantRow(
     minutes: null,
     validityWeeks: t.validityWeeks,
     image: schemaImage(t, branding),
+    // Een vrijgegeven gym-schema draagt alleen tellingen, geen oefeningen: die
+    // ophalen zou een extra query per rij kosten. Naam en omschrijving zijn hier
+    // door de sportschool zelf geschreven en dus al Nederlands.
+    terms: rowTerms(t.goal ? [t.goal] : [], t.badges, tenantLevel(t.badges), type),
   };
 }
 
@@ -81,6 +111,13 @@ function dayRegistryRow(def: MemberDayTemplate): CatalogRow {
     minutes: def.minutes,
     validityWeeks: null,
     image: libraryTemplateImage(def.photoSlug, def.goals[0] ?? null),
+    terms: rowTerms(
+      def.goals,
+      def.badges,
+      def.level ?? (def.badges.includes("beginner") ? "beginner" : null),
+      "day",
+      def.items.map((i) => i.slug)
+    ),
   };
 }
 
@@ -119,6 +156,18 @@ function repdbRow(t: RepdbTemplate): CatalogRow {
     minutes: null,
     validityWeeks: null,
     image: libraryTemplateImage(t.id, t.goal),
+    terms: rowTerms(
+      goal ? [goal] : [],
+      libraryTemplateBadges(t),
+      parseCatalogLevel(t.difficulty),
+      days.length > 1 ? "week" : "day",
+      [
+        ...days.map((d, i) => libraryTemplateDayName(t.id, i, d.name_en?.trim() ?? "")),
+        ...days.flatMap((d) =>
+          (d.exercises ?? []).map((e) => swapLibraryExerciseSlug(t.id, e.exercise_id))
+        ),
+      ]
+    ),
   };
 }
 

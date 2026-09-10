@@ -189,6 +189,7 @@ function row(patch: Partial<CatalogRow>): CatalogRow {
     minutes: null,
     validityWeeks: null,
     image: null,
+    terms: [],
     ...patch,
   };
 }
@@ -261,6 +262,50 @@ test("filterCatalog: type, doel, dagen, niveau en zoekterm versmallen", () => {
     ["sl"]
   );
   assert.deepEqual(filterCatalog(rows, { ...none, q: "strong" }).map((r) => r.id), ["sl"]);
+});
+
+test("filterCatalog zoekt fuzzy: tikfout, woordvolgorde en NL naar EN", () => {
+  const none = { type: null, goal: null, days: null, level: null, q: null } as const;
+  const rows = [
+    row({ id: "beendag", source: "day", type: "day", name: "Beendag", terms: ["squat", "leg-press"] }),
+    row({
+      id: "borst",
+      source: "day",
+      type: "day",
+      name: "Borst en rug supersets",
+      terms: ["bench-press", "pull-up"],
+    }),
+    row({ id: "ppl", source: "repdb", name: "Push pull legs, 6x per week", terms: ["Push", "Pull"] }),
+  ];
+  const ids = (q: string) => filterCatalog(rows, { ...none, q }).map((r) => r.id);
+
+  // Tikfout in de naam: de kale includes vond dit nooit.
+  assert.deepEqual(ids("beendg"), ["beendag"]);
+  // Woordvolgorde maakt niet uit.
+  assert.deepEqual(ids("supersets borst"), ["borst"]);
+  // Nederlandse zoekterm landt via NL_QUERY_TERMS op de Engelse oefening-slug.
+  assert.deepEqual(ids("bankdrukken"), ["borst"]);
+  // Oefening-slug is doorzoekbaar, ook zonder streepje.
+  assert.deepEqual(ids("leg press"), ["beendag"]);
+  // Niets gevonden blijft niets, geen stille volledige lijst.
+  assert.deepEqual(ids("onvindbaarwoord"), []);
+});
+
+test("filterCatalog: zonder zoekterm blijft de aangeleverde volgorde staan", () => {
+  const none = { type: null, goal: null, days: null, level: null, q: null } as const;
+  const rows = [row({ id: "c", name: "C" }), row({ id: "a", name: "A" }), row({ id: "b", name: "B" })];
+  assert.deepEqual(filterCatalog(rows, none).map((r) => r.id), ["c", "a", "b"]);
+});
+
+test("filterCatalog: dezelfde id bij twee bronnen blijft uit elkaar", () => {
+  // De sleutel voor de matcher draagt de bron; anders overschrijft een
+  // vrijgegeven gym-dag een gecureerd dag-template met dezelfde key.
+  const none = { type: null, goal: null, days: null, level: null, q: null } as const;
+  const rows = [
+    row({ id: "core", source: "day", type: "day", name: "Core 15 min" }),
+    row({ id: "core", source: "tenantday", type: "day", name: "Core van de gym" }),
+  ];
+  assert.equal(filterCatalog(rows, { ...none, q: "core" }).length, 2);
 });
 
 // ---------------------------------------------------------------------------

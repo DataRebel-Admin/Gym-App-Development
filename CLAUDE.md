@@ -687,12 +687,34 @@ kopie over in de bestaande builder-flow. **Géén DB-migratie** — alles hergeb
   resp. `hiit-30`, en `dumbbell-only-full-body` overlapt 5 van de 6 oefeningen met
   `dumbbell-travel-30min`. Ze vallen weg in de lid-catalogus (óók via een directe URL, anders
   is de dedupe cosmetisch); de **owner-import blijft ze tonen**.
-- **Nog open na deze ronde** (bewust niet meegenomen): `filterCatalog` zoekt met een kale
-  `includes` op naam en omschrijving, terwijl de rest van de app de fuzzy matcher uit
-  `lib/exercise-library/search-text.ts` gebruikt; de doelen `fat_loss`, `health`, `rehab` en
-  `sport` hebben nul weekschema's (`trainingGoalFromLibrary` mapt maar vijf RepDB-doelen, en
-  elke rij krijgt er één); en weekkaarten tonen geen duurindicatie omdat `repdbRow`
-  `minutes: null` zet.
+- **DE CATALOGUS ZOEKT MET DE GEDEELDE FUZZY MATCHER, NIET MET EEN KALE `includes`.**
+  `filterCatalog` was het laatste zoekvlak met een kale `includes` op naam en omschrijving en
+  daarmee het enige zonder tikfout-tolerantie, zonder woordvolgorde-onafhankelijkheid en
+  zonder NL→EN-expansie: "bankdrukken" gaf nul treffers. Nu via `rankLibraryMatches`
+  (`lib/exercise-library/search-text.ts`), net als de bibliotheek, de aanvullende catalogus,
+  de pickers en `/member/exercises`. Naam = `names`, de rest = `meta`.
+  - **`CatalogRow.terms` is de doorzoekbare bijlage** (dagnamen, oefening-slugs, en de labels
+    van doel/badge/niveau), server-side gevuld door `rowTerms` in lib/member-catalog.ts —
+    idioom van de `terms`-lijst op `/member/exercises`. De rij zelf draagt geen oefeningen,
+    dus zonder dit veld kan de pure kern er niet op matchen.
+  - **Oefening-slugs gaan er rauw in.** `normalizeSearchText` maakt van `bench-press`
+    "bench press", precies waar `NL_QUERY_TERMS["bankdrukken"]` op landt. Scheelt een query:
+    de namen ophalen zou een extra `libraryExercise`-lookup over de hele catalogus kosten.
+  - **Vrijgegeven gym-schema's krijgen géén oefening-termen**: `getMemberLibrary` levert
+    alleen `_count`, en per rij de items ophalen is die query niet waard. Naam en omschrijving
+    zijn daar door de sportschool zelf geschreven en dus al Nederlands.
+  - De sleutel voor de matcher is **`bron:id`**: een gecureerd dag-template en een vrijgegeven
+    gym-dag zijn allebei vrije strings en kunnen botsen.
+  - Bij een zoekterm komt de lijst op **relevantie** terug; `sortByGoalMatch` is stabiel en
+    houdt die volgorde binnen beide groepen intact.
+- **Nog open na deze ronde** (bewust niet meegenomen): de doelen `fat_loss`, `health`,
+  `rehab` en `sport` hebben nul weekschema's (`trainingGoalFromLibrary` mapt maar vijf
+  RepDB-doelen, en elke rij krijgt er één); weekkaarten tonen geen duurindicatie omdat
+  `repdbRow` `minutes: null` zet; en het zoekveld van de catalogus is een gewoon
+  formulier, geen `LiveSearchInput` zoals de bibliotheek-tab.
+  Let op bij het herzien van de matcher: een **omschrijving is een zin**, geen kort label, dus
+  de substring-bonus op `meta` kan toevallig aanslaan ("rekken" zit in "trekken"). Dat gedrag
+  is niet nieuw (de oude `includes` deed hetzelfde) en is bewust niet apart getuned.
 
 - **Kaders staan los van de catalogus**: geen kader-badges of geblokkeerde CTA's —
   elk template is te zien én te pakken. N.B. eigenaar twijfelt of kaders überhaupt

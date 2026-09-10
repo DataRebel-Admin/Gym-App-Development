@@ -61,7 +61,18 @@ export const NL_QUERY_TERMS: Record<string, string> = {
   halter: "dumbbell",
   halters: "dumbbell",
   kabel: "cable",
+  kabelmachine: "cable",
   loopband: "treadmill",
+  // Apparaten waarvan de Nederlandse naam op het toestel staat maar de slug
+  // Engels is; zonder deze regels vond "beenpers" niets (gevonden bij de
+  // catalogus-audit).
+  beenpers: "leg press",
+  beencurl: "leg curl",
+  beenextensie: "leg extension",
+  borstpers: "chest press",
+  crosstrainer: "elliptical",
+  hometrainer: "stationary bike",
+  roeimachine: "rowing machine",
   // spieren/regio's
   borst: "chest",
   rug: "back",

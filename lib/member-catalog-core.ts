@@ -10,6 +10,7 @@
 //   - `tenantday` — vrijgegeven dag-templates van de sportschool (kind=DAY)
 
 import type { SchemaImage } from "@/lib/schema-image";
+import { rankLibraryMatches } from "@/lib/exercise-library/search-text";
 
 export const CATALOG_SOURCES = ["tenant", "repdb", "day", "tenantday"] as const;
 export type CatalogSource = (typeof CATALOG_SOURCES)[number];
@@ -44,6 +45,13 @@ export type CatalogRow = {
   minutes: number | null;
   validityWeeks: number | null;
   image: SchemaImage | null;
+  /**
+   * Extra doorzoekbare termen: dagnamen, oefening-slugs en de labels van doel,
+   * badge en niveau. Wordt nooit getoond, alleen gematcht. Server-side gevuld
+   * (lib/member-catalog.ts) omdat de rij zelf geen oefeningen draagt — zelfde
+   * idioom als de `terms`-lijst op /member/exercises.
+   */
+  terms: string[];
 };
 
 export function parseCatalogSource(v: string | null | undefined): CatalogSource | null {
@@ -108,9 +116,22 @@ export function parseCatalogFilters(sp: {
  * weg zodra er op niveau gefilterd wordt (geen niveau = onbekend, niet "alles").
  * Onbekende doel-keys negeren we defensief (zelfde regel als getMemberLibrary).
  */
+/**
+ * DE ZOEKTERM LOOPT VIA DE GEDEELDE FUZZY MATCHER, NOOIT VIA EEN KALE
+ * `includes`. Dit vlak deed dat wél, waardoor het het enige zoekveld in de app
+ * was zonder tikfout-tolerantie, zonder woordvolgorde-onafhankelijkheid en
+ * zonder de NL→EN-expansie: "bankdrukken" of "bilspieren" gaf hier nul
+ * treffers terwijl dezelfde term in de bibliotheek en in de pickers gewoon
+ * werkt. Zie `lib/exercise-library/search-text.ts`.
+ *
+ * De naam weegt het zwaarst; omschrijving, dagnamen, oefening-slugs en de
+ * labels van doel/badge/niveau matchen mee met lager gewicht (`meta`). Bij een
+ * zoekterm komt de lijst op **relevantie** terug; zonder zoekterm blijft de
+ * aangeleverde volgorde staan. De doel-sortering die de pagina daarna doet is
+ * stabiel, dus die houdt de relevantievolgorde binnen beide groepen intact.
+ */
 export function filterCatalog(rows: CatalogRow[], f: CatalogFilters): CatalogRow[] {
-  const q = f.q?.toLowerCase() ?? null;
-  return rows.filter((row) => {
+  const narrowed = rows.filter((row) => {
     if (f.type && row.type !== f.type) return false;
     if (f.goal && !row.goals.includes(f.goal)) return false;
     if (f.days) {
@@ -118,12 +139,35 @@ export function filterCatalog(rows: CatalogRow[], f: CatalogFilters): CatalogRow
       if (f.days === "5" ? n < 5 : n !== Number(f.days)) return false;
     }
     if (f.level && row.level !== f.level) return false;
-    if (q) {
-      const hay = `${row.name} ${row.description ?? ""}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
     return true;
   });
+
+  const q = f.q?.trim();
+  if (!q) return narrowed;
+
+  const byId = new Map(narrowed.map((r) => [catalogRowKey(r), r]));
+  const ranked = rankLibraryMatches(
+    q,
+    narrowed.map((r) => ({
+      id: catalogRowKey(r),
+      names: [r.name],
+      synonyms: [],
+      meta: [r.description ?? "", ...r.terms].filter(Boolean),
+    }))
+  );
+  return ranked.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
+  });
+}
+
+/**
+ * Unieke sleutel over de bronnen heen. Een RepDB-slug en een tenant-cuid kunnen
+ * nooit botsen, maar een gecureerd dag-template en een vrijgegeven gym-dag wél
+ * (beide vrije strings), dus de bron hoort in de sleutel.
+ */
+function catalogRowKey(row: Pick<CatalogRow, "source" | "id">): string {
+  return `${row.source}:${row.id}`;
 }
 
 /** Is er überhaupt een filter actief? (Voor "wis filters" en de lege staat.) */
