@@ -875,7 +875,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
   // de voeten steeds hoger, pas daarna de muur.
   {
     key: "dips-handstand",
-    name: "Dips en handstand",
+    name: "Op weg naar de handstand",
     description:
       "Werk toe naar de handstand push-up met pike push-ups, dips en L-sit, aangevuld met triceps- en rompwerk.",
     goals: ["strength", "muscle"],
@@ -934,13 +934,22 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     minutes: 30,
     level: "intermediate",
     photoSlug: "hiit-cardio-20min",
+    groups: {
+      ronde: { type: "circuit", rounds: 5, restSeconds: 60 },
+    },
     items: [
-      { slug: "burpees", sets: 5, reps: "30s", restSeconds: 30 },
-      { slug: "jump-rope", sets: 5, reps: "30s", restSeconds: 30 },
-      { slug: "box-jump", sets: 5, reps: "30s", restSeconds: 30 },
-      { slug: "battle-ropes", sets: 5, reps: "30s", restSeconds: 30 },
-      { slug: "kettlebell-swing", sets: 5, reps: "15", restSeconds: 45 },
-      { slug: "plank", sets: 1, reps: "AMRAP", restSeconds: 0 },
+      { slug: "burpees", sets: 5, reps: "30s", restSeconds: 30, group: "ronde" },
+      { slug: "jump-rope", sets: 5, reps: "30s", restSeconds: 30, group: "ronde" },
+      { slug: "box-jump", sets: 5, reps: "30s", restSeconds: 30, group: "ronde" },
+      { slug: "battle-ropes", sets: 5, reps: "30s", restSeconds: 30, group: "ronde" },
+      { slug: "kettlebell-swing", sets: 5, reps: "15", restSeconds: 45, group: "ronde" },
+      {
+        slug: "plank",
+        sets: 1,
+        reps: "AMRAP",
+        restSeconds: 0,
+        notes: "Afsluiter na de laatste ronde: houd zo lang vol als je kunt.",
+      },
     ],
   },
   // Een van de klassieke CrossFit benchmark-workouts (CrossFit HQ, sinds 2005).
@@ -1375,7 +1384,8 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
   {
     key: "mcgill-big-3",
     name: "McGill Big 3",
-    description: "Het rompprotocol van Stuart McGill: stabiliteit opbouwen zonder je onderrug zwaar te belasten.",
+    description:
+      "De drie rompoefeningen van Stuart McGill, met een korte opwarming en afsluiter erbij.",
     goals: ["rehab", "stability", "health"],
     badges: ["rehab", "beginner"],
     minutes: 20,

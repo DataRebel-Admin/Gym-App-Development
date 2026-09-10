@@ -73,9 +73,21 @@ function TemplateCard({
   memberGoals: string[];
 }) {
   const matched = hasGoalOverlap(row.goals, memberGoals);
+  // Een weekschema toont naast het aantal trainingsdagen ook de aanbevolen
+  // frequentie zodra die afwijkt. Zonder dat las een kaart als "Push pull legs,
+  // 6x per week" met eronder "3 dagen" als een tegenspraak, terwijl het gewoon
+  // drie dagen zijn die je twee rondes per week draait.
   const meta =
     row.type === "week"
-      ? `${row.dayCount} ${row.dayCount === 1 ? "dag" : "dagen"} · ${row.exerciseCount} oefeningen`
+      ? [
+          `${row.dayCount} ${row.dayCount === 1 ? "trainingsdag" : "trainingsdagen"}`,
+          row.daysPerWeek && row.daysPerWeek !== row.dayCount
+            ? `${row.daysPerWeek}x per week`
+            : null,
+          `${row.exerciseCount} oefeningen`,
+        ]
+          .filter(Boolean)
+          .join(" · ")
       : `${row.exerciseCount} oefeningen${row.minutes ? ` · ±${row.minutes} min` : ""}`;
   return (
     <Link

@@ -22,6 +22,13 @@ import { SCHEMA_BADGES } from "../lib/schema-badges";
 import { LIBRARY_TEMPLATE_PHOTOS } from "../lib/schema-image";
 import { parseTemplateReps } from "../lib/exercise-library/mapping";
 import { MEMBER_DAY_LIBRARY_WHERE } from "../lib/member-library-rules";
+import {
+  LIBRARY_TEMPLATE_NL,
+  libraryTemplateNl,
+  libraryTemplateDayName,
+  isLibraryTemplateHidden,
+  swapLibraryExerciseSlug,
+} from "../lib/library-template-nl";
 
 // ---------------------------------------------------------------------------
 // Dag-template-registry: elke regel moet bij overname iets bruikbaars opleveren.
@@ -269,4 +276,50 @@ test("MEMBER_DAY_LIBRARY_WHERE eist library + vrijgegeven + kind DAY", () => {
 
 test("elk niveau heeft een NL-label", () => {
   assert.deepEqual(Object.keys(CATALOG_LEVEL_LABELS), ["beginner", "intermediate", "advanced"]);
+});
+
+// ---------------------------------------------------------------------------
+// Nederlandse curatie-laag over de RepDB-voorbeeldschema's.
+// ---------------------------------------------------------------------------
+
+test("RepDB-overlay: elke rij heeft een bruikbare Nederlandse naam en omschrijving", () => {
+  const dash = /[—–]/;
+  for (const [key, nl] of Object.entries(LIBRARY_TEMPLATE_NL)) {
+    assert.equal(nl.slug, key, `${key}: sleutel en slug lopen uiteen`);
+    assert.ok(nl.name.trim() !== "", `${key}: lege naam`);
+    assert.ok(nl.description.trim() !== "", `${key}: lege omschrijving`);
+    assert.ok(nl.name.length <= 34, `${key}: naam ${nl.name.length} tekens: "${nl.name}"`);
+    // De dataset-namen die deze laag vervangt zaten juist vol gedachtestreepjes.
+    assert.ok(!dash.test(nl.name), `${key}: streepje in naam`);
+    assert.ok(!dash.test(nl.description), `${key}: streepje in omschrijving`);
+    for (const d of nl.dayNames ?? []) {
+      assert.ok(d.trim() !== "" && !dash.test(d), `${key}: dagnaam "${d}"`);
+    }
+    if (nl.hidden) {
+      assert.ok(nl.hiddenReason?.trim(), `${key}: verborgen zonder reden`);
+    }
+  }
+});
+
+test("RepDB-overlay: dagnamen vallen terug en slug-correcties werken", () => {
+  assert.equal(libraryTemplateDayName("ppl-6-day-intermediate", 0, "Push"), "Push");
+  // Buiten bereik of onbekend schema: de meegegeven terugval wint.
+  assert.equal(libraryTemplateDayName("ppl-6-day-intermediate", 9, "Dag 10"), "Dag 10");
+  assert.equal(libraryTemplateDayName("bestaat-niet", 0, "Dag 1"), "Dag 1");
+  assert.equal(libraryTemplateDayName(null, 0, "Dag 1"), "Dag 1");
+
+  // Datafout in de bundel: een schema zonder apparaten schreef een barbell squat voor.
+  assert.equal(swapLibraryExerciseSlug("home-bodyweight-beginner", "squat"), "bodyweight-squat");
+  assert.equal(swapLibraryExerciseSlug("home-bodyweight-beginner", "push-up"), "push-up");
+  assert.equal(swapLibraryExerciseSlug("upper-lower-4-day", "squat"), "squat");
+  assert.equal(swapLibraryExerciseSlug(null, "squat"), "squat");
+});
+
+test("RepDB-overlay: verbergen is opt-in en vindbaar", () => {
+  assert.equal(isLibraryTemplateHidden("core-finisher-10min"), true);
+  assert.equal(isLibraryTemplateHidden("upper-lower-4-day"), false);
+  assert.equal(isLibraryTemplateHidden("bestaat-niet"), false);
+  assert.equal(libraryTemplateNl("bestaat-niet"), null);
+  const hidden = Object.values(LIBRARY_TEMPLATE_NL).filter((n) => n.hidden);
+  assert.ok(hidden.length > 0 && hidden.length < Object.keys(LIBRARY_TEMPLATE_NL).length);
 });

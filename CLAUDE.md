@@ -650,6 +650,50 @@ kopie over in de bestaande builder-flow. **Géén DB-migratie** — alles hergeb
   toe aan een bestaand bewerkbaar eigen schema (zelfde poorten via `assertEditAllowed`;
   geen dag-limiet — het dag-maximum is uit de kaders verwijderd).
   Audit: `schema.member.start` draagt `source` + `newExercises`.
+- **HET TYPE VAN EEN REPDB-RIJ VOLGT HET AANTAL DAGEN, HET STAAT NIET VAST OP "week".**
+  `repdbRow` zette `type: "week"` hard, terwijl **9 van de 15** voorbeeldschema's één
+  trainingsdag zijn. Gevolg: een warming-up van tien minuten en een core-afsluiter stonden
+  onder "Complete schema's" mét de knop "Gebruik dit schema", zodat een lid ze als zijn
+  **actieve schema** kon instellen en verder niets meer trainde. Tegelijk bleef "voeg toe
+  als dag" verborgen, want die zit achter `row.type === "day"`. Nu: `days.length > 1`.
+  `addDayFromTemplate` kreeg daarom een **`repdb:`-tak** (alleen eendaagse schema's);
+  zonder die tak deed de knop die de dag-tab nu toont stil niets.
+- **Nederlandse curatie-laag `lib/library-template-nl.ts`.** De bundel levert `names`/
+  `descriptions` alleen in de/en/es, dus `pickJsonName(…, ["nl","en"])` viel altijd terug op
+  **Engels**, midden in een Nederlandse catalogus, en 11 van de 15 namen bevatten een
+  gedachtestreepje. Die naam wordt bij overnemen bovendien hard de `WorkoutTemplate.name`
+  van het lid en duikt daarna op in Mijn schema's, de PDF en het coach-overzicht.
+  De registry levert per slug naam, omschrijving, **dagnamen** en optioneel `swap`/`hidden`,
+  en wordt gelezen door `repdbRow`, `getCatalogDetail` én `resolveStartSource`.
+  **Waarom code en geen kolom**: `library:import` upsert't `names`/`descriptions` in hun
+  geheel, zonder keep-nl-bescherming (die hebben alleen de lookups) en zonder `origin`
+  (dat heeft alleen `LibraryExerciseText`) — een Nederlandse naam in de tabel overleeft dus
+  precies één import. Zelfde reden als bij `LIBRARY_TEMPLATE_PHOTOS`.
+- **Namen die dagen beloofden die er niet waren.** "Push / Pull / Legs — 6 Day" toonde
+  "3 dagen", "Full Body — 3 Day Beginner" en "Glute Hypertrophy — 3 Day" toonden er 2.
+  Inhoudelijk klopt dat (A/B afwisselen, push-pull-legs in twee rondes), maar het woord
+  "dag" stond op één kaart voor twee dingen. Opgelost in de **tekst**, niet in de data: de
+  naam noemt nu de frequentie ("Full body beginner, 3x per week") en de kaart toont bij een
+  weekschema `dayCount` **plus** `daysPerWeek` zodra die verschillen. "Push-Up Progression
+  — 8 Week" en "Pull-Up Progression — 0 to 10" beloofden een traject dat nergens in de data
+  zit (één dag, vier oefeningen) en heten nu "Opbouw naar de push-up/pull-up".
+- **`swap` corrigeert datafouten in de bundel.** `home-bodyweight-beginner` heet
+  "No Equipment" maar schrijft een **barbell squat** voor, terwijl de rest van die rij netjes
+  de bodyweight-varianten gebruikt. De correctie draait vóór `ensureLibraryExercises`, anders
+  zet een datafout een oefening in de sportschool die daar niet hoort.
+- **`hidden` ruimt duplicaten op.** Vier RepDB-rijen zijn gedekt door een rijker Nederlands
+  dag-template: `core-finisher-10min` is **set voor set identiek** aan `core-15`,
+  `mobility-warm-up-10min` en `hiit-cardio-20min` zijn deelverzamelingen van `mobiliteit-20`
+  resp. `hiit-30`, en `dumbbell-only-full-body` overlapt 5 van de 6 oefeningen met
+  `dumbbell-travel-30min`. Ze vallen weg in de lid-catalogus (óók via een directe URL, anders
+  is de dedupe cosmetisch); de **owner-import blijft ze tonen**.
+- **Nog open na deze ronde** (bewust niet meegenomen): `filterCatalog` zoekt met een kale
+  `includes` op naam en omschrijving, terwijl de rest van de app de fuzzy matcher uit
+  `lib/exercise-library/search-text.ts` gebruikt; de doelen `fat_loss`, `health`, `rehab` en
+  `sport` hebben nul weekschema's (`trainingGoalFromLibrary` mapt maar vijf RepDB-doelen, en
+  elke rij krijgt er één); en weekkaarten tonen geen duurindicatie omdat `repdbRow`
+  `minutes: null` zet.
+
 - **Kaders staan los van de catalogus**: geen kader-badges of geblokkeerde CTA's —
   elk template is te zien én te pakken. N.B. eigenaar twijfelt of kaders überhaupt
   blijven — niet verder in investeren zonder overleg.

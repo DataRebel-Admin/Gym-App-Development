@@ -14,6 +14,12 @@ import {
   trainingGoalFromLibrary,
 } from "@/lib/exercise-library/mapping";
 import { libraryTemplateBadges } from "@/lib/schema-badges";
+import {
+  libraryTemplateNl,
+  libraryTemplateDayName,
+  isLibraryTemplateHidden,
+  swapLibraryExerciseSlug,
+} from "@/lib/library-template-nl";
 import { exerciseThumbUrl, EXERCISE_THUMB_RELATIONS } from "@/lib/exercise-thumb";
 import {
   parseCatalogLevel,
@@ -91,12 +97,19 @@ type RepdbTemplate = {
 function repdbRow(t: RepdbTemplate): CatalogRow {
   const days = parseLibraryTemplateDays(t.days);
   const goal = trainingGoalFromLibrary(t.goal);
+  const nl = libraryTemplateNl(t.id);
   return {
     source: "repdb",
     id: t.id,
-    type: "week",
-    name: pickJsonName(t.names, ["nl", "en"]) ?? t.id,
-    description: pickJsonName(t.descriptions, ["nl", "en"]),
+    // HET TYPE VOLGT HET ECHTE AANTAL DAGEN, het staat niet vast op "week".
+    // Negen van de vijftien RepDB-rijen zijn één trainingsdag (waaronder een
+    // warming-up en een core-afsluiter). Als "week" stonden die onder "Complete
+    // schema's" met de knop "Gebruik dit schema", zodat een lid een warming-up
+    // als zijn actieve schema kon instellen, en de optie "voeg toe als dag"
+    // bleef verborgen omdat die achter `row.type === "day"` zit.
+    type: days.length > 1 ? "week" : "day",
+    name: nl?.name ?? pickJsonName(t.names, ["nl", "en"]) ?? t.id,
+    description: nl?.description ?? pickJsonName(t.descriptions, ["nl", "en"]),
     goals: goal ? [goal] : [],
     badges: libraryTemplateBadges(t),
     dayCount: Math.max(1, days.length),
@@ -160,14 +173,22 @@ export async function getMemberCatalog(
     tenantTemplates.map((t) => t.libraryTemplateId).filter(Boolean)
   );
 
+  // Eenmaal omzetten: het type bepaalt in welke groep de rij landt, en bewust
+  // verborgen duplicaten van een dag-template vallen hier af (de owner-import
+  // op /owner/schemas/templates toont ze wél gewoon).
+  const repdbRows = repdbTemplates
+    .filter((t) => !releasedImports.has(t.id) && !isLibraryTemplateHidden(t.id))
+    .map(repdbRow);
+
   const weeks = [
     ...tenantTemplates.map((t) => tenantRow(t, branding, "tenant", "week")),
-    ...repdbTemplates.filter((t) => !releasedImports.has(t.id)).map(repdbRow),
+    ...repdbRows.filter((r) => r.type === "week"),
   ].sort((a, b) => a.name.localeCompare(b.name, "nl"));
 
   const days = [
     ...tenantDays.map((t) => tenantRow(t, branding, "tenantday", "day")),
     ...MEMBER_DAY_TEMPLATES.map(dayRegistryRow),
+    ...repdbRows.filter((r) => r.type === "day"),
   ].sort((a, b) => a.name.localeCompare(b.name, "nl"));
 
   return [...weeks, ...days];
@@ -295,6 +316,9 @@ export async function getCatalogDetail(
   }
 
   if (source === "repdb") {
+    // Verborgen rijen (duplicaat van een dag-template) blijven ook via een
+    // directe URL onbereikbaar; anders zou de dedupe alleen cosmetisch zijn.
+    if (isLibraryTemplateHidden(id)) return null;
     const tpl = await prisma.libraryWorkoutTemplate.findFirst({
       where: { id, retiredAt: null },
     });
@@ -303,9 +327,9 @@ export async function getCatalogDetail(
     const { detailDays, newExerciseCount } = await slugDetailDays(
       tenantId,
       days.map((d, i) => ({
-        name: d.name_en?.trim() || `Dag ${i + 1}`,
+        name: libraryTemplateDayName(tpl.id, i, d.name_en?.trim() || `Dag ${i + 1}`),
         exercises: (d.exercises ?? []).map((e) => ({
-          slug: e.exercise_id,
+          slug: swapLibraryExerciseSlug(tpl.id, e.exercise_id),
           sets: e.sets ?? null,
           reps: e.reps?.trim() || null,
           restSeconds: e.rest_seconds ?? null,

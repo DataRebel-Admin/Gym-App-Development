@@ -34,6 +34,11 @@ import { coverUrlForCopy, libraryTemplateImage } from "@/lib/schema-image";
 import { libraryTemplateBadges } from "@/lib/schema-badges";
 import { isTrainingGoal } from "@/lib/training-goals";
 import {
+  libraryTemplateNl,
+  libraryTemplateDayName,
+  swapLibraryExerciseSlug,
+} from "@/lib/library-template-nl";
+import {
   parseLibraryTemplateDays,
   parseTemplateReps,
   pickJsonName,
@@ -127,12 +132,14 @@ type SpecDay = {
 /** RepDB-bundel-dagen → SpecDay[] via de slug→Exercise-mapping (onbekende slugs vallen weg). */
 function specsFromLibraryDays(
   days: ReturnType<typeof parseLibraryTemplateDays>,
-  bySlug: Map<string, string>
+  bySlug: Map<string, string>,
+  /** RepDB-slug van het schema — voedt de Nederlandse dagnamen en slug-correcties. */
+  templateSlug?: string
 ): SpecDay[] {
   return days.map((d, i) => ({
-    name: d.name_en?.trim() || `Dag ${i + 1}`,
+    name: libraryTemplateDayName(templateSlug, i, d.name_en?.trim() || `Dag ${i + 1}`),
     items: (d.exercises ?? []).flatMap((e, order) => {
-      const exerciseId = bySlug.get(e.exercise_id);
+      const exerciseId = bySlug.get(swapLibraryExerciseSlug(templateSlug, e.exercise_id));
       if (!exerciseId) return [];
       const parsed = parseTemplateReps(e.reps ?? "");
       const notes = [parsed.note, e.notes_en?.trim() || null].filter(Boolean).join(" · ");
@@ -388,17 +395,23 @@ async function resolveStartSource(tenantId: string, source: string): Promise<Sta
     });
     if (!tpl) redirect("/member/schema/templates");
     const days = parseLibraryTemplateDays(tpl.days);
-    const slugs = days.flatMap((d) => (d.exercises ?? []).map((e) => e.exercise_id));
+    // Slug-correcties vóór het aanmaken: anders zet een datafout uit de bundel
+    // (barbell squat in een "zonder apparaten"-schema) een oefening in de
+    // sportschool die daar niet hoort.
+    const slugs = days.flatMap((d) =>
+      (d.exercises ?? []).map((e) => swapLibraryExerciseSlug(tpl.id, e.exercise_id))
+    );
     newExercises = await countNewLibraryExercises(tenantId, slugs);
     const bySlug = await ensureLibraryExercises(tenantId, slugs);
-    name = pickJsonName(tpl.names, ["nl", "en"]) ?? tpl.id;
-    description = pickJsonName(tpl.descriptions, ["nl", "en"]);
+    const nl = libraryTemplateNl(tpl.id);
+    name = nl?.name ?? pickJsonName(tpl.names, ["nl", "en"]) ?? tpl.id;
+    description = nl?.description ?? pickJsonName(tpl.descriptions, ["nl", "en"]);
     // Herkomst-foto hard meeschrijven; bewust nooit `libraryTemplateId` op de
     // kopie (dat is de idempotentie-sleutel van de owner-import).
     imageUrl = libraryTemplateImage(tpl.id, tpl.goal)?.url ?? null;
     templateGoal = trainingGoalFromLibrary(tpl.goal);
     badges = libraryTemplateBadges(tpl);
-    daySpecs = specsFromLibraryDays(days, bySlug);
+    daySpecs = specsFromLibraryDays(days, bySlug, tpl.id);
   } else if (source.startsWith("day:")) {
     // Gecureerd dag-template (lib/member-day-templates.ts) als los schema.
     const def = getMemberDayTemplate(source.slice("day:".length));
@@ -543,7 +556,7 @@ export async function addDayFromTemplate(formData: FormData) {
   const blocked = await assertEditAllowed(member.tenantId, assignment);
   if (blocked) redirect("/member/schema/builder");
 
-  // Bron: gecureerd dag-template of vrijgegeven gym-dag-template.
+  // Bron: gecureerd dag-template, eendaags RepDB-schema of vrijgegeven gym-dag.
   let dayName: string;
   let items: Prisma.WorkoutExerciseItemUncheckedCreateWithoutDayInput[] = [];
   const templateId = assignment.template.id;
@@ -555,6 +568,25 @@ export async function addDayFromTemplate(formData: FormData) {
     if (!def) redirect("/member/schema/templates");
     const bySlug = await ensureLibraryExercises(member.tenantId, dayTemplateSlugs(def));
     const spec = specFromDayTemplate(def, bySlug);
+    dayName = spec.name;
+    items = spec.items.map((it) => ({ ...base, ...it }));
+  } else if (ref.startsWith("repdb:")) {
+    // Een eendaags RepDB-voorbeeldschema als losse dag. Sinds `repdbRow` het
+    // type uit het echte aantal dagen afleidt, staan die rijen in de dag-tab en
+    // rendert de detailpagina hier een formulier voor; zonder deze tak zou die
+    // knop stil niets doen. Meerdaagse schema's horen hier niet: die neem je in
+    // hun geheel over.
+    const tpl = await prisma.libraryWorkoutTemplate.findFirst({
+      where: { id: ref.slice("repdb:".length), retiredAt: null },
+    });
+    const libDays = tpl ? parseLibraryTemplateDays(tpl.days) : [];
+    if (!tpl || libDays.length !== 1) redirect("/member/schema/templates");
+    const slugs = libDays.flatMap((d) =>
+      (d.exercises ?? []).map((e) => swapLibraryExerciseSlug(tpl.id, e.exercise_id))
+    );
+    const bySlug = await ensureLibraryExercises(member.tenantId, slugs);
+    const spec = specsFromLibraryDays(libDays, bySlug, tpl.id)[0];
+    if (!spec) redirect("/member/schema/templates");
     dayName = spec.name;
     items = spec.items.map((it) => ({ ...base, ...it }));
   } else if (ref.startsWith("tenantday:")) {
