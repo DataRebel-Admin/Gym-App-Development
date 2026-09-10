@@ -42,9 +42,16 @@ export type SchemaImage = {
  */
 export type LibraryPhotoFocus = "attention" | "center";
 
-/** Eén gecureerde foto bij een RepDB-voorbeeldschema. */
+/** Eén gecureerde foto bij een voorbeeldschema of een dag-template-thema. */
 export type LibraryTemplatePhoto = {
-  /** Slug van het voorbeeldschema (= `LibraryWorkoutTemplate.id`). */
+  /**
+   * Sleutel van de foto. Twee soorten, bewust in één registry omdat ze dezelfde
+   * opslag, hetzelfde uploadscript en dezelfde 3:2-uitsnede delen:
+   *   - de slug van een RepDB-voorbeeldschema (= `LibraryWorkoutTemplate.id`);
+   *   - een **`theme-`**-sleutel voor de gecureerde dag-templates
+   *     (lib/member-day-templates.ts `photoSlug`). Het voorvoegsel voorkomt dat
+   *     een volgende RepDB-bundel per ongeluk een thema-foto overneemt.
+   */
   slug: string;
   /** Pexels-foto-id — herkomst; het download-script leidt hier de bron-URL uit af. */
   pexelsId: number;
@@ -148,6 +155,96 @@ export const LIBRARY_TEMPLATE_PHOTOS: Record<string, LibraryTemplatePhoto> = {
     slug: "push-up-progression",
     pexelsId: 4720304,
     alt: "Sporter in de onderste stand van een push-up",
+  },
+
+  // --- Thema-covers voor de gecureerde dag-templates -----------------------
+  // Elke uitsnede is met sharp op 1200x800 gerenderd en visueel gecontroleerd;
+  // wijzig `focus` niet zonder opnieuw te kijken. Bij `theme-treadmill` zoomde
+  // `attention` op de romp in waardoor de loopband volledig uit beeld viel,
+  // vandaar `center`.
+  "theme-yoga-flow": {
+    slug: "theme-yoga-flow",
+    pexelsId: 8436610,
+    alt: "Groep sporters in een zijwaartse yogahouding met een arm omhoog",
+    focus: "center",
+  },
+  "theme-yoga-restorative": {
+    slug: "theme-yoga-restorative",
+    pexelsId: 6998214,
+    alt: "Sporter ligt in savasana op een mat in een schemerige studio",
+    focus: "center",
+  },
+  "theme-pilates-mat": {
+    slug: "theme-pilates-mat",
+    pexelsId: 4151293,
+    alt: "Sporter traint mat pilates met opgetrokken benen",
+    focus: "center",
+  },
+  "theme-stretching-lower": {
+    slug: "theme-stretching-lower",
+    pexelsId: 6455767,
+    alt: "Sporter rekt staand de voorkant van zijn bovenbeen",
+    focus: "attention",
+  },
+  "theme-stretching-upper": {
+    slug: "theme-stretching-upper",
+    pexelsId: 6389501,
+    alt: "Sporter rekt zijn schouder met de arm voor de borst",
+    focus: "center",
+  },
+  "theme-treadmill": {
+    slug: "theme-treadmill",
+    pexelsId: 6455848,
+    alt: "Sporter rent op een loopband in de sportschool",
+    focus: "center",
+  },
+  "theme-indoor-cycling": {
+    slug: "theme-indoor-cycling",
+    pexelsId: 4162580,
+    alt: "Sporter fietst rustig op een hometrainer",
+    focus: "attention",
+  },
+  "theme-rowing": {
+    slug: "theme-rowing",
+    pexelsId: 6389869,
+    alt: "Sporter midden in de haal op een roeimachine",
+    focus: "center",
+  },
+  "theme-conditioning": {
+    slug: "theme-conditioning",
+    pexelsId: 14623739,
+    alt: "Drie sporters onderin een push-up in de sportschool",
+    focus: "center",
+  },
+  "theme-arms": {
+    slug: "theme-arms",
+    pexelsId: 4793224,
+    alt: "Sporter maakt een biceps curl met twee dumbbells",
+    focus: "center",
+  },
+  "theme-resistance-band": {
+    slug: "theme-resistance-band",
+    pexelsId: 6339596,
+    alt: "Sporter trekt een weerstandsband uit elkaar voor zijn borst",
+    focus: "center",
+  },
+  "theme-desk-mobility": {
+    slug: "theme-desk-mobility",
+    pexelsId: 5239956,
+    alt: "Werkende maakt haar nek los aan haar bureau",
+    focus: "center",
+  },
+  "theme-knee-rehab": {
+    slug: "theme-knee-rehab",
+    pexelsId: 8846269,
+    alt: "Sporter traint met een weerstandsband om de bovenbenen",
+    focus: "center",
+  },
+  "theme-dips-bars": {
+    slug: "theme-dips-bars",
+    pexelsId: 4803717,
+    alt: "Sporter houdt een L-sit vast op de dip-barren",
+    focus: "center",
   },
 };
 

@@ -276,7 +276,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["muscle", "intense"],
     minutes: 45,
     level: "intermediate",
-    photoSlug: "push-up-progression",
+    photoSlug: "theme-arms",
     groups: {
       a: { type: "superset", rounds: 4, restSeconds: 120 },
       b: { type: "superset", rounds: 3, restSeconds: 90 },
@@ -439,7 +439,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "muscle"],
     minutes: 30,
     level: "beginner",
-    photoSlug: "dumbbell-travel-30min",
+    photoSlug: "theme-resistance-band",
     items: [
       {
         slug: "banded-squat",
@@ -882,7 +882,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["strength"],
     minutes: 40,
     level: "intermediate",
-    photoSlug: "push-up-progression",
+    photoSlug: "theme-dips-bars",
     items: [
       {
         slug: "l-sit",
@@ -955,7 +955,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["conditioning", "intense"],
     minutes: 25,
     level: "intermediate",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-conditioning",
     groups: {
       wod: { type: "amrap", restSeconds: 0, label: "Cindy", timeCapSeconds: 1200 },
     },
@@ -1005,7 +1005,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["conditioning", "intense"],
     minutes: 25,
     level: "intermediate",
-    photoSlug: "kettlebell-complex",
+    photoSlug: "theme-conditioning",
     groups: {
       wod: { type: "circuit", rounds: 3, restSeconds: 0, label: "Helen" },
     },
@@ -1053,7 +1053,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["conditioning", "intense"],
     minutes: 20,
     level: "beginner",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-conditioning",
     groups: {
       ronde: { type: "circuit", rounds: 3, restSeconds: 60 },
     },
@@ -1113,7 +1113,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["intense", "conditioning"],
     minutes: 45,
     level: "advanced",
-    photoSlug: "hiit-cardio-20min",
+    photoSlug: "theme-treadmill",
     items: [
       {
         slug: "leg-swing-front-to-back",
@@ -1165,7 +1165,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "conditioning"],
     minutes: 60,
     level: "beginner",
-    photoSlug: "hiit-cardio-20min",
+    photoSlug: "theme-indoor-cycling",
     items: [
       {
         slug: "incline-treadmill-walk",
@@ -1253,7 +1253,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["intense", "conditioning"],
     minutes: 50,
     level: "intermediate",
-    photoSlug: "hiit-cardio-20min",
+    photoSlug: "theme-rowing",
     items: [
       { slug: "jumping-jacks", sets: 2, reps: "45s", restSeconds: 30, notes: "Algemene warming-up." },
       {
@@ -1591,7 +1591,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["rehab", "beginner"],
     minutes: 30,
     level: "beginner",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-knee-rehab",
     items: [
       {
         slug: "bodyweight-calf-raise",
@@ -1656,7 +1656,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["rehab", "mobility"],
     minutes: 25,
     level: "beginner",
-    photoSlug: "ppl-6-day-intermediate",
+    photoSlug: "theme-stretching-upper",
     items: [
       {
         slug: "band-pull-apart",
@@ -1719,7 +1719,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility", "beginner"],
     minutes: 10,
     level: "beginner",
-    photoSlug: "dumbbell-travel-30min",
+    photoSlug: "theme-desk-mobility",
     items: [
       {
         slug: "neck-side-stretch",
@@ -1795,7 +1795,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "mobility"],
     minutes: 20,
     level: "beginner",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-yoga-flow",
     items: [
       {
         slug: "mountain-pose",
@@ -1865,7 +1865,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility"],
     minutes: 35,
     level: "intermediate",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-yoga-flow",
     items: [
       {
         slug: "cat-cow",
@@ -1942,7 +1942,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "mobility"],
     minutes: 15,
     level: "beginner",
-    photoSlug: "dumbbell-travel-30min",
+    photoSlug: "theme-yoga-flow",
     items: [
       {
         slug: "cat-cow",
@@ -2012,7 +2012,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility", "rehab"],
     minutes: 25,
     level: "beginner",
-    photoSlug: "mobility-warm-up-10min",
+    photoSlug: "theme-yoga-restorative",
     items: [
       {
         slug: "low-lunge",
@@ -2083,7 +2083,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "mobility"],
     minutes: 35,
     level: "beginner",
-    photoSlug: "mobility-warm-up-10min",
+    photoSlug: "theme-yoga-restorative",
     items: [
       {
         slug: "childs-pose",
@@ -2160,7 +2160,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "mobility"],
     minutes: 15,
     level: "beginner",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-yoga-restorative",
     items: [
       {
         slug: "cat-cow",
@@ -2227,7 +2227,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "mobility"],
     minutes: 35,
     level: "beginner",
-    photoSlug: "mobility-warm-up-10min",
+    photoSlug: "theme-pilates-mat",
     items: [
       {
         slug: "pilates-roll-down",
@@ -2305,7 +2305,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility"],
     minutes: 30,
     level: "intermediate",
-    photoSlug: "core-finisher-10min",
+    photoSlug: "theme-pilates-mat",
     items: [
       {
         slug: "dead-bug",
@@ -2388,7 +2388,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["beginner", "mobility"],
     minutes: 15,
     level: "beginner",
-    photoSlug: "mobility-warm-up-10min",
+    photoSlug: "theme-stretching-lower",
     items: [
       {
         slug: "childs-pose",
@@ -2458,7 +2458,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility", "rehab"],
     minutes: 20,
     level: "beginner",
-    photoSlug: "dumbbell-travel-30min",
+    photoSlug: "theme-stretching-upper",
     items: [
       {
         slug: "doorway-chest-stretch",
@@ -2530,7 +2530,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility"],
     minutes: 30,
     level: "beginner",
-    photoSlug: "home-bodyweight-beginner",
+    photoSlug: "theme-stretching-lower",
     items: [
       {
         slug: "banded-hamstring-stretch",
@@ -2594,7 +2594,7 @@ export const MEMBER_DAY_TEMPLATES: MemberDayTemplate[] = [
     badges: ["mobility", "intense"],
     minutes: 30,
     level: "intermediate",
-    photoSlug: "mobility-warm-up-10min",
+    photoSlug: "theme-stretching-lower",
     items: [
       {
         slug: "low-lunge",

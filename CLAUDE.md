@@ -392,6 +392,22 @@ accent-vlak met icoon; een gat in de UI bestaat niet.
   Idempotent (`--force` overschrijft, `--only=<slug>`, `--dry-run`). De doelcontainer
   wordt **afgeleid uit `LIBRARY_MEDIA_BASE_URL`** — nooit uit `AZURE_BLOB_CONTAINER`,
   dat wijst bewust naar de verouderde legacy-container.
+- **`theme-`-covers voor de dag-templates (29 foto's in totaal).** Naast één foto per
+  RepDB-voorbeeldschema draagt `LIBRARY_TEMPLATE_PHOTOS` nu 14 records met een
+  **`theme-`**-sleutel (`theme-yoga-flow`, `theme-treadmill`, `theme-rowing`,
+  `theme-knee-rehab`, …) voor de gecureerde dag-templates. Eén registry omdat ze dezelfde
+  opslag, hetzelfde uploadscript en dezelfde 3:2-uitsnede delen; het voorvoegsel voorkomt
+  dat een volgende RepDB-bundel met een gelijknamige slug stil een thema-foto overneemt.
+  `tests/member-catalog.test.ts` dwingt af dat élke `theme-`-cover door minstens één
+  dag-template gebruikt wordt (geen weesbestanden) en andersom.
+- **DE UITSNEDE CONTROLEER JE ZELF, DE BESCHRIJVING VAN DE FOTO IS NIET GENOEG.** Bij
+  `theme-treadmill` koos de research `attention`; die uitsnede zoomde op de romp van de
+  hardloper in waardoor de loopband volledig buiten beeld viel en de kaart las als "man in
+  een jack". Met `center` staat de band er wél op. Render dus vóór het uploaden elke
+  kandidaat op 1200x800 met dezelfde sharp-aanroep als het script en bekijk het resultaat.
+  Let daarbij ook op merknamen: kledinglogo's en gym-namen in de achtergrond vallen af
+  (whitelabel), en die zie je pas op de uitsnede zelf.
+
 - **Waarom 3:2 en waarom `focus`**: de helft van de bronfoto's is staand. 16:9 sneed
   het onderwerp eraf; en `sharp`'s `attention`-strategie faalt op donkere/wijd
   gekadreerde beelden (bewezen: `glutes-focus` hield alléén de vloer over). Vandaar

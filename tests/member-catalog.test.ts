@@ -68,6 +68,24 @@ test("dag-templates: items hebben bruikbare sets/reps/rust", () => {
   }
 });
 
+test("thema-covers horen bij een dag-template en andersom", () => {
+  // De `theme-`-sleutels in LIBRARY_TEMPLATE_PHOTOS bestaan puur voor de
+  // dag-templates. Een cover zonder gebruiker betekent een geupload bestand dat
+  // niemand toont; een dag-template dat naar een niet-bestaande cover wijst
+  // valt in de UI terug op het doel en dus op een willekeurige foto.
+  const used = new Set(MEMBER_DAY_TEMPLATES.map((t) => t.photoSlug));
+  const themeKeys = Object.keys(LIBRARY_TEMPLATE_PHOTOS).filter((k) => k.startsWith("theme-"));
+  assert.ok(themeKeys.length > 0, "geen thema-covers gevonden");
+  for (const key of themeKeys) {
+    assert.ok(used.has(key), `cover ${key} wordt door geen enkel dag-template gebruikt`);
+  }
+  for (const t of MEMBER_DAY_TEMPLATES) {
+    const photo = LIBRARY_TEMPLATE_PHOTOS[t.photoSlug];
+    assert.ok(photo, `${t.key}: onbekende foto ${t.photoSlug}`);
+    assert.equal(photo.slug, t.photoSlug, `${t.key}: foto-record en sleutel lopen uiteen`);
+  }
+});
+
 test("dag-templates: niveau is een bekende waarde", () => {
   for (const t of MEMBER_DAY_TEMPLATES) {
     if (t.level === undefined) continue;
