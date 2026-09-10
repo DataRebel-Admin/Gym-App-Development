@@ -45,29 +45,34 @@ export async function FloorActions({
   ]);
 
   // Aanwezigheid afvinken hoort bij één concrete les: de sessie die nu bezig is
-  // of vandaag als eerste volgt, binnen de vestigingen waar deze medewerker bij
-  // mag (fail-closed, net als elders). Zonder les linken we naar het rooster.
+  // of zo begint, binnen de vestigingen waar deze medewerker bij mag
+  // (fail-closed, net als elders).
+  //
+  // Bewust een venster in **absolute** tijd en geen "vandaag": een dagsgrens uit
+  // `setHours` leunt op de serverklok, en die staat op Vercel in UTC — dat is een
+  // andere dag dan in de zaal (zie de tijdzone-regel bij de groepslessen). Staat
+  // de eerstvolgende les verder weg, dan linken we naar het rooster: het
+  // aanwezigheidsscherm valt daar toch nog niets af te vinken.
+  const SHORTCUT_WINDOW_MINUTES = 120;
   let attendanceHref = "/owner/rooster";
   let attendanceHint: string | undefined;
   if (classesOn) {
     const scope = await getLocationScope({ id: userId, role, tenantId });
     const now = new Date();
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
     const session = await prisma.classSession.findFirst({
       where: {
         ...locationScopeWhere(tenantId, scope),
         cancelledAt: null,
         endsAt: { gte: now },
-        startsAt: { lte: endOfDay },
+        startsAt: { lte: new Date(now.getTime() + SHORTCUT_WINDOW_MINUTES * 60_000) },
       },
       orderBy: { startsAt: "asc" },
-      // `classId`, niet `id`: /owner/rooster/[id] is de **lestype**-pagina (met
-      // daarop de sessies + het aanwezigheidspaneel). Een sessie-id geeft daar 404.
-      select: { classId: true, groupClass: { select: { name: true } } },
+      // Het sessie-id: `/owner/rooster/sessie/[id]` is het aanwezigheidsscherm.
+      // `/owner/rooster/[id]` is het **lestype** — dat geeft hier een 404.
+      select: { id: true, groupClass: { select: { name: true } } },
     });
     if (session) {
-      attendanceHref = `/owner/rooster/${session.classId}`;
+      attendanceHref = `/owner/rooster/sessie/${session.id}`;
       attendanceHint = session.groupClass.name;
     }
   }
