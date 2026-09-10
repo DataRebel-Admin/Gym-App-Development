@@ -83,8 +83,10 @@ export default async function MemberLayout({
       {/* Header + "training bezig"-balk plakken samen als één sticky blok. Zou de
           balk een eigen top-offset krijgen, dan moest dat getal exact de hoogte
           van de header raken; bij een afwijking schuift de balk er deels onder
-          zodra je scrolt en lijkt hij te krimpen. */}
-      <div className="sticky top-0 z-40">
+          zodra je scrolt en lijkt hij te krimpen.
+          De top is de safe area: de body houdt die ruimte vrij voor de
+          statusbalk, en met top-0 schoof de header bij scrollen eronder. */}
+      <div className="sticky top-[env(safe-area-inset-top)] z-40">
         <header className="flex items-center justify-between gap-2 border-b border-border bg-surface-1/80 px-4 py-3 backdrop-blur-xl">
           <Link
             href="/member"

@@ -541,7 +541,7 @@ export function FloatingTimer({ timer }: { timer: RestTimer }) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          className="pointer-events-none fixed inset-x-0 bottom-[4.75rem] z-40 mx-auto max-w-md px-4 sm:max-w-lg"
+          className="pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem_+_env(safe-area-inset-bottom))] z-40 mx-auto max-w-md px-4 sm:max-w-lg"
         >
           <div
             className={cn(

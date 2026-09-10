@@ -55,7 +55,7 @@ export default async function AccountLayout({
     <div className="flex min-h-full flex-col">
       {/* Header + "training bezig"-balk plakken samen als één sticky blok (zelfde
           opzet als de member-layout: één wrapper, geen eigen top-offset op de balk). */}
-      <div className="sticky top-0 z-40">
+      <div className="sticky top-[env(safe-area-inset-top)] z-40">
         <header className="border-b border-border bg-surface-1/75 backdrop-blur-xl">
           <div className="mx-auto max-w-5xl px-4 py-2 sm:px-6">
             <AccountHeaderNav

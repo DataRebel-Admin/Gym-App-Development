@@ -25,7 +25,7 @@ export function AssistantLauncher({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={open ? "Sluit de assistent" : "Open de assistent"}
-        className="fixed bottom-24 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-accent-foreground shadow-lg active:opacity-90"
+        className="fixed bottom-[calc(6rem_+_env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl text-accent-foreground shadow-lg active:opacity-90"
       >
         {open ? "✕" : "💬"}
       </button>

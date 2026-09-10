@@ -1192,7 +1192,7 @@ export function ActiveSession({
   return (
     <div className="relative flex flex-1 flex-col">
       {/* Sticky voortgangsbalk */}
-      <div className="sticky top-[3.25rem] z-30 border-b border-border bg-surface-1/85 px-4 py-2.5 backdrop-blur-xl">
+      <div className="sticky top-[calc(3.25rem_+_env(safe-area-inset-top))] z-30 border-b border-border bg-surface-1/85 px-4 py-2.5 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-neutral-700">
             <span className="tabular-nums">

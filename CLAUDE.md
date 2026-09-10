@@ -3133,6 +3133,67 @@ daar bij elkaar; `store/assets/` bevat alleen gegenereerde store-afbeeldingen).
   (Capacitor-plugins gaan via reflectie); de debug-build krijgt bewust **geen**
   `applicationIdSuffix`, want dat breekt App Links-verificatie en FCM.
 
+### Statusbalk & safe areas (edge-to-edge)
+
+De app viel op Android achter de statusbalk: de header stond onder klok, wifi en
+batterij en was slecht leesbaar. Twee oorzaken versterkten elkaar:
+
+- **`@capacitor/status-bar` staat standaard op `overlaysWebView: true`**, ook al
+  roept de web-app de plugin nergens aan. Bij het laden zet hij
+  `SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN` en een doorzichtige statusbalk, dus op
+  **Android 14 en lager** tekent de WebView ónder de statusbalk. Op 15+ (targetSdk
+  36 dwingt edge-to-edge af) padt Capacitor's eigen `SystemBars` de WebView juist
+  native, zolang de pagina géén `viewport-fit=cover` heeft.
+- **De viewport-meta had geen `viewport-fit=cover`**, dus `env(safe-area-inset-*)`
+  was op Android altijd 0. Alle bestaande safe-area-klassen (onderbalk, drawers,
+  modal) waren daardoor no-ops, en de pagina wist niet hoe hoog de balk was.
+
+De oplossing zit volledig aan de web-kant en werkt dus zonder nieuwe app-build:
+
+- **`viewportFit: "cover"`** in `generateViewport` (app/layout.tsx). SystemBars
+  leest dat bij `DOMContentLoaded` en geeft de insets dan door aan de WebView
+  (vanaf WebView 140), zodat env() op élke Android-versie klopt. Op 15+ loopt de
+  pagina daardoor ook achter de gebarenbalk. Op 14 en lager is de verwachting dat
+  de onder-inset 0 blijft, omdat de DecorView de navigatiebalk daar zelf reserveert
+  (niet op een toestel geverifieerd).
+- **De body houdt de safe areas vrij** (`padding: env(...)` aan alle vier de
+  kanten, globals.css). Een gewone pagina hoeft er dus niets voor te doen. **Zet op
+  een pagina nooit nog eens `max(1rem, env(...))`**: dan telt de inset dubbel (de
+  loginpagina deed dat en is omgezet).
+- **Wat buiten de body-padding valt, regelt dat zelf.** `sticky`-headers krijgen
+  `top-[env(safe-area-inset-top)]`, anders schuiven ze bij scrollen onder de balk.
+  Alles wat `fixed` of `sticky` aan de onderrand hangt telt
+  `env(safe-area-inset-bottom)` op (toast, rusttimer, AI-knop, de
+  `sticky bottom-20`-acties, de bulk-balk). Drawers, bottom sheets, de modal en het
+  eindscherm dragen hun eigen inset. **Nieuw `fixed`/`sticky` element aan een rand?
+  Tel de inset erbij.**
+- **Schrijf calc in Tailwind met underscores**:
+  `bottom-[calc(1rem_+_env(safe-area-inset-bottom))]`. Zonder spaties rond de `+`
+  is de calc ongeldige CSS en valt de hele regel stil weg.
+- **De strook achter de iconen is een vaste scrim** in de root-layout
+  (`h-[env(safe-area-inset-top)]`, zelfde glas als de member-header) op `z-[60]`:
+  boven de sticky headers (z-40) en de onderbalk (z-50), ónder sheets, modals en
+  drawers (z-80+) zodat die de strook mee dimmen. In een gewone browser is hij 0
+  hoog.
+- **De kleur van de iconen volgt het app-thema, niet het systeem**
+  (`components/pwa/system-bars-sync.tsx`). Het thema is een eigen keuze (cookie,
+  standaard donker, /login en /invite altijd licht), dus zonder sync gaf een
+  donkere telefoon met een lichte app witte iconen op een witte strook. De sync
+  luistert op `data-theme` en zet zowel `SystemBars` (core) als
+  `@capacitor/status-bar`: beide herstellen hun eigen stijl bij elke
+  configuratiewijziging (draaien, donkere modus), en wie als laatste komt wint.
+  **Alleen de statusbalk**, bewust niet de navigatiebalk: die is op Android 14 en
+  lager een dichte balk in de systeemkleur, en iconen op het app-thema gaven daar
+  donkere knoppen op zwart.
+- **Restpunten**: met een WebView ouder dan 140 geeft SystemBars de insets niet
+  door. Op 15+ padt hij dan native (strook = `windowBackground`), op 14 en lager
+  blijft de oude fout; via Play-updates komt zo'n WebView in de praktijk niet meer
+  voor. iOS: `contentInset: "always"` insett de WKWebView al native. Controleer bij
+  de eerste Mac-build dat env() daar 0 is (anders dubbel) en zet het anders op
+  `"never"`.
+- **Vanaf de desktop zie je hier niets van**: env() is daar 0. Testen op een
+  toestel, Android 14 én 15+, licht én donker thema.
+
 ### Push op alle drie de kanalen (web, APNs, FCM)
 
 `sendPushToUser` (lib/push.ts) bedient **web-push (VAPID) + APNs (iOS) + FCM

@@ -995,7 +995,7 @@ export function MemberSchemaEditor({
         <>
           <Link
             href="/member/schema"
-            className="sticky bottom-20 z-10 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
+            className="sticky bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-10 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent transition-transform active:scale-[0.98]"
           >
             Klaar
           </Link>
@@ -1005,7 +1005,7 @@ export function MemberSchemaEditor({
         </>
       ) : (
         <>
-          <form action={submitFormAction} className="sticky bottom-20 z-10">
+          <form action={submitFormAction} className="sticky bottom-[calc(5rem_+_env(safe-area-inset-bottom))] z-10">
             <input type="hidden" name="assignmentId" value={assignmentId} />
             <input type="hidden" name="name" value={name} />
             <input type="hidden" name="description" value={description} />

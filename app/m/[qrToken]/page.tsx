@@ -103,7 +103,7 @@ export default async function MachinePublicPage({
   return (
     <>
       {activeStartedAt ? (
-        <div className="sticky top-0 z-40">
+        <div className="sticky top-[env(safe-area-inset-top)] z-40">
           <ActiveWorkoutBar startedAt={activeStartedAt} />
         </div>
       ) : null}

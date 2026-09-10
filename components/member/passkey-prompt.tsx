@@ -139,7 +139,7 @@ export function PasskeyPrompt({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-            className="w-full max-w-md rounded-t-3xl border border-border bg-surface-1 p-6 pb-8 shadow-2xl sm:rounded-3xl"
+            className="w-full max-w-md rounded-t-3xl border border-border bg-surface-1 p-6 pb-[calc(2rem_+_env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl"
           >
             <div className="flex flex-col items-center text-center">
               <m.span

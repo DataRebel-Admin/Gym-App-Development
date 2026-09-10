@@ -16,6 +16,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { ClientErrorRecorder } from "@/components/error/client-error-recorder";
 import { SplashGate } from "@/components/pwa/splash-gate";
+import { SystemBarsSync } from "@/components/pwa/system-bars-sync";
 import { DeepLinkHandler } from "@/components/pwa/deep-link-handler";
 import { NativePushListeners } from "@/components/pwa/native-push-listeners";
 import { AppBackground } from "@/components/ui/app-background";
@@ -43,9 +44,19 @@ export const generateMetadata = rootMetadata;
 
 // Browser-chrome themekleur volgt de tenant-huisstijl (whitelabel), met de
 // GymRebel-merkkleur als fallback. getCurrentTenant is per-request gecachet.
+//
+// `viewportFit: "cover"`: de pagina loopt door tot onder de statusbalk en de
+// gebarenbalk, en `env(safe-area-inset-*)` krijgt echte waarden. Zonder deze
+// vlag was env() op Android altijd 0, terwijl de Android-app de WebView wél
+// onder een doorzichtige statusbalk legde: de header viel achter klok, wifi en
+// batterij. De body houdt de ruimte vrij (globals.css), de strook achter de
+// iconen is de scrim in de body hieronder.
 export async function generateViewport(): Promise<Viewport> {
   const tenant = await getCurrentTenant();
-  return { themeColor: tenant?.accentColor ?? "#ff4d00" };
+  return {
+    themeColor: tenant?.accentColor ?? "#ff4d00",
+    viewportFit: "cover",
+  };
 }
 
 export default async function RootLayout({
@@ -130,6 +141,16 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col" style={bodyStyle}>
         {/* Levende aurora-achtergrond — achter alle content (zie .app-bg). */}
         <AppBackground />
+        {/* Strook achter de statusbalk (klok, wifi, batterij). De body houdt die
+            ruimte vrij, maar content die eronder scrolt bleef anders zichtbaar
+            achter de iconen. Zelfde glas als de member-header, dus strook en
+            header lezen als één balk. z-[60]: boven de sticky headers (z-40) en
+            de onderbalk (z-50), onder sheets/modals/drawers (z-80+) zodat die
+            hem mee dimmen. In een gewone browser is hij 0 hoog. */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[env(safe-area-inset-top)] bg-surface-1/80 backdrop-blur-xl"
+        />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <MotionProvider>
             <ToastProvider>
@@ -139,6 +160,8 @@ export default async function RootLayout({
                 <ClientErrorRecorder />
                 {/* Klikt het native startscherm weg zodra de UI staat; no-op op web. */}
                 <SplashGate />
+                {/* Statusbalk-iconen in de kleur van het app-thema; no-op op web. */}
+                <SystemBarsSync />
                 {/* Magic link, uitnodiging of QR die de app opent → juiste pagina. */}
                 <DeepLinkHandler />
                 {/* Reageren op pushmeldingen — op élke pagina, niet alleen member/owner. */}

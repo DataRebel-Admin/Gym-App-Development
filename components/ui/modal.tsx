@@ -81,7 +81,7 @@ export function Modal({
   return (
     <AnimatePresence>
       {open ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 pt-[calc(1rem_+_env(safe-area-inset-top))] pb-[calc(1rem_+_env(safe-area-inset-bottom))]">
           <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -120,7 +120,7 @@ export function Modal({
                 </button>
               </div>
             ) : null}
-            <div className="overflow-y-auto p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div className="overflow-y-auto p-5">
               {children}
             </div>
           </m.div>

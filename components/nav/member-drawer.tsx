@@ -232,7 +232,7 @@ export function MemberDrawer({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-y-0 right-0 flex w-[82%] max-w-xs flex-col overflow-y-auto border-l border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-2xl"
+              className="absolute inset-y-0 right-0 flex w-[82%] max-w-xs flex-col overflow-y-auto border-l border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl"
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"

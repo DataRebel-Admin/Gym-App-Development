@@ -143,7 +143,7 @@ export default async function MemberBuilderNewPage() {
 
         <button
           type="submit"
-          className="sticky bottom-20 rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
+          className="sticky bottom-[calc(5rem_+_env(safe-area-inset-bottom))] rounded-2xl bg-accent-gradient px-6 py-4 text-center text-base font-bold text-accent-foreground shadow-accent active:scale-[0.98]"
         >
           Beginnen
         </button>

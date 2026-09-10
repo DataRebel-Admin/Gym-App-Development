@@ -302,6 +302,15 @@ body {
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: color var(--dur) var(--ease-out);
+  /* Safe areas (statusbalk, gebarenbalk, notch). Sinds viewport-fit=cover
+     (app/layout.tsx) loopt de viewport door tot onder de systeembalken; de body
+     houdt die ruimte vrij, dus een gewone pagina hoeft er niets voor te doen.
+     Zelf regelen moet alleen wat buiten deze padding valt: `position: fixed`
+     (onderbalk, toasts, sheets, drawers) en `sticky` (headers). Zet op een
+     pagina nooit nog eens `max(1rem, env(...))`: dan telt de inset dubbel.
+     In een gewone browser zijn alle vier 0. */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
 
 /* ============================================================
@@ -621,10 +630,17 @@ body::after {
 
 /* Modal-paneel: past altijd binnen het zíchtbare viewport. svh rekent met de
    kleinste viewport (mobiele browserbalk uitgeschoven) en verspringt niet
-   terwijl die balk animeert; vh blijft staan als terugval. */
+   terwijl die balk animeert; vh blijft staan als terugval. De safe areas gaan
+   er ook af, anders schuift een lang paneel onder de statusbalk of de
+   gebarenbalk (de wrapper in modal.tsx houdt die ruimte vrij). */
 .modal-fit {
-  max-height: calc(100vh - 2rem);
-  max-height: calc(100svh - 2rem);
+  max-height: calc(
+    100vh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)
+  );
+  max-height: calc(
+    100svh - 2rem - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px)
+  );
 }
 
 /* Custom scrollbar */

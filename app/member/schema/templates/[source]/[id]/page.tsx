@@ -163,7 +163,7 @@ export default async function MemberTemplateDetailPage({
       </div>
 
       {/* Acties */}
-      <div className="sticky bottom-20 flex flex-col gap-2">
+      <div className="sticky bottom-[calc(5rem_+_env(safe-area-inset-bottom))] flex flex-col gap-2">
         <form action={startMemberSchema}>
           <input type="hidden" name="source" value={catalogStartSource(row)} />
           <button

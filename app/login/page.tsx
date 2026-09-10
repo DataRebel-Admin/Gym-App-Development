@@ -27,7 +27,7 @@ export default async function LoginPage() {
 
   return (
     // Gecentreerd op de geanimeerde, gebrande pagina-achtergrond (--app-bg).
-    <main className="flex flex-1 items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
+    <main className="flex flex-1 items-center justify-center px-4 py-4 sm:px-6 lg:px-8">
       {/* Niemand ingelogd → dit toestel hoort geen pushmeldingen meer te krijgen.
           No-op op web en zonder bewaard token. */}
       <NativePushCleanup />

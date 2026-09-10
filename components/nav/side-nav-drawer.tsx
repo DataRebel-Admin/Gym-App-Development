@@ -126,7 +126,7 @@ export function SideNavDrawer({
                     exit={{ x: side === "right" ? "100%" : "-100%" }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     className={cn(
-                      "absolute inset-y-0 flex w-[84%] max-w-xs flex-col overflow-y-auto border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-2xl",
+                      "absolute inset-y-0 flex w-[84%] max-w-xs flex-col overflow-y-auto border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl",
                       side === "right" ? "right-0 border-l" : "left-0 border-r",
                     )}
                     onClick={(e) => e.stopPropagation()}
