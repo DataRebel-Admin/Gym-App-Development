@@ -241,7 +241,74 @@ export type ClassSessionStat = {
   enrolledActive: number;
   attended: number;
   noShow: number;
+  /**
+   * Wachtenden: vraag die niet bediend kon worden. Bezet geen plek en telt
+   * dus niet in de bezetting, maar is het signaal om een sessie bij te
+   * plannen — daarom apart bijgehouden.
+   */
+  waitlisted: number;
+  /** Lestype, voor de uitsplitsing per les (welke les zit structureel vol?). */
+  classId: string;
+  className: string;
 };
+
+/** Prestatie van één lestype over het venster (uitsplitsing op /owner/insights). */
+export type ClassTypeStat = {
+  classId: string;
+  className: string;
+  sessions: number;
+  capacity: number;
+  enrolled: number;
+  attended: number;
+  noShow: number;
+  waitlisted: number;
+  /** Σ enrolled / Σ capacity — null zonder capaciteit. */
+  occupancyRate: number | null;
+  /** Σ noShow / Σ (attended + noShow) — null zonder gemarkeerde aanwezigheid. */
+  noShowRate: number | null;
+};
+
+/**
+ * Aggregeert per lestype. Dé vraag van een eigenaar is niet "hoe vol zitten
+ * mijn lessen gemiddeld" maar "wélke les zit vol en welke draait op 30%", en
+ * daarnaast: waar stonden mensen op de wachtlijst (= vraag om een extra
+ * sessie). Puur, zodat het zonder database te testen is.
+ */
+export function classStatsByType(rows: readonly ClassSessionStat[]): ClassTypeStat[] {
+  const agg = new Map<string, ClassTypeStat>();
+  for (const r of rows) {
+    let a = agg.get(r.classId);
+    if (!a) {
+      a = {
+        classId: r.classId,
+        className: r.className,
+        sessions: 0,
+        capacity: 0,
+        enrolled: 0,
+        attended: 0,
+        noShow: 0,
+        waitlisted: 0,
+        occupancyRate: null,
+        noShowRate: null,
+      };
+      agg.set(r.classId, a);
+    }
+    a.sessions += 1;
+    a.capacity += r.capacity;
+    a.enrolled += r.enrolledActive;
+    a.attended += r.attended;
+    a.noShow += r.noShow;
+    a.waitlisted += r.waitlisted;
+  }
+  const out = [...agg.values()];
+  for (const a of out) {
+    a.occupancyRate = a.capacity > 0 ? a.enrolled / a.capacity : null;
+    const marked = a.attended + a.noShow;
+    a.noShowRate = marked > 0 ? a.noShow / marked : null;
+  }
+  // Vol zit bovenaan: dat is waar je een sessie bij plant.
+  return out.sort((a, b) => (b.occupancyRate ?? -1) - (a.occupancyRate ?? -1));
+}
 
 export type ClassTrendBucket = {
   sessions: number;

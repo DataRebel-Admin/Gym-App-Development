@@ -15,6 +15,7 @@ import {
   enumerateBucketKeys,
   countPerBucket,
   classTrendPerBucket,
+  classStatsByType,
   weekdayTotals,
   type ClassSessionStat,
   type OccupancyCell,
@@ -89,8 +90,8 @@ test("countPerBucket telt per vestiging in de eigen tijdzone", () => {
 test("classTrendPerBucket: bezetting = Σenrolled/Σcapacity, no-show-rate over afgehandelde deelnames", () => {
   const week = "2026-07-06";
   const rows: ClassSessionStat[] = [
-    { locationId: CENTRUM, startsAt: new Date("2026-07-06T18:00:00Z"), capacity: 10, enrolledActive: 8, attended: 7, noShow: 1 },
-    { locationId: CENTRUM, startsAt: new Date("2026-07-08T18:00:00Z"), capacity: 10, enrolledActive: 4, attended: 3, noShow: 1 },
+    { locationId: CENTRUM, startsAt: new Date("2026-07-06T18:00:00Z"), capacity: 10, enrolledActive: 8, attended: 7, noShow: 1, waitlisted: 0, classId: "c1", className: "Spinning" },
+    { locationId: CENTRUM, startsAt: new Date("2026-07-08T18:00:00Z"), capacity: 10, enrolledActive: 4, attended: 3, noShow: 1, waitlisted: 2, classId: "c1", className: "Spinning" },
   ];
   const trend = classTrendPerBucket(rows, new Map([[CENTRUM, "UTC"]]), "week");
   const bucket = trend.get(week);
@@ -101,7 +102,7 @@ test("classTrendPerBucket: bezetting = Σenrolled/Σcapacity, no-show-rate over 
 
 test("classTrendPerBucket: capaciteit 0 → occupancyRate null; geen afgehandelde deelnames → noShowRate null", () => {
   const rows: ClassSessionStat[] = [
-    { locationId: CENTRUM, startsAt: new Date("2026-07-06T18:00:00Z"), capacity: 0, enrolledActive: 0, attended: 0, noShow: 0 },
+    { locationId: CENTRUM, startsAt: new Date("2026-07-06T18:00:00Z"), capacity: 0, enrolledActive: 0, attended: 0, noShow: 0, waitlisted: 0, classId: "c1", className: "Spinning" },
   ];
   const bucket = classTrendPerBucket(rows, new Map([[CENTRUM, "UTC"]]), "week").get("2026-07-06");
   assert.equal(bucket?.occupancyRate, null);
@@ -115,4 +116,35 @@ test("weekdayTotals sommeert heatmap-cellen per weekdag (0 = ma)", () => {
     { locationId: CENTRUM, weekday: 6, hour: 11, count: 2 },
   ];
   assert.deepEqual(weekdayTotals(cells), [8, 0, 0, 0, 0, 0, 2]);
+});
+
+test("classStatsByType: per lestype aggregeren, meest gevuld eerst, wachtlijst apart", () => {
+  const rows: ClassSessionStat[] = [
+    // Spinning zit vol en heeft wachtenden: dáár plan je een sessie bij.
+    { locationId: CENTRUM, startsAt: new Date("2026-07-06T18:00:00Z"), capacity: 10, enrolledActive: 10, attended: 9, noShow: 1, waitlisted: 4, classId: "spin", className: "Spinning" },
+    { locationId: CENTRUM, startsAt: new Date("2026-07-08T18:00:00Z"), capacity: 10, enrolledActive: 10, attended: 10, noShow: 0, waitlisted: 2, classId: "spin", className: "Spinning" },
+    // Yoga draait halfleeg.
+    { locationId: CENTRUM, startsAt: new Date("2026-07-07T09:00:00Z"), capacity: 20, enrolledActive: 5, attended: 4, noShow: 1, waitlisted: 0, classId: "yoga", className: "Yoga" },
+  ];
+  const byType = classStatsByType(rows);
+  assert.deepEqual(byType.map((c) => c.classId), ["spin", "yoga"]);
+
+  const spin = byType[0];
+  assert.equal(spin.sessions, 2);
+  assert.equal(spin.occupancyRate, 20 / 20);
+  assert.equal(spin.waitlisted, 6);
+  assert.equal(spin.noShowRate, 1 / 20);
+
+  const yoga = byType[1];
+  assert.equal(yoga.occupancyRate, 5 / 20);
+  assert.equal(yoga.waitlisted, 0);
+});
+
+test("classStatsByType: zonder capaciteit of zonder afgevinkte deelnames blijven de ratio's null", () => {
+  const rows: ClassSessionStat[] = [
+    { locationId: CENTRUM, startsAt: new Date("2026-07-06T18:00:00Z"), capacity: 0, enrolledActive: 0, attended: 0, noShow: 0, waitlisted: 0, classId: "x", className: "X" },
+  ];
+  const [row] = classStatsByType(rows);
+  assert.equal(row.occupancyRate, null);
+  assert.equal(row.noShowRate, null);
 });

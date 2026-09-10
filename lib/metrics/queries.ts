@@ -8,7 +8,11 @@ import {
   scopeLocationIds,
   type LocationScope,
 } from "@/lib/location-scope";
-import { ACTIVE_ENROLLMENT_STATUSES, NO_SHOW_GRACE_HOURS } from "@/lib/class-attendance";
+import {
+  ACTIVE_ENROLLMENT_STATUSES,
+  NO_SHOW_GRACE_HOURS,
+  sessionCapacity,
+} from "@/lib/class-attendance";
 import {
   activeMemberCounts,
   visitsPerLocation,
@@ -21,6 +25,7 @@ import {
   bucketKeyInTz,
   countPerBucket,
   classTrendPerBucket,
+  classStatsByType,
   type ClassSessionStat,
   type Granularity,
   type OccupancyCell,
@@ -266,6 +271,16 @@ export type InsightsTrends = {
     avgOccupancyPct: number | null;
     noShowPct: number | null;
     sessionsTotal: number;
+    /** Per lestype, meest gevuld eerst. */
+    byType: {
+      classId: string;
+      className: string;
+      sessions: number;
+      occupancyPct: number | null;
+      noShowPct: number | null;
+      /** Aanmeldingen die op de wachtlijst bleven staan (onbediende vraag). */
+      waitlisted: number;
+    }[];
   };
 };
 
@@ -293,7 +308,7 @@ async function computeInsightsTrends(
     visitsTotal: 0,
     visitsTrendPct: null,
     signups: { points: [], total: 0, trendPct: null },
-    classes: { points: [], avgOccupancyPct: null, noShowPct: null, sessionsTotal: 0 },
+    classes: { points: [], avgOccupancyPct: null, noShowPct: null, sessionsTotal: 0, byType: [] },
   };
   if (locations.length === 0) return empty;
 
@@ -337,7 +352,12 @@ async function computeInsightsTrends(
       select: {
         startsAt: true,
         locationId: true,
-        groupClass: { select: { maxParticipants: true } },
+        // Sessie-override meeselecteren: zonder dit veld rekent de bezetting
+        // met de les-default en klopt het percentage niet zodra één sessie in
+        // een kleinere zaal staat (sessionCapacity is dé telregel).
+        maxParticipants: true,
+        classId: true,
+        groupClass: { select: { name: true, maxParticipants: true } },
         enrollments: { select: { status: true } },
       },
     }),
@@ -382,18 +402,23 @@ async function computeInsightsTrends(
     let enrolledActive = 0;
     let attended = 0;
     let noShow = 0;
+    let waitlisted = 0;
     for (const e of s.enrollments) {
       if ((ACTIVE_ENROLLMENT_STATUSES as readonly string[]).includes(e.status)) enrolledActive += 1;
       if (e.status === "ATTENDED") attended += 1;
       else if (e.status === "NO_SHOW") noShow += 1;
+      else if (e.status === "WAITLISTED") waitlisted += 1;
     }
     return {
       locationId: s.locationId,
       startsAt: s.startsAt,
-      capacity: s.groupClass.maxParticipants,
+      capacity: sessionCapacity(s),
       enrolledActive,
       attended,
       noShow,
+      waitlisted,
+      classId: s.classId,
+      className: s.groupClass.name,
     };
   });
   const classBuckets = classTrendPerBucket(classStats, tzByLocation, granularity);
@@ -417,6 +442,18 @@ async function computeInsightsTrends(
         ? Math.round((totalNoShow / (totalAttended + totalNoShow)) * 100)
         : null,
     sessionsTotal: classStats.length,
+    // Uitsplitsing per lestype: "welke les zit vol en welke draait op 30%" is
+    // de vraag waar een eigenaar een beslissing op neemt, niet het gemiddelde.
+    // `waitlisted` is de vraag die niet bediend kon worden — het signaal om
+    // een sessie bij te plannen.
+    byType: classStatsByType(classStats).map((c) => ({
+      classId: c.classId,
+      className: c.className,
+      sessions: c.sessions,
+      occupancyPct: toPct(c.occupancyRate),
+      noShowPct: toPct(c.noShowRate),
+      waitlisted: c.waitlisted,
+    })),
   };
 
   return {

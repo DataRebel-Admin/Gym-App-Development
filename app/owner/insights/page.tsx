@@ -11,6 +11,7 @@ import {
 } from "@/lib/metrics/queries";
 import type { Granularity } from "@/lib/metrics/definitions";
 import { LocationComparisonTable } from "@/components/insights/location-comparison";
+import { ClassTypeTable } from "@/components/insights/class-type-table";
 import { OccupancyHeatmap } from "@/components/insights/occupancy-heatmap";
 import { InsightsHero } from "@/components/insights/insights-hero";
 import { LinkTabs } from "@/components/insights/link-tabs";
@@ -233,6 +234,11 @@ export default async function InsightsPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Uitsplitsing per lestype naast het gemiddelde hierboven. */}
+      {trends.classes.sessionsTotal > 0 ? (
+        <ClassTypeTable rows={trends.classes.byType} />
+      ) : null}
 
       {/* Vestigingsvergelijking: actieve leden / bezoeken / retentie / no-shows. */}
       <section className="flex flex-col gap-3">
