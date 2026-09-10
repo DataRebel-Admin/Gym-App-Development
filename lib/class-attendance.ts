@@ -128,6 +128,43 @@ export function clampReminderHours(hours: number): number {
   return Math.min(MAX_REMIND_HOURS, Math.max(MIN_REMIND_HOURS, Math.round(hours)));
 }
 
+/**
+ * Hoe vaak de herinnering-cron draait, in uren. **Houd dit gelijk aan het
+ * schema van `class-reminders` in vercel.json** — `tests/class-cron.test.ts`
+ * bewaakt die koppeling (idioom: de driewegkoppeling van push-channels).
+ *
+ * Staat op 24 omdat het Vercel Hobby-plan alleen dagelijkse crons toestaat.
+ * Gaat het project naar Pro, dan mag hier (en in vercel.json) 1 staan en wordt
+ * `remindHoursBefore` exact gerespecteerd.
+ */
+export const REMINDER_CRON_INTERVAL_HOURS = 24;
+
+/**
+ * Moet deze sessie in de huidige cron-run een herinnering krijgen?
+ *
+ * Twee redenen om te sturen:
+ *  1. de gewenste voorsprong is bereikt (`remindHoursBefore`), of
+ *  2. dit is de **laatste run vóór de les** — de volgende run valt ná de start,
+ *     dus nu-of-nooit.
+ *
+ * Die tweede regel is niet optioneel. Zonder deze zou een dagelijkse cron met
+ * een ingestelde voorsprong van 14 uur een les over 20 uur overslaan ("nog te
+ * vroeg") en 'm daarna nooit meer zien, want de volgende run is pas ná de
+ * start: het lid krijgt dan *helemaal geen* herinnering. Op een uurlijkse cron
+ * doet regel 2 niets en wordt de instelling exact gevolgd.
+ */
+export function reminderDue(input: {
+  startsAt: Date;
+  now: Date;
+  remindHoursBefore: number;
+  runIntervalHours?: number;
+}): boolean {
+  const interval = input.runIntervalHours ?? REMINDER_CRON_INTERVAL_HOURS;
+  const hoursUntil = (input.startsAt.getTime() - input.now.getTime()) / 3_600_000;
+  if (hoursUntil <= 0) return false;
+  return hoursUntil <= input.remindHoursBefore || hoursUntil <= interval;
+}
+
 /** Staat het aanmeldvenster open, is het nog te vroeg, of is het gesloten? */
 export type EnrollWindow = "open" | "tooEarly" | "closed";
 

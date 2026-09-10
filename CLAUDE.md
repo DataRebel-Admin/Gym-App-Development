@@ -813,8 +813,8 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   De sessie gaat **expliciet** mee (niet via id): bij annulering bestaat de rij
   al niet meer. E-mail via `classNotificationMessage` (generieke shell; kop en
   intro zijn dezelfde vertaalde teksten als in-app, `notifications.classes.*`).
-- **Crons** (`vercel.json`): `class-reminders` (**elk uur**, voorsprong per
-  sportschool/lestype instelbaar binnen `MAX_REMIND_HOURS` = 72, idempotent via
+- **Crons** (`vercel.json`): `class-reminders` (dagelijks 16:00 UTC; voorsprong
+  per sportschool/lestype instelbaar, idempotent via
   `ClassEnrollment.remindedAt`, markeert vóór verzending — zie de v3-sectie) en
   `class-attendance` (no-show + wachtlijst opruimen).
 - **Feedback aan het lid** via `?msg=` op `/member/rooster` (enrolled/waitlisted/
@@ -969,10 +969,32 @@ ronde, dus een sportschool die niets instelt merkt er niets van.
   lestypes blijven in de **owner-lijst** staan (badge, achteraan) — anders is het
   niet terug te draaien — en vallen weg uit het lid-aanbod, de filterchips en de
   herinnering-cron.
-- **Herinnering-cron draait per uur** (`vercel.json`, was dagelijks 16:00 UTC met
-  een venster van 30u → voorsprong varieerde van ~1u tot ruim een dag). De query
-  pakt alles binnen `MAX_REMIND_HOURS` (72) en de grens wordt **per sessie**
-  bepaald uit de regels; `remindedAt` blijft de idempotentie.
+- **HERINNERING-CRON: DE INSTELLING IS EEN WENS, DE CRONFREQUENTIE IS DE
+  WERKELIJKHEID.** De query pakt alles binnen `MAX_REMIND_HOURS` (72); of een
+  sessie in déze run aan de beurt is bepaalt de pure `reminderDue`. Die stuurt
+  óók als de gewenste voorsprong nog niet bereikt is maar dit de **laatste run
+  vóór de les** is. Zonder die tweede regel slaat een dagelijkse cron een les
+  over 20 uur stilzwijgend over ("nog te vroeg" bij een voorsprong van 14 uur)
+  en ziet 'm daarna nooit meer — het lid krijgt dan *helemaal geen*
+  herinnering.
+  - **`REMINDER_CRON_INTERVAL_HOURS` (lib/class-attendance.ts) moet gelijk zijn
+    aan het schema in `vercel.json`**; `tests/class-cron.test.ts` bewaakt die
+    koppeling (idioom: push-channels). Nu 24, want **Vercel Hobby staat alleen
+    dagelijkse crons toe** (zie hieronder). Gaat het project naar Pro, zet dan
+    beide op uurlijks en wordt `remindHoursBefore` exact gevolgd.
+- **VERCEL-PLAN BEPAALT WAT EEN CRON KAN.** Commit `0637e13` ("Fix Vercel cron
+  schedule for Hobby plan", 2026-07-01) zette `publish-schemas` van `*/5 * * * *`
+  naar dagelijks. Alle crons in `vercel.json` draaien daarom dagelijks, en ze
+  vuren **binnen het uur** ná het opgegeven tijdstip (waargenomen: 06:30 → 07:14,
+  16:00 → 16:42), niet op de minuut. Ontwerp een nieuwe achtergrondtaak dus op
+  "één keer per dag, tijdstip bij benadering" en bouw geen aanname op preciezere
+  timing. Gevolg voor **geplande schemapublicatie**: `activeAssignmentWhere`
+  (lib/member.ts) eist `status: PUBLISHED`, dus een `SCHEDULED`-toewijzing is
+  onzichtbaar tot de cron 'm omzet — een publicatie die om 10:00 gepland staat
+  wordt pas de volgende ochtend zichtbaar. Wil je dat wegnemen zonder een
+  plan-upgrade, dan is het patroon van `enforceSessionTimeout`
+  (lib/session-timeout.ts) de weg: lui publiceren bij het openen van
+  `/member`/`/member/schema`, met de cron als vangnet voor de melding.
 - **Omslagfoto per lestype** (`GroupClass.imageUrl`, `lib/class-image.ts`, puur +
   getest): eigen foto → sportschoollogo → accent-vlak met icoon. Bewust géén
   gecureerde stockfoto-laag zoals bij de schema's: lestype-namen zijn vrije tekst

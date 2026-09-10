@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
   MAX_REMIND_HOURS,
+  reminderDue,
   resolveBookingRules,
 } from "@/lib/class-attendance";
 import { BOOKING_DEFAULTS_SELECT, BOOKING_OVERRIDE_SELECT } from "@/lib/class-booking";
@@ -71,8 +72,10 @@ export async function GET(req: Request) {
     const defaults = defaultsById.get(s.tenantId);
     if (!defaults) continue;
     const rules = resolveBookingRules(s.groupClass, defaults);
-    // Nog te vroeg voor déze les: een volgende uurlijkse run pakt 'm op.
-    if (s.startsAt.getTime() - now.getTime() > rules.remindHoursBefore * 3_600_000) {
+    // Nog te vroeg voor déze les: een volgende run pakt 'm op. `reminderDue`
+    // bewaakt dat "een volgende run" ook echt bestáát vóór de les begint —
+    // anders slaat een dagelijkse cron een les stilzwijgend helemaal over.
+    if (!reminderDue({ startsAt: s.startsAt, now, remindHoursBefore: rules.remindHoursBefore })) {
       skipped++;
       continue;
     }
