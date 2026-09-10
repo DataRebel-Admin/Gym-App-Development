@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Footprints,
   Star,
+  Users,
   CheckCircle2,
   type LucideIcon,
 } from "@/components/ui/icons";
@@ -95,7 +96,8 @@ export type MetricKey =
   | "muscleGained"
   | "measurementsCount"
   | "profileComplete"
-  | "schemasCompleted";
+  | "schemasCompleted"
+  | "classesAttended";
 
 export type AchievementDef = {
   /** Stabiele, unieke key (wordt in de DB bewaard) — nooit hernoemen. */
@@ -185,6 +187,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // hier bewust géén duplicaat van diezelfde metric/drempel.
   { key: "community.profile_complete", category: "community", rarity: "bronze", title: "Profiel compleet", description: "Je profiel volledig ingevuld.", icon: CheckCircle2, metric: "profileComplete", threshold: 1, passport: true, scope: "GLOBAL" },
   { key: "community.first_schema_done", category: "community", rarity: "bronze", title: "Eerste schema afgerond", description: "Je eerste trainingsschema volledig doorlopen.", icon: Star, metric: "schemasCompleted", threshold: 1, passport: true },
+  // Groepslessen horen bij Community: je traint met anderen, en het is het
+  // enige stukje van de app waar dat zo is.
+  { key: "community.first_class", category: "community", rarity: "bronze", title: "Eerste groepsles", description: "Je eerste groepsles bijgewoond.", icon: Users, metric: "classesAttended", threshold: 1, unit: "lessen", passport: true },
+  { key: "community.classes_10", category: "community", rarity: "silver", title: "10 groepslessen", description: "Tien groepslessen gevolgd. Je hoort erbij.", icon: Users, metric: "classesAttended", threshold: 10, unit: "lessen" },
+  { key: "community.classes_50", category: "community", rarity: "gold", title: "50 groepslessen", description: "Vijftig groepslessen gevolgd. Een vaste kracht in de zaal.", icon: Medal, metric: "classesAttended", threshold: 50, unit: "lessen", passport: true },
+  { key: "community.classes_150", category: "community", rarity: "platinum", title: "150 groepslessen", description: "Honderdvijftig groepslessen. De les is niet compleet zonder jou.", icon: Crown, metric: "classesAttended", threshold: 150, unit: "lessen" },
 ];
 
 /** Snelle lookup per key. */

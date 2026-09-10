@@ -2,7 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getGoals, getGoalsBulk } from "@/lib/measurements";
-import { loadMemberSessions } from "@/lib/member-stats";
+import { loadMemberClasses, loadMemberSessions } from "@/lib/member-stats";
 import type { MetricKey } from "@/lib/achievements/definitions";
 
 /**
@@ -84,7 +84,12 @@ export function computeMetrics(
   user: MetricsUserInput,
   goals: readonly { achieved: boolean }[],
   measurements: readonly MetricsMeasurementInput[],
-  archivedSchemas: number
+  archivedSchemas: number,
+  /**
+   * Bijgewoonde groepslessen. De caller scopet ze desgewenst al op vestiging
+   * (net als `sessions`), zodat LOCATION-trofeeën ook hier kunnen drempelen.
+   */
+  classesAttended: number = 0
 ): MemberMetrics {
   let totalWorkouts = 0;
   let totalVolume = 0;
@@ -162,6 +167,7 @@ export function computeMetrics(
     measurementsCount: measurements.length,
     profileComplete,
     schemasCompleted: archivedSchemas,
+    classesAttended,
   };
 }
 
@@ -179,12 +185,15 @@ export async function computeMemberMetrics(
   tenantId: string,
   opts: { locationId?: string } = {}
 ): Promise<MemberMetrics> {
-  const [sessions, user, goals, measurements, archivedSchemas] = await Promise.all([
+  const [sessions, classes, user, goals, measurements, archivedSchemas] = await Promise.all([
     // Gedeelde, per-request gecachete historie-loader (zie lib/member-stats.ts):
     // op `/member` deelt dit dezelfde fetch als getMemberStats i.p.v. de volledige
     // historie tweemaal te scannen. Bevat álle sessies — we filteren op afgerond
     // (`endedAt`), wat voorheen het DB-`where` deed.
     loadMemberSessions(memberId, tenantId),
+    // Gedeelde, per-request gecachete loader (zie lib/member-stats.ts): op
+    // /member deelt dit dezelfde fetch als getMemberStats.
+    loadMemberClasses(memberId, tenantId),
     prisma.user.findFirst({ where: { id: memberId, tenantId }, select: USER_METRICS_SELECT }),
     getGoals(tenantId, memberId),
     prisma.measurement.findMany({
@@ -201,13 +210,17 @@ export async function computeMemberMetrics(
   const scoped = opts.locationId
     ? sessions.filter((s) => s.locationId === opts.locationId)
     : sessions;
+  const scopedClasses = opts.locationId
+    ? classes.filter((c) => c.locationId === opts.locationId)
+    : classes;
 
   return computeMetrics(
     scoped.filter((s) => s.endedAt != null),
     user,
     goals,
     measurements,
-    archivedSchemas
+    archivedSchemas,
+    scopedClasses.length
   );
 }
 
@@ -224,7 +237,7 @@ export async function computeMemberMetricsBulk(
   const out = new Map<string, MemberMetrics>();
   if (memberIds.length === 0) return out;
 
-  const [sessions, users, goalsByUser, measurements, archivedGroups] = await Promise.all([
+  const [sessions, classGroups, users, goalsByUser, measurements, archivedGroups] = await Promise.all([
     prisma.workoutSession.findMany({
       where: { tenantId, userId: { in: memberIds }, endedAt: { not: null } },
       select: {
@@ -239,6 +252,11 @@ export async function computeMemberMetricsBulk(
           },
         },
       },
+    }),
+    prisma.classEnrollment.groupBy({
+      by: ["userId"],
+      where: { tenantId, userId: { in: memberIds }, status: "ATTENDED" },
+      _count: true,
     }),
     prisma.user.findMany({
       where: { tenantId, id: { in: memberIds } },
@@ -271,6 +289,7 @@ export async function computeMemberMetricsBulk(
     else measByUser.set(m.userId, [m]);
   }
   const archivedByUser = new Map(archivedGroups.map((g) => [g.userId, g._count]));
+  const classesByUser = new Map(classGroups.map((g) => [g.userId, g._count]));
 
   for (const memberId of memberIds) {
     out.set(
@@ -280,7 +299,8 @@ export async function computeMemberMetricsBulk(
         userById.get(memberId) ?? null,
         goalsByUser.get(memberId) ?? [],
         measByUser.get(memberId) ?? [],
-        archivedByUser.get(memberId) ?? 0
+        archivedByUser.get(memberId) ?? 0,
+        classesByUser.get(memberId) ?? 0
       )
     );
   }

@@ -15,7 +15,7 @@ import { locationScopeKeyFor } from "@/lib/achievements/scope";
 import { rarityMeta, type Rarity, RARITY_META } from "@/lib/achievements/rarity";
 import { getAchievementTranslator, type AchievementTranslator } from "@/lib/achievements/i18n";
 import { computeMemberMetrics, computeMetrics, type MemberMetrics } from "@/lib/achievements/metrics";
-import { loadMemberSessions, type MemberSessionRow } from "@/lib/member-stats";
+import { loadMemberClasses, loadMemberSessions, type MemberSessionRow } from "@/lib/member-stats";
 import { notifyAchievementsEarned } from "@/lib/achievements/notify";
 import { getHideAchievements } from "@/lib/user-preferences";
 import { appBaseUrl } from "@/lib/app-url";
@@ -101,20 +101,29 @@ export async function evaluateAndAward(
       });
     }
 
-    // LOCATION-scope: per vestiging waar het lid afgeronde sessies heeft.
+    // LOCATION-scope: per vestiging waar het lid activiteit heeft. Dat zijn
+    // afgeronde trainingen én bijgewoonde groepslessen — een vestiging waar
+    // iemand alléén lessen volgt telt net zo goed mee.
     if (locationDefs.length > 0) {
-      const locationGroups = await prisma.workoutSession.groupBy({
-        by: ["locationId"],
-        where: { tenantId, userId: memberId, endedAt: { not: null } },
-      });
-      for (const g of locationGroups) {
-        const pending = locationDefs.filter(
-          (def) => !earnedUnits.has(`${def.key}|${g.locationId}`)
-        );
+      const [sessionGroups, classGroups] = await Promise.all([
+        prisma.workoutSession.groupBy({
+          by: ["locationId"],
+          where: { tenantId, userId: memberId, endedAt: { not: null } },
+        }),
+        prisma.classEnrollment.findMany({
+          where: { tenantId, userId: memberId, status: "ATTENDED" },
+          select: { session: { select: { locationId: true } } },
+          distinct: ["sessionId"],
+        }),
+      ]);
+      const locationIds = new Set<string>([
+        ...sessionGroups.map((g) => g.locationId),
+        ...classGroups.map((c) => c.session.locationId),
+      ]);
+      for (const locationId of locationIds) {
+        const pending = locationDefs.filter((def) => !earnedUnits.has(`${def.key}|${locationId}`));
         if (pending.length === 0) continue;
-        const locMetrics = await computeMemberMetrics(memberId, tenantId, {
-          locationId: g.locationId,
-        });
+        const locMetrics = await computeMemberMetrics(memberId, tenantId, { locationId });
         for (const def of pending) {
           const value = locMetrics[def.metric] ?? 0;
           if (value < def.threshold) continue;
@@ -124,8 +133,8 @@ export async function evaluateAndAward(
             category: def.category,
             rarity: def.rarity,
             value,
-            locationId: g.locationId,
-            locationScopeKey: locationScopeKeyFor("LOCATION", g.locationId),
+            locationId,
+            locationScopeKey: locationScopeKeyFor("LOCATION", locationId),
           });
         }
       }
@@ -279,17 +288,26 @@ export async function getAchievementsView(
   const locationDefs = ACHIEVEMENTS.filter((d) => scopeOf(d) === "LOCATION");
   const locationCurrent = new Map<string, number>();
   if (locationDefs.length > 0) {
-    const sessions = (await loadMemberSessions(memberId, tenantId)).filter(
-      (s) => s.endedAt != null
-    );
+    const [allSessions, classes] = await Promise.all([
+      loadMemberSessions(memberId, tenantId),
+      loadMemberClasses(memberId, tenantId),
+    ]);
+    const sessions = allSessions.filter((s) => s.endedAt != null);
     const byLocation = new Map<string, MemberSessionRow[]>();
     for (const s of sessions) {
       const arr = byLocation.get(s.locationId);
       if (arr) arr.push(s);
       else byLocation.set(s.locationId, [s]);
     }
-    const perLocationMetrics = [...byLocation.values()].map((rows) =>
-      computeMetrics(rows, null, [], [], 0)
+    // Ook gevolgde lessen per vestiging tellen: een vestiging waar het lid
+    // alléén lessen doet zou anders buiten beeld vallen.
+    const classCountByLocation = new Map<string, number>();
+    for (const c of classes) {
+      classCountByLocation.set(c.locationId, (classCountByLocation.get(c.locationId) ?? 0) + 1);
+      if (!byLocation.has(c.locationId)) byLocation.set(c.locationId, []);
+    }
+    const perLocationMetrics = [...byLocation.entries()].map(([locationId, rows]) =>
+      computeMetrics(rows, null, [], [], 0, classCountByLocation.get(locationId) ?? 0)
     );
     for (const def of locationDefs) {
       const max = perLocationMetrics.reduce((m, lm) => Math.max(m, lm[def.metric] ?? 0), 0);

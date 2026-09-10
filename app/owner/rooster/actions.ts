@@ -18,6 +18,7 @@ import { audit } from "@/lib/audit";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
 import { uploadClassImage } from "@/lib/blob";
+import { evaluateAndAward } from "@/lib/achievements/evaluate";
 import { zonedInputToDate, shiftWallClock, wallClockDeltaMs } from "@/lib/tz";
 import { withSerializableRetry } from "@/lib/db-retry";
 import { expandWeeklyPlan } from "@/lib/class-planning";
@@ -943,6 +944,7 @@ export async function setAttendance(input: {
     select: {
       id: true,
       status: true,
+      userId: true,
       user: { select: { name: true, email: true } },
       session: {
         select: {
@@ -982,6 +984,13 @@ export async function setAttendance(input: {
       status,
     },
   });
+  // Een bijgewoonde les telt mee voor de trofeeën van het lid (best-effort;
+  // faalt nooit hard, patroon endSession). Alleen bij ATTENDED — terugdraaien
+  // neemt een al toegekende trofee bewust niet terug.
+  if (status === "ATTENDED") {
+    await evaluateAndAward(enrollment.userId, owner.tenantId, { actor: owner });
+  }
+
   revalidatePath(`/owner/rooster/sessie/${enrollment.session.id}`);
   revalidatePath(`/owner/rooster/${enrollment.session.classId}`);
   return { ok: true };
@@ -1007,10 +1016,18 @@ export async function markAllPresent(sessionId: string): Promise<AttendanceResul
   const scope = await getLocationScope(owner);
   if (!canAccessLocation(scope, session.locationId)) notFound();
 
+  // Ids vóór de update ophalen: daarna zijn ze niet meer als ENROLLED te vinden.
+  const affected = await prisma.classEnrollment.findMany({
+    where: { sessionId: session.id, tenantId: owner.tenantId, status: "ENROLLED" },
+    select: { userId: true },
+  });
   const result = await prisma.classEnrollment.updateMany({
     where: { sessionId: session.id, tenantId: owner.tenantId, status: "ENROLLED" },
     data: { status: "ATTENDED", statusChangedAt: new Date(), markedById: owner.id },
   });
+  for (const a of affected) {
+    await evaluateAndAward(a.userId, owner.tenantId, { actor: owner });
+  }
   if (result.count > 0) {
     await audit("class.attendance.mark", {
       actor: owner,

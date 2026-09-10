@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireMember, getMemberHistory } from "@/lib/member";
-import { getMemberStats, getRecentSessions } from "@/lib/member-stats";
+import { getMemberStats, getRecentSessions, loadMemberClasses } from "@/lib/member-stats";
 import { trainerDisplayName } from "@/lib/schema-status";
+import { formatTimeRange } from "@/lib/datetime";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { getMemberAgenda } from "@/lib/calendar";
 import { nextMonthKey, prevMonthKey } from "@/lib/calendar-plan";
@@ -24,6 +25,7 @@ import {
   Trophy,
   ChevronRight,
   PersonStanding,
+  Users,
 } from "@/components/ui/icons";
 
 export async function generateMetadata() {
@@ -43,13 +45,18 @@ function fmtDuration(
 
 export default async function MemberHistoryPage() {
   const member = await requireMember();
-  const [{ series }, stats, sessions, t, locale] = await Promise.all([
+  const [{ series }, stats, sessions, classes, t, locale] = await Promise.all([
     getMemberHistory(member.id, member.tenantId),
     getMemberStats(member.id, member.tenantId),
     getRecentSessions(member.id, member.tenantId, 20),
+    // Gedeelde, per-request gecachete loader: dit is dezelfde fetch die
+    // getMemberStats hierboven al doet.
+    loadMemberClasses(member.id, member.tenantId),
     getTranslations("member.history"),
     getLocale(),
   ]);
+  // Nieuwste eerst, net als de sessielijst (de loader levert oplopend).
+  const recentClasses = [...classes].reverse().slice(0, 20);
 
   const dateFmt = new Intl.DateTimeFormat(LOCALE_META[locale as AppLocale].bcp47, {
     weekday: "short",
@@ -58,7 +65,10 @@ export default async function MemberHistoryPage() {
   });
 
   const totalHours = Math.round((stats.totalDurationSec / 3600) * 10) / 10;
-  const hasActivity = stats.totalWorkouts > 0;
+  // Een lid dat alléén groepslessen doet heeft wel degelijk historie — dat gaf
+  // eerder de lege staat ("nog geen trainingen") terwijl er twintig lessen in
+  // zaten.
+  const hasActivity = stats.totalWorkouts > 0 || stats.classesAttended > 0;
 
   // Agenda-preview (lopende maand): elke tik navigeert dóór naar /member/agenda.
   const calendarEnabled = await isFeatureEnabled(member.tenantId, "calendar");
@@ -169,6 +179,19 @@ export default async function MemberHistoryPage() {
             <StatCard label={t("kpiStreak")} value={stats.currentStreakWeeks} suffix={t("weekSuffix")} icon={<Flame className="size-4" />} hint={t("kpiStreakHint", { count: stats.longestStreakWeeks })} />
             <StatCard label={t("kpiVolume")} value={stats.totalVolume} suffix=" kg" icon={<Dumbbell className="size-4" />} hint={t("kpiVolumeHint")} href="/member/history/stat/volume?range=all" />
             <StatCard label={t("kpiTime")} value={totalHours} suffix={t("hourSuffix")} icon={<Clock className="size-4" />} hint={t("kpiTotal")} href="/member/history/stat/time?range=all" />
+            {/* Groepslessen tellen mee als trainingsmoment (streak + heatmap),
+                dus horen ze ook zichtbaar te zijn. Alleen tonen zodra er iets
+                te tonen valt — anders is het een lege tegel voor iedereen die
+                geen lessen doet. */}
+            {stats.classesAttended > 0 ? (
+              <StatCard
+                label={t("kpiClasses")}
+                value={stats.classesAttended}
+                icon={<Users className="size-4" />}
+                hint={t("kpiClassesHint")}
+                href="/member/rooster"
+              />
+            ) : null}
           </RevealItem>
 
           {/* Consistentie-heatmap */}
@@ -259,6 +282,39 @@ export default async function MemberHistoryPage() {
                 {t("weightProgress")}
               </p>
               <HistoryChart series={series} />
+            </RevealItem>
+          ) : null}
+
+          {/* Gevolgde groepslessen. Bewust een eigen lijst naast de sessies:
+              het zijn andere gegevens (geen sets/volume, wel een lestype en
+              een instructeur), en ze door elkaar zetten maakt beide onleesbaar. */}
+          {recentClasses.length > 0 ? (
+            <RevealItem className="flex flex-col gap-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                {t("classesTitle")}
+              </p>
+              <ul className="flex flex-col gap-2">
+                {recentClasses.map((c) => (
+                  <li
+                    key={c.enrollmentId}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-1 px-4 py-3 shadow-sm"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-neutral-900">
+                        {c.className}
+                      </span>
+                      <span className="block text-xs text-neutral-500">
+                        <span className="capitalize">{dateFmt.format(c.startsAt)}</span>
+                        {" · "}
+                        {formatTimeRange(c.startsAt, c.endsAt, c.timezone)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
+                      {t("classRow")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </RevealItem>
           ) : null}
 

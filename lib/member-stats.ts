@@ -107,6 +107,10 @@ export type MemberStats = {
   /** Laatste ~16 weken trainingsdagen (voor de heatmap). */
   heatmap: HeatmapDay[];
   lastSessionAt: Date | null;
+  /** Bijgewoonde groepslessen (ATTENDED), all-time en deze week. */
+  classesAttended: number;
+  classesThisWeek: number;
+  lastClassAt: Date | null;
 };
 
 export type MemberSessionRow = {
@@ -169,6 +173,57 @@ export const loadMemberSessions = cache(
   }
 );
 
+/** Eén bijgewoonde groepsles, zoals de statistieken hem nodig hebben. */
+export type MemberClassRow = {
+  enrollmentId: string;
+  sessionId: string;
+  className: string;
+  startsAt: Date;
+  endsAt: Date;
+  locationId: string;
+  timezone: string;
+};
+
+/**
+ * Bijgewoonde groepslessen van één lid (ATTENDED). Per-request gememoïseerd,
+ * net als [[loadMemberSessions]].
+ *
+ * Waaróm dit bestaat: een lid dat drie keer per week spinning doet zag in zijn
+ * historie, stats en trofeeën precies nul. De owner-metrics telden zo'n
+ * deelname allang als bezoek (lib/metrics/definitions.ts); aan de lid-kant was
+ * die data onzichtbaar.
+ */
+export const loadMemberClasses = cache(
+  async (memberId: string, tenantId: string): Promise<MemberClassRow[]> => {
+    const rows = await prisma.classEnrollment.findMany({
+      where: { tenantId, userId: memberId, status: "ATTENDED" },
+      orderBy: { session: { startsAt: "asc" } },
+      select: {
+        id: true,
+        session: {
+          select: {
+            id: true,
+            startsAt: true,
+            endsAt: true,
+            locationId: true,
+            groupClass: { select: { name: true } },
+            venueLocation: { select: { timezone: true } },
+          },
+        },
+      },
+    });
+    return rows.map((r) => ({
+      enrollmentId: r.id,
+      sessionId: r.session.id,
+      className: r.session.groupClass.name,
+      startsAt: r.session.startsAt,
+      endsAt: r.session.endsAt,
+      locationId: r.session.locationId,
+      timezone: r.session.venueLocation.timezone,
+    }));
+  }
+);
+
 function muscleOf(entry: MemberSessionRow["performanceEntries"][number]): string | null {
   const raw =
     entry.exercise.catalog?.target ??
@@ -214,7 +269,10 @@ export async function getMemberStats(
   memberId: string,
   tenantId: string
 ): Promise<MemberStats> {
-  const sessions = await loadMemberSessions(memberId, tenantId);
+  const [sessions, classes] = await Promise.all([
+    loadMemberSessions(memberId, tenantId),
+    loadMemberClasses(memberId, tenantId),
+  ]);
   const now = new Date();
   const weekStart = startOfWeek(now).getTime();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -290,6 +348,19 @@ export async function getMemberStats(
     if (s.startedAt.getTime() >= weekStart) thisWeekVolume += sessionVolume;
   }
 
+  // Groepslessen tellen mee als trainingsmoment: voor de streak en de heatmap
+  // is een gevolgde les net zo goed "je was er". Volume/PR's blijven bewust
+  // aan de krachttraining hangen — daar is bij een les geen data van.
+  let classesThisWeek = 0;
+  let lastClassAt: Date | null = null;
+  for (const c of classes) {
+    weekKeys.add(startOfWeek(c.startsAt).getTime());
+    const dayKey = startOfDay(c.startsAt).getTime();
+    dayCounts.set(dayKey, (dayCounts.get(dayKey) ?? 0) + 1);
+    if (c.startsAt.getTime() >= weekStart) classesThisWeek += 1;
+    if (!lastClassAt || c.startsAt > lastClassAt) lastClassAt = c.startsAt;
+  }
+
   const { current: currentStreakWeeks, longest: longestStreakWeeks } =
     computeStreaks(weekKeys, weekStart);
 
@@ -351,6 +422,9 @@ export async function getMemberStats(
     recentRecords,
     heatmap,
     lastSessionAt,
+    classesAttended: classes.length,
+    classesThisWeek,
+    lastClassAt,
   };
 }
 
