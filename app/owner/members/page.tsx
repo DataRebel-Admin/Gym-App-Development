@@ -92,7 +92,7 @@ export default async function OwnerMembersPage({
   const pendingInvites = allPendingInvites.filter((i) => i.role === "TENANT_MEMBER");
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
       <SectionHeading
         title={isAdmin ? t("titleAdmin") : t("titleStaff")}
         description={isAdmin ? t("descAdmin") : t("descStaff")}

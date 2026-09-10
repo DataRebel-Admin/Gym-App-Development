@@ -62,7 +62,7 @@ export default async function LocationDetailPage({
   if (!location) notFound();
 
   return (
-    <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-8 px-5 py-7 sm:px-6 sm:py-8">
       <div>
         <Link href="/owner/locations" className="text-sm text-neutral-500 hover:text-neutral-900">
           ← Vestigingen

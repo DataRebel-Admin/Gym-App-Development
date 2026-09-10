@@ -10,6 +10,7 @@ import { areClassesEnabled } from "@/lib/classes";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { FloorActions } from "@/components/owner/floor-actions";
+import { Reveal, RevealItem } from "@/components/motion/reveal";
 import { getAchievementDef } from "@/lib/achievements/definitions";
 import { rarityMeta } from "@/lib/achievements/rarity";
 import { Card } from "@/components/ui/card";
@@ -155,16 +156,17 @@ export async function StaffDashboard({
   if (permissions.has("exercises:manage")) quickActions.push({ label: "Eigen oefeningen", href: "/owner/exercises" });
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    // Gestaggerde entree, gelijk aan de ledenpagina's (app/member/page.tsx).
+    <Reveal stagger className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
       {/* Ondoorzichtig — zelfde reden als de owner-hero: achter dit paneel
           zweeft alleen de aurora; de tint komt uit de eigen .bg-aura-laag. */}
-      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-5 shadow-lg sm:p-7">
+      <RevealItem as="section" className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-5 shadow-lg sm:p-7">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
         <div className="relative">
           <p className="text-sm font-medium text-accent">
             {now.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
           </p>
-          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-neutral-900">
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
             Welkom terug{firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
@@ -173,7 +175,7 @@ export async function StaffDashboard({
               : "Nog geen trainingen vandaag. Tijd om je leden te activeren."}
           </p>
         </div>
-      </section>
+      </RevealItem>
 
       {/* Telefoon: de handelingen die je in de zaal doet binnen duimbereik,
           bovenaan. Verbergt zichzelf op desktop (daar staat de navigatie al). */}
@@ -186,7 +188,7 @@ export async function StaffDashboard({
 
       {canMaintenance ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+      <RevealItem className="grid grid-cols-2 gap-4 md:grid-cols-3">
         <StatCard label="Leden actief vandaag" value={activeMembersToday} />
         {canMembers ? (
           <StatCard label="Mijn leden" value={myMembers.length} href="/owner/members?mine=1" />
@@ -197,10 +199,10 @@ export async function StaffDashboard({
         {canMeasure ? (
           <StatCard label="Nieuwe metingen (7 dagen)" value={newMeasurements} />
         ) : null}
-      </div>
+      </RevealItem>
 
       {canMembers && myMembers.length > 0 ? (
-        <section className="flex flex-col gap-3">
+        <RevealItem as="section" className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-neutral-900">Mijn leden</h2>
             <Link href="/owner/members?mine=1" className="text-xs text-accent hover:underline">
@@ -224,13 +226,13 @@ export async function StaffDashboard({
               </Link>
             ))}
           </div>
-        </section>
+        </RevealItem>
       ) : null}
 
       {/* Eerst je eigen lessen, dan pas de rest van de planning: dit is wat een
           instructeur wil zien als hij de app opent. */}
       {canSchedule && myClasses.length > 0 ? (
-        <section className="flex flex-col gap-3">
+        <RevealItem as="section" className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Mijn lessen</h2>
           <div className="flex flex-col gap-2">
             {myClasses.map((c) => (
@@ -252,11 +254,11 @@ export async function StaffDashboard({
               </Link>
             ))}
           </div>
-        </section>
+        </RevealItem>
       ) : null}
 
       {canSchedule ? (
-        <section className="flex flex-col gap-3">
+        <RevealItem as="section" className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Aankomende lessen</h2>
           {upcoming.length === 0 ? (
             <Card className="p-6 text-center text-sm text-neutral-500">
@@ -288,11 +290,11 @@ export async function StaffDashboard({
               ))}
             </div>
           )}
-        </section>
+        </RevealItem>
       ) : null}
 
       {showAchievements && recentAchievements.length > 0 ? (
-        <section className="flex flex-col gap-3">
+        <RevealItem as="section" className="flex flex-col gap-3">
           <div className="flex items-baseline justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
               <Trophy className="size-4 text-accent" /> Recente mijlpalen
@@ -326,11 +328,11 @@ export async function StaffDashboard({
               );
             })}
           </div>
-        </section>
+        </RevealItem>
       ) : null}
 
       {quickActions.length > 0 ? (
-        <section className="flex flex-col gap-3">
+        <RevealItem as="section" className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Snelle acties</h2>
           <div className="flex flex-wrap gap-2">
             {quickActions.map((a) => (
@@ -343,8 +345,8 @@ export async function StaffDashboard({
               </Link>
             ))}
           </div>
-        </section>
+        </RevealItem>
       ) : null}
-    </div>
+    </Reveal>
   );
 }

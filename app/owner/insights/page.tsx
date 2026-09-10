@@ -113,7 +113,7 @@ export default async function InsightsPage({
   const heatmapLocations = comparison.rows.map((r) => ({ id: r.locationId, name: r.name }));
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
       <SectionHeading
         title={t("title")}
         description={t("desc")}

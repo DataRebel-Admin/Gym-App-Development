@@ -24,7 +24,7 @@ export default async function EngagementPage({
 
   if (!tenant?.achievementsEnabled) {
     return (
-      <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+      <div className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
         <header>
           <h1 className="font-display text-3xl font-bold tracking-tight text-neutral-900">Betrokkenheid</h1>
         </header>
@@ -53,7 +53,7 @@ export default async function EngagementPage({
   const data = await getCoachEngagement(user.tenantId, memberIds ? { memberIds } : {});
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-neutral-900">Betrokkenheid</h1>

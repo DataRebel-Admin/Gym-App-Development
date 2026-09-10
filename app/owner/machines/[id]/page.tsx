@@ -114,7 +114,7 @@ export default async function MachineDetailPage({
   const eff = effectiveStatus(machine.status, state);
 
   return (
-    <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-8 px-5 py-7 sm:px-6 sm:py-8">
       <div>
         <Link
           href="/owner/machines"

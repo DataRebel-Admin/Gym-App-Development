@@ -20,7 +20,11 @@ export function MobileListCard({
 }) {
   const base = cn(
     "block rounded-2xl border border-border bg-surface-1 p-4 shadow-sm",
-    href && "transition-colors hover:border-border-strong hover:bg-neutral-100/60 focus-ring",
+    // Tikbare kaart krijgt dezelfde indruk-feedback als in de ledenomgeving
+    // (app/member/page.tsx, components/classes/class-card.tsx): op een telefoon
+    // is dat het enige signaal dat je iets geraakt hebt — hover bestaat daar niet.
+    href &&
+      "transition-all hover:border-border-strong hover:bg-neutral-100/60 active:scale-[0.99] focus-ring",
     className
   );
   if (href) {

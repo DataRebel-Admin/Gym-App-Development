@@ -8,7 +8,7 @@ export const metadata = { title: "Nieuwe vestiging" };
 export default async function NewLocationPage() {
   await requireOwner();
   return (
-    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
       <Link href="/owner/locations" className="text-sm text-neutral-500 hover:text-neutral-900">
         ← Vestigingen
       </Link>

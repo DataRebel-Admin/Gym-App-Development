@@ -124,15 +124,19 @@ export async function FloorActions({
 
   return (
     <section className="lg:hidden">
-      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+      {/* Micro-label, tik-feedback en kaartmaat volgen de ledenomgeving (zie
+          app/member/page.tsx): daar is een lijstkaart `rounded-2xl … p-4` met
+          `active:scale-[0.99]`, en een sectiekop `text-xs font-medium uppercase
+          tracking-wide text-neutral-400`. */}
+      <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
         Snel op de vloer
       </h2>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         {actions.map((a) => (
           <Link
             key={a.href + a.label}
             href={a.href}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-3 shadow-sm transition-colors active:bg-accent-soft"
+            className="flex items-center gap-3 rounded-2xl border border-border bg-surface-1 p-4 shadow-sm transition-colors active:scale-[0.99] active:bg-accent-soft"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
               {a.icon}

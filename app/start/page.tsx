@@ -96,12 +96,14 @@ function ModeButton({
   desc: string;
   icon: React.ReactNode;
 }) {
+  // Prominente keuzekaart → `rounded-3xl` + p-5: de paneelmaat uit de
+  // ledenomgeving (app/member/page.tsx); een lijstrij is daar `rounded-2xl`.
   return (
     <button
       type="submit"
       name="mode"
       value={mode}
-      className="group flex w-full items-center gap-4 rounded-2xl border border-border bg-surface-1 p-5 text-left shadow-sm transition-all hover:border-accent hover:bg-accent-soft focus-ring active:scale-[0.99]"
+      className="group flex w-full items-center gap-4 rounded-3xl border border-border bg-surface-1 p-5 text-left shadow-sm transition-all hover:border-accent hover:bg-accent-soft focus-ring active:scale-[0.99]"
     >
       <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-accent-foreground">
         {icon}

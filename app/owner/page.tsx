@@ -15,6 +15,7 @@ import { FloorActions } from "@/components/owner/floor-actions";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
 import { normalizeLayout, type WidgetId } from "@/lib/dashboard";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
+import { Reveal, RevealItem } from "@/components/motion/reveal";
 import {
   KpiRow,
   UsageList,
@@ -94,11 +95,14 @@ export default async function OwnerDashboard() {
   const firstName = owner.name?.split(" ")[0];
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    // Gestaggerde entree zoals élke ledenpagina die heeft (app/member/page.tsx).
+    // De WidgetGrid blijft er bewust buiten: die is een dnd-client-component en
+    // heeft z'n eigen animatie.
+    <Reveal stagger className="flex flex-col gap-6 px-5 py-7 sm:px-6 sm:py-8">
       {/* Premium hero-header. Ondoorzichtig: achter dit paneel zweeft alleen de
           aurora, dus doorschijnendheid zou de kop enkel onrustig maken. De
           tenant-tint komt van de eigen .bg-aura-laag hieronder. */}
-      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-5 shadow-lg sm:p-7">
+      <RevealItem as="section" className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-5 shadow-lg sm:p-7">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
         <div className="relative">
           <div>
@@ -108,7 +112,7 @@ export default async function OwnerDashboard() {
                 { weekday: "long", day: "numeric", month: "long" },
               )}
             </p>
-            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-neutral-900">
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl">
               {firstName ? t("welcomeBackName", { name: firstName }) : t("welcomeBack")}
             </h1>
             <p className="mt-1 text-sm text-neutral-500">
@@ -118,7 +122,7 @@ export default async function OwnerDashboard() {
             </p>
           </div>
         </div>
-      </section>
+      </RevealItem>
 
       {/* Telefoon: de handelingen die je in de zaal doet staan bovenaan, binnen
           duimbereik. Op desktop verbergt het blok zichzelf — daar staat de
@@ -133,16 +137,16 @@ export default async function OwnerDashboard() {
       {/* Snelkoppelingen: vaste actiebalk bovenaan i.p.v. verstopt onderin het
           configureerbare grid — de meest gebruikte acties zijn zo meteen bereikbaar.
           Op een telefoon is dit de tweede laag onder de vloer-acties. */}
-      <section className="hidden flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm sm:flex">
+      <RevealItem as="section" className="hidden flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm sm:flex">
         <h2 className="text-sm font-semibold text-neutral-900">
           {tw("quickActionsTitle")}
         </h2>
         <QuickActions />
-      </section>
+      </RevealItem>
 
       {maintenanceEnabled ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 
       <WidgetGrid nodes={nodes} initialLayout={layout} />
-    </div>
+    </Reveal>
   );
 }
