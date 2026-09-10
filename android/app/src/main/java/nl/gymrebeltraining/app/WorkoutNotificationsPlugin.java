@@ -25,6 +25,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
  * Lokale meldingen rond de actieve workout. Web-kant: lib/workout-notifications.ts.
  *
@@ -90,9 +92,17 @@ public class WorkoutNotificationsPlugin extends Plugin {
      * Statisch, want WorkoutActionReceiver moet dezelfde planning kunnen
      * vervangen en annuleren terwijl er geen plugin-instantie hoeft te bestaan
      * (de broadcast kan het proces koud opstarten).
+     *
+     * ATOMISCH, WANT ER SCHRIJVEN DRIE THREADS. Capacitor draait @PluginMethod
+     * op een eigen achtergrondthread (Bridge: HandlerThread "CapacitorPlugins"),
+     * terwijl de runnable hieronder en WorkoutActionReceiver op de main thread
+     * lopen. Met een gewoon veld is er geen happens-before tussen die threads:
+     * een `cancelRestDone` vanuit JS kon een net door de receiver gezette
+     * planning missen, waarna `removeCallbacks` niet gebeurde en de melding
+     * alsnog afging nadat het lid de timer had weggeklikt.
      */
     private static final Handler HANDLER = new Handler(Looper.getMainLooper());
-    private static Runnable pendingRestDone;
+    private static final AtomicReference<Runnable> PENDING_REST_DONE = new AtomicReference<>();
 
     /**
      * De levende plugin-instantie, of null als de WebView niet draait. Alleen
@@ -296,19 +306,20 @@ public class WorkoutNotificationsPlugin extends Plugin {
         Runnable task = new Runnable() {
             @Override
             public void run() {
-                pendingRestDone = null;
+                // Alleen tonen als dit nog de actuele planning is. Vangt ook de
+                // race waarin removeCallbacks net te laat komt doordat deze
+                // runnable al uit de queue was gehaald om te draaien.
+                if (!PENDING_REST_DONE.compareAndSet(this, null)) return;
                 postRestDone(app, fTitle, fBody, fUrl, fExtend, fDone);
             }
         };
-        pendingRestDone = task;
+        PENDING_REST_DONE.set(task);
         HANDLER.postDelayed(task, inMs);
     }
 
     static void cancelScheduledRestDone() {
-        if (pendingRestDone != null) {
-            HANDLER.removeCallbacks(pendingRestDone);
-            pendingRestDone = null;
-        }
+        Runnable previous = PENDING_REST_DONE.getAndSet(null);
+        if (previous != null) HANDLER.removeCallbacks(previous);
     }
 
     @PluginMethod

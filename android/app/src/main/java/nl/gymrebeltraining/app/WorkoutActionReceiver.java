@@ -25,6 +25,19 @@ import androidx.core.app.NotificationManagerCompat;
  * meteen opnieuw ingepland, en wát er gebeurde belandt in een wachtrij die de
  * web-kant uitleest zodra hij weer draait (WorkoutNotificationsPlugin.recordAction).
  * Zo loopt de timer in beeld nooit uit de pas met wat er op de pols is getikt.
+ *
+ * ## Bekende grens van "+30s"
+ *
+ * De verlenging wordt met Handler.postDelayed ingepland, dus ze komt alleen als
+ * het proces die 30 seconden haalt. Heeft een tik dit proces koud opgestart, dan
+ * mag Android het opruimen zodra onReceive klaar is en valt de melding weg. In de
+ * praktijk traint het lid op dat moment en staat de app nog in het geheugen.
+ *
+ * Het alternatief is AlarmManager, en dat lost het niet beter op: exacte alarmen
+ * vragen SCHEDULE_EXACT_ALARM (Play beoordeelt die permissie streng, en het
+ * manifest houdt de lijst bewust minimaal), terwijl een inexact alarm tot een
+ * kwartier mag schuiven en voor een rusttimer van 30 seconden dus zinloos is.
+ * Zelfde best-effort-afweging als de oorspronkelijke planning in de plugin.
  */
 public class WorkoutActionReceiver extends BroadcastReceiver {
 

@@ -34,6 +34,13 @@ type PersistedTimer = {
   running: boolean;
   visible: boolean;
   finished: boolean;
+  /**
+   * De meldingscontext (oefeningnaam). Moet mee: na een reload plant elke
+   * volgende actie (pauzeren/hervatten, "+30s" vanaf een horloge) de melding
+   * opnieuw, en zonder deze waarde valt die terug op de algemene tekst — precies
+   * de kale melding die de knoppen op je pols moesten vervangen.
+   */
+  context?: string;
 };
 
 /** Herstelde staat + of de countdown al afliep terwijl de timer niet in beeld was. */
@@ -171,10 +178,11 @@ export function useRestTimer(persistKey?: string): RestTimer {
     return restored.base;
   });
 
-  // Waar deze rust bij hoort ("Bench Press"), gezet door startRest. Op een
-  // smartwatch is dit het verschil tussen een bruikbare melding en een kale
-  // "Rust voorbij" waarvoor je alsnog je telefoon pakt.
-  const restContextRef = useRef("");
+  // Waar deze rust bij hoort ("Bench Press"), gezet door startRest en hersteld
+  // uit de persist-snapshot. Op een smartwatch is dit het verschil tussen een
+  // bruikbare melding en een kale "Rust voorbij" waarvoor je alsnog je telefoon
+  // pakt.
+  const restContextRef = useRef(restored?.context ?? "");
 
   // De vertaalfunctie in een ref, zodat notifText hieronder stabiel kan zijn.
   // Dat moet: notifText hangt via `finish` aan de 250ms-interval, en een
@@ -224,6 +232,7 @@ export function useRestTimer(persistKey?: string): RestTimer {
         running,
         visible,
         finished,
+        context: restContextRef.current,
       };
       window.localStorage.setItem(persistKey, JSON.stringify(snapshot));
     } catch {
@@ -302,6 +311,9 @@ export function useRestTimer(persistKey?: string): RestTimer {
   );
 
   const startStopwatch = useCallback(() => {
+    // Een stopwatch hoort bij geen enkele rust, dus de context van de vorige
+    // countdown mag niet blijven hangen in de persist-snapshot.
+    restContextRef.current = "";
     setKind("stopwatch");
     setDuration(0);
     baseRef.current = 0;
@@ -372,18 +384,21 @@ export function useRestTimer(persistKey?: string): RestTimer {
     void cancelRestDoneNotification();
   }, []);
 
-  // De laatste versie van de acties, zodat het effect hieronder zich één keer
-  // hoeft te registreren (het idioom van tRef hierboven: refs i.p.v. deps).
+  // De laatste versie van de acties + de zichtbaarheid, zodat het effect
+  // hieronder zich één keer hoeft te registreren (het idioom van tRef hierboven:
+  // refs i.p.v. deps).
   const addTimeRef = useRef(addTime);
   const dismissRef = useRef(dismiss);
+  const visibleRef = useRef(visible);
   useEffect(() => {
     addTimeRef.current = addTime;
     dismissRef.current = dismiss;
-  }, [addTime, dismiss]);
+    visibleRef.current = visible;
+  }, [addTime, dismiss, visible]);
 
   /**
-   * Speel de knoppen terug die op de melding zijn getikt, bijvoorbeeld vanaf
-   * een gekoppelde smartwatch. Die worden native afgehandeld terwijl de WebView
+   * Speel de knop terug die op de melding is getikt, bijvoorbeeld vanaf een
+   * gekoppelde smartwatch. Die wordt native afgehandeld terwijl de WebView
    * stilstaat, dus de timer in beeld weet er nog niets van.
    *
    * Drie momenten, omdat geen ervan op zichzelf betrouwbaar is: bij mount (de
@@ -391,24 +406,44 @@ export function useRestTimer(persistKey?: string): RestTimer {
    * zichtbaar worden (vangnet als het seintje een geThrottlede WebView niet
    * bereikte). De wachtrij wordt bij het lezen geleegd, dus meerdere bronnen
    * kunnen dezelfde actie nooit dubbel toepassen.
+   *
+   * Alle drie zijn nodig, want de platforms vullen de wachtrij op een ander
+   * moment. Op Android schrijft de BroadcastReceiver hem vóórdat de app start,
+   * dus dekt de mount-lezing het. Op iOS levert het systeem de actie pas ná het
+   * starten af, dus is daar juist het seintje het werkende pad.
+   *
+   * **Alleen de láátste actie telt.** De wachtrij is een log van tikken, maar
+   * native houdt precies één ingeplande melding bij en elke tik vervangt de
+   * vorige. Zou je ze allemaal toepassen, dan telt twee keer "+30s" hier 60
+   * seconden op terwijl de melding op 30 staat, en loopt de timer in beeld door
+   * nadat je horloge al getrild heeft.
    */
   useEffect(() => {
     let stopped = false;
 
     const applyPending = async () => {
       const actions = await consumeRestActions();
-      if (stopped) return;
-      for (const action of actions) {
-        if (action.type === "done") {
-          dismissRef.current();
-          continue;
-        }
-        // Native plande de verlenging vanaf het moment van de tik; sindsdien is
-        // er tijd verstreken. Alleen het restant toevoegen, anders loopt de
-        // timer in beeld vóór op de melding die al is ingepland.
-        const left = action.seconds - (Date.now() - action.at) / 1000;
-        if (left > 0) addTimeRef.current(left);
+      if (stopped || actions.length === 0) return;
+      // Geen timer in beeld (nooit gestart, of al weggeklikt): dan is er niets
+      // om mee te synchroniseren en zou toepassen alleen losse state opleveren.
+      // Wel de native planning opruimen: een "+30s" die vlak vóór het wegklikken
+      // is getikt heeft daar een melding klaarstaan, en die zou straks afgaan
+      // terwijl er helemaal geen rust meer loopt.
+      if (!visibleRef.current) {
+        void cancelRestDoneNotification();
+        return;
       }
+
+      const action = actions[actions.length - 1];
+      if (action.type === "done") {
+        dismissRef.current();
+        return;
+      }
+      // Native plande de verlenging vanaf het moment van de tik; sindsdien is
+      // er tijd verstreken. Alleen het restant toevoegen, anders loopt de timer
+      // in beeld vóór op de melding die al is ingepland.
+      const left = action.seconds - (Date.now() - action.at) / 1000;
+      if (left > 0) addTimeRef.current(left);
     };
 
     void applyPending();

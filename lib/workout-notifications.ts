@@ -147,9 +147,14 @@ export async function consumeRestActions(): Promise<RestAction[]> {
     const result = await workoutNotifications().consumePendingActions();
     const actions = result?.actions;
     if (!Array.isArray(actions)) return [];
+    // Streng valideren: de aanroeper rekent met deze getallen, en een ontbrekend
+    // veld zou stil NaN opleveren in plaats van een zichtbare fout.
     return actions.filter(
       (a): a is RestAction =>
-        !!a && (a.type === "extend" || a.type === "done") && typeof a.at === "number"
+        !!a &&
+        (a.type === "extend" || a.type === "done") &&
+        Number.isFinite(a.at) &&
+        Number.isFinite(a.seconds)
     );
   } catch {
     return [];

@@ -75,7 +75,7 @@ export function GroupGuidedBlock({
   onRetryStrength: (ex: ActiveExercise, setNumber: number) => void;
   onChangeDyn: (ex: ActiveExercise, rowIndex: number, fieldId: string, value: string) => void;
   onSaveDyn: (ex: ActiveExercise, rowIndex: number) => void;
-  onRequestRest: (seconds: number) => void;
+  onRequestRest: (seconds: number, context?: string) => void;
   onShowList: () => void;
   onSkip: (ex: ActiveExercise) => void;
   onAlt: (ex: ActiveExercise) => void;
@@ -182,7 +182,12 @@ export function GroupGuidedBlock({
     if (isStr) onCompleteStrength(stepEx, step.round);
     else onSaveDyn(stepEx, step.round - 1);
     if (lastOfRound && !openEnded && step.round < roundsLimit) {
-      onRequestRest(groupRest);
+      // Zelfde samenvatting als in de groepskop hierboven, zodat de melding op
+      // een smartwatch benoemt waar de rust bij hoort (los trainen doet dat met
+      // de oefeningnaam; zonder dit zou juist een superset kaal blijven).
+      // ?? undefined: zonder samenvatting valt de melding terug op de algemene
+      // tekst, net als een losse oefening zonder naam.
+      onRequestRest(groupRest, groupSummary(group) ?? undefined);
     } else if (!lastOfRound) {
       void haptic("light", 10);
     }

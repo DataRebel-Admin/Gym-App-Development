@@ -3062,7 +3062,28 @@ mee kón. **Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.**
   **bewust geen gegevens** en betekent alleen "consumeer nu" — zou het de actie
   meedragen, dan zou een luisteraar die daarna óók de wachtrij leest hem twee keer
   toepassen. `useRestTimer` consumeert op drie momenten (mount, event,
-  `visibilitychange`), want geen ervan is op zichzelf betrouwbaar.
+  `visibilitychange`); alle drie zijn nodig omdat de platforms de wachtrij op een
+  ánder moment vullen: Android schrijft hem vóórdat de app start (mount dekt het),
+  iOS levert de actie pas ná het starten af (daar is het event het werkende pad).
+- **ALLEEN DE LAATSTE ACTIE UIT DE WACHTRIJ WORDT TOEGEPAST.** De wachtrij is een
+  log van tikken, maar native houdt precies één ingeplande melding bij en elke tik
+  vervangt de vorige. Pas je ze allemaal toe, dan telt twee keer "+30s" web-side 60
+  seconden op terwijl de melding op 30 staat en loopt de timer door nadat het
+  horloge al getrild heeft. Staat er géén timer in beeld, dan wordt de actie
+  genegeerd én de native planning opgeruimd — anders gaat een "+30s" die vlak vóór
+  het wegklikken is getikt straks alsnog af zonder lopende rust.
+- **`Handler`-state in de plugin is atomair, want er schrijven drie threads.**
+  Capacitor draait `@PluginMethod` op een eigen achtergrondthread (Bridge:
+  `HandlerThread "CapacitorPlugins"`), terwijl de geplande runnable en
+  `WorkoutActionReceiver` op de main thread lopen. Met een gewoon veld is er geen
+  happens-before: een `cancelRestDone` vanuit JS kon een net door de receiver
+  gezette planning missen, waarna de melding alsnog afging nadat het lid de timer
+  had weggeklikt. Vandaar `AtomicReference` + een `compareAndSet` in de runnable
+  zelf, die meteen de race afvangt waarin `removeCallbacks` te laat komt.
+- **De meldingscontext zit in de persist-snapshot** (`PersistedTimer.context`).
+  Zonder dat verliest elke herplanning ná een reload de oefeningnaam en valt de
+  melding terug op de algemene tekst — precies de kale melding die de knoppen op
+  je pols moesten vervangen.
 - **Verlengen corrigeert voor de vertraging**: native plant vanaf het moment van
   de tik, de web-kant past het pas toe bij terugkeer. De actie draagt `at`, en de
   timer telt alleen het restant op — anders loopt de timer in beeld vóór op de
