@@ -22,6 +22,15 @@ import {
   decideEnroll,
   promotableCount,
   noShowCutoff,
+  resolveBookingRules,
+  enrollWindowState,
+  cancelWindowOpen,
+  countNoShows,
+  noShowBlocked,
+  waitlistPromotionOpen,
+  attendanceOpen,
+  MIN_REMIND_HOURS,
+  MAX_REMIND_HOURS,
   type EnrollmentStatusValue,
 } from "../lib/class-attendance";
 
@@ -89,17 +98,70 @@ test("aanmeldvenster sluit op de starttijd", () => {
   assert.equal(enrollmentWindowOpen({ startsAt }, new Date("2026-09-01T16:05:00Z")), false);
 });
 
+const OPEN_RULES = { maxBookingsPerWeek: null, noShowLimit: null };
+const enrollBase = {
+  existingStatus: null as EnrollmentStatusValue | null,
+  capacity: 2,
+  activeCount: 1,
+  window: "open" as const,
+  weekBookings: 0,
+  noShowStrikes: 0,
+  rules: OPEN_RULES,
+};
+
 test("decideEnroll: gesloten → closed; vol → wachtlijst; anders aangemeld; definitieve status blijft", () => {
-  const base = { existingStatus: null, capacity: 2, activeCount: 1, windowOpen: true };
+  const base = enrollBase;
   assert.equal(decideEnroll(base), "enrolled");
   assert.equal(decideEnroll({ ...base, activeCount: 2 }), "waitlisted");
-  assert.equal(decideEnroll({ ...base, windowOpen: false }), "closed");
+  assert.equal(decideEnroll({ ...base, window: "closed" }), "closed");
   assert.equal(decideEnroll({ ...base, existingStatus: "ENROLLED" }), "unchanged");
   assert.equal(decideEnroll({ ...base, existingStatus: "WAITLISTED" }), "unchanged");
   assert.equal(decideEnroll({ ...base, existingStatus: "NO_SHOW" }), "unchanged");
   assert.equal(decideEnroll({ ...base, existingStatus: "CANCELLED" }), "enrolled");
   // Her-inschrijven op een volle les → weer wachtlijst.
   assert.equal(decideEnroll({ ...base, existingStatus: "CANCELLED", activeCount: 2 }), "waitlisted");
+});
+
+test("decideEnroll: beleidsredenen gaan vóór wachtlijst, en de volgorde is verklarend", () => {
+  const base = enrollBase;
+  // Buiten de boekingshorizon: nog niet te boeken, geen wachtlijst.
+  assert.equal(decideEnroll({ ...base, window: "tooEarly", activeCount: 9 }), "tooEarly");
+  // Weeklimiet bereikt → limiet, niet "vol".
+  assert.equal(
+    decideEnroll({
+      ...base,
+      activeCount: 9,
+      weekBookings: 3,
+      rules: { ...OPEN_RULES, maxBookingsPerWeek: 3 },
+    }),
+    "weekLimit"
+  );
+  // No-show-blokkade wint van de weeklimiet (meest verklarende reden eerst).
+  assert.equal(
+    decideEnroll({
+      ...base,
+      weekBookings: 5,
+      noShowStrikes: 3,
+      rules: { maxBookingsPerWeek: 3, noShowLimit: 3 },
+    }),
+    "noShowBlock"
+  );
+  // Onder de limieten blijft alles gewoon werken.
+  assert.equal(
+    decideEnroll({
+      ...base,
+      weekBookings: 2,
+      noShowStrikes: 2,
+      rules: { maxBookingsPerWeek: 3, noShowLimit: 3 },
+    }),
+    "enrolled"
+  );
+  // Al aangemeld gaat vóór het beleid: geen verwarrende "geblokkeerd" op een
+  // aanmelding die gewoon al staat.
+  assert.equal(
+    decideEnroll({ ...base, existingStatus: "ENROLLED", noShowStrikes: 9, rules: { maxBookingsPerWeek: 1, noShowLimit: 1 } }),
+    "unchanged"
+  );
 });
 
 test("promotableCount: nooit negatief, begrensd op wachtlijst en vrije plekken", () => {
@@ -129,4 +191,106 @@ test("noShowCutoff is de grens die de cron en isNoShowEligible delen", () => {
   const now = new Date("2026-07-02T08:00:00Z");
   assert.equal(noShowCutoff(now).toISOString(), "2026-07-01T20:00:00.000Z");
   assert.equal(isNoShowEligible({ status: "ENROLLED" }, { endsAt: noShowCutoff(now) }, now), true);
+});
+
+// ── Boekingsregels ──────────────────────────────────────────────────────────
+
+const TENANT_DEFAULTS = {
+  classCancelDeadlineMinutes: 120,
+  classBookingOpensDays: 14,
+  classMaxBookingsPerWeek: 4,
+  classNoShowLimit: 3,
+  classRemindHoursBefore: 14,
+};
+
+test("resolveBookingRules: lestype-override wint, anders de sportschool-standaard", () => {
+  assert.deepEqual(resolveBookingRules(null, TENANT_DEFAULTS), {
+    cancelDeadlineMinutes: 120,
+    bookingOpensDays: 14,
+    maxBookingsPerWeek: 4,
+    noShowLimit: 3,
+    remindHoursBefore: 14,
+  });
+  const overridden = resolveBookingRules(
+    {
+      cancelDeadlineMinutes: 0,
+      bookingOpensDays: 30,
+      maxBookingsPerWeek: 1,
+      remindHoursBefore: 2,
+    },
+    TENANT_DEFAULTS
+  );
+  assert.equal(overridden.cancelDeadlineMinutes, 0);
+  assert.equal(overridden.bookingOpensDays, 30);
+  assert.equal(overridden.maxBookingsPerWeek, 1);
+  assert.equal(overridden.remindHoursBefore, 2);
+  // Het no-show-beleid is sportschool-breed: geen override per lestype.
+  assert.equal(overridden.noShowLimit, 3);
+});
+
+test("resolveBookingRules: een leeggemaakte limiet betekent 'uit', niet 'nul toegestaan'", () => {
+  const rules = resolveBookingRules(
+    { cancelDeadlineMinutes: null, bookingOpensDays: null, maxBookingsPerWeek: 0, remindHoursBefore: null },
+    { ...TENANT_DEFAULTS, classMaxBookingsPerWeek: 0, classNoShowLimit: 0 }
+  );
+  assert.equal(rules.maxBookingsPerWeek, null);
+  assert.equal(rules.noShowLimit, null);
+  // En de herinnering blijft binnen de grenzen die de cron aankan.
+  assert.equal(
+    resolveBookingRules(null, { ...TENANT_DEFAULTS, classRemindHoursBefore: 999 }).remindHoursBefore,
+    MAX_REMIND_HOURS
+  );
+  assert.equal(
+    resolveBookingRules(null, { ...TENANT_DEFAULTS, classRemindHoursBefore: 0 }).remindHoursBefore,
+    MIN_REMIND_HOURS
+  );
+});
+
+test("enrollWindowState: te vroeg buiten de horizon, gesloten vanaf de start", () => {
+  const now = new Date("2026-09-01T10:00:00Z");
+  const rules = { bookingOpensDays: 14 };
+  const inTenDays = { startsAt: new Date("2026-09-11T10:00:00Z") };
+  const inTwentyDays = { startsAt: new Date("2026-09-21T10:00:00Z") };
+  assert.equal(enrollWindowState(inTenDays, now, rules), "open");
+  assert.equal(enrollWindowState(inTwentyDays, now, rules), "tooEarly");
+  assert.equal(enrollWindowState({ startsAt: now }, now, rules), "closed");
+});
+
+test("cancelWindowOpen: afmelden stopt bij de deadline, niet pas bij de start", () => {
+  const startsAt = new Date("2026-09-01T18:00:00Z");
+  const rules = { cancelDeadlineMinutes: 120 };
+  assert.equal(cancelWindowOpen({ startsAt }, new Date("2026-09-01T15:59:00Z"), rules), true);
+  assert.equal(cancelWindowOpen({ startsAt }, new Date("2026-09-01T16:00:00Z"), rules), false);
+  assert.equal(cancelWindowOpen({ startsAt }, new Date("2026-09-01T17:30:00Z"), rules), false);
+  // Zonder deadline geldt de oude regel: tot de start.
+  const none = { cancelDeadlineMinutes: 0 };
+  assert.equal(cancelWindowOpen({ startsAt }, new Date("2026-09-01T17:59:00Z"), none), true);
+  assert.equal(cancelWindowOpen({ startsAt }, startsAt, none), false);
+});
+
+test("no-show-teller kijkt terug over het venster; zonder limiet blokkeert niets", () => {
+  const now = new Date("2026-09-30T12:00:00Z");
+  const recent = [
+    new Date("2026-09-29T18:00:00Z"),
+    new Date("2026-09-10T18:00:00Z"),
+    new Date("2026-08-01T18:00:00Z"), // buiten de 30 dagen
+  ];
+  assert.equal(countNoShows(recent, now), 2);
+  assert.equal(noShowBlocked(2, 3), false);
+  assert.equal(noShowBlocked(3, 3), true);
+  assert.equal(noShowBlocked(99, null), false);
+});
+
+test("wachtlijst promoveert niet meer vlak vóór de start", () => {
+  const startsAt = new Date("2026-09-01T18:00:00Z");
+  assert.equal(waitlistPromotionOpen({ startsAt }, new Date("2026-09-01T16:00:00Z")), true);
+  assert.equal(waitlistPromotionOpen({ startsAt }, new Date("2026-09-01T17:00:00Z")), false);
+  assert.equal(waitlistPromotionOpen({ startsAt }, new Date("2026-09-01T17:45:00Z")), false);
+});
+
+test("aanwezigheid afvinken kan al vlak vóór de start", () => {
+  const startsAt = new Date("2026-09-01T18:00:00Z");
+  assert.equal(attendanceOpen({ startsAt }, new Date("2026-09-01T17:30:00Z")), false);
+  assert.equal(attendanceOpen({ startsAt }, new Date("2026-09-01T17:45:00Z")), true);
+  assert.equal(attendanceOpen({ startsAt }, new Date("2026-09-01T19:00:00Z")), true);
 });

@@ -85,12 +85,24 @@ export function dateToZonedInput(date: Date, timeZone: string): string {
   return `${z.year}-${pad(z.month)}-${pad(z.day)}T${pad(z.hour)}:${pad(z.minute)}`;
 }
 
-/** Zelfde klokmoment `weeks` weken later (DST-veilig: via de klok, niet via ms). */
-export function addWeeksZoned(date: Date, weeks: number, timeZone: string): Date {
+/** Zelfde klokmoment `days` dagen later (DST-veilig: via de klok, niet via ms). */
+export function addDaysZoned(date: Date, days: number, timeZone: string): Date {
   const z = zonedParts(date, timeZone);
-  const wall = Date.UTC(z.year, z.month - 1, z.day + weeks * 7, z.hour, z.minute, z.second);
+  const wall = Date.UTC(z.year, z.month - 1, z.day + days, z.hour, z.minute, z.second);
   const guess = wall - tzOffsetMs(new Date(wall), timeZone);
   return new Date(wall - tzOffsetMs(new Date(guess), timeZone));
+}
+
+/** Zelfde klokmoment `weeks` weken later (DST-veilig: via de klok, niet via ms). */
+export function addWeeksZoned(date: Date, weeks: number, timeZone: string): Date {
+  return addDaysZoned(date, weeks * 7, timeZone);
+}
+
+/** ISO-weekdag (1 = maandag … 7 = zondag) van `date` op de klok van `timeZone`. */
+export function isoWeekdayInTz(date: Date, timeZone: string): number {
+  const z = zonedParts(date, timeZone);
+  const dow = new Date(Date.UTC(z.year, z.month - 1, z.day)).getUTCDay();
+  return dow === 0 ? 7 : dow;
 }
 
 /**

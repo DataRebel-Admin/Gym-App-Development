@@ -43,30 +43,182 @@ export function canReenroll(status: EnrollmentStatusValue): boolean {
 }
 
 /**
- * Tijdvenster: aan- en afmelden kan tot de **start** van de les. Erna is de
- * aanmelding definitief (anders "poetst" een lid een no-show weg door vlak na
- * aanvang af te melden) en heeft aanmelden geen zin meer. Eén regel voor
- * beide richtingen; wijzig 'm hier, nooit ad hoc in een action.
+ * Harde ondergrens: een les die begonnen is neemt geen aanmeldingen meer aan
+ * en een aanmelding is dan definitief (anders "poetst" een lid een no-show weg
+ * door vlak na aanvang af te melden). De sportschool kan er met
+ * `BookingRules` strengere grenzen bovenop leggen; dit blijft het vangnet.
  */
 export function enrollmentWindowOpen(session: { startsAt: Date }, now: Date): boolean {
   return session.startsAt.getTime() > now.getTime();
+}
+
+// ── Boekingsregels ──────────────────────────────────────────────────────────
+// Per sportschool instelbaar (Tenant.class*) en per lestype te overschrijven
+// (GroupClass.*). NULL op het lestype = volg de sportschool. Deze regels zijn
+// puur en worden zowel door de UI (knop tonen/uitleggen) als door de
+// server-action (autoritatief) gebruikt — nooit één van de twee alleen.
+
+export type BookingRules = {
+  /** Minuten vóór de start waarin afmelden niet meer kan (0 = tot de start). */
+  cancelDeadlineMinutes: number;
+  /** Hoeveel dagen vooruit een lid mag boeken. */
+  bookingOpensDays: number;
+  /** Maximaal aantal aanmeldingen per kalenderweek (null = onbeperkt). */
+  maxBookingsPerWeek: number | null;
+  /** No-shows binnen het venster waarna boeken blokkeert (null = geen beleid). */
+  noShowLimit: number | null;
+  /** Uren vóór de start waarop de herinnering uitgaat. */
+  remindHoursBefore: number;
+};
+
+/** Sportschool-standaard (Tenant) + de override van het lestype (GroupClass). */
+export type BookingRuleDefaults = {
+  classCancelDeadlineMinutes: number;
+  classBookingOpensDays: number;
+  classMaxBookingsPerWeek: number | null;
+  classNoShowLimit: number | null;
+  classRemindHoursBefore: number;
+};
+
+export type BookingRuleOverrides = {
+  cancelDeadlineMinutes: number | null;
+  bookingOpensDays: number | null;
+  maxBookingsPerWeek: number | null;
+  remindHoursBefore: number | null;
+};
+
+/**
+ * Dé resolutie van de boekingsregels: lestype-override wint van de
+ * sportschool-standaard. Nooit ad hoc een `?? tenant.x` in een action
+ * schrijven — dan lopen UI en server uiteen.
+ *
+ * `maxBookingsPerWeek` en `noShowLimit` behandelen 0 als "uit": een limiet van
+ * nul zou élke aanmelding blokkeren, wat niemand bedoelt als hij het veld
+ * leegmaakt.
+ */
+export function resolveBookingRules(
+  groupClass: BookingRuleOverrides | null | undefined,
+  tenant: BookingRuleDefaults
+): BookingRules {
+  const weekly = groupClass?.maxBookingsPerWeek ?? tenant.classMaxBookingsPerWeek;
+  return {
+    cancelDeadlineMinutes: Math.max(
+      0,
+      groupClass?.cancelDeadlineMinutes ?? tenant.classCancelDeadlineMinutes
+    ),
+    bookingOpensDays: Math.max(
+      1,
+      groupClass?.bookingOpensDays ?? tenant.classBookingOpensDays
+    ),
+    maxBookingsPerWeek: weekly && weekly > 0 ? weekly : null,
+    noShowLimit:
+      tenant.classNoShowLimit && tenant.classNoShowLimit > 0 ? tenant.classNoShowLimit : null,
+    remindHoursBefore: clampReminderHours(
+      groupClass?.remindHoursBefore ?? tenant.classRemindHoursBefore
+    ),
+  };
+}
+
+/** Grenzen aan de herinnering-voorsprong (de cron kijkt niet verder vooruit). */
+export const MIN_REMIND_HOURS = 1;
+export const MAX_REMIND_HOURS = 72;
+
+export function clampReminderHours(hours: number): number {
+  if (!Number.isFinite(hours)) return MIN_REMIND_HOURS;
+  return Math.min(MAX_REMIND_HOURS, Math.max(MIN_REMIND_HOURS, Math.round(hours)));
+}
+
+/** Staat het aanmeldvenster open, is het nog te vroeg, of is het gesloten? */
+export type EnrollWindow = "open" | "tooEarly" | "closed";
+
+export function enrollWindowState(
+  session: { startsAt: Date },
+  now: Date,
+  rules: Pick<BookingRules, "bookingOpensDays">
+): EnrollWindow {
+  if (!enrollmentWindowOpen(session, now)) return "closed";
+  const horizon = now.getTime() + rules.bookingOpensDays * 24 * 3_600_000;
+  return session.startsAt.getTime() > horizon ? "tooEarly" : "open";
+}
+
+/**
+ * Mag het lid zich nu nog afmelden? Tot `cancelDeadlineMinutes` vóór de start.
+ * De deadline bestaat zodat de wachtlijst nog kán doorschuiven: afmelden op
+ * het laatste moment laat de plek gegarandeerd leeg.
+ */
+export function cancelWindowOpen(
+  session: { startsAt: Date },
+  now: Date,
+  rules: Pick<BookingRules, "cancelDeadlineMinutes">
+): boolean {
+  const deadline = session.startsAt.getTime() - rules.cancelDeadlineMinutes * 60_000;
+  return now.getTime() < deadline;
+}
+
+// ── No-show-beleid ──────────────────────────────────────────────────────────
+
+/** Terugkijkvenster voor de no-show-teller (vast; alleen de limiet is instelbaar). */
+export const NO_SHOW_WINDOW_DAYS = 30;
+
+/**
+ * Aantal no-shows binnen het venster. Puur, zodat zowel het ledenprofiel (de
+ * coach ziet de teller) als de aanmeldactie (blokkade) dezelfde uitkomst
+ * gebruiken. `rows` = de sessie-eindtijden van NO_SHOW-aanmeldingen.
+ */
+export function countNoShows(
+  endedAtValues: readonly Date[],
+  now: Date,
+  windowDays: number = NO_SHOW_WINDOW_DAYS
+): number {
+  const cutoff = now.getTime() - windowDays * 24 * 3_600_000;
+  return endedAtValues.filter((d) => d.getTime() >= cutoff).length;
+}
+
+/** Blokkeert het no-show-beleid deze aanmelding? Zonder limiet nooit. */
+export function noShowBlocked(strikes: number, limit: number | null): boolean {
+  return limit !== null && strikes >= limit;
 }
 
 /**
  * Uitkomst van een aanmeldpoging (pure beslissing; de server-action voert 'm
  * in een Serializable-transactie uit). `activeCount` = aantal plek-bezettende
  * aanmeldingen (ACTIVE_ENROLLMENT_STATUSES).
+ *
+ * Volgorde is bewust: eerst de harde poorten (venster, al aangemeld), dan het
+ * beleid (no-show, weeklimiet), dan pas plek-of-wachtlijst. Zo krijgt het lid
+ * de meest verklarende reden te zien, niet "wachtlijst" terwijl hij eigenlijk
+ * geblokkeerd is.
  */
-export type EnrollDecision = "enrolled" | "waitlisted" | "closed" | "unchanged";
+export type EnrollDecision =
+  | "enrolled"
+  | "waitlisted"
+  | "closed"
+  | "unchanged"
+  | "tooEarly"
+  | "weekLimit"
+  | "noShowBlock";
 
 export function decideEnroll(input: {
   existingStatus: EnrollmentStatusValue | null;
   capacity: number;
   activeCount: number;
-  windowOpen: boolean;
+  window: EnrollWindow;
+  /** Actieve aanmeldingen van dit lid in dezelfde kalenderweek (deze niet meegeteld). */
+  weekBookings: number;
+  /** No-shows binnen het venster (zie [[countNoShows]]). */
+  noShowStrikes: number;
+  rules: Pick<BookingRules, "maxBookingsPerWeek" | "noShowLimit">;
 }): EnrollDecision {
-  if (!input.windowOpen) return "closed";
+  if (input.window === "closed") return "closed";
+  if (input.window === "tooEarly") return "tooEarly";
   if (input.existingStatus && !canReenroll(input.existingStatus)) return "unchanged";
+  if (noShowBlocked(input.noShowStrikes, input.rules.noShowLimit)) return "noShowBlock";
+  if (
+    input.rules.maxBookingsPerWeek !== null &&
+    input.weekBookings >= input.rules.maxBookingsPerWeek
+  ) {
+    return "weekLimit";
+  }
   if (input.activeCount < input.capacity) return "enrolled";
   return "waitlisted";
 }
@@ -83,6 +235,37 @@ export function promotableCount(input: {
   waitlistCount: number;
 }): number {
   return Math.max(0, Math.min(input.capacity - input.activeCount, input.waitlistCount));
+}
+
+/**
+ * Vlak vóór de start heeft doorschuiven geen zin meer: wie thuis zit ziet de
+ * melding niet, maar de plek staat dan wél als bezet geboekt en niemand die er
+ * wél is kan hem nog pakken. Binnen dit venster promoveren we dus niemand meer
+ * en blijft de plek gewoon vrij.
+ */
+export const WAITLIST_PROMOTION_CUTOFF_MINUTES = 60;
+
+export function waitlistPromotionOpen(
+  session: { startsAt: Date },
+  now: Date,
+  cutoffMinutes: number = WAITLIST_PROMOTION_CUTOFF_MINUTES
+): boolean {
+  return session.startsAt.getTime() - now.getTime() > cutoffMinutes * 60_000;
+}
+
+/**
+ * Vanaf wanneer staff aanwezigheid mag afvinken. In de praktijk vink je af
+ * terwijl mensen binnenlopen, dus een kwartier vóór de start — niet pas ná
+ * afloop, zoals de UI eerder deed.
+ */
+export const ATTENDANCE_LEAD_MINUTES = 15;
+
+export function attendanceOpen(
+  session: { startsAt: Date },
+  now: Date,
+  leadMinutes: number = ATTENDANCE_LEAD_MINUTES
+): boolean {
+  return now.getTime() >= session.startsAt.getTime() - leadMinutes * 60_000;
 }
 
 /**

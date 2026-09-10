@@ -181,6 +181,22 @@ model Tenant {
   // Lesrooster/aanmelden voor lessen aan of uit voor deze sportschool. Default aan;
   // uitzetten verbergt alle les-UI (nav/pagina's) en blokkeert in-/uitschrijven.
   classesEnabled Boolean   @default(true)
+  // --- Boekingsregels voor groepslessen (sportschool-standaard) ---
+  // Elk lestype mag ze overschrijven (`GroupClass.*`); de resolutie zit in
+  // `resolveBookingRules` (lib/class-attendance.ts). De defaults hieronder
+  // houden het bestaande gedrag: afmelden tot de start, ruime horizon, geen
+  // limiet, geen no-show-beleid.
+  // Minuten vóór de start waarin afmelden niet meer kan (0 = tot de start).
+  classCancelDeadlineMinutes Int @default(0)
+  // Hoeveel dagen vooruit een lid mag boeken.
+  classBookingOpensDays      Int @default(60)
+  // Maximaal aantal aanmeldingen per kalenderweek per lid (NULL = onbeperkt).
+  classMaxBookingsPerWeek    Int?
+  // Aantal no-shows binnen NO_SHOW_WINDOW_DAYS waarna boeken blokkeert
+  // (NULL = geen beleid; het lid ziet de teller wél als waarschuwing).
+  classNoShowLimit           Int?
+  // Hoeveel uur vóór de start de herinnering uitgaat (cron draait per uur).
+  classRemindHoursBefore     Int @default(14)
   // Na hoeveel dagen een open defectmelding als achterstand terugkeert in de
   // dagelijkse samenvatting (instelbaar per sportschool, /owner/settings).
   defectReminderDays Int   @default(7)
@@ -547,12 +563,30 @@ model GroupClass {
   description     String?
   instructorName  String?
   maxParticipants Int      @default(12)
+  // Omslagfoto van het lestype. NULL = terugval op het sportschoollogo, dan een
+  // accent-vlak (zelfde 3-lagen-idee als lib/schema-image.ts).
+  imageUrl        String?
+  // Standaard-instructeur (teamlid). De sessie kan hem overschrijven — een
+  // vervanger is per sessie, niet per lestype. NULL = alleen `instructorName`
+  // (vrije tekst) of niets.
+  defaultInstructorId String?
+  // Boekingsregels: NULL = volg de sportschool-standaard op Tenant.
+  // Resolutie in `resolveBookingRules` (lib/class-attendance.ts).
+  cancelDeadlineMinutes Int?
+  bookingOpensDays      Int?
+  maxBookingsPerWeek    Int?
+  remindHoursBefore     Int?
+  // Gearchiveerd lestype: niet meer te plannen/boeken, maar sessies +
+  // aanwezigheidshistorie blijven bestaan (precedent Location/Exercise).
+  archivedAt      DateTime?
   createdAt       DateTime @default(now())
 
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessions ClassSession[]
+  defaultInstructor User?  @relation("ClassDefaultInstructor", fields: [defaultInstructorId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@index([defaultInstructorId])
 }
 
 model ClassSession {
@@ -574,17 +608,24 @@ model ClassSession {
   // Niet boekbaar, geen herinneringen/no-shows, wachtlijst promoot er niet in.
   // NULL = gaat gewoon door; herstellen = terug naar NULL.
   cancelledAt DateTime?
+  // Wie deze les geeft. Staat op de SESSIE (niet op GroupClass) omdat een
+  // vervanger per sessie geregeld wordt; NULL = de standaard-instructeur van
+  // het lestype, anders de vrije tekst `GroupClass.instructorName`.
+  instructorId String?
   createdAt  DateTime @default(now())
 
   tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   groupClass    GroupClass        @relation(fields: [classId], references: [id], onDelete: Cascade)
   venueLocation Location          @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  instructor    User?             @relation("ClassSessionInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
   enrollments   ClassEnrollment[]
 
   @@index([tenantId, startsAt])
   @@index([tenantId, locationId, startsAt])
   @@index([classId])
   @@index([seriesId])
+  // "Mijn lessen" voor een instructeur (staff-dashboard).
+  @@index([tenantId, instructorId, startsAt])
 }
 
 model ClassEnrollment {
@@ -697,6 +738,8 @@ model User {
   earnedAchievements EarnedAchievement[]
   maintenanceRecords MaintenanceRecord[] @relation("MaintenancePerformer") // onderhoud uitgevoerd door deze gebruiker
   machineScans       MachineScan[] // door dit lid gescande apparaat-QR's
+  instructedSessions  ClassSession[] @relation("ClassSessionInstructor") // lessen die dit teamlid geeft
+  defaultInstructorFor GroupClass[]  @relation("ClassDefaultInstructor") // lestypes met dit teamlid als vaste instructeur
   reportedDefects     EquipmentDefect[] @relation("DefectReporter") // gemelde apparaatdefecten (niet-anoniem)
   assignedDefects     EquipmentDefect[] @relation("DefectAssignee") // aan deze medewerker toegewezen defecten
   resolvedDefects     EquipmentDefect[] @relation("DefectResolver") // door deze medewerker opgeloste defecten
