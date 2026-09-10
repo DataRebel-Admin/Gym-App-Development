@@ -155,9 +155,18 @@ Opgelost
 1. `npm run version:bump` (en `version` ophogen in `app-version.json` als er
    nieuwe functionaliteit in zit)
 2. `CAPACITOR_SERVER_URL` controleren: moet productie zijn, geen tunnel
-3. `npm run android:bundle` (doet zelf `cap sync` en `:app:bundleRelease`, kiest
+3. **Controleren dat de web-kant live staat**: `git rev-list --count origin/main..HEAD`
+   moet 0 zijn en de laatste deploy moet klaar zijn. De app laadt de productiesite,
+   dus een nieuwe plugin in de AAB doet niets zolang de webcode die hem aanroept
+   niet gedeployed is. Bij build 6 stonden de commits met de agenda-sync en de
+   horlogebediening wél lokaal maar nog niet op `origin`.
+4. `npm run android:bundle` (doet zelf `cap sync` en `:app:bundleRelease`, kiest
    een JDK die Gradle aankan en ruimt door OneDrive vergrendelde build-mappen op;
    `npm run android:apk` levert een APK om zelf op een toestel te zetten)
-4. `docs/TESTPLAN.md` aflopen op een fysiek toestel
-5. Uploaden, releasenaam en opmerkingen invullen volgens dit document
-6. `app-version.json` committen samen met de gewijzigde native bestanden
+5. Handtekening controleren: `keytool -printcert -jarfile app-release.aab` moet de
+   SHA-256 uit `ANDROID_CERT_FINGERPRINTS` tonen, en niet "Android Debug"
+6. `docs/TESTPLAN.md` aflopen op een fysiek toestel
+7. Uploaden, releasenaam en opmerkingen invullen volgens dit document
+8. `app-version.json` committen samen met de gewijzigde native bestanden
+9. Nieuwe permissie in het manifest? Dan ook `/privacy` en het Data
+   safety-formulier nalopen (zie `METADATA.md`)

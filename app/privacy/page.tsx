@@ -74,6 +74,15 @@ export default function PrivacyPage() {
             gelogde sets, gewichten, herhalingen, tijden en afstanden.
           </li>
           <li>
+            <strong>Agenda op je toestel:</strong> alleen in de Android-app, en
+            pas als je daar zelf voor kiest, zetten we je trainingen, lessen en
+            geplande dagen in een agenda op je telefoon die jij aanwijst. Daarvoor
+            vraagt de app toestemming om je agenda te lezen en te schrijven. We
+            lezen alleen de lijst met agenda&apos;s en onze eigen afspraken, om die
+            bij te werken of op te ruimen; niets uit je agenda wordt naar ons
+            verstuurd. Ontkoppel je, dan halen we onze afspraken weer weg.
+          </li>
+          <li>
             <strong>Voortgang:</strong> metingen en doelen die jij of je coach
             vastlegt, plus behaalde trofeeën.
           </li>

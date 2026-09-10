@@ -127,6 +127,10 @@ Vul per run de kolommen in en bewaar het resultaat bij de release.
 | 5.11 | Kanaal "Trofeeën" uitzetten in het systeem | Trofee-meldingen blijven weg, schema-meldingen komen nog binnen | ☐ |
 | 5.12 | Trofee versus defectmelding | Trofee komt stil binnen, apparaatmelding met geluid en pop-up | ☐ |
 | 5.13 | **Uitloggen, dan een melding laten sturen** | Er komt **niets** binnen op dit toestel | ☐ |
+| 5.14 | Rusttimer laten aflopen met de app op de achtergrond (Android) | Melding "rust voorbij" met de knoppen **+30s** en **Klaar** | ☐ |
+| 5.15 | Op een gekoppeld horloge **+30s** tikken | Rust loopt 30 seconden door, de telefoon blijft vergrendeld | ☐ |
+| 5.16 | Twee keer snel achter elkaar **+30s** | Precies 60 seconden erbij, niet dubbel geteld | ☐ |
+| 5.17 | Op het horloge **Klaar** tikken | Melding verdwijnt; terug in de app loopt de timer niet opnieuw | ☐ |
 
 > 5.13 is een privacytest, geen functionele. Zonder het intrekken van het token
 > zou iemand die je telefoon leent op het vergrendelscherm meelezen dat jouw coach
@@ -150,6 +154,25 @@ Vul per run de kolommen in en bewaar het resultaat bij de release.
 > 2. **Zet de app op de achtergrond** vóór je een melding stuurt. Staat hij op de
 >    voorgrond, dan onderdrukt Android de systeemmelding en zie je alleen de
 >    in-app-melding.
+
+## 5b. Agenda op het toestel (alleen Android)
+
+Nieuw in build 6: de app schrijft trainingen, lessen en geplande dagen rechtstreeks
+in een agenda op het toestel (`CalendarSyncPlugin.java`). Het is een kopie van
+events, geen abonnement.
+
+| # | Stap | Verwacht | OK |
+|---|---|---|---|
+| 5b.1 | `/member/agenda/koppelen` openen in de app | Kaart voor de agenda op dit toestel is zichtbaar (in de browser niet) | ☐ |
+| 5b.2 | Op **Koppelen** tikken, eerste keer | Systeem vraagt agenda-toestemming, pas nu en niet bij de eerste start | ☐ |
+| 5b.3 | Toestemming weigeren | Nette uitleg, geen crash | ☐ |
+| 5b.4 | Toestemming geven en een agenda kiezen, bv. je Google-agenda | Trainingen, lessen en geplande dagen verschijnen in die agenda | ☐ |
+| 5b.5 | Nog een keer synchroniseren | Geen dubbele events | ☐ |
+| 5b.6 | Loskoppelen | Alle GymRebel-events verdwijnen, je eigen afspraken blijven staan | ☐ |
+
+> Werkt pas nadat de web-kant gedeployed is: de app laadt de productiesite, en de
+> kaart en de synchronisatie staan in de webcode (`lib/calendar-device-sync.ts`).
+> Test 5b dus niet tegen een oudere productieversie.
 
 ## 6. Netwerk en randgevallen (webview-beperkingen)
 
