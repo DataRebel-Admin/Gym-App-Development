@@ -14,6 +14,7 @@ import {
 import {
   MEMBER_DAY_TEMPLATES,
   dayTemplateSlugs,
+  dayTemplateItemGroup,
   getMemberDayTemplate,
 } from "../lib/member-day-templates";
 import { TRAINING_GOALS } from "../lib/training-goals";
@@ -65,6 +66,75 @@ test("dag-templates: items hebben bruikbare sets/reps/rust", () => {
       );
     }
   }
+});
+
+test("dag-templates: niveau is een bekende waarde", () => {
+  for (const t of MEMBER_DAY_TEMPLATES) {
+    if (t.level === undefined) continue;
+    assert.ok(
+      ["beginner", "intermediate", "advanced"].includes(t.level),
+      `${t.key}: onbekend niveau ${t.level}`
+    );
+  }
+});
+
+test("dag-templates: geen gedachtestreepjes in zichtbare tekst", () => {
+  // Huisstijl: zichtbare app-tekst gebruikt komma, dubbele punt of punt.
+  const dash = /[—–]/;
+  for (const t of MEMBER_DAY_TEMPLATES) {
+    assert.ok(!dash.test(t.name), `${t.key}: streepje in naam`);
+    assert.ok(!dash.test(t.description), `${t.key}: streepje in omschrijving`);
+    for (const it of t.items) {
+      assert.ok(!dash.test(it.notes ?? ""), `${t.key}/${it.slug}: streepje in notitie`);
+    }
+  }
+});
+
+test("dag-templates: tijd staat in seconden, nooit in minuten", () => {
+  // `parseTemplateReps` pakt het leidende getal als doelaantal herhalingen, dus
+  // "4min" zou als 4 herhalingen in het schema van het lid landen.
+  for (const t of MEMBER_DAY_TEMPLATES) {
+    for (const it of t.items) {
+      assert.ok(!/min/i.test(it.reps), `${t.key}/${it.slug}: reps "${it.reps}" in minuten`);
+    }
+  }
+});
+
+test("dag-templates: groepen verwijzen naar elkaar en tellen minstens twee leden", () => {
+  for (const t of MEMBER_DAY_TEMPLATES) {
+    const used = new Set(t.items.map((i) => i.group).filter(Boolean) as string[]);
+    for (const key of used) {
+      assert.ok(t.groups?.[key], `${t.key}: item verwijst naar onbekende groep ${key}`);
+      const members = t.items.filter((i) => i.group === key);
+      assert.ok(members.length >= 2, `${t.key}: groep ${key} heeft ${members.length} lid`);
+      // Groepsleden moeten aaneengesloten staan: de app leidt een groep af uit
+      // opeenvolgende items met dezelfde groupId (lib/exercise-groups.ts).
+      const idx = t.items.map((i, n) => (i.group === key ? n : -1)).filter((n) => n >= 0);
+      assert.deepEqual(
+        idx,
+        Array.from({ length: idx.length }, (_, n) => idx[0] + n),
+        `${t.key}: groep ${key} staat niet aaneengesloten`
+      );
+    }
+    for (const key of Object.keys(t.groups ?? {})) {
+      assert.ok(used.has(key), `${t.key}: groep ${key} wordt door geen item gebruikt`);
+    }
+  }
+});
+
+test("dayTemplateItemGroup levert de groep alleen bij een echte groep", () => {
+  const cindy = getMemberDayTemplate("cindy-amrap-20");
+  assert.ok(cindy);
+  const warmup = cindy.items.find((i) => !i.group);
+  assert.ok(warmup);
+  assert.equal(dayTemplateItemGroup(cindy, warmup), null);
+  const wod = cindy.items.find((i) => i.group === "wod");
+  assert.ok(wod);
+  assert.equal(dayTemplateItemGroup(cindy, wod)?.type, "amrap");
+  // Eenling in een groep telt niet als groep (self-healing, zoals de editor).
+  const solo = { slug: "plank", sets: 1, reps: "30s", restSeconds: 0, group: "solo" };
+  const fake = { ...cindy, items: [...cindy.items, solo], groups: { ...cindy.groups } };
+  assert.equal(dayTemplateItemGroup(fake, solo), null);
 });
 
 test("dayTemplateSlugs ontdubbelt en getMemberDayTemplate vindt op key", () => {

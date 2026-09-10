@@ -43,7 +43,11 @@ import {
   ensureLibraryExercises,
   countNewLibraryExercises,
 } from "@/lib/library-exercise-sync";
-import { getMemberDayTemplate, dayTemplateSlugs } from "@/lib/member-day-templates";
+import {
+  getMemberDayTemplate,
+  dayTemplateSlugs,
+  dayTemplateItemGroup,
+} from "@/lib/member-day-templates";
 import {
   notifyMemberSchemaSubmitted,
   emailCoachesSchemaSubmitted,
@@ -108,6 +112,15 @@ type SpecDay = {
     reps: number;
     restSeconds: number;
     notes: string | null;
+    // Groep-velden (superset/circuit/AMRAP) — alleen gevuld vanuit een
+    // gecureerd dag-template; RepDB-bundeldagen kennen geen groepen.
+    groupId?: string | null;
+    groupType?: string | null;
+    groupOrder?: number;
+    groupRounds?: number | null;
+    groupRestSeconds?: number | null;
+    groupLabel?: string | null;
+    groupTimeCapSeconds?: number | null;
   }[];
 };
 
@@ -142,6 +155,8 @@ function specFromDayTemplate(
   def: NonNullable<ReturnType<typeof getMemberDayTemplate>>,
   bySlug: Map<string, string>
 ): SpecDay {
+  // Teller per groep: `groupOrder` is de plek bínnen de groep (A1, B1, B2, ...).
+  const groupSeen = new Map<string, number>();
   return {
     name: def.name,
     items: def.items.flatMap((e, order) => {
@@ -149,6 +164,24 @@ function specFromDayTemplate(
       if (!exerciseId) return [];
       const parsed = parseTemplateReps(e.reps);
       const notes = [parsed.note, e.notes ?? null].filter(Boolean).join(" · ");
+      // Groep pas meeschrijven als het dag-template er een definieert; de
+      // clamp is dezelfde die de owner-editor gebruikt.
+      const group = dayTemplateItemGroup(def, e);
+      const groupOrder = group && e.group ? (groupSeen.get(e.group) ?? 0) : 0;
+      if (group && e.group) groupSeen.set(e.group, groupOrder + 1);
+      const columns = normalizeGroupColumns(
+        group && e.group
+          ? {
+              groupId: `${def.key}-${e.group}`,
+              groupType: group.type,
+              groupOrder,
+              groupRounds: group.rounds ?? null,
+              groupRestSeconds: group.restSeconds ?? null,
+              groupLabel: group.label ?? null,
+              groupTimeCapSeconds: group.timeCapSeconds ?? null,
+            }
+          : {}
+      );
       return [
         {
           exerciseId,
@@ -157,6 +190,13 @@ function specFromDayTemplate(
           reps: parsed.reps ?? 10,
           restSeconds: e.restSeconds,
           notes: notes || null,
+          groupId: columns.groupId,
+          groupType: columns.groupType,
+          groupOrder: columns.groupOrder,
+          groupRounds: columns.groupRounds,
+          groupRestSeconds: columns.groupRestSeconds,
+          groupLabel: columns.groupLabel,
+          groupTimeCapSeconds: columns.groupTimeCapSeconds,
         },
       ];
     }),
@@ -461,6 +501,13 @@ async function createTemplateFromSpec(
                 reps: it.reps,
                 restSeconds: it.restSeconds,
                 notes: it.notes,
+                groupId: it.groupId ?? null,
+                groupType: it.groupType ?? null,
+                groupOrder: it.groupOrder ?? 0,
+                groupRounds: it.groupRounds ?? null,
+                groupRestSeconds: it.groupRestSeconds ?? null,
+                groupLabel: it.groupLabel ?? null,
+                groupTimeCapSeconds: it.groupTimeCapSeconds ?? null,
               })),
             },
           },

@@ -71,7 +71,7 @@ function dayRegistryRow(def: MemberDayTemplate): CatalogRow {
     dayCount: 1,
     exerciseCount: def.items.length,
     daysPerWeek: null,
-    level: def.badges.includes("beginner") ? "beginner" : null,
+    level: def.level ?? (def.badges.includes("beginner") ? "beginner" : null),
     minutes: def.minutes,
     validityWeeks: null,
     image: libraryTemplateImage(def.photoSlug, def.goals[0] ?? null),

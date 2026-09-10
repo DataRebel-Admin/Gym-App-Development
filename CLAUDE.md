@@ -637,6 +637,33 @@ kopie over in de bestaande builder-flow. **Géén DB-migratie** — alles hergeb
 - **Kaders staan los van de catalogus**: geen kader-badges of geblokkeerde CTA's —
   elk template is te zien én te pakken. N.B. eigenaar twijfelt of kaders überhaupt
   blijven — niet verder in investeren zonder overleg.
+- **De dag-registry telt 48 gecureerde trainingen** (was 8), stuk voor stuk terug te voeren
+  op een bestaand programma: bodybuilding-splits (Arnold-supersets, schouder-/arm-/rugdag),
+  Starting Strength A en B, GZCLP, Bret Contreras' bilspierdag, de Nordic-curl-dag voor
+  hamstringpreventie, de Recommended Routine, CrossFit-benchmarks (Cindy, Helen), de Noorse
+  4x4, Tabata, Zone 2, roei-intervallen, Simple & Sinister, Dan Johns vijf basisbewegingen,
+  McGill Big 3, en een yoga-/pilates-/stretchblok (Surya Namaskar, vinyasa, yin, mat pilates,
+  cooldown-stretch, spagaat-progressie). **Herkomst hoort in een `//`-commentaar bóven het
+  record, niet in `description`** — dat veld is sporter-gerichte UI-tekst van één zin.
+  Bewust NIET opgenomen: 5/3/1 en GVT (percentage- resp. blokgestuurd, een losse dag geeft
+  het programma niet), Fran (de 21-15-9-ladder is niet in `sets`/`reps` te vatten, dus elke
+  gelogde set zou feitelijk onjuist zijn) en Murph (volume/veiligheid zonder begeleiding).
+- **TIJD SCHRIJF JE IN SECONDEN, NOOIT IN MINUTEN.** `parseTemplateReps` pakt het leidende
+  getal als doelaantal herhalingen, dus `"4min"` landt als **4 herhalingen** in het schema
+  van het lid. Schrijf `"240s"` en zet de leesbare duur in `notes`. Afstanden (`"400m"`,
+  `"500m"`) zijn wél afgesproken notatie. Test: `tests/member-catalog.test.ts` faalt op elke
+  reps-waarde met "min". Zelfde test bewaakt de huisstijl (geen gedachtestreepjes) en het
+  niveau.
+- **Supersets, circuits en AMRAP komen echt door**: `MemberDayTemplateItem.group` verwijst
+  naar `MemberDayTemplate.groups` (type/rondes/rust-ná-groep/label/timecap) en
+  `specFromDayTemplate` zet dat via het gedeelde `normalizeGroupColumns` om naar de
+  `groupId`/`groupType`/…-kolommen van `WorkoutExerciseItem`. Daardoor rendert Cindy als
+  AMRAP-klok en de Arnold-dag als geleide superset, in plaats van als losse rechte sets.
+  Groepsleden moeten **aaneengesloten** staan (de app leidt een groep af uit opeenvolgende
+  items met dezelfde `groupId`) en een groep met één lid vervalt stil, net als in de editor.
+- **`MemberDayTemplate.level`** is een eigen veld; `dayRegistryRow` viel eerder terug op
+  "beginner-badge = beginner", waardoor `intermediate`/`advanced` niet uit te drukken was en
+  dag-templates volledig uit het niveaufilter vielen.
 - **Blueprints blijven** als secundaire "zelf opbouwen"-route: `/member/schema/builder/new`
   verloor de sjablonen-sectie (die zit in de catalogus) en linkt bovenaan naar de
   catalogus; "Mijn schema's" heeft de catalogus als primaire knop. "Dag toevoegen" in de
