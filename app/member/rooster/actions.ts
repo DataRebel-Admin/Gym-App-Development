@@ -12,14 +12,27 @@ import { notifyClassEvent, toSessionInfo, SESSION_INFO_SELECT } from "@/lib/clas
 import {
   ACTIVE_ENROLLMENT_STATUSES,
   canUnenroll,
+  cancelWindowOpen,
   decideEnroll,
+  enrollWindowState,
   enrollmentWindowOpen,
+  resolveBookingRules,
   sessionCapacity,
   type EnrollDecision,
 } from "@/lib/class-attendance";
+import {
+  BOOKING_OVERRIDE_SELECT,
+  countRecentNoShows,
+  countWeekBookings,
+  getClassBookingDefaults,
+} from "@/lib/class-booking";
 
-/** Terugkoppeling op /member/rooster (`?msg=`); vertaald in de pagina. */
-export type RoosterMessage = EnrollDecision | "unenrolled";
+/**
+ * Terugkoppeling op /member/rooster (`?msg=`); vertaald in de pagina.
+ * `cancelClosed` staat los van `closed`: "de les is begonnen" en "je bent te
+ * laat om je nog af te melden" zijn voor het lid twee verschillende dingen.
+ */
+export type RoosterMessage = EnrollDecision | "unenrolled" | "cancelClosed";
 
 /**
  * Zoekparameters van /member/rooster die we ná een actie terugzetten:
@@ -66,6 +79,10 @@ export async function enroll(formData: FormData) {
   const q = returnQuery(formData);
   if (!sessionId) back(q);
 
+  // Sportschool-standaard buiten de transactie: die rij wijzigt niet tijdens
+  // een aanmelding en hoort niet in het Serializable-conflictvenster.
+  const defaults = await getClassBookingDefaults(member.tenantId);
+
   const result = await withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
@@ -75,31 +92,55 @@ export async function enroll(formData: FormData) {
             ...SESSION_INFO_SELECT,
             maxParticipants: true,
             cancelledAt: true,
-            groupClass: { select: { name: true, maxParticipants: true } },
+            groupClass: {
+              select: { name: true, maxParticipants: true, archivedAt: true, ...BOOKING_OVERRIDE_SELECT },
+            },
             venueLocation: { select: { timezone: true, archivedAt: true } },
           },
         });
         if (!session) return null;
-        // Geannuleerde sessie of gearchiveerde vestiging = gesloten (de UI
-        // toont geen knop, maar een directe POST mag er ook niet langs).
-        if (session.cancelledAt || session.venueLocation.archivedAt) {
+        // Geannuleerde sessie, gearchiveerd lestype of gearchiveerde vestiging
+        // = gesloten (de UI toont geen knop, maar een directe POST mag er ook
+        // niet langs).
+        if (session.cancelledAt || session.venueLocation.archivedAt || session.groupClass.archivedAt) {
           return { decision: "closed" as const, session };
         }
 
+        const now = new Date();
+        const rules = resolveBookingRules(session.groupClass, defaults);
         const existing = await tx.classEnrollment.findUnique({
           where: { sessionId_userId: { sessionId, userId: member.id } },
           select: { id: true, status: true },
         });
-        const activeCount = await tx.classEnrollment.count({
-          where: { sessionId, status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } },
-        });
+        const [activeCount, weekBookings, noShowStrikes] = await Promise.all([
+          tx.classEnrollment.count({
+            where: { sessionId, status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } },
+          }),
+          // Alleen ophalen als er ook echt een limiet geldt — anders is dit een
+          // extra query per aanmelding voor niets.
+          rules.maxBookingsPerWeek === null
+            ? Promise.resolve(0)
+            : countWeekBookings(tx, {
+                tenantId: member.tenantId,
+                userId: member.id,
+                sessionId,
+                startsAt: session.startsAt,
+                timeZone: session.venueLocation.timezone,
+              }),
+          rules.noShowLimit === null
+            ? Promise.resolve(0)
+            : countRecentNoShows(tx, { tenantId: member.tenantId, userId: member.id, now }),
+        ]);
         const decision = decideEnroll({
           existingStatus: existing?.status ?? null,
           capacity: sessionCapacity(session),
           activeCount,
-          windowOpen: enrollmentWindowOpen(session, new Date()),
+          window: enrollWindowState(session, now, rules),
+          weekBookings,
+          noShowStrikes,
+          rules,
         });
-        if (decision === "closed" || decision === "unchanged") return { decision, session };
+        if (decision !== "enrolled" && decision !== "waitlisted") return { decision, session };
 
         const status = decision === "enrolled" ? "ENROLLED" : "WAITLISTED";
         if (existing) {
@@ -170,16 +211,32 @@ export async function unenroll(formData: FormData) {
   const sessionId = String(formData.get("sessionId") ?? "");
   const q = returnQuery(formData);
   if (!sessionId) back(q);
+  const defaults = await getClassBookingDefaults(member.tenantId);
 
   const result = await withSerializableRetry(() =>
     prisma.$transaction(
       async (tx) => {
         const enrollment = await tx.classEnrollment.findFirst({
           where: { sessionId, userId: member.id, tenantId: member.tenantId },
-          select: { id: true, status: true, session: { select: SESSION_INFO_SELECT } },
+          select: {
+            id: true,
+            status: true,
+            session: {
+              select: { ...SESSION_INFO_SELECT, groupClass: { select: { name: true, ...BOOKING_OVERRIDE_SELECT } } },
+            },
+          },
         });
         if (!enrollment || !canUnenroll(enrollment.status)) return { kind: "unchanged" as const };
-        if (!enrollmentWindowOpen(enrollment.session, new Date())) return { kind: "closed" as const };
+        // Afmelden stopt bij de annuleerdeadline, niet pas bij de start: de
+        // wachtlijst moet nog kunnen doorschuiven. Een wachtende mag altijd
+        // van de lijst af — die bezet geen plek, dus daar is geen deadline
+        // voor nodig.
+        const rules = resolveBookingRules(enrollment.session.groupClass, defaults);
+        const now = new Date();
+        if (!enrollmentWindowOpen(enrollment.session, now)) return { kind: "closed" as const };
+        if (enrollment.status !== "WAITLISTED" && !cancelWindowOpen(enrollment.session, now, rules)) {
+          return { kind: "cancelClosed" as const };
+        }
 
         await tx.classEnrollment.update({
           where: { id: enrollment.id },

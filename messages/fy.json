@@ -389,7 +389,12 @@
       "oneOffSession": "Ienmalich: {name}",
       "durationHm": "{hours}o {minutes} min",
       "durationM": "{minutes} min",
-      "weekVolumeCta": "Besjoch opbou"
+      "weekVolumeCta": "Besjoch opbou",
+      "kpiClasses": "Lessen",
+      "kpiClassesHint": "Folge groepslessen",
+      "classesTitle": "Folge lessen",
+      "classRow": "Groepsles",
+      "noClasses": "Noch gjin groepslessen folge."
     },
     "statDetail": {
       "volumeTitle": "Folume dizze wike",
@@ -509,7 +514,25 @@
       "msgClosed": "Dizze les is al begûn. Oan- of ôfmelde kin net mear.",
       "msgUnenrolled": "Do bist ôfmeld.",
       "msgUnchanged": "Der is neat feroare.",
-      "msgOverlap": "Tink derom: dizze les oerlapet mei in oare les dêr'tsto al foar oanmeld bist."
+      "msgOverlap": "Tink derom: dizze les oerlapet mei in oare les dêr'tsto al foar oanmeld bist.",
+      "msgTooEarly": "Dizze les kinst noch net boeke. Oanmelde iepenet letter.",
+      "msgWeekLimit": "Do sitst dizze wike oan dyn maksimum oantal lessen. Fanôf moandei kinst wer boeke.",
+      "msgNoShowBlock": "Do bist de lêste tiid te faak net kommen opdaagjen. Freegje dyn sportskoalle om it boeken wer frij te jaan.",
+      "msgCancelClosed": "Ofmelde kin net mear: de ôfmeldtermyn foar dizze les is ferstrutsen.",
+      "tooEarly": "Noch net te boeken",
+      "bookableFrom": "Boeke kin fanôf {date}",
+      "cancelUntil": "Ofmelde kin oant {time}",
+      "cancelClosed": "Ofmeldtermyn ferstrutsen",
+      "noShowWarning": "Do bist {count, plural, one {# kear} other {# kear}} net kommen opdaagjen yn de ôfrûne moanne.",
+      "noShowBlocked": "Boeke is blokkearre nei {limit, plural, one {# no-show} other {# no-shows}}. Nim kontakt op mei dyn sportskoalle.",
+      "weekLimitHint": "Do meist {count, plural, one {# les} other {# lessen}} de wike boeke.",
+      "aboutClass": "Oer dizze les",
+      "nextSessions": "Wannear",
+      "noUpcomingSessions": "Der stiet op dit stuit gjin les fan dit type pland.",
+      "backToClasses": "Werom nei lessen",
+      "bookingRules": "Goed om te witten",
+      "viewClassType": "Oer dizze les",
+      "instructorLabel": "Ynstrukteur"
     },
     "muscles": {
       "metaTitle": "Spieranalyze",
@@ -1539,7 +1562,9 @@
       "movedTitle": "Les feroare: {name}",
       "movedBody": "Nije tiid: {when} (wie {previous}).",
       "reminderTitle": "Herinnering: {name}",
-      "reminderBody": "Do stiest oanmeld foar {when}."
+      "reminderBody": "Do stiest oanmeld foar {when}.",
+      "instructorTitle": "Oare ynstrukteur by {name}",
+      "instructorBody": "{name} op {when} wurdt jûn troch {instructor}."
     }
   },
   "email": {

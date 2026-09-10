@@ -34,6 +34,12 @@ export type SessionCard = {
   waitlistCount: number;
   full: boolean;
   started: boolean;
+  /** Buiten de boekingshorizon van de sportschool: nog niet aan te melden. */
+  tooEarly: boolean;
+  /** Mag deze aanmelding nu nog ingetrokken worden (annuleerdeadline)? */
+  canCancel: boolean;
+  /** Minuten vóór de start waarin afmelden dichtgaat (0 = tot de start). */
+  cancelDeadlineMinutes: number;
   /** Geannuleerd door de sportschool: zichtbaar als mededeling, geen acties. */
   cancelled: boolean;
   /** Al voorbij: komt alleen in de agenda-weergave voorbij (terugkijken). */
@@ -85,6 +91,10 @@ export function ClassCard({ s, q }: { s: SessionCard; q: string }) {
           <span className="shrink-0 rounded-full bg-neutral-200 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
             {t("started")}
           </span>
+        ) : s.tooEarly ? (
+          <span className="shrink-0 rounded-full bg-neutral-200 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
+            {t("tooEarly")}
+          </span>
         ) : s.full ? (
           <span className="shrink-0 rounded-full bg-neutral-200 px-2.5 py-1 text-[11px] font-semibold text-neutral-500">
             {t("full")}
@@ -118,7 +128,7 @@ export function ClassCard({ s, q }: { s: SessionCard; q: string }) {
 
       <div className="mt-3.5">
         {s.cancelled || s.past ? null : s.mine !== null ? (
-          s.started ? null : (
+          s.started ? null : s.canCancel ? (
             <form action={unenroll}>
               <input type="hidden" name="sessionId" value={s.id} />
               <input type="hidden" name="q" value={q} />
@@ -129,6 +139,12 @@ export function ClassCard({ s, q }: { s: SessionCard; q: string }) {
                 {s.mine === "waitlisted" ? t("leaveWaitlist") : t("unenroll")}
               </button>
             </form>
+          ) : (
+            // De afmeldtermijn is verstreken: geen knop die de server toch
+            // weigert, maar de reden.
+            <p className="rounded-xl bg-surface-2 px-4 py-2.5 text-center text-sm font-medium text-neutral-500">
+              {t("cancelClosed")}
+            </p>
           )
         ) : s.started ? (
           <button
@@ -137,6 +153,14 @@ export function ClassCard({ s, q }: { s: SessionCard; q: string }) {
             className="w-full rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-semibold text-neutral-400"
           >
             {t("started")}
+          </button>
+        ) : s.tooEarly ? (
+          <button
+            type="button"
+            disabled
+            className="w-full rounded-xl bg-surface-2 px-4 py-2.5 text-sm font-semibold text-neutral-400"
+          >
+            {t("tooEarly")}
           </button>
         ) : (
           <form action={enroll}>

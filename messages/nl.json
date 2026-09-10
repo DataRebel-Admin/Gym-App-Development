@@ -519,7 +519,12 @@
       "oneOffSession": "Eenmalig: {name}",
       "durationHm": "{hours}u {minutes} min",
       "durationM": "{minutes} min",
-      "weekVolumeCta": "Bekijk opbouw"
+      "weekVolumeCta": "Bekijk opbouw",
+      "kpiClasses": "Lessen",
+      "kpiClassesHint": "Gevolgde groepslessen",
+      "classesTitle": "Gevolgde lessen",
+      "classRow": "Groepsles",
+      "noClasses": "Nog geen groepslessen gevolgd."
     },
     "statDetail": {
       "volumeTitle": "Volume deze week",
@@ -639,7 +644,25 @@
       "msgClosed": "Deze les is al begonnen. Aan- of afmelden kan niet meer.",
       "msgUnenrolled": "Je bent afgemeld.",
       "msgUnchanged": "Er is niets gewijzigd.",
-      "msgOverlap": "Let op: deze les overlapt met een andere les waarvoor je al bent aangemeld."
+      "msgOverlap": "Let op: deze les overlapt met een andere les waarvoor je al bent aangemeld.",
+      "msgTooEarly": "Deze les kun je nog niet boeken. Aanmelden opent later.",
+      "msgWeekLimit": "Je zit deze week aan je maximum aantal lessen. Vanaf maandag kun je weer boeken.",
+      "msgNoShowBlock": "Je bent de laatste tijd te vaak niet komen opdagen. Vraag je sportschool om het boeken weer vrij te geven.",
+      "msgCancelClosed": "Afmelden kan niet meer: de afmeldtermijn voor deze les is verstreken.",
+      "tooEarly": "Nog niet te boeken",
+      "bookableFrom": "Boeken kan vanaf {date}",
+      "cancelUntil": "Afmelden kan tot {time}",
+      "cancelClosed": "Afmeldtermijn verstreken",
+      "noShowWarning": "Je bent {count, plural, one {# keer} other {# keer}} niet komen opdagen in de afgelopen maand.",
+      "noShowBlocked": "Boeken is geblokkeerd na {limit, plural, one {# no-show} other {# no-shows}}. Neem contact op met je sportschool.",
+      "weekLimitHint": "Je mag {count, plural, one {# les} other {# lessen}} per week boeken.",
+      "aboutClass": "Over deze les",
+      "nextSessions": "Wanneer",
+      "noUpcomingSessions": "Er staat op dit moment geen les van dit type gepland.",
+      "backToClasses": "Terug naar lessen",
+      "bookingRules": "Goed om te weten",
+      "viewClassType": "Over deze les",
+      "instructorLabel": "Instructeur"
     },
     "muscles": {
       "metaTitle": "Spieranalyse",
@@ -1669,7 +1692,9 @@
       "movedTitle": "Les gewijzigd: {name}",
       "movedBody": "Nieuwe tijd: {when} (was {previous}).",
       "reminderTitle": "Herinnering: {name}",
-      "reminderBody": "Je staat aangemeld voor {when}."
+      "reminderBody": "Je staat aangemeld voor {when}.",
+      "instructorTitle": "Andere instructeur bij {name}",
+      "instructorBody": "{name} op {when} wordt gegeven door {instructor}."
     }
   },
   "email": {

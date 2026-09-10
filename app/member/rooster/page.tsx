@@ -8,9 +8,18 @@ import type { EnrollmentStatus, Prisma } from "@prisma/client";
 import {
   ACTIVE_ENROLLMENT_STATUSES,
   ROSTER_HORIZON_DAYS,
+  cancelWindowOpen,
+  enrollWindowState,
   enrollmentWindowOpen,
+  noShowBlocked,
+  resolveBookingRules,
   sessionCapacity,
 } from "@/lib/class-attendance";
+import {
+  BOOKING_OVERRIDE_SELECT,
+  countRecentNoShows,
+  getClassBookingDefaults,
+} from "@/lib/class-booking";
 import { getTenantLocations } from "@/lib/locations";
 import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { getMemberCalendarTimezone } from "@/lib/calendar";
@@ -44,7 +53,21 @@ const MESSAGES: Record<RoosterMessage, string> = {
   closed: "msgClosed",
   unchanged: "msgUnchanged",
   unenrolled: "msgUnenrolled",
+  tooEarly: "msgTooEarly",
+  weekLimit: "msgWeekLimit",
+  noShowBlock: "msgNoShowBlock",
+  cancelClosed: "msgCancelClosed",
 };
+
+/** Meldingen die een reden zijn om iets níét te doen krijgen de amber-toon. */
+const WARNING_MESSAGES = new Set<string>([
+  "closed",
+  "unchanged",
+  "tooEarly",
+  "weekLimit",
+  "noShowBlock",
+  "cancelClosed",
+]);
 
 export default async function MemberRoosterPage({
   searchParams,
@@ -70,7 +93,7 @@ export default async function MemberRoosterPage({
   const now = new Date();
   const agendaView = view === "agenda";
 
-  const [locations, me, classTypes] = await Promise.all([
+  const [locations, me, classTypes, bookingDefaults, noShowStrikes] = await Promise.all([
     getTenantLocations(member.tenantId),
     prisma.user.findFirst({
       where: { id: member.id, tenantId: member.tenantId },
@@ -78,11 +101,14 @@ export default async function MemberRoosterPage({
     }),
     // Filterchips + omschrijvingen: álle lestypes die de sportschool heeft
     // aangemaakt, ook als er deze maand geen sessie van gepland staat.
+    // Gearchiveerde lestypes vallen af — die zijn niet meer te boeken.
     prisma.groupClass.findMany({
-      where: { tenantId: member.tenantId },
+      where: { tenantId: member.tenantId, archivedAt: null },
       select: { id: true, name: true, description: true },
       orderBy: { name: "asc" },
     }),
+    getClassBookingDefaults(member.tenantId),
+    countRecentNoShows(prisma, { tenantId: member.tenantId, userId: member.id, now }),
   ]);
 
   // Vestiging-badge + filter alleen bij een multi-vestiging-organisatie.
@@ -108,8 +134,18 @@ export default async function MemberRoosterPage({
   const MINE_STATUSES: EnrollmentStatus[] = ["ENROLLED", "WAITLISTED"];
   const sessionInclude = {
     groupClass: {
-      select: { name: true, description: true, instructorName: true, maxParticipants: true },
+      select: {
+        name: true,
+        description: true,
+        instructorName: true,
+        maxParticipants: true,
+        ...BOOKING_OVERRIDE_SELECT,
+        defaultInstructor: { select: { name: true } },
+      },
     },
+    // Wie geeft déze les: de sessie-instructeur (vervanger) wint van de vaste
+    // instructeur van het lestype, die weer van de vrije tekst.
+    instructor: { select: { name: true } },
     venueLocation: { select: { name: true, timezone: true } },
     // Capaciteit telt alleen actieve statussen (afgemeld/no-show/wachtlijst bezet geen plek).
     _count: {
@@ -157,6 +193,9 @@ export default async function MemberRoosterPage({
           ? { startsAt: { gte: monthStart, lte: monthEnd } }
           : // Lopende lessen blijven even zichtbaar (gestart, niet meer boekbaar).
             { endsAt: { gte: now }, startsAt: { lte: horizon } }),
+        // Een gearchiveerd lestype verdwijnt uit het aanbod; bestaande
+        // aanmeldingen blijven wel zichtbaar onder "Mijn lessen".
+        groupClass: { archivedAt: null },
         ...locationWhere,
         ...typeWhere,
       },
@@ -181,6 +220,11 @@ export default async function MemberRoosterPage({
     const own = s.enrollments.find((e) => e.userId === member.id);
     const max = sessionCapacity(s);
     const count = s._count.enrollments;
+    // Dezelfde regels als de server-action: de knop mag nooit iets beloven wat
+    // `enroll`/`unenroll` daarna weigert.
+    const rules = resolveBookingRules(s.groupClass, bookingDefaults);
+    const window = enrollWindowState(s, now, rules);
+    const mine = own ? (own.status === "ENROLLED" ? "enrolled" : "waitlisted") : null;
     return {
       id: s.id,
       classId: s.classId,
@@ -192,15 +236,24 @@ export default async function MemberRoosterPage({
       location: s.location,
       className: s.groupClass.name,
       description: s.groupClass.description,
-      instructorName: s.groupClass.instructorName,
+      instructorName:
+        s.instructor?.name ?? s.groupClass.defaultInstructor?.name ?? s.groupClass.instructorName,
       cancelled: s.cancelledAt !== null,
       past: s.endsAt < now,
-      mine: own ? (own.status === "ENROLLED" ? "enrolled" : "waitlisted") : null,
+      mine,
       waitlistPosition:
         own?.status === "WAITLISTED" ? waiting.findIndex((e) => e.userId === member.id) + 1 : null,
       waitlistCount: waiting.length,
       full: count >= max,
       started: !enrollmentWindowOpen(s, now),
+      tooEarly: window === "tooEarly",
+      // Een wachtende mag altijd van de lijst af (bezet geen plek); een
+      // aangemeld lid tot de annuleerdeadline.
+      canCancel:
+        mine === "waitlisted"
+          ? enrollmentWindowOpen(s, now)
+          : cancelWindowOpen(s, now, rules),
+      cancelDeadlineMinutes: rules.cancelDeadlineMinutes,
       spotsLeft: Math.max(0, max - count),
       count,
       max,
@@ -258,7 +311,9 @@ export default async function MemberRoosterPage({
 
   const message = msg && msg in MESSAGES ? MESSAGES[msg as RoosterMessage] : null;
   const messageTone =
-    msg === "closed" || msg === "unchanged" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-green-200 bg-green-50 text-green-900";
+    msg && WARNING_MESSAGES.has(msg)
+      ? "border-amber-200 bg-amber-50 text-amber-900"
+      : "border-green-200 bg-green-50 text-green-900";
 
   const filterTab = (active: boolean) =>
     active
@@ -288,6 +343,27 @@ export default async function MemberRoosterPage({
               {t("msgOverlap")}
             </p>
           ) : null}
+        </RevealItem>
+      ) : null}
+
+      {/* No-show-teller: eerst als waarschuwing, en zodra de sportschool-limiet
+          bereikt is als blokkade-uitleg. Zonder ingesteld beleid (limiet null)
+          zwijgen we, ook al staat de teller op meer dan nul — dan is het geen
+          regel maar een oordeel. */}
+      {bookingDefaults.classNoShowLimit !== null && noShowStrikes > 0 ? (
+        <RevealItem>
+          <p
+            role="status"
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              noShowBlocked(noShowStrikes, bookingDefaults.classNoShowLimit)
+                ? "border-red-200 bg-red-50 text-red-900"
+                : "border-amber-200 bg-amber-50 text-amber-900"
+            }`}
+          >
+            {noShowBlocked(noShowStrikes, bookingDefaults.classNoShowLimit)
+              ? t("noShowBlocked", { limit: bookingDefaults.classNoShowLimit })
+              : t("noShowWarning", { count: noShowStrikes })}
+          </p>
         </RevealItem>
       ) : null}
 

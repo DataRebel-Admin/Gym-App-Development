@@ -7,6 +7,7 @@ import {
   ACTIVE_ENROLLMENT_STATUSES,
   promotableCount,
   sessionCapacity,
+  waitlistPromotionOpen,
 } from "@/lib/class-attendance";
 
 type Tx = Prisma.TransactionClient;
@@ -23,6 +24,7 @@ export async function promoteWaitlist(tx: Tx, sessionId: string): Promise<string
   const session = await tx.classSession.findUnique({
     where: { id: sessionId },
     select: {
+      startsAt: true,
       maxParticipants: true,
       cancelledAt: true,
       groupClass: { select: { maxParticipants: true } },
@@ -30,6 +32,9 @@ export async function promoteWaitlist(tx: Tx, sessionId: string): Promise<string
   });
   // In een geannuleerde sessie schuift niemand door — die plek bestaat niet meer.
   if (!session || session.cancelledAt) return [];
+  // Vlak vóór de start ook niet: wie thuis zit ziet de melding niet meer, maar
+  // de plek zou wel als bezet geboekt staan (lib/class-attendance.ts).
+  if (!waitlistPromotionOpen(session, new Date())) return [];
 
   const [activeCount, waiting] = await Promise.all([
     tx.classEnrollment.count({

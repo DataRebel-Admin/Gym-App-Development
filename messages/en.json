@@ -519,7 +519,12 @@
       "oneOffSession": "One-off: {name}",
       "durationHm": "{hours}h {minutes} min",
       "durationM": "{minutes} min",
-      "weekVolumeCta": "View breakdown"
+      "weekVolumeCta": "View breakdown",
+      "kpiClasses": "Classes",
+      "kpiClassesHint": "Group classes attended",
+      "classesTitle": "Classes attended",
+      "classRow": "Group class",
+      "noClasses": "No group classes attended yet."
     },
     "statDetail": {
       "volumeTitle": "Volume this week",
@@ -639,7 +644,25 @@
       "msgClosed": "This class has already started. Signing up or cancelling is no longer possible.",
       "msgUnenrolled": "You've been removed from the class.",
       "msgUnchanged": "Nothing changed.",
-      "msgOverlap": "Heads up: this class overlaps with another class you're already signed up for."
+      "msgOverlap": "Heads up: this class overlaps with another class you're already signed up for.",
+      "msgTooEarly": "You cannot book this class yet. Sign-ups open later.",
+      "msgWeekLimit": "You have reached your maximum number of classes for this week. You can book again from Monday.",
+      "msgNoShowBlock": "You have missed too many classes recently. Ask your gym to unblock booking.",
+      "msgCancelClosed": "You can no longer cancel: the cancellation deadline for this class has passed.",
+      "tooEarly": "Not bookable yet",
+      "bookableFrom": "Bookable from {date}",
+      "cancelUntil": "Cancel until {time}",
+      "cancelClosed": "Cancellation closed",
+      "noShowWarning": "You did not show up {count, plural, one {# time} other {# times}} in the past month.",
+      "noShowBlocked": "Booking is blocked after {limit, plural, one {# no-show} other {# no-shows}}. Please contact your gym.",
+      "weekLimitHint": "You can book {count, plural, one {# class} other {# classes}} per week.",
+      "aboutClass": "About this class",
+      "nextSessions": "When",
+      "noUpcomingSessions": "No classes of this type are scheduled right now.",
+      "backToClasses": "Back to classes",
+      "bookingRules": "Good to know",
+      "viewClassType": "About this class",
+      "instructorLabel": "Instructor"
     },
     "muscles": {
       "metaTitle": "Muscle analysis",
@@ -1669,7 +1692,9 @@
       "movedTitle": "Class changed: {name}",
       "movedBody": "New time: {when} (was {previous}).",
       "reminderTitle": "Reminder: {name}",
-      "reminderBody": "You're signed up for {when}."
+      "reminderBody": "You're signed up for {when}.",
+      "instructorTitle": "Different instructor for {name}",
+      "instructorBody": "{name} on {when} will be taught by {instructor}."
     }
   },
   "email": {
