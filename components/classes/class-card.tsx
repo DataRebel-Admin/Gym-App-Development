@@ -68,8 +68,15 @@ export function ClassCard({ s, q }: { s: SessionCard; q: string }) {
           </div>
           {/* De omschrijving van het lestype zit achter dit icoon en niet meer
               als alinea in de kaart: hetzelfde lestype staat vaak meerdere
-              keren per week in de lijst. */}
-          <ClassInfoButton name={s.className} description={s.description} align="start" />
+              keren per week in de lijst. Voor het volledige verhaal (beeld,
+              instructeur, regels, alle momenten) is er de lestype-pagina. */}
+          <ClassInfoButton
+            name={s.className}
+            description={s.description}
+            align="start"
+            moreHref={`/member/rooster/les/${s.classId}`}
+            moreLabel={t("viewClassType")}
+          />
         </div>
         {s.cancelled ? (
           <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-semibold text-red-700">

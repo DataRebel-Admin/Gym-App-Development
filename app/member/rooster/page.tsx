@@ -421,10 +421,26 @@ export default async function MemberRoosterPage({
         ) : null}
 
         {/* Het gekozen lestype met z'n info-knop, buiten de scrollrij. */}
-        {selectedType?.description ? (
+        {selectedType ? (
           <div className="flex items-center gap-1 text-sm text-neutral-500">
             <span>{t("filteredOn", { name: selectedType.name })}</span>
-            <ClassInfoButton name={selectedType.name} description={selectedType.description} align="start" />
+            <ClassInfoButton
+              name={selectedType.name}
+              description={selectedType.description}
+              align="start"
+              moreHref={`/member/rooster/les/${selectedType.id}`}
+              moreLabel={t("viewClassType")}
+            />
+            {/* Zonder omschrijving rendert de info-knop niet, maar de
+                lestype-pagina is er dan nog steeds. */}
+            {selectedType.description ? null : (
+              <Link
+                href={`/member/rooster/les/${selectedType.id}`}
+                className="font-semibold text-accent"
+              >
+                {t("viewClassType")}
+              </Link>
+            )}
           </div>
         ) : null}
 

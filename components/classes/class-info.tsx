@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Link from "next/link";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Info } from "@/components/ui/icons";
+import { ChevronRight, Info } from "@/components/ui/icons";
 
 /**
  * Info-knop bij een lestype: tikken opent een paneeltje met de omschrijving die
@@ -23,10 +24,15 @@ export function ClassInfoButton({
   name,
   description,
   align = "end",
+  moreHref,
+  moreLabel,
 }: {
   name: string;
   description: string | null;
   align?: "start" | "end";
+  /** Doorklik naar de lestype-pagina (beeld, instructeur, regels, momenten). */
+  moreHref?: string;
+  moreLabel?: string;
 }) {
   const t = useTranslations("member.rooster");
   if (!description) return null;
@@ -49,10 +55,21 @@ export function ClassInfoButton({
         </button>
       )}
     >
-      {() => (
+      {({ close }) => (
         <div className="flex flex-col gap-1.5 text-left">
           <p className="font-display text-sm font-bold text-neutral-900">{name}</p>
           <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-600">{description}</p>
+          {moreHref && moreLabel ? (
+            // `keepHistory`: vanuit het paneel navigeren we weg, en een
+            // history.back() vecht daar met de navigatie (zie CLAUDE.md).
+            <Link
+              href={moreHref}
+              onClick={() => close({ keepHistory: true })}
+              className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-accent"
+            >
+              {moreLabel} <ChevronRight className="size-3.5" />
+            </Link>
+          ) : null}
         </div>
       )}
     </Dropdown>
