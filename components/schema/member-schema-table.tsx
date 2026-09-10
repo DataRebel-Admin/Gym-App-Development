@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
+import { MobileListCard, MobileListRow } from "@/components/ui/mobile-list-card";
 import type { ValidityState } from "@/lib/schema-status";
 
 /** Status-bucket voor het filteren (afgeleid van de actieve/aankomende toewijzing). */
@@ -154,7 +155,55 @@ export function MemberSchemaTable({ rows }: { rows: MemberSchemaRow[] }) {
         {filtered.length} van {rows.length} leden
       </p>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface-1">
+      {/* Mobiel: een kaart per lid. De hele kaart is de link naar het
+          schema-profiel, dus een duim-vriendelijk doelwit i.p.v. het smalle
+          "Beheren"-linkje uit de tabel. */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {filtered.length === 0 ? (
+          <p className="py-8 text-center text-sm text-neutral-500">
+            {rows.length === 0 ? "Nog geen leden." : "Geen leden voor deze filters."}
+          </p>
+        ) : (
+          filtered.map((m) => (
+            <MobileListCard key={m.id} href={`/owner/schemas/members/${m.id}`}>
+              <p className="truncate text-sm font-semibold text-neutral-900">{m.name}</p>
+              <p className="truncate text-xs text-neutral-400">{m.email}</p>
+              {m.schemaName ? (
+                <>
+                  <p className="mt-2 truncate text-sm text-neutral-700">{m.schemaName}</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {m.personalized ? (
+                      <Badge tone="warning">Aangepast</Badge>
+                    ) : (
+                      <Badge tone="neutral">Standaard</Badge>
+                    )}
+                    {m.statusKey !== "active" ? (
+                      <Badge tone={m.statusTone}>{m.statusLabel}</Badge>
+                    ) : null}
+                    {m.validityLabel && m.validityState !== "ok" ? (
+                      <Badge tone={m.validityTone}>{m.validityLabel}</Badge>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-sm text-neutral-400">(geen schema)</p>
+              )}
+              {m.sinceLabel ? (
+                <div className="mt-2">
+                  <MobileListRow label="Sinds">
+                    {m.sinceLabel}
+                    {m.sinceDate ? (
+                      <span className="ml-1 text-xs text-neutral-400">{m.sinceDate}</span>
+                    ) : null}
+                  </MobileListRow>
+                </div>
+              ) : null}
+            </MobileListCard>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-border bg-surface-1 md:block">
         <table className="w-full min-w-[32rem] text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-500">
             <tr>
