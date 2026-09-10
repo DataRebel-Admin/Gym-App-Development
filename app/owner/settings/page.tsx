@@ -23,6 +23,7 @@ import { parseEnabledMetricKeys } from "@/lib/measurement-meta";
 import { ContactSupportButton } from "@/components/support/contact-support-button";
 import { parseCustomQuotes } from "@/lib/workout-quotes";
 import { setDefectReminderDays } from "@/app/owner/defects/actions";
+import { setClassBookingRules } from "@/app/owner/rooster/actions";
 
 function startOfMonth(): Date {
   const d = new Date();
@@ -48,6 +49,11 @@ export default async function SettingsPage() {
       achievementsEnabled: true,
       quotesEnabled: true,
       classesEnabled: true,
+      classCancelDeadlineMinutes: true,
+      classBookingOpensDays: true,
+      classMaxBookingsPerWeek: true,
+      classNoShowLimit: true,
+      classRemindHoursBefore: true,
       enabledMeasurementFields: true,
       customQuotes: true,
       memberSchemaMode: true,
@@ -140,6 +146,96 @@ export default async function SettingsPage() {
           enabled={tenant.classesEnabled}
           action={setClassesEnabled}
         />
+      ) : null}
+
+      {/* Boekingsregels voor groepslessen. Elk lestype mag ze overschrijven;
+          dit is de standaard waar ze op terugvallen. */}
+      {features.group_classes && tenant.classesEnabled ? (
+        <SettingsSection
+          title="Boekingsregels groepslessen"
+          description="Geldt voor alle lessen. Per lestype kun je hiervan afwijken op de pagina van dat lestype."
+        >
+          <form action={setClassBookingRules} className="flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
+              Afmelden tot (min. vooraf)
+              <span className="block w-32">
+                <Input
+                  type="number"
+                  name="cancelDeadlineMinutes"
+                  min={0}
+                  max={10080}
+                  defaultValue={tenant.classCancelDeadlineMinutes}
+                  fieldSize="sm"
+                />
+              </span>
+              <span className="text-xs font-normal text-neutral-500">0 = tot de start</span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
+              Boeken vanaf (dagen vooruit)
+              <span className="block w-32">
+                <Input
+                  type="number"
+                  name="bookingOpensDays"
+                  min={1}
+                  max={365}
+                  defaultValue={tenant.classBookingOpensDays}
+                  fieldSize="sm"
+                />
+              </span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
+              Max. lessen per week
+              <span className="block w-32">
+                <Input
+                  type="number"
+                  name="maxBookingsPerWeek"
+                  min={0}
+                  max={50}
+                  defaultValue={tenant.classMaxBookingsPerWeek ?? ""}
+                  placeholder="onbeperkt"
+                  fieldSize="sm"
+                />
+              </span>
+              <span className="text-xs font-normal text-neutral-500">leeg = onbeperkt</span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
+              No-shows vóór blokkade
+              <span className="block w-32">
+                <Input
+                  type="number"
+                  name="noShowLimit"
+                  min={0}
+                  max={20}
+                  defaultValue={tenant.classNoShowLimit ?? ""}
+                  placeholder="geen beleid"
+                  fieldSize="sm"
+                />
+              </span>
+              <span className="text-xs font-normal text-neutral-500">
+                geteld over 30 dagen; leeg = geen blokkade
+              </span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium text-neutral-700">
+              Herinnering (uur vooraf)
+              <span className="block w-32">
+                <Input
+                  type="number"
+                  name="remindHoursBefore"
+                  min={1}
+                  max={72}
+                  defaultValue={tenant.classRemindHoursBefore}
+                  fieldSize="sm"
+                />
+              </span>
+            </label>
+            <button
+              type="submit"
+              className="h-9 rounded-lg border border-border bg-surface-1 px-4 text-sm font-medium text-neutral-900 hover:bg-surface-2"
+            >
+              Opslaan
+            </button>
+          </form>
+        </SettingsSection>
       ) : null}
 
       {features.defects ? (

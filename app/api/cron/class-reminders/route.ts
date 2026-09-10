@@ -1,17 +1,27 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { REMINDER_WINDOW_HOURS } from "@/lib/class-attendance";
+import {
+  MAX_REMIND_HOURS,
+  resolveBookingRules,
+} from "@/lib/class-attendance";
+import { BOOKING_DEFAULTS_SELECT, BOOKING_OVERRIDE_SELECT } from "@/lib/class-booking";
 import { notifyClassEvent, toSessionInfo, SESSION_INFO_SELECT } from "@/lib/class-notify";
 import { audit } from "@/lib/audit";
 import { cronAuthorized } from "@/lib/cron-auth";
 
 /**
- * Dagelijkse les-herinnering: aangemelde leden van sessies die binnen
- * `REMINDER_WINDOW_HOURS` starten krijgen één herinnering (in-app/push/e-mail
- * volgens hun voorkeuren, categorie `classes`). Idempotent via
- * `ClassEnrollment.remindedAt` — het venster is ruimer dan 24u zodat een
- * dagelijkse run geen les mist, en de marker voorkomt dubbele meldingen.
- * Draait als Vercel Cron (zie vercel.json).
+ * Les-herinnering. Draait **elk uur** (zie vercel.json), zodat de sportschool
+ * zelf kan kiezen hoeveel uur van tevoren de melding uitgaat
+ * (`Tenant.classRemindHoursBefore`, per lestype te overschrijven).
+ *
+ * Eerder draaide dit één keer per dag met een venster van 30 uur: de
+ * voorsprong varieerde daardoor van ongeveer een uur tot ruim een dag, terwijl
+ * je bij lessen juist "de avond ervoor" of "twee uur van tevoren" wilt.
+ *
+ * De query pakt alles binnen de maximale voorsprong (MAX_REMIND_HOURS) en de
+ * daadwerkelijke grens wordt per sessie bepaald — een lestype met een eigen
+ * instelling mag korter of langer vooruit melden dan de rest.
+ * Idempotent via `ClassEnrollment.remindedAt`.
  *
  * Beveiliging: vereist `Authorization: Bearer ${CRON_SECRET}` (fail-closed in
  * productie, zie lib/cron-auth.ts).
@@ -24,18 +34,21 @@ export async function GET(req: Request) {
   }
 
   const now = new Date();
-  const until = new Date(now.getTime() + REMINDER_WINDOW_HOURS * 3_600_000);
+  const until = new Date(now.getTime() + MAX_REMIND_HOURS * 3_600_000);
 
   const sessions = await prisma.classSession.findMany({
     where: {
       startsAt: { gt: now, lte: until },
-      // Geen herinnering voor een geannuleerde sessie (leden zijn al geïnformeerd).
+      // Geen herinnering voor een geannuleerde sessie (leden zijn al geïnformeerd)
+      // of voor een lestype dat uit het aanbod is gehaald.
       cancelledAt: null,
+      groupClass: { archivedAt: null },
       enrollments: { some: { status: "ENROLLED", remindedAt: null } },
     },
     select: {
       ...SESSION_INFO_SELECT,
       tenantId: true,
+      groupClass: { select: { name: true, ...BOOKING_OVERRIDE_SELECT } },
       enrollments: {
         where: { status: "ENROLLED", remindedAt: null },
         select: { id: true, userId: true },
@@ -43,9 +56,26 @@ export async function GET(req: Request) {
     },
   });
 
+  // Sportschool-standaard per tenant, één keer opgehaald (niet per sessie).
+  const tenantIds = [...new Set(sessions.map((s) => s.tenantId))];
+  const tenants = await prisma.tenant.findMany({
+    where: { id: { in: tenantIds } },
+    select: { id: true, ...BOOKING_DEFAULTS_SELECT },
+  });
+  const defaultsById = new Map(tenants.map((t) => [t.id, t]));
+
   let reminded = 0;
+  let skipped = 0;
   const perTenant = new Map<string, number>();
   for (const s of sessions) {
+    const defaults = defaultsById.get(s.tenantId);
+    if (!defaults) continue;
+    const rules = resolveBookingRules(s.groupClass, defaults);
+    // Nog te vroeg voor déze les: een volgende uurlijkse run pakt 'm op.
+    if (s.startsAt.getTime() - now.getTime() > rules.remindHoursBefore * 3_600_000) {
+      skipped++;
+      continue;
+    }
     try {
       // Eerst markeren (idempotentie wint van een eventueel mislukte verzending;
       // een gemiste herinnering is onschuldiger dan een dubbele).
@@ -76,5 +106,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ sessions: sessions.length, reminded });
+  return NextResponse.json({ sessions: sessions.length, reminded, skipped });
 }

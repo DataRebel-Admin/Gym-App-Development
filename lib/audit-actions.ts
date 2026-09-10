@@ -432,6 +432,10 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     category: "schedule", label: "Les teruggezet", icon: "♻️", tone: "success",
     sentence: ({ actor, meta }) => `${actor} haalde les '${s(meta, "name") ?? "?"}' uit het archief`,
   },
+  "class.rules.update": {
+    category: "schedule", label: "Boekingsregels gewijzigd", icon: "⚙️", tone: "neutral",
+    sentence: ({ actor }) => `${actor} wijzigde de boekingsregels voor groepslessen`,
+  },
   "class.image.set": {
     category: "schedule", label: "Lesafbeelding gewijzigd", icon: "🖼️", tone: "neutral",
     sentence: ({ actor, meta }) =>

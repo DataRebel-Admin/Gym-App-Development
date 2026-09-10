@@ -8,6 +8,8 @@ import { redirect, notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
+import { requireOwner } from "@/lib/owner";
+import { BOOKING_DEFAULTS_SELECT } from "@/lib/class-booking";
 import { getTenantLocations } from "@/lib/locations";
 import { getLocationScope } from "@/lib/location-access";
 import { canAccessLocation, locationScopeWhere } from "@/lib/location-scope";
@@ -1022,4 +1024,57 @@ export async function markAllPresent(sessionId: string): Promise<AttendanceResul
   revalidatePath(`/owner/rooster/sessie/${session.id}`);
   revalidatePath(`/owner/rooster/${session.classId}`);
   return { ok: true };
+}
+
+/**
+ * Sportschool-brede boekingsregels (de standaard waar elk lestype op
+ * terugvalt). Admin-only: dit is beleid, geen dagelijkse planning — vandaar
+ * `requireOwner` in plaats van `requirePermission("schedule:manage")`.
+ *
+ * Een leeg veld bij "max per week" of "no-show-limiet" betekent uit, niet nul
+ * (nul zou élke aanmelding blokkeren); `resolveBookingRules` bewaakt dat ook
+ * nog eens aan de leeskant.
+ */
+const bookingRulesSchema = z.object({
+  cancelDeadlineMinutes: z.coerce.number().int().min(0).max(10080),
+  bookingOpensDays: z.coerce.number().int().min(1).max(365),
+  maxBookingsPerWeek: optionalInt(0, 50),
+  noShowLimit: optionalInt(0, 20),
+  remindHoursBefore: z.coerce.number().int().min(MIN_REMIND_HOURS).max(MAX_REMIND_HOURS),
+});
+
+export async function setClassBookingRules(formData: FormData): Promise<void> {
+  const owner = await requireOwner();
+  await assertClassesEnabled(owner.tenantId);
+  const parsed = bookingRulesSchema.safeParse({
+    cancelDeadlineMinutes: formData.get("cancelDeadlineMinutes") || 0,
+    bookingOpensDays: formData.get("bookingOpensDays") || 60,
+    maxBookingsPerWeek: formData.get("maxBookingsPerWeek"),
+    noShowLimit: formData.get("noShowLimit"),
+    remindHoursBefore: formData.get("remindHoursBefore") || 14,
+  });
+  if (!parsed.success) return;
+
+  const before = await prisma.tenant.findUnique({
+    where: { id: owner.tenantId },
+    select: BOOKING_DEFAULTS_SELECT,
+  });
+  const data = {
+    classCancelDeadlineMinutes: parsed.data.cancelDeadlineMinutes,
+    classBookingOpensDays: parsed.data.bookingOpensDays,
+    classMaxBookingsPerWeek: parsed.data.maxBookingsPerWeek,
+    classNoShowLimit: parsed.data.noShowLimit,
+    classRemindHoursBefore: parsed.data.remindHoursBefore,
+  };
+  await prisma.tenant.update({ where: { id: owner.tenantId }, data });
+  await audit("class.rules.update", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "Tenant",
+    targetId: owner.tenantId,
+    oldValue: before ?? undefined,
+    newValue: data,
+  });
+  revalidatePath("/owner/settings");
+  revalidatePath("/owner/rooster");
 }
