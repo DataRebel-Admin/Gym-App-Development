@@ -5,6 +5,7 @@ import { requireMember, getAssignedSchema, getSwitchableSchemas } from "@/lib/me
 import { memberSchemaModeFor, canEditAssignedSchema } from "@/lib/member-schema";
 import { isEditableMemberStatus } from "@/lib/member-schema-status";
 import { enforceSessionTimeout } from "@/lib/session-timeout";
+import { publishDueSchedulesForMember } from "@/lib/schema-publish";
 import { MarkAutoStopSeen } from "@/components/member/mark-auto-stop-seen";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Dumbbell, Play, Download, CalendarDays, QrCode, ClipboardList, PersonStanding, Pencil, Repeat } from "@/components/ui/icons";
@@ -89,7 +90,13 @@ export default async function MemberSchemaPage({
 
   // Automatische 5-uur-timeout: sluit een te lang openstaande sessie af als het
   // lid hier terugkomt na de app lang gesloten te hebben gehad.
-  await enforceSessionTimeout(member.tenantId, member.id);
+  // Geplande publicatie: een schema waarvan de ingangsdatum verstreken is wordt
+  // hier meteen live. Móét vóór `getAssignedSchema` hieronder gebeuren, anders
+  // ziet het lid dit bezoek nog de oude stand (lib/schema-publish.ts).
+  await Promise.all([
+    enforceSessionTimeout(member.tenantId, member.id),
+    publishDueSchedulesForMember(member.tenantId, member.id),
+  ]);
 
   const [
     assignment,

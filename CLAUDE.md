@@ -1007,10 +1007,32 @@ ronde, dus een sportschool die niets instelt merkt er niets van.
   timing. Gevolg voor **geplande schemapublicatie**: `activeAssignmentWhere`
   (lib/member.ts) eist `status: PUBLISHED`, dus een `SCHEDULED`-toewijzing is
   onzichtbaar tot de cron 'm omzet — een publicatie die om 10:00 gepland staat
-  wordt pas de volgende ochtend zichtbaar. Wil je dat wegnemen zonder een
-  plan-upgrade, dan is het patroon van `enforceSessionTimeout`
-  (lib/session-timeout.ts) de weg: lui publiceren bij het openen van
-  `/member`/`/member/schema`, met de cron als vangnet voor de melding.
+  wordt anders pas de volgende ochtend zichtbaar. **Daarom publiceert de
+  member-app zélf** — zie hieronder.
+- **GEPLANDE PUBLICATIE HEEFT TWEE PADEN, ÉÉN KERN (`lib/schema-publish.ts`).**
+  `publishDueAssignments` doet het werk (claimen, vorige archiveren,
+  weekdagplanning meenemen, melden, auditen); de cron
+  (`app/api/cron/publish-schemas`) en het luie pad delen 'm, zodat ze niet
+  uiteen kunnen lopen.
+  - **Lui pad**: `publishDueSchedulesForMember` draait bij het openen van
+    `/member` en `/member/schema`, vóór `getAssignedSchema` — anders ziet het
+    lid dat bezoek nog de oude stand. Idioom `enforceSessionTimeout`: eerst een
+    goedkope leesquery, alleen schrijven als er echt iets klaarstaat, en
+    best-effort (een pagina mag hier nooit op stuklopen).
+  - **De cron blijft het vangnet** voor leden die de app niet openen: die
+    moeten hun e-mail en push wél krijgen.
+  - **Racevrij door te claimen, niet door te lezen**: de publicatie gebeurt met
+    `updateMany({ where: { id, status: "SCHEDULED" } })`. Wint de cron, dan
+    vindt het paginabezoek `count === 0` en doet het niets — geen dubbele
+    archivering, geen dubbele melding. Archiveren gebeurt dus ná het claimen,
+    met `id: { not: a.id }` (die rij is dan zelf al PUBLISHED).
+  - Bij meerdere due toewijzingen wint de nieuwste: ze worden op
+    `availableFrom` oplopend verwerkt, dus de laatste archiveert de rest.
+  - **Testen van dit soort server-only code kan niet met `tsx`** (de
+    `server-only`-guard throwt, en de importketen trekt Next-clientmodules
+    binnen). Verifieer via de dev-server: in development is `cronAuthorized`
+    fail-open zonder `CRON_SECRET`, dus `curl localhost:3001/api/cron/<naam>`
+    draait de echte route tegen de echte data.
 - **Omslagfoto per lestype** (`GroupClass.imageUrl`, `lib/class-image.ts`, puur +
   getest): eigen foto → sportschoollogo → accent-vlak met icoon. Bewust géén
   gecureerde stockfoto-laag zoals bij de schema's: lestype-namen zijn vrije tekst

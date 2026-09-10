@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { requireMember, getAssignedSchema } from "@/lib/member";
 import { getMemberStats } from "@/lib/member-stats";
 import { enforceSessionTimeout } from "@/lib/session-timeout";
+import { publishDueSchedulesForMember } from "@/lib/schema-publish";
 import { isAiEnabled } from "@/lib/ai/enabled";
 import { getAchievementUiState, getAchievementsView } from "@/lib/achievements/evaluate";
 import { AchievementDashboardSummary } from "@/components/achievements/dashboard-summary";
@@ -51,7 +52,13 @@ export default async function MemberHome() {
   // dashboard 'm niet als "hervat training" blijft tonen. De teruggegeven sessie-id is
   // de nog-open sessie (null bij auto-stop of geen sessie) — hergebruikt zodat we
   // dezelfde open-sessie-query niet nogmaals draaien.
-  const timeout = await enforceSessionTimeout(member.tenantId, member.id);
+  // Geplande publicatie loopt mee: een schema waarvan de ingangsdatum verstreken
+  // is wordt bij het openen van de app live, zonder op de dagelijkse cron te
+  // wachten (lib/schema-publish.ts). Vóór `getAssignedSchema` hieronder.
+  const [timeout] = await Promise.all([
+    enforceSessionTimeout(member.tenantId, member.id),
+    publishDueSchedulesForMember(member.tenantId, member.id),
+  ]);
   const openSessionId = timeout.autoStopped ? null : timeout.sessionId;
   const [assignment, stats, timezone, t] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
