@@ -837,6 +837,7 @@
       },
       "table": {
         "machine": "Apparaat",
+        "location": "Vestiging",
         "symptom": "Symptoom",
         "severity": "Ernst",
         "confirmations": "Bevestigd",

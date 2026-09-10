@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { StatCard } from "@/components/ui/stat-card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Button } from "@/components/ui/button";
+import { MobileListCard, MobileListRow } from "@/components/ui/mobile-list-card";
 import { machineTypeLabel, MACHINE_TYPES, MACHINE_TYPE_LABELS } from "@/lib/machine";
 import {
   fmtDate,
@@ -359,7 +360,38 @@ function MaintenanceHistory({ records }: { records: MaintenanceRecordRow[] }) {
       {filtered.length === 0 ? (
         <p className="py-6 text-center text-sm text-neutral-500">{t("dashboard.history.empty")}</p>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        {/* Mobiel: een kaart per onderhoudsbeurt. Zes kolommen naast elkaar
+            scrollen zijwaarts weg op een telefoon. */}
+        <div className="flex flex-col gap-2 md:hidden">
+          {filtered.map((r) => (
+            <MobileListCard key={r.id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="min-w-0 truncate text-sm font-semibold text-neutral-900">
+                  {r.machineName}
+                </p>
+                <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">
+                  {fmtDate(r.performedAt)}
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm text-neutral-600">
+                {MAINTENANCE_KIND_META[r.kind].icon} {MAINTENANCE_KIND_META[r.kind].label}
+              </p>
+              <p className="mt-1 text-sm text-neutral-700">{r.action}</p>
+              {r.note ? <p className="text-xs text-neutral-400">{r.note}</p> : null}
+              <div className="mt-2 flex flex-col gap-1">
+                <MobileListRow label={t("dashboard.history.colPerformedBy")}>
+                  {r.performedBy ?? "—"}
+                </MobileListRow>
+                <MobileListRow label={t("dashboard.history.colCost")}>
+                  {fmtCost(r.cost)}
+                </MobileListRow>
+              </div>
+            </MobileListCard>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
@@ -390,6 +422,7 @@ function MaintenanceHistory({ records }: { records: MaintenanceRecordRow[] }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

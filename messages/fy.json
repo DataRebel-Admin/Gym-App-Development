@@ -707,6 +707,7 @@
       },
       "table": {
         "machine": "Apparaat",
+        "location": "Fêstiging",
         "symptom": "Symptoom",
         "severity": "Earnst",
         "confirmations": "Befêstige",

@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MobileListCard, MobileListRow } from "@/components/ui/mobile-list-card";
 
 /**
  * Bezetting per lestype. De grafiek ernaast toont het gemiddelde over alle
@@ -44,7 +45,40 @@ export function ClassTypeTable({ rows }: { rows: ClassTypeRow[] }) {
             Nog geen afgeronde lessen in deze periode.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          {/* Mobiel: een kaart per lestype — vijf kolommen naast elkaar dwingen
+              anders tot zijwaarts scrollen op een telefoon. */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {rows.map((r) => (
+              <MobileListCard key={r.classId}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate text-sm font-semibold text-neutral-900">
+                    {r.className}
+                  </p>
+                  <span className={`text-sm font-semibold ${occupancyTone(r.occupancyPct)}`}>
+                    {r.occupancyPct === null ? "–" : `${r.occupancyPct}%`}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-col gap-1">
+                  <MobileListRow label="Sessies">{r.sessions}</MobileListRow>
+                  <MobileListRow label="No-show">
+                    {r.noShowPct === null ? "–" : `${r.noShowPct}%`}
+                  </MobileListRow>
+                  <MobileListRow label="Wachtlijst">
+                    {r.waitlisted > 0 ? (
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                        {r.waitlisted}
+                      </span>
+                    ) : (
+                      <span className="text-neutral-400">–</span>
+                    )}
+                  </MobileListRow>
+                </div>
+              </MobileListCard>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[32rem] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-500">
@@ -80,6 +114,7 @@ export function ClassTypeTable({ rows }: { rows: ClassTypeRow[] }) {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </CardContent>
     </Card>

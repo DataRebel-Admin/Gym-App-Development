@@ -837,6 +837,7 @@
       },
       "table": {
         "machine": "Machine",
+        "location": "Location",
         "symptom": "Symptom",
         "severity": "Severity",
         "confirmations": "Confirmed",

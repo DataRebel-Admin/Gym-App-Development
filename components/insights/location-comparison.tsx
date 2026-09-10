@@ -4,6 +4,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { NonAdditiveNote } from "@/components/insights/non-additive-note";
+import { MobileListCard, MobileListRow } from "@/components/ui/mobile-list-card";
 import {
   TableWrap,
   Table,
@@ -65,7 +66,58 @@ export function LocationComparisonTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <TableWrap>
+      {/* Mobiel: een kaart per vestiging. Zes kolommen naast elkaar passen niet
+          op een telefoon, en dit blok staat ook als widget op het dashboard. */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {data.rows.map((r) => (
+          <MobileListCard key={r.locationId}>
+            <div className="flex items-center gap-2">
+              <p className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900">
+                {r.name}
+              </p>
+              {r.isDefault ? (
+                <Badge tone="neutral" className="text-[10px] uppercase tracking-wide">
+                  {t("badgeMain")}
+                </Badge>
+              ) : null}
+              <Badge tone={noShowTone(r.noShowRate)} className="tabular-nums">
+                {pct(r.noShowRate)}
+              </Badge>
+            </div>
+            <div className="mt-2 flex flex-col gap-1">
+              <MobileListRow label={t("colActiveMembers")}>{r.activeMembers}</MobileListRow>
+              <MobileListRow label={t("colVisits")}>{r.visits}</MobileListRow>
+              <MobileListRow label={t("colRetention")}>{pct(r.retention)}</MobileListRow>
+              {compact ? null : (
+                <MobileListRow label={t("colPeak")}>
+                  {r.peak
+                    ? `${t(WEEKDAY_KEYS[r.peak.weekday])} ${String(r.peak.hour).padStart(2, "0")}:00`
+                    : "—"}
+                </MobileListRow>
+              )}
+            </div>
+          </MobileListCard>
+        ))}
+        {data.orgTotals ? (
+          <MobileListCard className="bg-surface-2/60">
+            <p className="text-sm font-semibold text-neutral-500">{t("allLocations")}</p>
+            <div className="mt-2 flex flex-col gap-1">
+              <MobileListRow label={t("colActiveMembers")}>
+                {data.orgTotals.activeMembers}
+              </MobileListRow>
+              <MobileListRow label={t("colVisits")}>{data.orgTotals.visits}</MobileListRow>
+              <MobileListRow label={t("colRetention")}>
+                {pct(data.orgTotals.retention)}
+              </MobileListRow>
+              <MobileListRow label={t("colNoShow")}>
+                {pct(data.orgTotals.noShowRate)}
+              </MobileListRow>
+            </div>
+          </MobileListCard>
+        ) : null}
+      </div>
+
+      <TableWrap className="hidden md:block">
         <Table className={compact ? "min-w-[540px]" : "min-w-[720px]"}>
           <Thead>
             <tr>

@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { Table, TableWrap, Thead, Tbody, Th, Tr, Td } from "@/components/ui/table";
+import { MobileListCard, MobileListRow } from "@/components/ui/mobile-list-card";
 import { AlertTriangle, Camera, Search } from "@/components/ui/icons";
 import {
   DEFECT_STATUS_META,
@@ -253,8 +254,71 @@ export function DefectsDashboard({
         </label>
       </div>
 
-      {/* Tabel */}
-      <TableWrap>
+      {/* Mobiel: kaarten. Deze lijst is een vloer-scherm (de snelkoppeling op het
+          dashboard linkt hierheen), en acht kolommen zijwaarts scrollen is op een
+          telefoon onwerkbaar. Zelfde data, andere vorm — desktop houdt de tabel. */}
+      <div className="flex flex-col gap-3 md:hidden">
+        {filtered.length === 0 ? (
+          <p className="py-8 text-center text-sm text-neutral-500">{to("table.empty")}</p>
+        ) : (
+          filtered.map((r) => {
+            const sev = DEFECT_SEVERITY_META[r.severity];
+            const st = DEFECT_STATUS_META[r.status];
+            const urgent = r.severity === "UNSAFE" && isOpenDefectStatus(r.status);
+            return (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setDetailId(r.id)}
+                className="text-left"
+              >
+                <MobileListCard className={urgent ? "border-red-300 bg-red-50/70" : undefined}>
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    <Badge tone={sev.tone}>{t(`severity.${r.severity}`)}</Badge>
+                    <Badge tone={st.tone}>{t(`status.${r.status}`)}</Badge>
+                    {r.confirmations > 0 ? (
+                      <Badge tone="neutral">{`+${r.confirmations}`}</Badge>
+                    ) : null}
+                  </div>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-neutral-900">
+                    {urgent ? (
+                      <AlertTriangle className="size-4 shrink-0 text-red-600" />
+                    ) : null}
+                    <span className="truncate">{r.machineName}</span>
+                    {r.photoCount > 0 ? (
+                      <Camera className="size-3.5 shrink-0 text-neutral-400" />
+                    ) : null}
+                  </p>
+                  <p className="mt-0.5 truncate text-sm text-neutral-600">
+                    {t(`symptoms.${r.symptom}`)}
+                  </p>
+                  <div className="mt-2 flex flex-col gap-1">
+                    {locations.length > 1 ? (
+                      <MobileListRow label={to("table.location")}>
+                        {r.locationName}
+                      </MobileListRow>
+                    ) : null}
+                    <MobileListRow label={to("table.age")}>
+                      {defectAgeLabel(r.createdAt, nowDate)}
+                    </MobileListRow>
+                    <MobileListRow label={to("table.reporter")}>
+                      {r.reporter ?? to("table.anonymous")}
+                    </MobileListRow>
+                    {r.assignedToName ? (
+                      <MobileListRow label={to("table.assignee")}>
+                        {r.assignedToName}
+                      </MobileListRow>
+                    ) : null}
+                  </div>
+                </MobileListCard>
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop: tabel */}
+      <TableWrap className="hidden md:block">
         <Table>
           <Thead>
             <tr>
