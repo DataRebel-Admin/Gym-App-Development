@@ -1176,7 +1176,12 @@
       "locationNotAllowed": "You don't have access to this location.",
       "saving": "Saving…",
       "save": "Save",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "attendanceLink": "Attendance",
+      "attendanceFailed": "Could not save attendance.",
+      "attendanceNotOpen": "Attendance can only be marked shortly before the class starts.",
+      "todaySessions": "Today",
+      "noSessionsToday": "No classes scheduled today."
     },
     "exercises": {
       "metaTitle": "Exercises",

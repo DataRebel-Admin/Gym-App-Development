@@ -1046,7 +1046,12 @@
       "locationNotAllowed": "Do hast gjin tagong ta dizze fêstiging.",
       "saving": "Opslaan…",
       "save": "Opslaan",
-      "cancel": "Annulearje"
+      "cancel": "Annulearje",
+      "attendanceLink": "Oanwêzigens",
+      "attendanceFailed": "Oanwêzigens bewarje is net slagge.",
+      "attendanceNotOpen": "Ofstreekje kin pas krekt foar it begjin fan de les.",
+      "todaySessions": "Hjoed",
+      "noSessionsToday": "Hjoed stiet der gjin les pland."
     },
     "exercises": {
       "metaTitle": "Oefeningen",

@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/staff";
 import { getLocationScope } from "@/lib/location-access";
 import { locationScopeWhere } from "@/lib/location-scope";
 import { areClassesEnabled } from "@/lib/classes";
-import { ACTIVE_ENROLLMENT_STATUSES, sessionCapacity } from "@/lib/class-attendance";
+import { ACTIVE_ENROLLMENT_STATUSES, attendanceOpen, sessionCapacity } from "@/lib/class-attendance";
+import { dayKeyInTz } from "@/lib/metrics/definitions";
+import { getTenantLocations } from "@/lib/locations";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
 
@@ -23,29 +26,55 @@ export default async function RoosterPage() {
   // gekoppelde vestigingen; de les-definities zelf zijn org-niveau.
   const scope = await getLocationScope(owner);
   const scoped = locationScopeWhere(owner.tenantId, scope);
+  const multiLocation = (await getTenantLocations(owner.tenantId)).length > 1;
 
-  const [classes, upcoming] = await Promise.all([
+  const now = new Date();
+  // "Vandaag" = van nu tot het einde van de dag op de klok van de vestiging.
+  // De ruwe query pakt een marge van 36 uur (tijdzones lopen uiteen) en het
+  // filteren op dagsleutel gebeurt daarna per sessie in de eigen zone —
+  // servertijd is hier nooit de maatstaf (zie de tijdzone-regel in CLAUDE.md).
+  const dayHorizon = new Date(now.getTime() + 36 * 3_600_000);
+
+  const sessionInclude = {
+    groupClass: { select: { id: true, name: true, maxParticipants: true, instructorName: true } },
+    venueLocation: { select: { name: true, timezone: true } },
+    instructor: { select: { name: true } },
+    // Capaciteit telt alleen actieve statussen (lib/class-attendance.ts).
+    _count: {
+      select: {
+        enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } },
+      },
+    },
+  } satisfies Prisma.ClassSessionInclude;
+
+  const [classes, upcoming, todayRows] = await Promise.all([
     prisma.groupClass.findMany({
-      where: { tenantId: owner.tenantId },
+      where: { tenantId: owner.tenantId, archivedAt: null },
       orderBy: { name: "asc" },
-      include: { _count: { select: { sessions: { where: { ...scoped, startsAt: { gte: new Date() } } } } } },
+      include: { _count: { select: { sessions: { where: { ...scoped, startsAt: { gte: now } } } } } },
     }),
     prisma.classSession.findMany({
-      where: { ...scoped, startsAt: { gte: new Date() } },
+      where: { ...scoped, startsAt: { gte: now } },
       orderBy: { startsAt: "asc" },
       take: 25,
-      include: {
-        groupClass: { select: { name: true, maxParticipants: true } },
-        venueLocation: { select: { timezone: true } },
-        // Capaciteit telt alleen actieve statussen (lib/class-attendance.ts).
-        _count: {
-          select: {
-            enrollments: { where: { status: { in: [...ACTIVE_ENROLLMENT_STATUSES] } } },
-          },
-        },
+      include: sessionInclude,
+    }),
+    // Lessen van vandaag, inclusief de les die nu bezig is en de lessen die al
+    // afgelopen zijn — juist dáár moet nog afgevinkt worden.
+    prisma.classSession.findMany({
+      where: {
+        ...scoped,
+        cancelledAt: null,
+        startsAt: { gte: new Date(now.getTime() - 36 * 3_600_000), lte: dayHorizon },
       },
+      orderBy: { startsAt: "asc" },
+      include: sessionInclude,
     }),
   ]);
+
+  const today = todayRows.filter(
+    (s) => dayKeyInTz(s.startsAt, s.venueLocation.timezone) === dayKeyInTz(now, s.venueLocation.timezone)
+  );
 
   return (
     <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
@@ -53,6 +82,48 @@ export default async function RoosterPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">{t("title")}</h1>
         <p className="text-sm text-neutral-500">{t("desc")}</p>
       </div>
+
+      {/* Vandaag staat bovenaan: dat is de enige vraag die een medewerker 's
+          ochtends heeft, en het is de ingang naar het aanwezigheidsscherm. */}
+      <section className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold text-neutral-900">{t("todaySessions")}</h2>
+        {today.length === 0 ? (
+          <p className="text-sm text-neutral-500">{t("noSessionsToday")}</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {today.map((s) => {
+              const tz = s.venueLocation.timezone;
+              const instructor = s.instructor?.name ?? s.groupClass.instructorName;
+              const markable = attendanceOpen(s, now);
+              return (
+                <li key={s.id}>
+                  <Link
+                    href={`/owner/rooster/sessie/${s.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm hover:bg-surface-2"
+                  >
+                    <span className="min-w-0">
+                      <span className="font-medium text-neutral-900">{s.groupClass.name}</span>{" "}
+                      <span className="text-neutral-500">
+                        · {formatTimeRange(s.startsAt, s.endsAt, tz)}
+                        {multiLocation ? ` · ${s.venueLocation.name}` : ""}
+                        {instructor ? ` · ${instructor}` : ""}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2 text-neutral-500">
+                      {s._count.enrollments}/{sessionCapacity(s)}
+                      {markable ? (
+                        <span className="rounded-md bg-accent px-2 py-0.5 text-[11px] font-semibold text-accent-foreground">
+                          {t("attendanceLink")}
+                        </span>
+                      ) : null}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("newClass")}</h2>
@@ -93,10 +164,11 @@ export default async function RoosterPage() {
             {upcoming.map((s) => {
               const tz = s.venueLocation.timezone;
               return (
-                <li
-                  key={s.id}
-                  className="flex items-center justify-between rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm"
-                >
+                <li key={s.id}>
+                  <Link
+                    href={`/owner/rooster/sessie/${s.id}`}
+                    className="flex items-center justify-between rounded-xl border border-border bg-surface-1 px-4 py-3 text-sm hover:bg-surface-2"
+                  >
                   <span>
                     <span className="font-medium text-neutral-900">{s.groupClass.name}</span>{" "}
                     <span className="text-neutral-500">
@@ -111,6 +183,7 @@ export default async function RoosterPage() {
                   <span className="text-neutral-500">
                     {s._count.enrollments}/{sessionCapacity(s)}
                   </span>
+                  </Link>
                 </li>
               );
             })}

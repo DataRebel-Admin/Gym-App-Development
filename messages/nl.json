@@ -1176,7 +1176,12 @@
       "locationNotAllowed": "Je hebt geen toegang tot deze vestiging.",
       "saving": "Opslaan…",
       "save": "Opslaan",
-      "cancel": "Annuleren"
+      "cancel": "Annuleren",
+      "attendanceLink": "Aanwezigheid",
+      "attendanceFailed": "Aanwezigheid opslaan is niet gelukt.",
+      "attendanceNotOpen": "Afvinken kan pas vlak vóór de start van de les.",
+      "todaySessions": "Vandaag",
+      "noSessionsToday": "Vandaag staat er geen les gepland."
     },
     "exercises": {
       "metaTitle": "Oefeningen",

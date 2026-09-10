@@ -17,7 +17,7 @@ import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
 import { zonedInputToDate, addWeeksZoned, shiftWallClock, wallClockDeltaMs } from "@/lib/tz";
 import { withSerializableRetry } from "@/lib/db-retry";
-import { MAX_REPEAT_WEEKS, canDeleteSession } from "@/lib/class-attendance";
+import { MAX_REPEAT_WEEKS, attendanceOpen, canDeleteSession } from "@/lib/class-attendance";
 import { promoteWaitlists } from "@/lib/class-enrollment";
 import {
   notifyClassEvent,
@@ -671,17 +671,28 @@ export async function restoreSession(formData: FormData) {
 }
 
 /**
- * Markeer aanwezigheid van een deelnemer (staff, ná de les): ATTENDED, NO_SHOW
- * of terug naar ENROLLED (correctie). CANCELLED/WAITLISTED blijven
- * onaangeroerd (die zaten niet in de les). Vereist schedule:manage + toegang
- * tot de vestiging van de sessie.
+ * Markeer aanwezigheid van één deelnemer: ATTENDED, NO_SHOW of terug naar
+ * ENROLLED (correctie). CANCELLED/WAITLISTED blijven onaangeroerd (die zaten
+ * niet in de les). Vereist schedule:manage + toegang tot de vestiging.
+ *
+ * Bewust géén FormData-action met redirect: het aanwezigheidspaneel roept dit
+ * per deelnemer optimistisch aan (patroon `saveSet` in de actieve training).
+ * Eén les van twintig man kostte anders twintig volledige paginanavigaties op
+ * een telefoon in de zaal.
  */
-export async function markAttendance(formData: FormData) {
+export type AttendanceResult = { ok: true } | { ok: false; error: string };
+
+export async function setAttendance(input: {
+  enrollmentId: string;
+  status: "ATTENDED" | "NO_SHOW" | "ENROLLED";
+}): Promise<AttendanceResult> {
   const owner = await requirePermission("schedule:manage");
   await assertClassesEnabled(owner.tenantId);
-  const enrollmentId = String(formData.get("enrollmentId") ?? "");
-  const status = String(formData.get("status") ?? "");
-  if (status !== "ATTENDED" && status !== "NO_SHOW" && status !== "ENROLLED") return;
+  const t = await getTranslations("owner.rooster");
+  const { enrollmentId, status } = input;
+  if (status !== "ATTENDED" && status !== "NO_SHOW" && status !== "ENROLLED") {
+    return { ok: false, error: t("attendanceFailed") };
+  }
 
   const enrollment = await prisma.classEnrollment.findFirst({
     where: { id: enrollmentId, tenantId: owner.tenantId },
@@ -690,14 +701,24 @@ export async function markAttendance(formData: FormData) {
       status: true,
       user: { select: { name: true, email: true } },
       session: {
-        select: { classId: true, locationId: true, startsAt: true, groupClass: { select: { name: true } } },
+        select: {
+          id: true,
+          classId: true,
+          locationId: true,
+          startsAt: true,
+          groupClass: { select: { name: true } },
+        },
       },
     },
   });
-  if (!enrollment || enrollment.status === "CANCELLED" || enrollment.status === "WAITLISTED") return;
-  // Defense-in-depth: aanwezigheid bestaat pas vanaf de start van de les — de
-  // UI toont de knoppen pas ná afloop, maar de action mag daar niet op leunen.
-  if (enrollment.session.startsAt > new Date()) return;
+  if (!enrollment || enrollment.status === "CANCELLED" || enrollment.status === "WAITLISTED") {
+    return { ok: false, error: t("attendanceFailed") };
+  }
+  // Afvinken kan vanaf kort vóór de start (mensen lopen dan binnen), niet pas
+  // ná afloop. Gedeelde regel met de UI (lib/class-attendance.ts).
+  if (!attendanceOpen(enrollment.session, new Date())) {
+    return { ok: false, error: t("attendanceNotOpen") };
+  }
   const scope = await getLocationScope(owner);
   if (!canAccessLocation(scope, enrollment.session.locationId)) notFound();
 
@@ -717,5 +738,46 @@ export async function markAttendance(formData: FormData) {
       status,
     },
   });
+  revalidatePath(`/owner/rooster/sessie/${enrollment.session.id}`);
   revalidatePath(`/owner/rooster/${enrollment.session.classId}`);
+  return { ok: true };
+}
+
+/**
+ * "Iedereen aanwezig": alle nog niet gemarkeerde deelnemers in één keer op
+ * ATTENDED. Dat is de normale uitkomst van een les — daarna markeert de
+ * trainer alleen de paar afwezigen. Eén auditregel voor de hele groep (geen
+ * ruis van twintig losse regels).
+ */
+export async function markAllPresent(sessionId: string): Promise<AttendanceResult> {
+  const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
+  const t = await getTranslations("owner.rooster");
+
+  const session = await prisma.classSession.findFirst({
+    where: { id: sessionId, tenantId: owner.tenantId },
+    select: { id: true, classId: true, locationId: true, startsAt: true, groupClass: { select: { name: true } } },
+  });
+  if (!session) return { ok: false, error: t("sessionNotFound") };
+  if (!attendanceOpen(session, new Date())) return { ok: false, error: t("attendanceNotOpen") };
+  const scope = await getLocationScope(owner);
+  if (!canAccessLocation(scope, session.locationId)) notFound();
+
+  const result = await prisma.classEnrollment.updateMany({
+    where: { sessionId: session.id, tenantId: owner.tenantId, status: "ENROLLED" },
+    data: { status: "ATTENDED", statusChangedAt: new Date(), markedById: owner.id },
+  });
+  if (result.count > 0) {
+    await audit("class.attendance.mark", {
+      actor: owner,
+      tenantId: owner.tenantId,
+      locationId: session.locationId,
+      targetType: "ClassSession",
+      targetId: session.id,
+      metadata: { class: session.groupClass.name, status: "ATTENDED", count: result.count },
+    });
+  }
+  revalidatePath(`/owner/rooster/sessie/${session.id}`);
+  revalidatePath(`/owner/rooster/${session.classId}`);
+  return { ok: true };
 }

@@ -11,6 +11,7 @@ import { areClassesEnabled } from "@/lib/classes";
 import {
   ACTIVE_ENROLLMENT_STATUSES,
   ENROLLMENT_STATUS_META,
+  attendanceOpen,
   canDeleteSession,
   sessionCapacity,
 } from "@/lib/class-attendance";
@@ -21,7 +22,7 @@ import { dateToZonedInput } from "@/lib/tz";
 import { ConfirmButton } from "@/components/ui/confirm-button";
 import { AddSessionForm, EditClassForm, EditSessionForm } from "../class-forms";
 import { SessionCancelButton, SessionDeleteButton } from "../session-delete-button";
-import { deleteClass, markAttendance, restoreSession } from "../actions";
+import { deleteClass, restoreSession } from "../actions";
 
 export async function generateMetadata({
   params,
@@ -170,65 +171,45 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
           </details>
         ) : null}
 
-        {/* Aanwezigheid: ná de les markeert staff wie er was; wat op ENROLLED
-            blijft staan wordt 12u later automatisch NO_SHOW (cron). Wachtlijst
-            en afgemeld staan hier bewust niet. */}
+        {/* Aanwezigheid heeft een eigen scherm per sessie: dat is wat een
+            trainer met een telefoon in de zaal opent. Hier alleen de stand +
+            de ingang, geen twintig losse formulieren. */}
+        {s.enrollments.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-2">
+            <p className="min-w-0 flex-1 truncate text-xs text-neutral-500">
+              {participants
+                .map((e) => e.user.name ?? e.user.email)
+                .concat(
+                  waiting > 0
+                    ? [`+${waiting} ${ENROLLMENT_STATUS_META.WAITLISTED.label.toLowerCase()}`]
+                    : []
+                )
+                .join(", ")}
+            </p>
+            {attendanceOpen(s, now) && !isCancelled ? (
+              <Link
+                href={`/owner/rooster/sessie/${s.id}`}
+                className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-neutral-700 hover:bg-surface-2"
+              >
+                {t("attendanceLink")}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
         {isPast && participants.length > 0 ? (
-          <div className="flex flex-col gap-1 border-t border-neutral-100 pt-2">
+          <div className="flex flex-wrap gap-1.5">
             {participants.map((e) => {
               const meta = ENROLLMENT_STATUS_META[e.status];
               return (
-                <div key={e.id} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-neutral-700">
-                    {e.user.name ?? e.user.email}
-                    <span
-                      className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeClass(meta.tone)}`}
-                    >
-                      {meta.label}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 gap-1">
-                    {e.status !== "ATTENDED" ? (
-                      <form action={markAttendance}>
-                        <input type="hidden" name="enrollmentId" value={e.id} />
-                        <input type="hidden" name="status" value="ATTENDED" />
-                        <button className="rounded-md border border-border px-2 py-1 text-xs text-neutral-600 hover:bg-surface-2">
-                          {t("present")}
-                        </button>
-                      </form>
-                    ) : null}
-                    {e.status !== "NO_SHOW" ? (
-                      <form action={markAttendance}>
-                        <input type="hidden" name="enrollmentId" value={e.id} />
-                        <input type="hidden" name="status" value="NO_SHOW" />
-                        <button className="rounded-md border border-border px-2 py-1 text-xs text-neutral-600 hover:bg-surface-2">
-                          {t("noShow")}
-                        </button>
-                      </form>
-                    ) : null}
-                    {/* Correctie: een verkeerd gemarkeerde aanwezigheid terug
-                        naar neutraal (de action ondersteunde dit al). */}
-                    {e.status !== "ENROLLED" ? (
-                      <form action={markAttendance}>
-                        <input type="hidden" name="enrollmentId" value={e.id} />
-                        <input type="hidden" name="status" value="ENROLLED" />
-                        <button className="rounded-md border border-border px-2 py-1 text-xs text-neutral-600 hover:bg-surface-2">
-                          {t("resetAttendance")}
-                        </button>
-                      </form>
-                    ) : null}
-                  </span>
-                </div>
+                <span
+                  key={e.id}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeClass(meta.tone)}`}
+                >
+                  {meta.label}
+                </span>
               );
             })}
           </div>
-        ) : null}
-        {!isPast && s.enrollments.length > 0 ? (
-          <p className="text-xs text-neutral-500">
-            {s.enrollments
-              .map((e) => `${e.user.name ?? e.user.email}${e.status === "WAITLISTED" ? ` (${ENROLLMENT_STATUS_META.WAITLISTED.label})` : ""}`)
-              .join(", ")}
-          </p>
         ) : null}
       </li>
     );
