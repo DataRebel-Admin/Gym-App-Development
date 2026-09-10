@@ -809,6 +809,25 @@ async function seedRooster(slug: string) {
   });
   const primary = locations[0].id;
   const secondary = locations[1]?.id ?? primary;
+  // Demo-instructeur: een echt teamlid, zodat "Mijn lessen" op het
+  // medewerkersdashboard en de vervanger-melding iets te tonen hebben.
+  const coach = await prisma.user.findFirst({
+    where: { tenantId: tenant.id, role: { in: ["TENANT_STAFF", "TENANT_ADMIN"] } },
+    orderBy: { role: "asc" },
+    select: { id: true },
+  });
+
+  // Boekingsregels: de demo laat zien dat ze bestaan zonder ze streng te
+  // zetten (twee uur annuleertermijn, drie lessen per week, geen no-show-blokkade).
+  await prisma.tenant.update({
+    where: { id: tenant.id },
+    data: {
+      classCancelDeadlineMinutes: 120,
+      classBookingOpensDays: 21,
+      classMaxBookingsPerWeek: 3,
+      classRemindHoursBefore: 14,
+    },
+  });
 
   // Spinning — max 1, en meteen vol (Lisa aangemeld) om "vol" te tonen.
   const spinning = await prisma.groupClass.create({
@@ -817,6 +836,7 @@ async function seedRooster(slug: string) {
       name: "Spinning",
       description: "45 minuten intervallen op de bike. Handdoek en bidon meenemen.",
       instructorName: "Eva",
+      defaultInstructorId: coach?.id ?? null,
       maxParticipants: 1,
       sessions: {
         create: [
@@ -826,6 +846,7 @@ async function seedRooster(slug: string) {
             startsAt: futureDate(1, 18),
             endsAt: futureDate(1, 19),
             location: "Zaal 1",
+            instructorId: coach?.id ?? null,
           },
         ],
       },

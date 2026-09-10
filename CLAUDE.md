@@ -748,9 +748,10 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   promotie-call-site = zelfde patroon, nooit een kale `$transaction`.
 - **Pure regels in `lib/class-attendance.ts`** (getest): `sessionCapacity`
   (sessie-override `ClassSession.maxParticipants` wint van de les-default),
-  `enrollmentWindowOpen` (aan- én afmelden tot de **start**; erna is een
-  aanmelding definitief, anders poetst een lid een no-show weg), `decideEnroll`
-  (gesloten → closed, vol → **wachtlijst**, anders aangemeld; her-inschrijven
+  `enrollmentWindowOpen` (de **harde ondergrens**: vanaf de start is een
+  aanmelding definitief, anders poetst een lid een no-show weg — de
+  boekingsregels van v3 leggen er strengere grenzen bovenop), `decideEnroll`
+  (zie de v3-sectie hieronder voor de volledige uitkomsten; her-inschrijven
   hergebruikt de CANCELLED-rij en zet `enrolledAt` opnieuw = wachtlijstvolgorde),
   `promotableCount`, `noShowCutoff` (gedeeld door cron én `isNoShowEligible`).
 - **Wachtlijst = `EnrollmentStatus.WAITLISTED`** (bezet géén plek; telt nergens
@@ -812,11 +813,13 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   De sessie gaat **expliciet** mee (niet via id): bij annulering bestaat de rij
   al niet meer. E-mail via `classNotificationMessage` (generieke shell; kop en
   intro zijn dezelfde vertaalde teksten als in-app, `notifications.classes.*`).
-- **Crons** (`vercel.json`): `class-reminders` (dagelijks 16:00 UTC, venster
-  `REMINDER_WINDOW_HOURS` = 30, idempotent via `ClassEnrollment.remindedAt`,
-  markeert vóór verzending) en `class-attendance` (no-show + wachtlijst opruimen).
+- **Crons** (`vercel.json`): `class-reminders` (**elk uur**, voorsprong per
+  sportschool/lestype instelbaar binnen `MAX_REMIND_HOURS` = 72, idempotent via
+  `ClassEnrollment.remindedAt`, markeert vóór verzending — zie de v3-sectie) en
+  `class-attendance` (no-show + wachtlijst opruimen).
 - **Feedback aan het lid** via `?msg=` op `/member/rooster` (enrolled/waitlisted/
-  closed/unchanged/unenrolled, plus `?overlap=1` = amber waarschuwing dat de
+  closed/unchanged/unenrolled + de v3-redenen tooEarly/weekLimit/noShowBlock/
+  cancelClosed, plus `?overlap=1` = amber waarschuwing dat de
   aanmelding overlapt met een andere eigen les — dubbelboeken mag, maar niet
   ongemerkt), gestart-maar-nog-bezig-lessen blijven zichtbaar (`endsAt >= now`)
   maar zijn niet boekbaar; het vestiging-filter zit **in de query** en het
@@ -897,10 +900,110 @@ Migratie `20260826120000_class_sessions_v2` (additief, geen RLS-wijziging).
   verborgen `q` mee en `returnQuery` (actions.ts) laat daaruit alleen de bekende
   sleutels door (`view`/`loc`/`type`/`m`/`d`) — het is gebruikersinvoer. Zonder dat
   landde je na aanmelden weer in de kale lijstweergave.
-- **Bewust niet**: geen annuleerdeadline vóór de start (één regel: tot de start),
-  geen per-lid limiet op aantal aanmeldingen, geen blokkade op overlappende
-  aanmeldingen (alleen de waarschuwing), geen instructeur-FK
-  (`GroupClass.instructorName` blijft vrije tekst).
+- **Bewust niet**: geen blokkade op overlappende aanmeldingen (alleen de
+  waarschuwing).
+
+### Groepslessen v3: boekingsregels, instructeurs, aanwezigheidsscherm
+
+Migratie `20260910120000_group_classes_v3` (additief, geen RLS-wijziging — alle
+velden op bestaande modellen). De defaults zijn exact het gedrag van vóór deze
+ronde, dus een sportschool die niets instelt merkt er niets van.
+
+- **BOEKINGSREGELS RESOLVEN VIA `resolveBookingRules`, NOOIT AD HOC.** Vijf
+  regels staan als standaard op `Tenant` (`classCancelDeadlineMinutes`,
+  `classBookingOpensDays`, `classMaxBookingsPerWeek`, `classNoShowLimit`,
+  `classRemindHoursBefore`) en zijn per lestype te overschrijven (`GroupClass.*`,
+  NULL = volg de sportschool; het no-show-beleid is bewust sportschool-breed).
+  De pure resolver in lib/class-attendance.ts is de enige plek die dat samenvoegt —
+  schrijf nergens een `?? tenant.x`, dan lopen UI en server uiteen.
+  - `decideEnroll` heeft nu verklarende uitkomsten (`tooEarly`, `weekLimit`,
+    `noShowBlock`) die **vóór** de wachtlijst komen: een geblokkeerd lid hoort
+    niet "wachtlijst" te lezen. Volgorde: harde poorten → beleid → plek.
+  - De **kaart gebruikt dezelfde regels** (`SessionCard.tooEarly`/`canCancel`),
+    dus er verschijnt geen knop die de server daarna weigert.
+  - **Afmelden ≠ "de les is begonnen"**: `unenroll` geeft `cancelClosed` terug
+    als de annuleertermijn verstreken is. Een **wachtende** mag altijd van de
+    lijst af (bezet geen plek, dus geen deadline).
+  - `maxBookingsPerWeek`/`noShowLimit` behandelen **0 als "uit"**: een limiet van
+    nul zou élke aanmelding blokkeren, wat niemand bedoelt bij een leeg veld.
+  - De weeklimiet telt per **kalenderweek** (maandag t/m zondag, klok van de
+    vestiging — `weekWindow` in lib/class-booking.ts), niet rollend: "vanaf
+    maandag mag ik weer" is voorspelbaar.
+  - No-show-teller: `countNoShows` over `NO_SHOW_WINDOW_DAYS` (30, vast), geteld
+    op de **eindtijd van de les** — niet op het moment van markeren, anders
+    verschuift de teller door een late correctie van de trainer. Het lid ziet de
+    teller **alleen als er beleid is**: zonder limiet is het geen regel maar een
+    oordeel.
+- **`WAITLIST_PROMOTION_CUTOFF_MINUTES` (60)**: binnen een uur vóór de start
+  promoveert `promoteWaitlist` niemand meer. Die plek stond anders als bezet
+  geboekt voor iemand die de melding toch niet meer zag, terwijl wie er wél was
+  hem niet kon pakken.
+- **AANWEZIGHEID HEEFT EEN EIGEN SCHERM: `/owner/rooster/sessie/[id]`.** Let op
+  dat `/owner/rooster/[id]` het **lestype** is — een sessie-id daarheen sturen
+  geeft 404. Het paneel (`components/classes/attendance-panel.tsx`) slaat
+  optimistisch op via `setAttendance`/`markAllPresent` (patroon `saveSet`), met
+  terugdraaien + reden bij een fout. Eerder was dit per deelnemer een
+  FormData-action met volledige paginanavigatie: twintig herladingen voor één les.
+  - `ATTENDANCE_LEAD_MINUTES` (15): afvinken kan vanaf kort vóór de start, want
+    in de praktijk vink je af terwijl mensen binnenlopen. Gedeelde pure regel
+    (`attendanceOpen`) voor de UI én de action.
+  - `/owner/rooster` opent met **"Vandaag"** (alle lestypes, met de
+    aanwezigheidsknop). De dagbepaling gaat via `dayKeyInTz` op de
+    vestiging-tijdzone — nooit `setHours` op de serverklok.
+- **INSTRUCTEUR IS EEN GEBRUIKER: `ClassSession.instructorId`** (+ `GroupClass.
+  defaultInstructorId` als voorinvulling), met `instructorName` als vrije tekst
+  voor een externe docent zonder account. Weergave-volgorde overal:
+  sessie-instructeur → vaste instructeur van het lestype → vrije tekst. Op de
+  **sessie** en niet op het lestype, want een vervanger regel je per sessie.
+  Levert "Mijn lessen" op het staff-dashboard op (kon eerder niet, vandaar de
+  tenant-brede planning) en meldingstype **`instructor`** aan aangemelde leden.
+  `resolveInstructorId` accepteert alleen een actief teamlid van dezelfde tenant.
+- **Weekpatroon plannen**: `lib/class-planning.ts` `expandWeeklyPlan` rolt
+  "ma+wo+vr × N weken" uit via de klok van de vestiging (DST-veilig, getest).
+  Dagen die in de ánkerweek vóór de starttijd liggen vallen af. Zonder gekozen
+  weekdagen is het exact de oude wekelijkse reeks. Eén `seriesId` per handeling.
+- **Lestype archiveren i.p.v. verwijderen** (`GroupClass.archivedAt`,
+  `setClassArchived`): verwijderen cascadeert sessies + aanwezigheidshistorie weg,
+  en "we stoppen met BodyPump" bedoelt dat niet. Archiveren annuleert de komende
+  sessies (met bericht aan de leden) en laat de historie staan. Gearchiveerde
+  lestypes blijven in de **owner-lijst** staan (badge, achteraan) — anders is het
+  niet terug te draaien — en vallen weg uit het lid-aanbod, de filterchips en de
+  herinnering-cron.
+- **Herinnering-cron draait per uur** (`vercel.json`, was dagelijks 16:00 UTC met
+  een venster van 30u → voorsprong varieerde van ~1u tot ruim een dag). De query
+  pakt alles binnen `MAX_REMIND_HOURS` (72) en de grens wordt **per sessie**
+  bepaald uit de regels; `remindedAt` blijft de idempotentie.
+- **Omslagfoto per lestype** (`GroupClass.imageUrl`, `lib/class-image.ts`, puur +
+  getest): eigen foto → sportschoollogo → accent-vlak met icoon. Bewust géén
+  gecureerde stockfoto-laag zoals bij de schema's: lestype-namen zijn vrije tekst
+  ("Bootcamp 55+") en dus niet betrouwbaar op een registry te matchen. Rauwe
+  `<img>` (zonder Blob-token is de upload een data-URL, die kan de optimizer niet aan).
+- **Lestype-pagina voor het lid**: `/member/rooster/les/[classId]` — beeld,
+  omschrijving, instructeur, de regels die het lid raken en alle komende
+  momenten. De omschrijving zat alleen achter de info-knop; bij een volle les wil
+  je kunnen kiezen. Alleen regels tonen die écht beperken ("onbeperkt" en "tot de
+  start" zijn geen mededeling).
+- **GROEPSLESSEN TELLEN MEE VOOR HET LID.** Een bijgewoonde les (ATTENDED) telt
+  in de **streak** en de consistentie-heatmap, krijgt een KPI + eigen lijst op
+  `/member/history`, en voedt vier trofeeën onder Community
+  (`metric: classesAttended`). Volume/PR's blijven bewust krachttraining-only —
+  daar is bij een les geen data van. Gedeelde loader `loadMemberClasses`
+  (lib/member-stats.ts, per-request `cache()`, net als `loadMemberSessions`);
+  `hasActivity` op `/member/history` telt lessen mee, anders krijgt een
+  lessen-only lid de lege staat. `setAttendance`/`markAllPresent` roepen
+  `evaluateAndAward` aan (best-effort, patroon `endSession`), en de
+  LOCATION-scope in `evaluateAndAward` neemt vestigingen mee waar iemand
+  uitsluitend lessen volgt.
+- **Rapportage per lestype**: `classStatsByType` (lib/metrics/definitions.ts, puur
+  + getest) → tabel op `/owner/insights` met bezetting, no-show en **wachtlijst**.
+  Dat laatste is de onbediende vraag en het duidelijkste signaal om een sessie bij
+  te plannen; die data lag er al en werd nergens getoond.
+  - **Opgeloste bug**: `lib/metrics/queries.ts` rekende met
+    `groupClass.maxParticipants` i.p.v. `sessionCapacity(s)`, dus de bezetting
+    klopte niet zodra één sessie een eigen capaciteit had.
+- **Bewust niet**: geen credits/strippenkaart (betalingen zijn een niet-doel),
+  geen instructeur-agenda los van het rooster, geen QR-zelfinchecken door het lid
+  (kan later bovenop het aanwezigheidsscherm), geen per-lestype no-show-beleid.
 
 ### Ledenagenda (kalender, weekdagplanning, ICS-feed)
 
@@ -2041,8 +2144,9 @@ Vierde rol **`TENANT_STAFF`** (Sportschoolmedewerker/coach): tenant-gebonden coa
   knop "Mij koppelen/loskoppelen als coach" (`selfAssignCoach`/`selfUnassignCoach` in
   members/actions.ts, `requirePermission("members:assign-self")`, `coachId` geforceerd op
   zichzelf). Eigenaar-toewijzing (elke coach kiezen) blijft via `assignCoach`/`unassignCoach`.
-- **"Eigen planning"** op het dashboard toont tenant-brede lessen (geen trainer-FK,
-  `GroupClass.instructorName` is vrije tekst).
+- **"Mijn lessen"** op het dashboard toont de sessies die dit teamlid zélf geeft
+  (`ClassSession.instructorId`, sinds groepslessen v3); daaronder staat de
+  tenant-brede planning als "Aankomende lessen".
 
 ### Organisatie → Vestigingen (Location) + per-vestiging analytics
 

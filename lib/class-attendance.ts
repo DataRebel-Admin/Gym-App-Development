@@ -310,11 +310,14 @@ export function isNoShowEligible(
 
 /**
  * Herinnering-venster (cron `class-reminders`, dagelijks): lessen die binnen
- * `REMINDER_WINDOW_HOURS` starten. Ruimer dan 24u zodat een dagelijkse run geen
- * les mist die net buiten het vorige venster viel; `remindedAt` maakt het
+ * `MAX_REMIND_HOURS` starten; welke daarvan écht aan de beurt is bepaalt de
+ * per-lestype-instelling (`resolveBookingRules`). `remindedAt` maakt het
  * idempotent.
+ *
+ * (De oude `REMINDER_WINDOW_HOURS` = 30 is vervallen met de overstap van een
+ * dagelijkse naar een uurlijkse cron: het venster was toen tegelijk de
+ * voorsprong, waardoor die varieerde van ongeveer een uur tot ruim een dag.)
  */
-export const REMINDER_WINDOW_HOURS = 30;
 
 /** Maximaal aantal weken dat "wekelijks herhalen" in één keer inplant. */
 export const MAX_REPEAT_WEEKS = 26;
