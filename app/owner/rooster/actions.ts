@@ -15,9 +15,17 @@ import { areClassesEnabled } from "@/lib/classes";
 import { audit } from "@/lib/audit";
 import { notifyStaffWithPermission } from "@/lib/staff-notify";
 import { firstValidationError } from "@/lib/validation-message";
-import { zonedInputToDate, addWeeksZoned, shiftWallClock, wallClockDeltaMs } from "@/lib/tz";
+import { uploadClassImage } from "@/lib/blob";
+import { zonedInputToDate, shiftWallClock, wallClockDeltaMs } from "@/lib/tz";
 import { withSerializableRetry } from "@/lib/db-retry";
-import { MAX_REPEAT_WEEKS, attendanceOpen, canDeleteSession } from "@/lib/class-attendance";
+import { expandWeeklyPlan } from "@/lib/class-planning";
+import {
+  MAX_REMIND_HOURS,
+  MAX_REPEAT_WEEKS,
+  MIN_REMIND_HOURS,
+  attendanceOpen,
+  canDeleteSession,
+} from "@/lib/class-attendance";
 import { promoteWaitlists } from "@/lib/class-enrollment";
 import {
   notifyClassEvent,
@@ -34,11 +42,25 @@ async function assertClassesEnabled(tenantId: string) {
 export type ClassFormState = { error?: string; success?: string };
 export type SessionFormState = { error?: string; success?: string };
 
+/** Leeg formulierveld → null (= "volg de sportschool-standaard"). */
+const optionalInt = (min: number, max: number) =>
+  z.preprocess(
+    (v) => (v === "" || v === undefined || v === null ? null : v),
+    z.coerce.number().int().min(min).max(max).nullable()
+  );
+
 const classSchema = z.object({
   name: z.string().trim().min(1, "nameRequired"),
   description: z.string().trim().max(1000).optional(),
   instructorName: z.string().trim().max(120).optional(),
   maxParticipants: z.coerce.number().int().min(1).max(200),
+  /** Vaste instructeur (teamlid); leeg = geen. */
+  defaultInstructorId: z.string().trim().optional(),
+  // Boekingsregels: leeg = volg de sportschool (lib/class-attendance.ts).
+  cancelDeadlineMinutes: optionalInt(0, 10080),
+  bookingOpensDays: optionalInt(1, 365),
+  maxBookingsPerWeek: optionalInt(0, 50),
+  remindHoursBefore: optionalInt(MIN_REMIND_HOURS, MAX_REMIND_HOURS),
 });
 
 function classInput(formData: FormData) {
@@ -47,7 +69,35 @@ function classInput(formData: FormData) {
     description: formData.get("description") || undefined,
     instructorName: formData.get("instructorName") || undefined,
     maxParticipants: formData.get("maxParticipants") || 12,
+    defaultInstructorId: formData.get("defaultInstructorId") || undefined,
+    cancelDeadlineMinutes: formData.get("cancelDeadlineMinutes"),
+    bookingOpensDays: formData.get("bookingOpensDays"),
+    maxBookingsPerWeek: formData.get("maxBookingsPerWeek"),
+    remindHoursBefore: formData.get("remindHoursBefore"),
   });
+}
+
+/**
+ * Een instructeur moet een actief teamlid van dezelfde sportschool zijn.
+ * Onbekend of leeg → null (geen instructeur), nooit een id uit een ander
+ * tenant — het formulierveld is gebruikersinvoer.
+ */
+async function resolveInstructorId(
+  tenantId: string,
+  requested: string | undefined
+): Promise<string | null> {
+  if (!requested) return null;
+  const user = await prisma.user.findFirst({
+    where: {
+      id: requested,
+      tenantId,
+      active: true,
+      archivedAt: null,
+      role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] },
+    },
+    select: { id: true },
+  });
+  return user?.id ?? null;
 }
 
 export async function createClass(_prev: ClassFormState, formData: FormData): Promise<ClassFormState> {
@@ -63,6 +113,11 @@ export async function createClass(_prev: ClassFormState, formData: FormData): Pr
       description: parsed.data.description ?? null,
       instructorName: parsed.data.instructorName ?? null,
       maxParticipants: parsed.data.maxParticipants,
+      defaultInstructorId: await resolveInstructorId(owner.tenantId, parsed.data.defaultInstructorId),
+      cancelDeadlineMinutes: parsed.data.cancelDeadlineMinutes,
+      bookingOpensDays: parsed.data.bookingOpensDays,
+      maxBookingsPerWeek: parsed.data.maxBookingsPerWeek,
+      remindHoursBefore: parsed.data.remindHoursBefore,
     },
   });
   await audit("class.create", {
@@ -92,9 +147,24 @@ export async function updateClass(_prev: ClassFormState, formData: FormData): Pr
 
   const before = await prisma.groupClass.findFirst({
     where: { id, tenantId: owner.tenantId },
-    select: { id: true, name: true, description: true, instructorName: true, maxParticipants: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      instructorName: true,
+      maxParticipants: true,
+      defaultInstructorId: true,
+      cancelDeadlineMinutes: true,
+      bookingOpensDays: true,
+      maxBookingsPerWeek: true,
+      remindHoursBefore: true,
+    },
   });
   if (!before) return { error: t("classNotFound") };
+  const defaultInstructorId = await resolveInstructorId(
+    owner.tenantId,
+    parsed.data.defaultInstructorId
+  );
 
   // Serializable + retry, net als enroll/unenroll: de wachtlijst-promotie is
   // een count-then-write en moet in dezelfde isolatieklasse draaien als een
@@ -109,6 +179,11 @@ export async function updateClass(_prev: ClassFormState, formData: FormData): Pr
             description: parsed.data.description ?? null,
             instructorName: parsed.data.instructorName ?? null,
             maxParticipants: parsed.data.maxParticipants,
+            defaultInstructorId,
+            cancelDeadlineMinutes: parsed.data.cancelDeadlineMinutes,
+            bookingOpensDays: parsed.data.bookingOpensDays,
+            maxBookingsPerWeek: parsed.data.maxBookingsPerWeek,
+            remindHoursBefore: parsed.data.remindHoursBefore,
           },
         });
         if (parsed.data.maxParticipants <= before.maxParticipants) return [];
@@ -136,6 +211,127 @@ export async function updateClass(_prev: ClassFormState, formData: FormData): Pr
   revalidatePath("/owner/rooster");
   revalidatePath(`/owner/rooster/${before.id}`);
   return { success: t("saved") };
+}
+
+/**
+ * Omslagfoto van een lestype instellen of verwijderen. Leegmaken zet het veld
+ * op NULL → terugval op het sportschoollogo, dus "geen afbeelding" bestaat
+ * niet als eindtoestand (zelfde 3-lagen-idee als lib/schema-image.ts).
+ */
+export async function setClassImage(_prev: ClassFormState, formData: FormData): Promise<ClassFormState> {
+  const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
+  const t = await getTranslations("owner.rooster");
+  const id = String(formData.get("id") ?? "");
+  const remove = formData.get("remove") === "1";
+
+  const groupClass = await prisma.groupClass.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: { id: true, name: true, imageUrl: true, tenant: { select: { slug: true } } },
+  });
+  if (!groupClass) return { error: t("classNotFound") };
+
+  let imageUrl: string | null = groupClass.imageUrl;
+  if (remove) {
+    imageUrl = null;
+  } else {
+    const file = formData.get("image");
+    const uploaded = await uploadClassImage(
+      file instanceof File ? file : null,
+      groupClass.tenant.slug
+    );
+    if (!uploaded) return { error: t("imageFailed") };
+    imageUrl = uploaded;
+  }
+
+  await prisma.groupClass.update({ where: { id: groupClass.id }, data: { imageUrl } });
+  await audit("class.image.set", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "GroupClass",
+    targetId: groupClass.id,
+    metadata: { name: groupClass.name, removed: String(remove) },
+  });
+  revalidatePath(`/owner/rooster/${groupClass.id}`);
+  return { success: t("saved") };
+}
+
+/**
+ * Lestype archiveren: uit het aanbod, maar sessies en aanwezigheidshistorie
+ * blijven bestaan. Dít is wat een sportschool bedoelt met "we stoppen met
+ * BodyPump" — verwijderen zou een jaar aanwezigheidsdata cascaderen
+ * (precedent: Location/Exercise archiveren).
+ *
+ * Komende sessies worden geannuleerd (leden krijgen de bestaande
+ * annuleringsmelding), zodat er niemand voor een les blijft staan die niet
+ * meer gegeven wordt. Terugdraaien kan met dezelfde action.
+ */
+export async function setClassArchived(formData: FormData) {
+  const owner = await requirePermission("schedule:manage");
+  await assertClassesEnabled(owner.tenantId);
+  const id = String(formData.get("id") ?? "");
+  const archived = formData.get("archived") === "1";
+  const scope = await getLocationScope(owner);
+
+  const groupClass = await prisma.groupClass.findFirst({
+    where: { id, tenantId: owner.tenantId },
+    select: {
+      id: true,
+      name: true,
+      archivedAt: true,
+      sessions: {
+        where: { startsAt: { gt: new Date() }, cancelledAt: null },
+        select: {
+          ...SESSION_INFO_SELECT,
+          locationId: true,
+          enrollments: {
+            where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
+            select: { userId: true },
+          },
+        },
+      },
+    },
+  });
+  if (!groupClass) redirect("/owner/rooster");
+  // Fail-closed, net als deleteClass: alleen archiveren als álle komende
+  // sessies binnen de vestiging-scope van deze medewerker vallen.
+  if (groupClass.sessions.some((s) => !canAccessLocation(scope, s.locationId))) notFound();
+
+  const now = new Date();
+  await prisma.groupClass.update({
+    where: { id: groupClass.id },
+    data: { archivedAt: archived ? now : null },
+  });
+  if (archived && groupClass.sessions.length > 0) {
+    await prisma.classSession.updateMany({
+      where: { id: { in: groupClass.sessions.map((s) => s.id) } },
+      data: { cancelledAt: now },
+    });
+  }
+  await audit(archived ? "class.archive" : "class.unarchive", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "GroupClass",
+    targetId: groupClass.id,
+    metadata: { name: groupClass.name, cancelledSessions: archived ? groupClass.sessions.length : 0 },
+  });
+  if (archived) {
+    for (const s of groupClass.sessions) {
+      if (s.enrollments.length > 0) {
+        await notifyClassEvent({
+          tenantId: owner.tenantId,
+          kind: "cancelled",
+          session: toSessionInfo(s),
+          userIds: s.enrollments.map((e) => e.userId),
+          actor: owner,
+        });
+      }
+    }
+  }
+
+  revalidatePath("/owner/rooster");
+  revalidatePath(`/owner/rooster/${groupClass.id}`);
+  redirect(`/owner/rooster/${groupClass.id}`);
 }
 
 /**
@@ -210,7 +406,17 @@ const sessionSchema = z.object({
   location: z.string().trim().max(120).optional(),
   // Capaciteit van deze sessie; leeg = les-default.
   maxParticipants: z.coerce.number().int().min(1).max(200).optional(),
+  // Wie geeft déze les; leeg = de vaste instructeur van het lestype.
+  instructorId: z.string().trim().optional(),
 });
+
+/** ISO-weekdagen uit het planformulier (checkboxes `weekdays`). */
+function weekdayInput(formData: FormData): number[] {
+  return formData
+    .getAll("weekdays")
+    .map((v) => Number.parseInt(String(v), 10))
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 7);
+}
 
 /**
  * Vestiging kiezen + toegang afdwingen. Gevraagde vestiging moet actief zijn
@@ -264,15 +470,30 @@ export async function addSession(_prev: SessionFormState, formData: FormData): P
   if (!startsAt || !endsAt) return { error: tv("invalidDate") };
   if (endsAt <= startsAt) return { error: tv("endAfterStart") };
 
-  const seriesId = repeatWeeks > 0 ? randomUUID() : null;
-  const rows = Array.from({ length: repeatWeeks + 1 }, (_, i) => ({
+  // Weekpatroon uitrollen (ma+wo+vr × N weken) via de klok van de vestiging,
+  // zodat een reeks over de zomertijd heen op dezelfde lokale tijd blijft
+  // staan. Zonder gekozen weekdagen is dit exact de oude wekelijkse reeks.
+  const weekdays = weekdayInput(formData);
+  const planned = expandWeeklyPlan({
+    startsAt,
+    endsAt,
+    weekdays,
+    weeks: repeatWeeks,
+    timezone: venue.timezone,
+  });
+  // Een reeks is alles wat in één handeling is ingepland (ook meerdere dagen
+  // per week): "verwijder ook alle volgende" hoort dan bij elkaar.
+  const seriesId = planned.length > 1 ? randomUUID() : null;
+  const instructorId = await resolveInstructorId(owner.tenantId, parsed.data.instructorId);
+  const rows = planned.map((p) => ({
     tenantId: owner.tenantId,
     classId: groupClass.id,
     locationId: venue.id,
-    startsAt: i === 0 ? startsAt : addWeeksZoned(startsAt, i, venue.timezone),
-    endsAt: i === 0 ? endsAt : addWeeksZoned(endsAt, i, venue.timezone),
+    startsAt: p.startsAt,
+    endsAt: p.endsAt,
     location: parsed.data.location ?? null,
     maxParticipants: parsed.data.maxParticipants ?? null,
+    instructorId,
     seriesId,
   }));
   await prisma.classSession.createMany({ data: rows });
@@ -343,6 +564,7 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
     locationId: true,
     location: true,
     maxParticipants: true,
+    instructorId: true,
     enrollments: {
       where: { status: { in: ["ENROLLED", "WAITLISTED"] } },
       select: { userId: true },
@@ -368,6 +590,13 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
   // klok van de (nieuwe) vestiging.
   const startDelta = wallClockDeltaMs(before.startsAt, startsAt, venue.timezone);
   const endDelta = wallClockDeltaMs(before.endsAt, endsAt, venue.timezone);
+  const instructorId = await resolveInstructorId(owner.tenantId, parsed.data.instructorId);
+  // Een vervanger is nieuws voor wie zich heeft aangemeld — daar kies je een
+  // les op. Alleen melden als er écht iemand anders voor staat.
+  const instructorChanged = instructorId !== before.instructorId;
+  const newInstructor = instructorChanged && instructorId
+    ? await prisma.user.findFirst({ where: { id: instructorId }, select: { name: true, email: true } })
+    : null;
 
   // Serializable + retry (zie updateClass): promotie mag niet racen met een
   // gelijktijdige aanmelding.
@@ -405,6 +634,7 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
               locationId: venue.id,
               location: parsed.data.location ?? null,
               maxParticipants: parsed.data.maxParticipants ?? null,
+              instructorId,
             },
           });
           // Verschoven starttijd → herinnering opnieuw: wie voor de oude tijd al
@@ -455,19 +685,31 @@ export async function updateSession(_prev: SessionFormState, formData: FormData)
       r.session.startsAt.getTime() !== r.startsAt.getTime() ||
       r.session.endsAt.getTime() !== r.endsAt.getTime() ||
       r.session.locationId !== venue.id;
+    const sessionInfo = {
+      id: r.session.id,
+      className: r.session.groupClass.name,
+      startsAt: r.startsAt,
+      endsAt: r.endsAt,
+      timezone: venue.timezone,
+    };
     if (moved && r.session.enrollments.length > 0 && r.startsAt > now) {
       await notifyClassEvent({
         tenantId: owner.tenantId,
         kind: "moved",
-        session: {
-          id: r.session.id,
-          className: r.session.groupClass.name,
-          startsAt: r.startsAt,
-          endsAt: r.endsAt,
-          timezone: venue.timezone,
-        },
+        session: sessionInfo,
         userIds: r.session.enrollments.map((e) => e.userId),
         previous: { startsAt: r.session.startsAt, endsAt: r.session.endsAt },
+        actor: owner,
+      });
+    }
+    // Vervanger: aparte melding, want "de les is verplaatst" dekt dit niet.
+    if (newInstructor && r.session.enrollments.length > 0 && r.startsAt > now) {
+      await notifyClassEvent({
+        tenantId: owner.tenantId,
+        kind: "instructor",
+        session: sessionInfo,
+        userIds: r.session.enrollments.map((e) => e.userId),
+        instructorName: newInstructor.name ?? newInstructor.email,
         actor: owner,
       });
     }

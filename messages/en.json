@@ -1181,7 +1181,8 @@
       "attendanceFailed": "Could not save attendance.",
       "attendanceNotOpen": "Attendance can only be marked shortly before the class starts.",
       "todaySessions": "Today",
-      "noSessionsToday": "No classes scheduled today."
+      "noSessionsToday": "No classes scheduled today.",
+      "imageFailed": "Could not save the image."
     },
     "exercises": {
       "metaTitle": "Exercises",

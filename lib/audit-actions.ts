@@ -423,6 +423,20 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} verwijderde les '${s(meta, "name") ?? "?"}' (${s(meta, "sessions") ?? "0"} sessies)`,
   },
+  "class.archive": {
+    category: "schedule", label: "Les gearchiveerd", icon: "📦", tone: "warning",
+    sentence: ({ actor, meta }) =>
+      `${actor} archiveerde les '${s(meta, "name") ?? "?"}' (${s(meta, "cancelledSessions") ?? "0"} komende sessies geannuleerd)`,
+  },
+  "class.unarchive": {
+    category: "schedule", label: "Les teruggezet", icon: "♻️", tone: "success",
+    sentence: ({ actor, meta }) => `${actor} haalde les '${s(meta, "name") ?? "?"}' uit het archief`,
+  },
+  "class.image.set": {
+    category: "schedule", label: "Lesafbeelding gewijzigd", icon: "🖼️", tone: "neutral",
+    sentence: ({ actor, meta }) =>
+      `${actor} ${s(meta, "removed") === "true" ? "verwijderde de afbeelding van" : "stelde een afbeelding in voor"} les '${s(meta, "name") ?? "?"}'`,
+  },
   "class.session.create": {
     category: "schedule", label: "Sessie ingepland", icon: "🗓️", tone: "success",
     sentence: ({ actor, meta }) =>

@@ -20,6 +20,7 @@ const SYSTEM_ACTOR: ClassNotifyActor = { email: "systeem", role: null };
  * - enrolled / waitlisted: bevestiging van de eigen aanmelding
  * - promoted: van de wachtlijst doorgeschoven naar een plek
  * - moved: tijd/vestiging gewijzigd door de sportschool
+ * - instructor: een ander teamlid geeft deze les (vervanger)
  * - cancelled: sessie geannuleerd of verwijderd (of hele les verwijderd)
  * - restored: een eerdere annulering teruggedraaid ("gaat toch door")
  * - reminder: cron, kort vóór de les
@@ -29,6 +30,7 @@ export type ClassNotifyKind =
   | "waitlisted"
   | "promoted"
   | "moved"
+  | "instructor"
   | "cancelled"
   | "restored"
   | "reminder";
@@ -63,6 +65,8 @@ export async function notifyClassEvent(opts: {
   userIds: string[];
   /** Bij `moved`: de vorige tijd (voor "was …"). */
   previous?: { startsAt: Date; endsAt: Date } | null;
+  /** Bij `instructor`: wie de les nu geeft. */
+  instructorName?: string | null;
   actor?: ClassNotifyActor;
 }): Promise<number> {
   const { tenantId, kind, session } = opts;
@@ -106,7 +110,12 @@ export async function notifyClassEvent(opts: {
     const prefs = u.notificationPrefs;
     try {
       const t = await trFor(localeFromEnum(u.locale));
-      const vars = { name: session.className, when, previous };
+      const vars = {
+        name: session.className,
+        when,
+        previous,
+        instructor: opts.instructorName ?? "",
+      };
       const title = t(`${kind}Title`, vars);
       const body = t(`${kind}Body`, vars);
       let any = false;

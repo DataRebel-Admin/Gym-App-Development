@@ -1051,7 +1051,8 @@
       "attendanceFailed": "Oanwêzigens bewarje is net slagge.",
       "attendanceNotOpen": "Ofstreekje kin pas krekt foar it begjin fan de les.",
       "todaySessions": "Hjoed",
-      "noSessionsToday": "Hjoed stiet der gjin les pland."
+      "noSessionsToday": "Hjoed stiet der gjin les pland.",
+      "imageFailed": "Ofbylding bewarje is net slagge."
     },
     "exercises": {
       "metaTitle": "Oefeningen",

@@ -9,6 +9,8 @@ import { locationScopeWhere } from "@/lib/location-scope";
 import { areClassesEnabled } from "@/lib/classes";
 import { ACTIVE_ENROLLMENT_STATUSES, attendanceOpen, sessionCapacity } from "@/lib/class-attendance";
 import { dayKeyInTz } from "@/lib/metrics/definitions";
+import { getClassBookingDefaults, toBookingDefaultsView } from "@/lib/class-booking";
+import { listAvailableCoaches } from "@/lib/coach-assignments";
 import { getTenantLocations } from "@/lib/locations";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { NewClassForm } from "./class-forms";
@@ -47,10 +49,12 @@ export default async function RoosterPage() {
     },
   } satisfies Prisma.ClassSessionInclude;
 
-  const [classes, upcoming, todayRows] = await Promise.all([
+  const [classes, upcoming, todayRows, instructors, bookingDefaults] = await Promise.all([
+    // Gearchiveerde lestypes blijven in deze lijst staan (achteraan, met
+    // badge): anders is een archief niet meer terug te draaien.
     prisma.groupClass.findMany({
-      where: { tenantId: owner.tenantId, archivedAt: null },
-      orderBy: { name: "asc" },
+      where: { tenantId: owner.tenantId },
+      orderBy: [{ archivedAt: "asc" }, { name: "asc" }],
       include: { _count: { select: { sessions: { where: { ...scoped, startsAt: { gte: now } } } } } },
     }),
     prisma.classSession.findMany({
@@ -70,11 +74,15 @@ export default async function RoosterPage() {
       orderBy: { startsAt: "asc" },
       include: sessionInclude,
     }),
+    listAvailableCoaches(owner.tenantId),
+    getClassBookingDefaults(owner.tenantId),
   ]);
 
   const today = todayRows.filter(
     (s) => dayKeyInTz(s.startsAt, s.venueLocation.timezone) === dayKeyInTz(now, s.venueLocation.timezone)
   );
+  const instructorOptions = instructors.map((i) => ({ id: i.id, name: i.name ?? i.email }));
+  const defaultsView = toBookingDefaultsView(bookingDefaults);
 
   return (
     <div className="flex flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
@@ -127,7 +135,7 @@ export default async function RoosterPage() {
 
       <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("newClass")}</h2>
-        <NewClassForm />
+        <NewClassForm instructors={instructorOptions} defaults={defaultsView} />
       </section>
 
       <section className="flex flex-col gap-2">
@@ -144,7 +152,14 @@ export default async function RoosterPage() {
                   href={`/owner/rooster/${c.id}`}
                   className="flex items-center justify-between rounded-xl border border-border bg-surface-1 px-4 py-3 hover:bg-surface-2"
                 >
-                  <span className="font-medium text-neutral-900">{c.name}</span>
+                  <span className="font-medium text-neutral-900">
+                    {c.name}
+                    {c.archivedAt !== null ? (
+                      <span className="ml-2 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+                        Gearchiveerd
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="text-sm text-neutral-500">
                     {t("sessionsMax", { count: c._count.sessions, max: c.maxParticipants })}
                   </span>

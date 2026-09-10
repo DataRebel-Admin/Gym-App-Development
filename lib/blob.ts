@@ -214,6 +214,34 @@ export async function uploadSchemaImage(
   }
 }
 
+/**
+ * Upload de omslagfoto van een lestype. Zelfde keten en dezelfde grens als
+ * `uploadSchemaImage` — het is hetzelfde soort beeld, alleen bij een les.
+ */
+export async function uploadClassImage(
+  file: File | null,
+  tenantSlug: string
+): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+  if (!file.type.startsWith("image/")) return null;
+  if (file.size > SCHEMA_IMAGE_MAX_BYTES) return null;
+
+  try {
+    if (blobConfigured()) {
+      const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+      const key = `${tenantSlug}/classes/${randomUUID()}.${ext}`;
+      const blob = await put(key, file, { access: "public", token: blobToken() });
+      return blob.url;
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const mime = file.type || "image/jpeg";
+    return `data:${mime};base64,${buffer.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Maximale grootte van een logo/favicon (2 MB). */
 export const TENANT_ASSET_MAX_BYTES = 2 * 1024 * 1024;
 

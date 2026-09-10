@@ -19,10 +19,12 @@ import { getTenantLocations } from "@/lib/locations";
 import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { dateToZonedInput } from "@/lib/tz";
+import { getClassBookingDefaults, toBookingDefaultsView } from "@/lib/class-booking";
+import { listAvailableCoaches } from "@/lib/coach-assignments";
 import { ConfirmButton } from "@/components/ui/confirm-button";
-import { AddSessionForm, EditClassForm, EditSessionForm } from "../class-forms";
+import { AddSessionForm, ClassImageForm, EditClassForm, EditSessionForm } from "../class-forms";
 import { SessionCancelButton, SessionDeleteButton } from "../session-delete-button";
-import { deleteClass, restoreSession } from "../actions";
+import { deleteClass, restoreSession, setClassArchived } from "../actions";
 
 export async function generateMetadata({
   params,
@@ -73,10 +75,15 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
   });
   if (!groupClass) notFound();
 
-  const [allLocations, activeLocationId] = await Promise.all([
+  const [allLocations, activeLocationId, instructors, bookingDefaults, tenant] = await Promise.all([
     getTenantLocations(owner.tenantId),
     resolveActiveLocationId(owner.tenantId),
+    listAvailableCoaches(owner.tenantId),
+    getClassBookingDefaults(owner.tenantId),
+    prisma.tenant.findUnique({ where: { id: owner.tenantId }, select: { logoUrl: true } }),
   ]);
+  const instructorOptions = instructors.map((i) => ({ id: i.id, name: i.name ?? i.email }));
+  const defaultsView = toBookingDefaultsView(bookingDefaults);
   // Alleen vestigingen waar deze gebruiker mag plannen.
   const locations = allLocations
     .filter((l) => canAccessLocation(scope, l.id))
@@ -88,6 +95,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
   const now = new Date();
   const upcoming = groupClass.sessions.filter((s) => s.endsAt >= now);
   const past = groupClass.sessions.filter((s) => s.endsAt < now).reverse();
+  const isArchived = groupClass.archivedAt !== null;
 
   const badgeClass = (tone: string) =>
     tone === "positive"
@@ -158,6 +166,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
                 classId={groupClass.id}
                 locations={locations}
                 inSeries={s.seriesId !== null}
+                instructors={instructorOptions}
                 values={{
                   id: s.id,
                   startsAt: dateToZonedInput(s.startsAt, tz),
@@ -165,6 +174,7 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
                   locationId: s.locationId,
                   location: s.location,
                   maxParticipants: s.maxParticipants,
+                  instructorId: s.instructorId,
                 }}
               />
             </div>
@@ -236,7 +246,12 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
         {locations.length === 0 ? (
           <p className="text-sm text-neutral-500">{t("locationNotAllowed")}</p>
         ) : (
-          <AddSessionForm classId={groupClass.id} locations={locations} defaultLocationId={defaultLocationId} />
+          <AddSessionForm
+            classId={groupClass.id}
+            locations={locations}
+            defaultLocationId={defaultLocationId}
+            instructors={instructorOptions}
+          />
         )}
       </section>
 
@@ -257,16 +272,60 @@ export default async function ClassDetailPage({ params }: { params: Promise<{ id
       ) : null}
 
       <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
+        <h2 className="text-sm font-semibold text-neutral-900">Afbeelding</h2>
+        <ClassImageForm
+          classId={groupClass.id}
+          imageUrl={groupClass.imageUrl}
+          fallbackUrl={tenant?.logoUrl ?? null}
+        />
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
         <h2 className="text-sm font-semibold text-neutral-900">{t("editClass")}</h2>
         <EditClassForm
+          instructors={instructorOptions}
+          defaults={defaultsView}
           values={{
             id: groupClass.id,
             name: groupClass.name,
             description: groupClass.description,
             instructorName: groupClass.instructorName,
             maxParticipants: groupClass.maxParticipants,
+            defaultInstructorId: groupClass.defaultInstructorId,
+            cancelDeadlineMinutes: groupClass.cancelDeadlineMinutes,
+            bookingOpensDays: groupClass.bookingOpensDays,
+            maxBookingsPerWeek: groupClass.maxBookingsPerWeek,
+            remindHoursBefore: groupClass.remindHoursBefore,
           }}
         />
+      </section>
+
+      {/* Archiveren staat vóór verwijderen: dit is bijna altijd wat een
+          sportschool bedoelt met "we stoppen hiermee". Verwijderen cascadeert
+          de aanwezigheidshistorie weg. */}
+      <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-border bg-surface-1 p-5">
+        <h2 className="text-sm font-semibold text-neutral-900">
+          {isArchived ? "Uit het archief halen" : "Archiveren"}
+        </h2>
+        <p className="text-sm text-neutral-500">
+          {isArchived
+            ? "Dit lestype staat in het archief: leden zien het niet en er kan niet op geboekt worden. Sessies en aanwezigheidshistorie zijn bewaard gebleven."
+            : "Haalt het lestype uit het aanbod. Komende sessies worden geannuleerd en aangemelde leden krijgen bericht; sessies en aanwezigheidshistorie blijven bewaard."}
+        </p>
+        <div>
+          <ConfirmButton
+            action={setClassArchived}
+            fields={{ id: groupClass.id, archived: isArchived ? "0" : "1" }}
+            label={isArchived ? "Terugzetten" : "Archiveren"}
+            title={isArchived ? "Lestype terugzetten" : "Lestype archiveren"}
+            message={
+              isArchived
+                ? "Het lestype komt weer in het aanbod. Geannuleerde sessies blijven geannuleerd."
+                : `Weet je zeker dat je '${groupClass.name}' archiveert? Komende sessies worden geannuleerd en de aangemelde leden krijgen bericht.`
+            }
+            triggerClassName="rounded-lg border border-border px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-surface-2"
+          />
+        </div>
       </section>
 
       <section className="flex max-w-2xl flex-col gap-3 rounded-xl border border-red-200 bg-surface-1 p-5">

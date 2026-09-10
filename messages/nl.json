@@ -1181,7 +1181,8 @@
       "attendanceFailed": "Aanwezigheid opslaan is niet gelukt.",
       "attendanceNotOpen": "Afvinken kan pas vlak vóór de start van de les.",
       "todaySessions": "Vandaag",
-      "noSessionsToday": "Vandaag staat er geen les gepland."
+      "noSessionsToday": "Vandaag staat er geen les gepland.",
+      "imageFailed": "Afbeelding opslaan is niet gelukt."
     },
     "exercises": {
       "metaTitle": "Oefeningen",

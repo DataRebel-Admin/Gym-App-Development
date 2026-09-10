@@ -7,6 +7,7 @@ import { listCoachMembers } from "@/lib/coach-assignments";
 import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { areClassesEnabled } from "@/lib/classes";
+import { formatSessionStart, formatTimeRange } from "@/lib/datetime";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
 import { FloorActions } from "@/components/owner/floor-actions";
 import { getAchievementDef } from "@/lib/achievements/definitions";
@@ -80,7 +81,7 @@ export async function StaffDashboard({
   const scope = await getLocationScope({ id: coachId, role: "TENANT_STAFF", tenantId });
   const scoped = locationScopeWhere(tenantId, scope);
 
-  const [activeMembersToday, openRequests, newMeasurements, upcoming, myMembers, tenantFlags, recentAchievements, maintenanceAttention] = await Promise.all([
+  const [activeMembersToday, openRequests, newMeasurements, upcoming, myClasses, myMembers, tenantFlags, recentAchievements, maintenanceAttention] = await Promise.all([
     // DISTINCT leden (niet sessies!) die vandaag trainden binnen de scope —
     // dezelfde definitie als het owner-dashboard (lib/insights.ts activeToday).
     prisma.workoutSession
@@ -106,7 +107,29 @@ export async function StaffDashboard({
             id: true,
             startsAt: true,
             location: true,
+            instructor: { select: { name: true, email: true } },
             groupClass: { select: { name: true, instructorName: true } },
+          },
+        })
+      : Promise.resolve([]),
+    // "Mijn lessen": de sessies die dit teamlid zélf geeft. Kan nu pas, sinds
+    // de instructeur een gebruiker is in plaats van vrije tekst — voorheen
+    // toonde dit blok noodgedwongen de tenant-brede planning.
+    canSchedule
+      ? prisma.classSession.findMany({
+          where: { ...scoped, startsAt: { gte: now }, cancelledAt: null, instructorId: coachId },
+          orderBy: { startsAt: "asc" },
+          take: 5,
+          select: {
+            id: true,
+            startsAt: true,
+            endsAt: true,
+            location: true,
+            groupClass: { select: { name: true } },
+            venueLocation: { select: { timezone: true } },
+            _count: {
+              select: { enrollments: { where: { status: { in: ["ENROLLED", "ATTENDED"] } } } },
+            },
           },
         })
       : Promise.resolve([]),
@@ -204,6 +227,34 @@ export async function StaffDashboard({
         </section>
       ) : null}
 
+      {/* Eerst je eigen lessen, dan pas de rest van de planning: dit is wat een
+          instructeur wil zien als hij de app opent. */}
+      {canSchedule && myClasses.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold text-neutral-900">Mijn lessen</h2>
+          <div className="flex flex-col gap-2">
+            {myClasses.map((c) => (
+              <Link key={c.id} href={`/owner/rooster/sessie/${c.id}`}>
+                <Card className="flex items-center justify-between gap-3 p-4 hover:bg-surface-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-neutral-900">{c.groupClass.name}</p>
+                    <p className="truncate text-xs text-neutral-500">
+                      {formatSessionStart(c.startsAt, c.venueLocation.timezone)}
+                      {" · "}
+                      {formatTimeRange(c.startsAt, c.endsAt, c.venueLocation.timezone)}
+                      {c.location ? ` · ${c.location}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-neutral-500">
+                    {c._count.enrollments} aangemeld
+                  </span>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {canSchedule ? (
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold text-neutral-900">Aankomende lessen</h2>
@@ -223,7 +274,11 @@ export async function StaffDashboard({
                     <p className="truncate text-xs text-neutral-500">
                       {TIME_FMT.format(c.startsAt)}
                       {c.location ? ` · ${c.location}` : ""}
-                      {c.groupClass.instructorName ? ` · ${c.groupClass.instructorName}` : ""}
+                      {c.instructor
+                        ? ` · ${c.instructor.name ?? c.instructor.email}`
+                        : c.groupClass.instructorName
+                          ? ` · ${c.groupClass.instructorName}`
+                          : ""}
                     </p>
                   </div>
                   <Link href="/owner/rooster" className="shrink-0 text-xs text-accent hover:underline">

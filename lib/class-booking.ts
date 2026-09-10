@@ -62,6 +62,25 @@ export const getClassBookingDefaults = cache(
   }
 );
 
+/**
+ * De standaard in de vorm die de formulieren tonen (placeholders bij de
+ * override-velden). Losse helper zodat de vertaling van kolomnaam naar
+ * veldnaam op één plek staat.
+ */
+export function toBookingDefaultsView(defaults: BookingRuleDefaults): {
+  cancelDeadlineMinutes: number;
+  bookingOpensDays: number;
+  maxBookingsPerWeek: number | null;
+  remindHoursBefore: number;
+} {
+  return {
+    cancelDeadlineMinutes: defaults.classCancelDeadlineMinutes,
+    bookingOpensDays: defaults.classBookingOpensDays,
+    maxBookingsPerWeek: defaults.classMaxBookingsPerWeek,
+    remindHoursBefore: defaults.classRemindHoursBefore,
+  };
+}
+
 /** Regels voor één lestype (override + standaard) in één aanroep. */
 export async function getBookingRulesFor(
   tenantId: string,
