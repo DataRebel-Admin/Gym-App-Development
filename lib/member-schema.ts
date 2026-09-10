@@ -2,6 +2,7 @@ import "server-only";
 import { forbidden } from "next/navigation";
 import type { MemberSchemaMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { isTrainingTeamMember } from "@/lib/member-mode-server";
 import type { FrameworkLimits } from "@/lib/member-schema-constraints";
 import { getPickerExercises, type PickerExercise } from "@/lib/exercise-picker";
 
@@ -24,11 +25,29 @@ export async function getMemberSchemaMode(tenantId: string): Promise<MemberSchem
 }
 
 /**
+ * De modus zoals die geldt voor de **huidige** gebruiker.
+ *
+ * `Tenant.memberSchemaMode` gaat over wat de sportschool haar **leden** toestaat.
+ * Een eigenaar/medewerker die zelf meesport valt daarbuiten: bij `DISABLED` zou
+ * die anders volledig droog staan (geen builder, geen catalogus, geen eenmalige
+ * workout) en bij `APPROVAL` zou hij zijn eigen schema moeten goedkeuren. Voor
+ * een meesportend teamlid is het dus altijd `DIRECT`.
+ *
+ * Gebruik deze functie overal waar de modus het **gedrag of de UI** bepaalt;
+ * `getMemberSchemaMode` blijft de rauwe tenant-instelling (owner-instellingen).
+ */
+export async function memberSchemaModeFor(tenantId: string): Promise<MemberSchemaMode> {
+  if (await isTrainingTeamMember()) return "DIRECT";
+  return getMemberSchemaMode(tenantId);
+}
+
+/**
  * Guard: de functie "zelf schema samenstellen" moet aan staan voor deze tenant.
- * DISABLED → premium 403. Retourneert de actieve modus.
+ * DISABLED → premium 403. Retourneert de actieve modus (zie `memberSchemaModeFor`
+ * voor de uitzondering op teamleden die zelf sporten).
  */
 export async function requireMemberSchemaEnabled(tenantId: string): Promise<MemberSchemaMode> {
-  const mode = await getMemberSchemaMode(tenantId);
+  const mode = await memberSchemaModeFor(tenantId);
   if (mode === "DISABLED") forbidden();
   return mode;
 }

@@ -1852,6 +1852,86 @@ met behoud van data (`ALTER TYPE RENAME VALUE`, migratie `20260630120000_superad
 - **Tenant-isolatie** blijft primair via expliciete `tenantId`-filters (+ RLS-backstop);
   superadmin gebruikt bewust de base `prisma` achter `requireSuperadmin()`.
 
+### Lid-modus: eigenaar/medewerker sport zelf mee + mobiele beheer-app
+
+Een eigenaar of medewerker kan óók zelf bij de eigen sportschool sporten, op hetzelfde
+e-mailadres, met een keuze bij het openen van de app. Daarnaast is `/owner` op een
+telefoon een echte app geworden (onderbalk, vloer-acties) in plaats van een ingekrompen
+desktop-dashboard. Migratie `20260909130000_trains_as_member` (additief, geen RLS).
+
+- **GEEN TWEEDE ACCOUNT — DAT KAN NIET.** `User` is `@@unique([tenantId, email])` en de
+  tenant-scoped Auth.js-adapter zoekt op (tenant, e-mail); twee rijen met hetzelfde adres
+  in dezelfde tenant maakt "welke rij logt in?" onbeslisbaar en sloopt login, wachtwoord-
+  reset, 2FA en uitnodigingen. In plaats daarvan **één account, twee modi** via
+  `User.trainsAsMember`. Voor de gebruiker voelt het identiek (zelfde e-mail, keuze bij
+  openen); de auth-laag verandert niet. Niet "oplossen" met een tweede User-rij.
+- **Pure kern `lib/member-mode.ts`** (géén `server-only`, ook client + tests — idioom
+  lib/rbac.ts): `isTeamRole`, `canTrainAsMember(role, vlag)`, `hasBothModes`,
+  `parseMode`, **`resolveOpenMode(role, vlag, cookie)`** → `member | owner | choose`, en
+  `modeHref`. Serverkant apart in **`lib/member-mode-server.ts`** (`getMemberMode()`,
+  per-request `cache()`): de DB-lees draait **alleen** voor teamrollen, dus een gewoon lid
+  kost niets extra. De vlag staat bewust **niet in de JWT** — die zou verouderen tot de
+  volgende login terwijl de eigenaar 'm net omzette. Tests `tests/member-mode.test.ts`.
+- **Toegang**: `proxy.ts` laat teamrollen toe op `/member` (redirect-laag = UX), en
+  `requireMember()` (lib/member.ts) beslist autoritatief — teamlid zónder vlag gaat terug
+  naar `/owner` (netter dan 403). Signature ongewijzigd, dus geen call-site raakte het.
+- **Keuze bij het openen = `/start`.** `app/page.tsx` is het enige trechterpunt (elke
+  `signIn` gebruikt `redirectTo: "/"`, en de native app opent op `/`) en stuurt een
+  dubbel-modus-gebruiker naar het keuzescherm. Cookie **`gymrebel-mode`** is bewust een
+  **sessiecookie**: een koude app-start vraagt opnieuw. "Onthoud mijn keuze" zet 'm op een
+  jaar; een expliciete wissel via het menu zet 'm weer per sessie. Eén `<form>` om beide
+  knoppen (submit draagt `name="mode"`) → werkt zonder JavaScript.
+  Wisselen: `components/nav/mode-switch-item.tsx` in het gebruikersmenu, de owner-drawer
+  ("Naar mijn training") en de member-drawer ("Naar beheer"), alleen bij `bothModes`.
+- **Aanzetten doet alléén de eigenaar**, per teamlid op `/owner/staff`
+  (`TrainsAsMemberToggle` → `setStaffTrainsAsMember`, `requireOwner` + `role:assign`).
+  Ook voor een beheerder zichtbaar: dít is de plek waar de eigenaar het voor **zichzelf**
+  aanzet — anders dan bij een rolwissel is zelf-toepassen ongevaarlijk (het neemt geen
+  rechten weg). Audit `user.membermode.change`.
+- **`memberSchemaModeFor(tenantId)`** (lib/member-schema.ts) geeft een meesportend teamlid
+  altijd **DIRECT**. `Tenant.memberSchemaMode` gaat over wat de gym haar **leden** toestaat:
+  bij `DISABLED` zou een trainende eigenaar volledig droog staan (geen builder, geen
+  catalogus, geen eenmalige workout) en bij `APPROVAL` zou hij zijn eigen schema moeten
+  goedkeuren. `getMemberSchemaMode` blijft de rauwe tenant-instelling (owner-settings).
+  Gebruik de `…For`-variant overal waar de modus gedrag of UI bepaalt.
+- **LEDEN ↔ TEAM BLIJVEN GESCHEIDEN LIJSTEN.** `listMembers`, `ACTIVE_MEMBER_WHERE` en de
+  ~20 `role: "TENANT_MEMBER"`-filters (schema-toewijzing, metingen, insights) zijn
+  **niet** gewijzigd: een trainende eigenaar is geen betalend lid en verschijnt dus niet
+  in de ledenlijst, de ledentelling of de retentie. Gevolg: een coach kan een trainende
+  collega géén schema toewijzen — die bouwt zelf of pakt de catalogus. Wél meegeteld: zijn
+  `WorkoutSession`s in "actief vandaag"/bezoeken (die tellen sessies, niet rollen) — dat
+  is een echte bezoeker in de zaal.
+- **Lid-functies buiten `/member`** lopen via `canTrainAsMember`/`getMemberMode` i.p.v. een
+  rolcheck: `lib/account-sections.ts` (doelen/agenda-secties), de account-layout
+  ("training bezig"-balk + `dashboardHrefFor(role, mode)`), `/account/meldingen`,
+  `/account/integraties` en `/m/[qrToken]` ("voeg toe aan mijn schema"). De scan-**telling**
+  in `/m/[qrToken]/scan` blijft bewust rol-gebaseerd, zodat machine-scanstatistiek over
+  leden gaat en niet over personeel dat langs een apparaat loopt.
+
+**Mobiele beheer-app (`/owner`)**
+
+- **Onderbalk `components/nav/owner-bottom-nav.tsx`** (`lg:hidden`, spiegel van
+  member-nav): de tabs worden in de layout afgeleid uit de **al op permissies én
+  feature-flags gefilterde** `NAV` (`pickBottomTabs`) — geen tweede bron van waarheid, dus
+  nooit een tab naar een 403 of een uitgeschakelde module. Voorkeursvolgorde Dashboard →
+  Leden → Schema's → Lessen, aangevuld met de eerste toegestane bestemmingen zodat de balk
+  ook voor een medewerker met alleen defecten/onderhoud vol staat.
+- **Vijfde knop "Meer" opent dezelfde drawer als de hamburger**: gedeelde open-staat via
+  `components/nav/mobile-nav-provider.tsx`. `SideNavDrawer` gebruikt de context als die er
+  is en anders z'n eigen `useState` (`useContext` draait altijd → geen conditionele hook),
+  dus `/admin` bleef ongewijzigd. Eén drawer-instantie, twee triggers.
+- **Vloer-acties `components/owner/floor-actions.tsx`** (`lg:hidden`, bovenaan het owner-
+  én het staff-dashboard): scannen (`/owner/scan`, hergebruikt `QrScanner`), aanwezigheid
+  (de les die nu bezig is of vandaag volgt), lid zoeken, defecten — permissie- en
+  flag-gefilterd. **De aanwezigheid-link gebruikt `ClassSession.classId`, niet het
+  sessie-id**: `/owner/rooster/[id]` is de lestype-pagina (met daarop de sessies en het
+  aanwezigheidspaneel); een sessie-id geeft daar 404. `QuickActions` op het dashboard is
+  `hidden sm:flex` — op een telefoon dekken de onderbalk en de vloer-acties dat al.
+- **"Training bezig"-balk óók in `/owner`** (zelfde sticky-wrapper-regel als de member-
+  layout: sticky op de wrapper, niet op de balk), zodat een meesportende eigenaar met één
+  tik terug is in zijn training. Alleen opgehaald als `bothModes` — geen extra query voor
+  wie hier niet sport.
+
 ### Sportschoolmedewerker (TENANT_STAFF) + permissie-gestuurd RBAC
 
 Vierde rol **`TENANT_STAFF`** (Sportschoolmedewerker/coach): tenant-gebonden coachrol met

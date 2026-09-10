@@ -4,15 +4,28 @@ import { redirect, unauthorized, forbidden } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { EXERCISE_THUMB_RELATIONS } from "@/lib/exercise-thumb";
+import { isTeamRole } from "@/lib/member-mode";
+import { getMemberMode } from "@/lib/member-mode-server";
 import { isTrainableSchema } from "@/lib/schema-switch";
 
-/** Vereist een ingelogde TENANT_MEMBER; retourneert de session-user met een
- *  gegarandeerd niet-null `tenantId`. Niet ingelogd → premium 401; verkeerde
- *  rol → premium 403 (app/unauthorized.tsx / app/forbidden.tsx). */
+/** Vereist toegang tot de member-area; retourneert de session-user met een
+ *  gegarandeerd niet-null `tenantId`. Dat is een `TENANT_MEMBER`, of een
+ *  eigenaar/medewerker met de lid-modus aan (`User.trainsAsMember`) — die traint
+ *  op zijn eigen data in dezelfde omgeving (zie lib/member-mode.ts).
+ *
+ *  Niet ingelogd → premium 401; een teamlid zonder lid-modus gaat terug naar
+ *  `/owner` (netter dan een 403: die persoon hóórt in de beheeromgeving);
+ *  elke andere rol → premium 403 (app/unauthorized.tsx / app/forbidden.tsx). */
 export async function requireMember() {
   const session = await auth();
   if (!session?.user) unauthorized();
-  if (session.user.role !== "TENANT_MEMBER") forbidden();
+  if (session.user.role !== "TENANT_MEMBER") {
+    if (!isTeamRole(session.user.role)) forbidden();
+    // Alleen voor teamrollen een DB-lees (per request gecachet) — een gewoon lid
+    // kost hier dus niets extra.
+    const { canTrain } = await getMemberMode();
+    if (!canTrain) redirect("/owner");
+  }
   if (!session.user.tenantId) redirect("/login");
   return { ...session.user, tenantId: session.user.tenantId };
 }

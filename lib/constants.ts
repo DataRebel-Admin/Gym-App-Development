@@ -68,6 +68,16 @@ export const POST_LOGIN_SPLASH_COOKIE_OPTS = {
  *  root-layout 'm no-flash en zonder DB-lees kan toepassen (lib/background-motion.ts). */
 export const BG_PARALLAX_COOKIE = "gymrebel-bg-parallax";
 
+/** Cookie met de gekozen app-modus ("member"/"owner") van een teamlid dat óók
+ *  zelf sport (`User.trainsAsMember`). Bewust een **sessiecookie** (geen maxAge):
+ *  een koude app-start toont het keuzescherm `/start` opnieuw, precies zoals
+ *  gevraagd. Kiest de gebruiker "onthoud mijn keuze", dan wordt dezelfde cookie
+ *  met MODE_COOKIE_REMEMBER_MAX_AGE gezet. Zie lib/member-mode.ts. */
+export const MODE_COOKIE = "gymrebel-mode";
+
+/** Levensduur van de modus-cookie bij "onthoud mijn keuze" (1 jaar). */
+export const MODE_COOKIE_REMEMBER_MAX_AGE = 60 * 60 * 24 * 365;
+
 /** Cookie met de per-device gekozen actieve vestiging (Location-id). Onderdeel
  *  van de sessie-locatie-resolutie: expliciete keuze → deze cookie →
  *  User.homeLocationId → default-vestiging (zie lib/location-resolve.ts).

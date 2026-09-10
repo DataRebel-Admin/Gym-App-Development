@@ -1830,7 +1830,8 @@
       "changelogDesc": "Nieuwe functies en verbeteringen in GymRebel",
       "settings": "Instellingen",
       "roleOwner": "Eigenaar",
-      "roleStaff": "Medewerker"
+      "roleStaff": "Medewerker",
+      "more": "Meer"
     },
     "userMenu": {
       "account": "Accountinstellingen",
@@ -2183,5 +2184,19 @@
       "invalidBody": "Deze uitnodiging bestaat niet of is niet langer geldig. Vraag de sportschool om een nieuwe uitnodiging.",
       "toLogin": "Naar inloggen"
     }
+  },
+  "mode": {
+    "metaTitle": "Kiezen",
+    "title": "Waar ga je heen?",
+    "titleName": "Waar ga je heen, {name}?",
+    "subtitle": "Je werkt hier én je sport hier. Kies waarmee je begint.",
+    "train": "Trainen",
+    "trainDesc": "Je eigen schema, sessies en voortgang",
+    "manage": "Beheer",
+    "manageDesc": "Dashboard, leden, schema’s en lessen",
+    "remember": "Onthoud mijn keuze",
+    "switchHint": "Wisselen kan altijd via het menu.",
+    "switchToMember": "Naar mijn training",
+    "switchToOwner": "Naar beheer"
   }
 }

@@ -17,6 +17,7 @@ import { AlertTriangle } from "@/components/ui/icons";
 import { ActiveWorkoutBar } from "@/components/member/active-workout-bar";
 import { getRunningSessionStart } from "@/lib/session-timeout";
 import { addMachineToSchema } from "./actions";
+import { getMemberMode } from "@/lib/member-mode-server";
 
 export async function generateMetadata({
   params,
@@ -69,10 +70,11 @@ export default async function MachinePublicPage({
     : (await machineWarningMap(tenant.id, [machine.id])).get(machine.id) ?? null;
   const tDefects = await getTranslations("defects");
 
-  // "Voeg toe aan mijn schema" alleen voor ingelogde leden van deze tenant met schema.
+  // "Voeg toe aan mijn schema" alleen voor ingelogden die bij déze tenant sporten:
+  // een lid, of een eigenaar/medewerker met de lid-modus (lib/member-mode.ts).
   const session = await auth();
-  const isMember =
-    session?.user?.role === "TENANT_MEMBER" && session.user.tenantId === tenant.id;
+  const { canTrain } = await getMemberMode();
+  const isMember = canTrain && session?.user?.tenantId === tenant.id;
   let canAdd = false;
   if (isMember && !outOfService && machine.exercises.length > 0) {
     const now = new Date();

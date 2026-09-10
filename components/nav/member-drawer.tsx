@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { logout } from "@/app/login/actions";
 import { switchTenant } from "@/app/switch-tenant-action";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ModeSwitchItem } from "@/components/nav/mode-switch-item";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
 import { Dumbbell, Settings, LogOut, X, Check, ChevronRight, ChevronDown, Activity, Building2, CalendarDays, ClipboardList, Pencil, PersonStanding, Trophy, Flag, Wrench, LifeBuoy, Sparkles } from "@/components/ui/icons";
 import { parseRequestKind, requestKindHref } from "@/lib/schema-requests";
@@ -53,6 +54,7 @@ export function MemberDrawer({
   showSchemaBuilder = false,
   showSchemaChange = false,
   showCalendar = false,
+  showAdminSwitch = false,
 }: {
   name: string | null;
   email: string | null;
@@ -65,6 +67,9 @@ export function MemberDrawer({
   showSchemaChange?: boolean;
   /** Ledenagenda-module (feature-flag `calendar`) aan voor deze tenant. */
   showCalendar?: boolean;
+  /** Eigenaar/medewerker die hier zelf sport → ingang terug naar de
+   *  beheeromgeving (zie lib/member-mode.ts). */
+  showAdminSwitch?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -285,6 +290,13 @@ export function MemberDrawer({
                     (sportschool wisselen, taal, thema) staan bewust in dezelfde
                     groep zodat het menu één scanbare kolom blijft. */}
                 <DrawerGroup label="Instellingen">
+                  {showAdminSwitch ? (
+                    <ModeSwitchItem
+                      to="owner"
+                      variant="drawer"
+                      onSubmit={() => setOpen(false)}
+                    />
+                  ) : null}
                   <DrawerRow
                     item={{
                       key: "account",

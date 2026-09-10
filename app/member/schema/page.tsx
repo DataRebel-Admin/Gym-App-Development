@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/db";
 import { requireMember, getAssignedSchema, getSwitchableSchemas } from "@/lib/member";
-import { getMemberSchemaMode, canEditAssignedSchema } from "@/lib/member-schema";
+import { memberSchemaModeFor, canEditAssignedSchema } from "@/lib/member-schema";
 import { isEditableMemberStatus } from "@/lib/member-schema-status";
 import { enforceSessionTimeout } from "@/lib/session-timeout";
 import { MarkAutoStopSeen } from "@/components/member/mark-auto-stop-seen";
@@ -103,7 +103,7 @@ export default async function MemberSchemaPage({
   ] = await Promise.all([
     getAssignedSchema(member.id, member.tenantId),
     getTranslations("member.schema"),
-    getMemberSchemaMode(member.tenantId),
+    memberSchemaModeFor(member.tenantId),
     canEditAssignedSchema(member.tenantId),
     prisma.workoutSession.findFirst({
       where: {

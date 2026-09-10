@@ -11,6 +11,7 @@ import { isMultiLocation } from "@/lib/locations";
 import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
+import { FloorActions } from "@/components/owner/floor-actions";
 import { getRecentActivity, serializeAuditRows } from "@/lib/audit-query";
 import { normalizeLayout, type WidgetId } from "@/lib/dashboard";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
@@ -97,7 +98,7 @@ export default async function OwnerDashboard() {
       {/* Premium hero-header. Ondoorzichtig: achter dit paneel zweeft alleen de
           aurora, dus doorschijnendheid zou de kop enkel onrustig maken. De
           tenant-tint komt van de eigen .bg-aura-laag hieronder. */}
-      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-7 shadow-lg">
+      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-5 shadow-lg sm:p-7">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
         <div className="relative">
           <div>
@@ -119,9 +120,20 @@ export default async function OwnerDashboard() {
         </div>
       </section>
 
+      {/* Telefoon: de handelingen die je in de zaal doet staan bovenaan, binnen
+          duimbereik. Op desktop verbergt het blok zichzelf — daar staat de
+          volledige navigatie al in beeld. */}
+      <FloorActions
+        tenantId={owner.tenantId}
+        userId={owner.id}
+        role={owner.role}
+        permissions={owner.permissions}
+      />
+
       {/* Snelkoppelingen: vaste actiebalk bovenaan i.p.v. verstopt onderin het
-          configureerbare grid — de meest gebruikte acties zijn zo meteen bereikbaar. */}
-      <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm">
+          configureerbare grid — de meest gebruikte acties zijn zo meteen bereikbaar.
+          Op een telefoon is dit de tweede laag onder de vloer-acties. */}
+      <section className="hidden flex-col gap-3 rounded-2xl border border-border bg-surface-1 p-5 shadow-sm sm:flex">
         <h2 className="text-sm font-semibold text-neutral-900">
           {tw("quickActionsTitle")}
         </h2>

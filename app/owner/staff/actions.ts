@@ -57,3 +57,54 @@ export async function setStaffPermissions(formData: FormData) {
 
   revalidatePath("/owner/staff");
 }
+
+/**
+ * Lid-modus aan/uit voor één teamlid: mag deze eigenaar/medewerker ook zelf bij
+ * deze sportschool sporten? Zet uitsluitend `User.trainsAsMember`; de rol en de
+ * rechten blijven ongemoeid, en het teamlid komt níét in de ledenadministratie
+ * of de ledentellingen (zie lib/member-mode.ts).
+ *
+ * Anders dan bij een rolwissel mag dit wél op jezelf: het neemt geen rechten weg,
+ * en de eigenaar staat zelf ook in deze lijst — dat is de plek waar hij het voor
+ * zichzelf aanzet.
+ */
+export async function setStaffTrainsAsMember(formData: FormData) {
+  const owner = await requireOwner();
+
+  const parsed = z
+    .object({ userId: z.string().min(1), enabled: z.enum(["0", "1"]) })
+    .safeParse({
+      userId: formData.get("userId"),
+      enabled: formData.get("enabled"),
+    });
+  if (!parsed.success) return;
+  const enabled = parsed.data.enabled === "1";
+
+  // Alleen teamleden van de eigen tenant (een lid heeft de member-area al).
+  const target = await prisma.user.findFirst({
+    where: {
+      id: parsed.data.userId,
+      tenantId: owner.tenantId,
+      role: { in: ["TENANT_ADMIN", "TENANT_STAFF"] },
+    },
+    select: { id: true, email: true, trainsAsMember: true },
+  });
+  if (!target || target.trainsAsMember === enabled) return;
+
+  await prisma.user.update({
+    where: { id: target.id },
+    data: { trainsAsMember: enabled },
+  });
+
+  await audit("user.membermode.change", {
+    actor: owner,
+    tenantId: owner.tenantId,
+    targetType: "User",
+    targetId: target.id,
+    oldValue: { trainsAsMember: target.trainsAsMember },
+    newValue: { trainsAsMember: enabled },
+    metadata: { email: target.email },
+  });
+
+  revalidatePath("/owner/staff");
+}

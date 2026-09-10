@@ -19,6 +19,8 @@ import {
   type SupportInitial,
 } from "@/components/support/contact-support-modal";
 import { ReportProblemModal } from "@/components/reports/report-problem-modal";
+import { ModeSwitchItem } from "@/components/nav/mode-switch-item";
+import { useMobileNav } from "@/components/nav/mobile-nav-provider";
 
 /**
  * Links-inschuivend hamburger-zijmenu voor de beheeromgevingen (Superadmin +
@@ -39,6 +41,7 @@ export function SideNavDrawer({
   currentSlug = null,
   accountHref = "/account",
   support,
+  showTrainSwitch = false,
   side = "left",
   className,
 }: {
@@ -51,12 +54,19 @@ export function SideNavDrawer({
   accountHref?: string;
   /** Aanwezig voor tenant-gebruikers → toont "Contact opnemen" (opent modal). */
   support?: SupportInitial | null;
+  /** Teamlid dat óók zelf sport → ingang naar de sporter-omgeving. */
+  showTrainSwitch?: boolean;
   /** Kant waar het paneel inschuift. Owner = "right" (gelijk aan de member-drawer);
    *  superadmin/`/admin` blijft standaard "left". */
   side?: "left" | "right";
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  // Gedeelde staat als er een MobileNavProvider omheen zit (owner: hamburger in
+  // de header + "Meer" in de onderbalk bedienen dezelfde drawer), anders lokaal.
+  const shared = useMobileNav();
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = shared ? shared.open : localOpen;
+  const setOpen = shared ? shared.setOpen : setLocalOpen;
   // Pas na mount portalen (document beschikbaar; voorkomt SSR-mismatch).
   const mounted = useHydrated();
   const [supportOpen, setSupportOpen] = useState(false);
@@ -243,6 +253,13 @@ export function SideNavDrawer({
 
                     {/* Account + thema */}
                     <div className="mt-4 flex flex-col gap-0.5 px-2.5">
+                      {showTrainSwitch ? (
+                        <ModeSwitchItem
+                          to="member"
+                          variant="drawer"
+                          onSubmit={() => setOpen(false)}
+                        />
+                      ) : null}
                       <Link
                         href={accountHref}
                         onClick={() => setOpen(false)}

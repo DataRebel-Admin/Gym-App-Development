@@ -235,6 +235,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionDef> = {
     sentence: ({ actor, meta }) =>
       `${actor} heeft de rechten van ${s(meta, "email") ?? "een medewerker"} aangepast`,
   },
+  "user.membermode.change": {
+    category: "members", label: "Lid-modus gewijzigd", icon: "🏋️", tone: "accent",
+    sentence: ({ actor, meta }) =>
+      `${actor} heeft de lid-modus van ${s(meta, "email") ?? "een teamlid"} gewijzigd`,
+  },
 
   // --- Coachnotities ---
   "coachnote.add": {

@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { MODE_COOKIE } from "@/lib/constants";
+import { modeHref, resolveOpenMode } from "@/lib/member-mode";
+import { getMemberMode } from "@/lib/member-mode-server";
 import { buttonClasses } from "@/components/ui/button-classes";
 import { GymRebelStacked } from "@/components/brand/gymrebel-logo";
 import { GetTheApp } from "@/components/pwa/get-the-app";
@@ -8,16 +12,20 @@ import { GetTheApp } from "@/components/pwa/get-the-app";
 export const metadata = { title: "Welkom" };
 
 export default async function Home() {
-  // Na login landt de magic link hier; stuur door op basis van rol.
+  // Na login landt de magic link hier; stuur door op basis van rol. Dit is het
+  // enige trechterpunt (elke signIn gebruikt `redirectTo: "/"`) én het pad waar
+  // de native app op koud opstarten binnenkomt — dus hier valt ook de keuze
+  // "trainen of beheren" voor een teamlid dat zelf meesport.
   const session = await auth();
   if (session?.user) {
-    redirect(
-      session.user.role === "SUPERADMIN"
-        ? "/admin"
-        : session.user.role === "TENANT_ADMIN"
-          ? "/owner"
-          : "/member"
+    if (session.user.role === "SUPERADMIN") redirect("/admin");
+    const { trainsAsMember } = await getMemberMode();
+    const mode = resolveOpenMode(
+      session.user.role,
+      trainsAsMember,
+      (await cookies()).get(MODE_COOKIE)?.value
     );
+    redirect(mode === "choose" ? "/start" : modeHref(mode));
   }
 
   return (

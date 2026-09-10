@@ -8,6 +8,7 @@ import { getMaintenanceAttentionCount } from "@/lib/maintenance-eval";
 import { isFeatureEnabled } from "@/lib/features/service";
 import { areClassesEnabled } from "@/lib/classes";
 import { MaintenanceAlert } from "@/components/maintenance/maintenance-alert";
+import { FloorActions } from "@/components/owner/floor-actions";
 import { getAchievementDef } from "@/lib/achievements/definitions";
 import { rarityMeta } from "@/lib/achievements/rarity";
 import { Card } from "@/components/ui/card";
@@ -134,7 +135,7 @@ export async function StaffDashboard({
     <div className="flex flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       {/* Ondoorzichtig — zelfde reden als de owner-hero: achter dit paneel
           zweeft alleen de aurora; de tint komt uit de eigen .bg-aura-laag. */}
-      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-7 shadow-lg">
+      <section className="panel-sheen relative overflow-hidden rounded-3xl border border-border bg-surface-1 p-5 shadow-lg sm:p-7">
         <div aria-hidden className="bg-aura pointer-events-none absolute inset-0" />
         <div className="relative">
           <p className="text-sm font-medium text-accent">
@@ -150,6 +151,15 @@ export async function StaffDashboard({
           </p>
         </div>
       </section>
+
+      {/* Telefoon: de handelingen die je in de zaal doet binnen duimbereik,
+          bovenaan. Verbergt zichzelf op desktop (daar staat de navigatie al). */}
+      <FloorActions
+        tenantId={tenantId}
+        userId={coachId}
+        role="TENANT_STAFF"
+        permissions={permissions}
+      />
 
       {canMaintenance ? <MaintenanceAlert count={maintenanceAttention} /> : null}
 

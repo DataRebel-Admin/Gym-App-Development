@@ -13,6 +13,7 @@ import {
   type SupportInitial,
 } from "@/components/support/contact-support-modal";
 import { ReportProblemModal } from "@/components/reports/report-problem-modal";
+import { ModeSwitchItem } from "@/components/nav/mode-switch-item";
 
 /** Avatar (foto of initiaal) + dropdown met gebruikersinfo en uitloggen. */
 export function UserMenu({
@@ -21,6 +22,7 @@ export function UserMenu({
   image,
   support,
   compact = false,
+  showTrainSwitch = false,
 }: {
   name: string | null;
   email: string | null;
@@ -30,6 +32,8 @@ export function UserMenu({
   /** Verbergt de naam-tekst onder 2xl (alleen avatar) — voor drukke headers
    *  (owner: bel + switcher + badge concurreren om ruimte). */
   compact?: boolean;
+  /** Teamlid dat óók zelf sport → ingang naar de sporter-omgeving. */
+  showTrainSwitch?: boolean;
 }) {
   const t = useTranslations("nav.userMenu");
   const tLang = useTranslations("account.language");
@@ -101,6 +105,9 @@ export function UserMenu({
           >
             {t("account")}
           </Link>
+          {showTrainSwitch ? (
+            <ModeSwitchItem to="member" />
+          ) : null}
           {support ? (
             <DropdownItem
               onClick={() => {

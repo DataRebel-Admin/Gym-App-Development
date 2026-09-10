@@ -10,6 +10,7 @@ import { QuoteHideToggle } from "@/components/account/quote-toggle";
 import { PhotoPrivacyToggle } from "@/components/account/photo-privacy-toggle";
 import { TimerPreferenceToggle } from "@/components/account/timer-toggle";
 import { BackgroundParallaxToggle } from "@/components/account/background-toggle";
+import { getMemberMode } from "@/lib/member-mode-server";
 
 export const metadata = { title: "Meldingen" };
 
@@ -20,17 +21,17 @@ export default async function NotificationsPage() {
       ? (user.notificationPrefs as Record<string, Record<"email" | "inApp" | "push", boolean>>)
       : null;
 
-  // Trofeeën-opt-out: alleen voor sporters bij een gym met trofeeën aan.
-  const details =
-    user.role === "TENANT_MEMBER"
-      ? await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { tenant: { select: { achievementsEnabled: true, quotesEnabled: true } } },
-        })
-      : null;
+  // Trofeeën-opt-out: alleen voor sporters bij een gym met trofeeën aan. Een
+  // eigenaar/medewerker met de lid-modus telt hier ook als sporter.
+  const { canTrain: isMember } = await getMemberMode();
+  const details = isMember
+    ? await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { tenant: { select: { achievementsEnabled: true, quotesEnabled: true } } },
+      })
+    : null;
   const achievementsEnabled = details?.tenant?.achievementsEnabled ?? false;
   const quotesEnabled = details?.tenant?.quotesEnabled ?? false;
-  const isMember = user.role === "TENANT_MEMBER";
   const prefs = user.preferences;
   // Achtergrond-parallax geldt app-breed (elke rol) en staat in een cookie.
   const parallaxEnabled = await getBackgroundParallax();

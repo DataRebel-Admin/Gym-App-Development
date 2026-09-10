@@ -8,6 +8,7 @@ import { isFeatureEnabled } from "@/lib/features/service";
 import { Badge } from "@/components/ui/badge";
 import { AccountPageHeader } from "@/components/account/account-page-header";
 import { oauthSignIn } from "@/app/login/actions";
+import { getMemberMode } from "@/lib/member-mode-server";
 
 const ACTION_BUTTON =
   "inline-flex h-10 items-center rounded-xl border border-border-strong px-4 text-sm font-medium text-neutral-900 hover:bg-neutral-50";
@@ -81,7 +82,9 @@ export default async function IntegrationsPage() {
   const tenantSlug = tenant?.slug ?? "";
 
   const isAdmin = user.role === "TENANT_ADMIN";
-  const isMember = user.role === "TENANT_MEMBER";
+  // Ook een eigenaar/medewerker met de lid-modus sport hier en heeft dus een
+  // eigen agenda om te koppelen (lib/member-mode.ts).
+  const { canTrain: isMember } = await getMemberMode();
   const agendaAvailable =
     isMember && feedUser?.tenantId
       ? await isFeatureEnabled(feedUser.tenantId, "calendar")

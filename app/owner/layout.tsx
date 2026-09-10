@@ -9,6 +9,8 @@ import { isFeatureEnabled } from "@/lib/features/service";
 import { Badge } from "@/components/ui/badge";
 import { OwnerNav, type OwnerNavEntry } from "@/components/nav/owner-nav";
 import { SideNavDrawer } from "@/components/nav/side-nav-drawer";
+import { MobileNavProvider } from "@/components/nav/mobile-nav-provider";
+import { OwnerBottomNav, type OwnerTab } from "@/components/nav/owner-bottom-nav";
 import { UserMenu } from "@/components/nav/user-menu";
 import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { getUserTenants } from "@/lib/tenants";
@@ -19,6 +21,9 @@ import { PageTransition } from "@/components/motion/page-transition";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NativePushRegister } from "@/components/pwa/native-push-register";
 import { AppLockGate } from "@/components/app-lock/app-lock-gate";
+import { ActiveWorkoutBar } from "@/components/member/active-workout-bar";
+import { getRunningSessionStart } from "@/lib/session-timeout";
+import { getMemberMode } from "@/lib/member-mode-server";
 import { nativePushConfigured } from "@/lib/push";
 
 // Geen platte, scrollende rij meer: de bestemmingen zijn gegroepeerd in
@@ -128,6 +133,44 @@ function filterNav(
   });
 }
 
+/**
+ * De vijf tabs van de mobiele onderbalk, afgeleid uit de **al gefilterde**
+ * navigatie: eerst de vaste voorkeursvolgorde, daarna aangevuld met de eerste
+ * bestemmingen die deze gebruiker wél mag zien. Zo staat de balk ook vol voor een
+ * medewerker die bijvoorbeeld alleen defecten en onderhoud beheert, en verschijnt
+ * er nooit een tab naar een pagina waar hij een 403 op krijgt.
+ */
+const BOTTOM_NAV_PREFERRED = [
+  "/owner",
+  "/owner/members",
+  "/owner/schemas",
+  "/owner/rooster",
+];
+const BOTTOM_NAV_TABS = 4; // + "Meer" = 5 knoppen
+
+function pickBottomTabs(entries: OwnerNavEntry[]): OwnerTab[] {
+  const flat = entries.flatMap<OwnerTab>((entry) =>
+    entry.type === "link"
+      ? [{ href: entry.href, label: entry.label, iconPath: entry.iconPath ?? "" }]
+      : entry.items.map((i) => ({
+          href: i.href,
+          label: i.label,
+          iconPath: i.iconPath ?? "",
+        }))
+  );
+  const byHref = new Map(flat.map((t) => [t.href, t]));
+  const picked: OwnerTab[] = [];
+  for (const href of BOTTOM_NAV_PREFERRED) {
+    const tab = byHref.get(href);
+    if (tab) picked.push(tab);
+  }
+  for (const tab of flat) {
+    if (picked.length >= BOTTOM_NAV_TABS) break;
+    if (!picked.some((p) => p.href === tab.href)) picked.push(tab);
+  }
+  return picked.slice(0, BOTTOM_NAV_TABS);
+}
+
 export default async function OwnerLayout({
   children,
 }: {
@@ -159,6 +202,16 @@ export default async function OwnerLayout({
     disabledHrefs
   );
 
+  const bottomTabs = pickBottomTabs(NAV);
+
+  // Sport deze eigenaar/medewerker hier zelf ook? Dan hoort de "training
+  // bezig"-balk ook in de beheeromgeving (zelfde afweging als de account-layout
+  // en de publieke QR-pagina: één tik terug naar de lopende training).
+  const { bothModes } = await getMemberMode();
+  const activeStartedAt = bothModes
+    ? await getRunningSessionStart(user.tenantId, user.id)
+    : null;
+
   const badge = await getUserBadge(user.id);
   const notifications = await getNotificationOverview(user.id);
   const tenants = user.email ? await getUserTenants(user.email) : [];
@@ -176,72 +229,87 @@ export default async function OwnerLayout({
   };
 
   return (
-    <div className="flex min-h-full flex-col">
-      {/* .glass i.p.v. een eigen alpha: content schuift hier écht onderdoor, dus
-          het glas blijft — maar de dekking is centraal geregeld (--glass) zodat
-          de bewegende aurora de navigatie niet doorkleurt. */}
-      <header className="glass sticky top-0 z-40 border-b border-border">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3 lg:gap-4">
-            {/* Logo + naam; bij meerdere sportscholen is de naam zelf de
-                switcher (zie TenantSwitcher) — geen losse knop in de nav-rij. */}
-            <TenantSwitcher
-              tenants={tenants}
-              currentSlug={tenant?.slug ?? null}
-              name={tenant?.name ?? "GymRebel"}
-              logoUrl={tenant?.logoUrl ?? null}
-              homeHref="/owner"
-            />
-            {/* De rolbadge verdwijnt op de krappe lg-breedte (nav + belknop
-                strijden daar om elke pixel) en komt op xl terug. */}
-            <span className="hidden shrink-0 sm:inline-flex lg:hidden xl:inline-flex">
-              <Badge tone={isAdmin ? "accent" : "neutral"}>
-                {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
-              </Badge>
-            </span>
-            <div className="hidden min-w-0 items-center lg:flex">
-              <OwnerNav entries={NAV} rootHref="/owner" />
+    <MobileNavProvider>
+      <div className="flex min-h-full flex-col">
+        {/* Header + "training bezig"-balk plakken samen als één sticky blok (zelfde
+            opzet als de member-layout: één wrapper, geen eigen top-offset op de balk).
+            .glass i.p.v. een eigen alpha: content schuift hier écht onderdoor, dus
+            het glas blijft — maar de dekking is centraal geregeld (--glass) zodat
+            de bewegende aurora de navigatie niet doorkleurt. */}
+        <div className="sticky top-0 z-40">
+          <header className="glass border-b border-border">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3 lg:gap-4">
+                {/* Logo + naam; bij meerdere sportscholen is de naam zelf de
+                    switcher (zie TenantSwitcher) — geen losse knop in de nav-rij. */}
+                <TenantSwitcher
+                  tenants={tenants}
+                  currentSlug={tenant?.slug ?? null}
+                  name={tenant?.name ?? "GymRebel"}
+                  logoUrl={tenant?.logoUrl ?? null}
+                  homeHref="/owner"
+                />
+                {/* De rolbadge verdwijnt op de krappe lg-breedte (nav + belknop
+                    strijden daar om elke pixel) en komt op xl terug. */}
+                <span className="hidden shrink-0 sm:inline-flex lg:hidden xl:inline-flex">
+                  <Badge tone={isAdmin ? "accent" : "neutral"}>
+                    {isAdmin ? tNav("roleOwner") : tNav("roleStaff")}
+                  </Badge>
+                </span>
+                <div className="hidden min-w-0 items-center lg:flex">
+                  <OwnerNav entries={NAV} rootHref="/owner" />
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <NotificationBell
+                  unreadCount={notifications.unreadCount}
+                  items={notifications.items}
+                />
+                <div className="hidden items-center gap-2 lg:flex">
+                  <ThemeToggle />
+                  <UserMenu
+                    name={badge?.name ?? user.name ?? null}
+                    email={badge?.email ?? user.email ?? null}
+                    image={badge?.image ?? null}
+                    support={support}
+                    compact
+                    showTrainSwitch={bothModes}
+                  />
+                </div>
+                <SideNavDrawer
+                  entries={NAV}
+                  rootHref="/owner"
+                  brand={{ name: tenant?.name ?? "GymRebel", logoUrl: tenant?.logoUrl ?? null }}
+                  profile={{
+                    name: badge?.name ?? user.name ?? null,
+                    email: badge?.email ?? user.email ?? null,
+                    image: badge?.image ?? null,
+                  }}
+                  tenants={tenants}
+                  currentSlug={tenant?.slug ?? null}
+                  support={support}
+                  showTrainSwitch={bothModes}
+                  side="right"
+                  className="lg:hidden"
+                />
+              </div>
             </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <NotificationBell
-              unreadCount={notifications.unreadCount}
-              items={notifications.items}
-            />
-            <div className="hidden items-center gap-2 lg:flex">
-              <ThemeToggle />
-              <UserMenu
-                name={badge?.name ?? user.name ?? null}
-                email={badge?.email ?? user.email ?? null}
-                image={badge?.image ?? null}
-                support={support}
-                compact
-              />
-            </div>
-            <SideNavDrawer
-              entries={NAV}
-              rootHref="/owner"
-              brand={{ name: tenant?.name ?? "GymRebel", logoUrl: tenant?.logoUrl ?? null }}
-              profile={{
-                name: badge?.name ?? user.name ?? null,
-                email: badge?.email ?? user.email ?? null,
-                image: badge?.image ?? null,
-              }}
-              tenants={tenants}
-              currentSlug={tenant?.slug ?? null}
-              support={support}
-              side="right"
-              className="lg:hidden"
-            />
-          </div>
+          </header>
+          {activeStartedAt ? <ActiveWorkoutBar startedAt={activeStartedAt} /> : null}
         </div>
-      </header>
-      <main className="mx-auto w-full max-w-7xl flex-1">
-        <PageTransition>{children}</PageTransition>
-      </main>
-      <NativePushRegister configured={nativePushConfigured()} />
-      <AppLockGate />
-      <PostLoginSplash show={showSplash} />
-    </div>
+        {/* pb-24 op mobiel: ruimte voor de onderbalk (lg+ heeft die niet). */}
+        <main className="mx-auto w-full max-w-7xl flex-1 pb-24 lg:pb-0">
+          <PageTransition>{children}</PageTransition>
+        </main>
+        <OwnerBottomNav
+          tabs={bottomTabs}
+          rootHref="/owner"
+          moreLabel={tNav("more")}
+        />
+        <NativePushRegister configured={nativePushConfigured()} />
+        <AppLockGate />
+        <PostLoginSplash show={showSplash} />
+      </div>
+    </MobileNavProvider>
   );
 }

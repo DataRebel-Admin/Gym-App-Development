@@ -1,5 +1,8 @@
+import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { requireAccount, getUserBadge } from "@/lib/account";
+import { MODE_COOKIE } from "@/lib/constants";
+import { getMemberMode } from "@/lib/member-mode-server";
 import {
   accountSectionsRaw,
   ACCOUNT_ICON,
@@ -23,12 +26,15 @@ export default async function AccountLayout({
   const badge = await getUserBadge(me.id);
   const t = await getTranslations("account");
   const role = me.role;
+  // Sport deze gebruiker hier? Een lid altijd; een eigenaar/medewerker met de
+  // lid-modus aan ook (lib/member-mode.ts).
+  const { canTrain, trainsAsMember, bothModes } = await getMemberMode();
+  const mode = (await cookies()).get(MODE_COOKIE)?.value ?? null;
 
-  // Loopt er een training? Een lid dat tussendoor z'n instellingen opent moet
-  // de "training bezig"-balk (met klok + terugknop) ook hier zien, net als op
-  // elke member-pagina. Alleen voor sporters; staff heeft geen sessies.
+  // Loopt er een training? Wie hier traint moet de "training bezig"-balk (met
+  // klok + terugknop) ook op z'n instellingen zien, net als op elke member-pagina.
   const activeStartedAt =
-    role === "TENANT_MEMBER" && me.tenantId
+    canTrain && me.tenantId
       ? await getRunningSessionStart(me.tenantId, me.id)
       : null;
 
@@ -36,7 +42,7 @@ export default async function AccountLayout({
   // "Overzicht" (`/account`) vooraan → terug naar de hub-grid op desktop.
   const flat: AccountFlatItem[] = [
     { href: "/account", label: t("hub.overview"), iconPath: ACCOUNT_ICON.overview },
-    ...accountSectionsRaw(role).flatMap((g) =>
+    ...accountSectionsRaw(role, trainsAsMember).flatMap((g) =>
       g.items.map((it) => ({
         href: it.href,
         label: t(it.labelKey),
@@ -56,13 +62,14 @@ export default async function AccountLayout({
               flat={flat}
               rootTitle={t("title")}
               rootHref="/account"
-              dashboardHref={dashboardHrefFor(role)}
+              dashboardHref={dashboardHrefFor(role, mode)}
               backLabel={t("back")}
             >
               <UserMenu
                 name={badge?.name ?? me.name ?? null}
                 email={badge?.email ?? me.email ?? null}
                 image={badge?.image ?? null}
+                showTrainSwitch={bothModes && mode !== "member"}
               />
             </AccountHeaderNav>
           </div>

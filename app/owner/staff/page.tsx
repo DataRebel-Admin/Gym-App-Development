@@ -19,6 +19,7 @@ import { SectionHeading } from "@/components/ui/section-heading";
 import { Avatar } from "@/components/ui/avatar";
 import { PendingInvitationsTable } from "@/components/invitations/pending-invitations-table";
 import { PermissionMatrix } from "@/components/staff/permission-matrix";
+import { TrainsAsMemberToggle } from "@/components/staff/trains-as-member-toggle";
 import {
   inviteMember,
   setMemberActive,
@@ -65,6 +66,7 @@ export default async function OwnerStaffPage() {
         active: true,
         emailVerified: true,
         permissions: true,
+        trainsAsMember: true,
         staffLocationAccess: { select: { locationId: true } },
       },
     }),
@@ -211,6 +213,17 @@ export default async function OwnerStaffPage() {
                     ) : null}
                   </div>
                 </div>
+
+                {/* Lid-modus: sport dit teamlid hier ook zelf? Staat los van de
+                    rol en de rechten — het opent alleen de sporter-omgeving op
+                    de eigen trainingsdata (zie lib/member-mode.ts). Ook voor een
+                    beheerder, want dít is de plek waar de eigenaar het voor
+                    zichzelf aanzet. */}
+                <TrainsAsMemberToggle
+                  userId={s.id}
+                  enabled={s.trainsAsMember}
+                  self={self}
+                />
 
                 {/* Een beheerder heeft per definitie alle rechten op álle
                     vestigingen (lib/rbac.ts + lib/location-scope.ts), dus geen

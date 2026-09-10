@@ -1,14 +1,13 @@
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { auth } from "@/auth";
 import { POST_LOGIN_SPLASH_COOKIE } from "@/lib/constants";
 import { PostLoginSplash } from "@/components/post-login-splash";
 import { getCurrentTenant } from "@/lib/tenant";
 import { areClassesEnabled } from "@/lib/classes";
 import { isFeatureEnabled } from "@/lib/features/service";
-import { getMemberSchemaMode } from "@/lib/member-schema";
-import { hasActiveCoachSchema } from "@/lib/member";
+import { memberSchemaModeFor } from "@/lib/member-schema";
+import { hasActiveCoachSchema, requireMember } from "@/lib/member";
+import { getMemberMode } from "@/lib/member-mode-server";
 import { getUserTenants } from "@/lib/tenants";
 import { getUserBadge, hasPasskeys } from "@/lib/account";
 import { getNotificationOverview } from "@/lib/notifications";
@@ -34,10 +33,11 @@ export default async function MemberLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  // Verdediging in de diepte (de middleware beschermt deze routes ook al).
-  if (!session?.user) redirect("/login");
-  if (session.user.role !== "TENANT_MEMBER") redirect("/owner");
+  // Eén gate voor de hele member-area: een lid, of een eigenaar/medewerker met
+  // de lid-modus aan (die traint hier op zijn eigen data). Een teamlid zonder
+  // die vlag stuurt de guard terug naar /owner.
+  const member = await requireMember();
+  const { bothModes } = await getMemberMode();
 
   const tenant = await getCurrentTenant();
   // Effectief = Superadmin-feature-flag én owner-toggle (zie lib/classes.ts).
@@ -45,28 +45,26 @@ export default async function MemberLayout({
   // Drawer-ingang "Agenda" alleen als de ledenagenda-module aan staat.
   const calendarEnabled = tenant ? await isFeatureEnabled(tenant.id, "calendar") : false;
   // Drawer-ingang "Zelf schema samenstellen" alleen als de tenant het aan heeft.
+  // (Een meesportend teamlid valt buiten die tenant-instelling — zie
+  // memberSchemaModeFor: die gaat over wat de gym haar léden toestaat.)
   const canBuildSchema = tenant
-    ? (await getMemberSchemaMode(tenant.id)) !== "DISABLED"
+    ? (await memberSchemaModeFor(tenant.id)) !== "DISABLED"
     : false;
   // Drawer-ingang "Aanpassing vragen" alleen als er een coach-schema ligt om aan
   // te passen (een zelfgebouwd schema past het lid zelf aan).
-  const canRequestChange = session.user.tenantId
-    ? await hasActiveCoachSchema(session.user.id, session.user.tenantId)
-    : false;
-  const badge = await getUserBadge(session.user.id);
+  const canRequestChange = await hasActiveCoachSchema(member.id, member.tenantId);
+  const badge = await getUserBadge(member.id);
   // Prompt "inloggen met vingerafdruk?" zolang het account geen passkey heeft.
-  const passkeySetUp = await hasPasskeys(session.user.id);
-  const notifications = await getNotificationOverview(session.user.id);
-  const tenants = session.user.email
-    ? await getUserTenants(session.user.email)
+  const passkeySetUp = await hasPasskeys(member.id);
+  const notifications = await getNotificationOverview(member.id);
+  const tenants = member.email
+    ? await getUserTenants(member.email)
     : [];
 
   // Celebration-overlay: alleen tonen als trofeeën aan zijn én niet verborgen.
-  const achievementUi = session.user.tenantId
-    ? await getAchievementUiState(session.user.id, session.user.tenantId)
-    : { visible: false };
+  const achievementUi = await getAchievementUiState(member.id, member.tenantId);
   const celebrations = achievementUi.visible
-    ? await getPendingCelebrations(session.user.id, session.user.tenantId!)
+    ? await getPendingCelebrations(member.id, member.tenantId)
     : [];
 
   // Vers ingelogd? Dan staat de splash-cookie er en tonen we één keer de
@@ -75,9 +73,10 @@ export default async function MemberLayout({
   const showSplash = (await cookies()).has(POST_LOGIN_SPLASH_COOKIE);
 
   // Loopt er een training? Dan tonen we dat op élke member-pagina in een balk.
-  const activeStartedAt = session.user.tenantId
-    ? await getRunningSessionStart(session.user.tenantId, session.user.id)
-    : null;
+  const activeStartedAt = await getRunningSessionStart(
+    member.tenantId,
+    member.id
+  );
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-md flex-col sm:max-w-lg">
@@ -111,8 +110,8 @@ export default async function MemberLayout({
               items={notifications.items}
             />
             <MemberDrawer
-              name={badge?.name ?? session.user.name ?? null}
-              email={badge?.email ?? session.user.email ?? null}
+              name={badge?.name ?? member.name ?? null}
+              email={badge?.email ?? member.email ?? null}
               image={badge?.image ?? null}
               tenants={tenants}
               currentSlug={tenant?.slug ?? null}
@@ -120,6 +119,7 @@ export default async function MemberLayout({
               showSchemaBuilder={canBuildSchema}
               showSchemaChange={canRequestChange}
               showCalendar={calendarEnabled}
+              showAdminSwitch={bothModes}
             />
           </div>
         </header>
@@ -138,13 +138,13 @@ export default async function MemberLayout({
       <MemberOnboarding />
       {/* Browser: passkey-vraag; native app: app-slot-vraag. De componenten
           sluiten elkaar zelf uit op isNativeApp(). */}
-      <PasskeyPrompt userId={session.user.id} hasPasskey={passkeySetUp} />
-      <AppLockPrompt userId={session.user.id} />
+      <PasskeyPrompt userId={member.id} hasPasskey={passkeySetUp} />
+      <AppLockPrompt userId={member.id} />
       <AppLockGate />
       <CelebrationOverlay celebrations={celebrations} />
       <NativePushRegister configured={nativePushConfigured()} />
       {/* Android-app: gekoppelde toestelagenda automatisch bijwerken. */}
-      {calendarEnabled ? <DeviceCalendarAutosync userId={session.user.id} /> : null}
+      {calendarEnabled ? <DeviceCalendarAutosync userId={member.id} /> : null}
       <PostLoginSplash show={showSplash} />
     </div>
   );

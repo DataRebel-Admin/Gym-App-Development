@@ -17,7 +17,7 @@ import { resolveActiveLocationId } from "@/lib/location-resolve";
 import { startOrResumeSession } from "@/lib/workout-session-ops";
 import {
   requireMemberSchemaEnabled,
-  getMemberSchemaMode,
+  memberSchemaModeFor,
   canEditAssignedSchema,
   resolveFramework,
 } from "@/lib/member-schema";
@@ -612,7 +612,7 @@ async function assertEditAllowed(
   assignment: { origin: AssignmentOrigin; memberStatus: MemberSchemaStatus | null }
 ): Promise<string | null> {
   if (assignment.origin === "MEMBER") {
-    const mode = await getMemberSchemaMode(tenantId);
+    const mode = await memberSchemaModeFor(tenantId);
     if (mode === "DISABLED") {
       return "Zelf schema's samenstellen staat uit bij je sportschool.";
     }

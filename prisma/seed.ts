@@ -110,7 +110,13 @@ type TenantSpec = {
   owner: { email: string; name: string };
   // `locations` = vestigingen waaraan de medewerker gekoppeld wordt
   // (StaffLocationAccess, restrictief). Weggelaten = alle vestigingen.
-  staff?: { email: string; name: string; locations?: string[] }[];
+  staff?: {
+    email: string;
+    name: string;
+    locations?: string[];
+    /** Lid-modus: dit teamlid sport ook zelf bij de gym (lib/member-mode.ts). */
+    trainsAsMember?: boolean;
+  }[];
   members: { email: string; name: string; homeLocation?: string }[];
   // `venue` = vestiging-naam waar het apparaat staat (default: hoofdvestiging).
   machines: { name: string; type: MachineType; description: string; venue?: string }[];
@@ -347,6 +353,9 @@ async function seedTenant(spec: TenantSpec) {
         homeLocationId: locationIdFor(accessNames[0]),
         email: s.email,
         name: s.name,
+        // Lid-modus: deze coach sport ook zelf bij de gym, zodat het
+        // keuzescherm bij het openen (/start) in de demo te zien is.
+        trainsAsMember: s.trainsAsMember ?? false,
       },
     });
     await prisma.staffLocationAccess.createMany({
@@ -1190,7 +1199,14 @@ async function main() {
       },
     ],
     owner: { email: "keimpe@gymrebel.nl", name: "Keimpe Krachtpatser" },
-    staff: [{ email: "coach@gymrebel.nl", name: "Coen Coach", locations: ["Leeuwarden Centrum"] }],
+    staff: [
+      {
+        email: "coach@gymrebel.nl",
+        name: "Coen Coach",
+        locations: ["Leeuwarden Centrum"],
+        trainsAsMember: true,
+      },
+    ],
     members: [
       { email: "duco@gymrebel.nl", name: "Duco Dumbbell", homeLocation: "Leeuwarden Centrum" },
       { email: "lisa@gymrebel.nl", name: "Lisa Lifter", homeLocation: "Leeuwarden Zuid" },

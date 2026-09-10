@@ -1700,7 +1700,8 @@
       "changelogDesc": "Nije funksjes en ferbetteringen yn GymRebel",
       "settings": "Ynstellingen",
       "roleOwner": "Eigener",
-      "roleStaff": "Meiwurker"
+      "roleStaff": "Meiwurker",
+      "more": "Mear"
     },
     "userMenu": {
       "account": "Akkountynstellingen",
@@ -2183,5 +2184,19 @@
         "colCost": "Kosten"
       }
     }
+  },
+  "mode": {
+    "metaTitle": "Kieze",
+    "title": "Wêr giesto hinne?",
+    "titleName": "Wêr giesto hinne, {name}?",
+    "subtitle": "Do wurkest hjir én do sportst hjir. Kies wêrmei’tsto begjinst.",
+    "train": "Traine",
+    "trainDesc": "Dyn eigen skema, sesjes en foarútgong",
+    "manage": "Behear",
+    "manageDesc": "Dashboard, leden, skema’s en lessen",
+    "remember": "Ûnthâld myn kar",
+    "switchHint": "Wikselje kin altyd fia it menu.",
+    "switchToMember": "Nei myn training",
+    "switchToOwner": "Nei behear"
   }
 }

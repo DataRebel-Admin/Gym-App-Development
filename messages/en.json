@@ -1830,7 +1830,8 @@
       "changelogDesc": "New features and improvements in GymRebel",
       "settings": "Settings",
       "roleOwner": "Owner",
-      "roleStaff": "Staff"
+      "roleStaff": "Staff",
+      "more": "More"
     },
     "userMenu": {
       "account": "Account settings",
@@ -2183,5 +2184,19 @@
       "invalidBody": "This invitation doesn't exist or is no longer valid. Ask the gym for a new invitation.",
       "toLogin": "Go to login"
     }
+  },
+  "mode": {
+    "metaTitle": "Choose",
+    "title": "Where are you headed?",
+    "titleName": "Where are you headed, {name}?",
+    "subtitle": "You work here and you train here. Pick where to start.",
+    "train": "Train",
+    "trainDesc": "Your own plan, sessions and progress",
+    "manage": "Manage",
+    "manageDesc": "Dashboard, members, plans and classes",
+    "remember": "Remember my choice",
+    "switchHint": "You can switch any time from the menu.",
+    "switchToMember": "Go to my training",
+    "switchToOwner": "Go to management"
   }
 }

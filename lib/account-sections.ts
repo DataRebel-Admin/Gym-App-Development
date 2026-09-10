@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import { canTrainAsMember, modeHref, parseMode } from "@/lib/member-mode";
 
 /**
  * Eén bron van waarheid voor de accountsectie-navigatie: de hub-lijst (mobiel),
@@ -39,9 +40,18 @@ export type RawAccountGroup = {
   items: RawAccountItem[];
 };
 
-/** Rol-bewuste, gegroepeerde sectiestructuur (nog niet vertaald). */
-export function accountSectionsRaw(role: Role): RawAccountGroup[] {
-  const isMember = role === "TENANT_MEMBER";
+/**
+ * Rol-bewuste, gegroepeerde sectiestructuur (nog niet vertaald).
+ *
+ * `trainsAsMember` = de lid-modus van een eigenaar/medewerker (lib/member-mode.ts):
+ * die traint hier zelf en heeft dus óók de sporter-secties (doelen, trainings-
+ * meldingen, agendakoppeling) nodig.
+ */
+export function accountSectionsRaw(
+  role: Role,
+  trainsAsMember = false
+): RawAccountGroup[] {
+  const isMember = canTrainAsMember(role, trainsAsMember);
   const isAdmin = role === "TENANT_ADMIN";
 
   const account: RawAccountItem[] = [
@@ -86,9 +96,17 @@ export function accountSectionsRaw(role: Role): RawAccountGroup[] {
   return groups;
 }
 
-/** Dashboard-terugpad per rol (topbalk "terug" op de hub-root). */
-export function dashboardHrefFor(role: Role): string {
-  return role === "SUPERADMIN" ? "/admin" : role === "TENANT_ADMIN" ? "/owner" : "/member";
+/**
+ * Dashboard-terugpad per rol (topbalk "terug" op de hub-root). Een teamlid dat
+ * zelf sport heeft twee dashboards; `mode` (de modus-cookie) zegt uit welke
+ * omgeving deze persoon komt, zodat "terug" niet stilzwijgend van wereld wisselt.
+ */
+export function dashboardHrefFor(role: Role, mode?: string | null): string {
+  if (role === "SUPERADMIN") return "/admin";
+  if (role === "TENANT_MEMBER") return "/member";
+  const chosen = parseMode(mode);
+  if (chosen) return modeHref(chosen);
+  return role === "TENANT_ADMIN" || role === "TENANT_STAFF" ? "/owner" : "/member";
 }
 
 // --- Opgeloste (vertaalde) vormen die de componenten ontvangen ---

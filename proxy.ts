@@ -9,6 +9,7 @@ import {
   LOCALE_COOKIE,
 } from "@/lib/constants";
 import { localeFromEnum } from "@/lib/i18n/config";
+import { isTeamRole } from "@/lib/member-mode";
 
 // Edge-veilige proxy/middleware: lost de tenant op (subdomein of ?tenant),
 // zet die als header voor de Server Components, en dwingt rol-toegang af op
@@ -66,7 +67,13 @@ export default auth((req) => {
     if (onOwner && user.role !== "TENANT_ADMIN" && user.role !== "TENANT_STAFF") {
       return NextResponse.redirect(new URL("/member", nextUrl));
     }
-    if (onMember && user.role !== "TENANT_MEMBER") {
+    // /member is óók open voor een eigenaar/medewerker die zelf meesport
+    // (`User.trainsAsMember`). Die vlag staat bewust niet in de JWT — dan zou
+    // hij verouderen tot de volgende login — dus beslist de server-guard
+    // (`requireMember` → lib/member-mode.ts) autoritatief; een teamlid zonder
+    // lid-modus stuurt die netjes terug naar /owner. Zelfde model als /owner,
+    // waar de per-pagina permissies ook server-side vallen.
+    if (onMember && user.role !== "TENANT_MEMBER" && !isTeamRole(user.role)) {
       return NextResponse.redirect(new URL("/owner", nextUrl));
     }
   }

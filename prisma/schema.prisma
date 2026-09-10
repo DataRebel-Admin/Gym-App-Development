@@ -643,6 +643,11 @@ model User {
   // Per-medewerker permissie-override (TENANT_STAFF). null = role-default.
   // Vorm: Record<Permission, boolean> — zie lib/rbac.ts.
   permissions   Json?
+  // Sport dit teamlid (TENANT_ADMIN/TENANT_STAFF) zelf ook bij deze sportschool?
+  // true = de member-area staat voor dit account open op de eigen trainingsdata.
+  // Bewust géén tweede User-rij: email is uniek per tenant. Zie lib/member-mode.ts.
+  // Raakt de ledenadministratie/analytics niet (die blijven rol-gebaseerd).
+  trainsAsMember Boolean @default(false)
   consents      Json? // privacy-toestemmingen (bv. marketing)
   // Door de sporter zélf gekozen trainingsdoelen (personalisatie). Vorm:
   // string[] met keys uit lib/training-goals.ts. null/[] = nog niet gekozen.
