@@ -91,6 +91,17 @@ const config: CapacitorConfig = {
        */
       launchAutoHide: true,
       launchShowDuration: 2000,
+      /**
+       * Bewust géén eigen uitfade (Capacitor-default is 200 ms). Staat dit boven
+       * 0, dan registreert Capacitor een exit-listener, en core-splashscreen
+       * (`Impl31.applyAppSystemUiTheme`, Android 12+) zet bij dat afsluiten de
+       * kleur én de icoonstand van status- en navigatiebalk terug naar het native
+       * thema. Dat maakte twee dingen ongedaan: de doorzichtige navigatiebalk van
+       * `EdgeToEdge.enable` in MainActivity (onderin weer een dichte witte balk)
+       * en de icoonkleur die de web-app per thema zet (SystemBarsSync). Gezien op
+       * een OnePlus 8 Pro. Alleen Android; iOS kent deze optie niet.
+       */
+      launchFadeOutDuration: 0,
       // Gelijk aan het startscherm zelf (Brand Book Black), zodat het overgaan
       // naar de WebView geen kleurstap geeft.
       backgroundColor: "#000000",

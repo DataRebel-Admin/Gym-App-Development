@@ -7,7 +7,7 @@ android {
         applicationId "nl.gymrebeltraining.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
+        versionCode 7
         versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -93,6 +93,9 @@ dependencies {
     // MainActivity gebruikt WebSettingsCompat/WebViewFeature rechtstreeks voor
     // passkeys in de WebView; niet leunen op de transitieve dep van Capacitor.
     implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+    // MainActivity roept EdgeToEdge aan (androidx.activity 1.8+); ook hier niet
+    // leunen op de transitieve dep via appcompat.
+    implementation "androidx.activity:activity:$androidxActivityVersion"
     // AppLockPlugin: BiometricPrompt met pincode-terugval (app-vergrendeling).
     implementation "androidx.biometric:biometric:$androidxBiometricVersion"
     implementation project(':capacitor-android')

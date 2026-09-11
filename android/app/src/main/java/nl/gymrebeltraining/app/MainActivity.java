@@ -3,6 +3,7 @@ package nl.gymrebeltraining.app;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 
+import androidx.activity.EdgeToEdge;
 import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewFeature;
 
@@ -16,6 +17,25 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(WorkoutNotificationsPlugin.class);
         registerPlugin(CalendarSyncPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Edge-to-edge op élke Android-versie, niet alleen op 15+ (waar targetSdk
+        // 36 het afdwingt). Op 14 en lager tekende de WebView wél onder de
+        // statusbalk (de status-bar-plugin zet standaard overlaysWebView) maar niet
+        // onder de navigatiebalk, dus onderin bleef een dichte balk in de
+        // systeemkleur staan: wit onder een donkere app. Nu is het overal gelijk:
+        // beide balken doorzichtig, Capacitor's SystemBars geeft de insets door
+        // aan de WebView (viewport-fit=cover) en de web-app houdt de ruimte vrij
+        // met env(safe-area-inset-*); zie "Statusbalk & safe areas" in CLAUDE.md.
+        // Bij 3-knopsnavigatie tekent Android zelf een scrim achter de knoppen;
+        // de icoonkleur van beide balken zet de web-app per thema (SystemBarsSync).
+        // Ná super.onCreate, zodat dit het laatste woord heeft na de plugins die
+        // bij het laden de balken al instellen.
+        //
+        // Werkt alleen zolang `launchFadeOutDuration` in capacitor.config.ts op 0
+        // staat: anders zet core-splashscreen bij het wegklikken van het
+        // startscherm de balkkleuren terug naar het thema en is de navigatiebalk
+        // weer dicht.
+        EdgeToEdge.enable(this);
 
         // Passkeys (WebAuthn) in de WebView. Anders dan Chrome ondersteunt een
         // Android-WebView navigator.credentials niet vanzelf: de app moet dit

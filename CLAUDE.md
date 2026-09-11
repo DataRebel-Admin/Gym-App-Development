@@ -3153,12 +3153,10 @@ De oplossing zit volledig aan de web-kant en werkt dus zonder nieuwe app-build:
 - **`viewportFit: "cover"`** in `generateViewport` (app/layout.tsx). SystemBars
   leest dat bij `DOMContentLoaded` en geeft de insets dan door aan de WebView
   (vanaf WebView 140), zodat env() op élke Android-versie klopt. Op 15+ loopt de
-  pagina daardoor ook achter de gebarenbalk. Op 14 en lager blijft de onder-inset
-  0, want de DecorView reserveert de navigatiebalk daar zelf (gezien op een OnePlus
-  8 Pro, Android 13, WebView 152). Gevolg daar: onderin staat de systeem-
-  navigatiebalk in de systeemkleur, dus wit bij een licht systeem, ook onder een
-  donkere app. Dat oplossen vraagt een native wijziging (edge-to-edge in
-  MainActivity) en dus een nieuwe build.
+  pagina daardoor ook achter de gebarenbalk. Tot en met build 6 bleef de
+  onder-inset op 14 en lager 0, want de DecorView reserveert de navigatiebalk daar
+  zelf (gezien op een OnePlus 8 Pro, Android 13, WebView 152); vanaf build 7 zet
+  MainActivity edge-to-edge aan en is dat gelijk aan 15+ (zie hieronder).
 - **De body houdt de safe areas vrij** (`padding: env(...)` aan alle vier de
   kanten, globals.css). Een gewone pagina hoeft er dus niets voor te doen. **Zet op
   een pagina nooit nog eens `max(1rem, env(...))`**: dan telt de inset dubbel (de
@@ -3191,15 +3189,36 @@ De oplossing zit volledig aan de web-kant en werkt dus zonder nieuwe app-build:
   luistert op `data-theme` en zet zowel `SystemBars` (core) als
   `@capacitor/status-bar`: beide herstellen hun eigen stijl bij elke
   configuratiewijziging (draaien, donkere modus), en wie als laatste komt wint.
-  **Alleen de statusbalk**, bewust niet de navigatiebalk: die is op Android 14 en
-  lager een dichte balk in de systeemkleur, en iconen op het app-thema gaven daar
-  donkere knoppen op zwart.
+  **Alleen een balk waar de pagina écht onder loopt krijgt de themakleur**
+  (body-padding aan die kant > 0, dus env() > 0); anders `DEFAULT`, de
+  systeemmodus. Op build 6 en ouder is de navigatiebalk op Android 14 en lager een
+  dichte balk in de systeemkleur, en iconen op het app-thema gaven daar donkere
+  knoppen op zwart.
+- **HET STARTSCHERM ZET DE BALKEN TERUG.** core-splashscreen
+  (`Impl31.applyAppSystemUiTheme`, Android 12+) zet bij het wegklikken van het
+  startscherm de kleur én de icoonstand van beide balken terug naar het native
+  thema, maar alleen als Capacitor een exit-listener registreert, en dat doet het
+  bij `launchFadeOutDuration > 0` (default 200). Gezien op de OnePlus 8 Pro: na een
+  koude start in het lichte thema witte iconen op een lichte strook, en de
+  navigatiebalk dicht wit. Daarom:
+  - **`launchFadeOutDuration: 0`** in capacitor.config.ts (vanaf build 7): geen
+    listener, dus geen reset. Niet terugzetten, anders is de doorzichtige
+    navigatiebalk van `EdgeToEdge.enable` (MainActivity) direct weer weg.
+  - **De sync past de stijl kort na het opstarten nog twee keer toe** (800 en
+    2500 ms: na het wegklikken door SplashGate en na het plafond van
+    `launchShowDuration`), plus bij `visibilitychange`. Nodig voor iedereen op
+    build 6 of ouder, waar de listener nog in de app zit.
+- **Edge-to-edge op élke Android-versie** (`EdgeToEdge.enable` in MainActivity,
+  vanaf build 7). Tot en met build 6 liep de pagina op 14 en lager wél onder de
+  statusbalk (door de overlay van de status-bar-plugin) maar niet onder de
+  navigatiebalk, waardoor onderin een dichte witte balk bleef staan, ook onder een
+  donkere app. Nu is het gedrag gelijk aan 15+.
 - **Restpunten**: met een WebView ouder dan 140 geeft SystemBars de insets niet
-  door. Op 15+ padt hij dan native (strook = `windowBackground`), op 14 en lager
-  blijft de oude fout; via Play-updates komt zo'n WebView in de praktijk niet meer
-  voor. iOS: `contentInset: "always"` insett de WKWebView al native. Controleer bij
-  de eerste Mac-build dat env() daar 0 is (anders dubbel) en zet het anders op
-  `"never"`.
+  door. Op 15+ padt hij dan native en kiest de sync `DEFAULT` (de padding is 0);
+  op 14 en lager loopt de pagina dan onder beide balken zonder dat env() het weet.
+  Via Play-updates komt zo'n WebView in de praktijk niet meer voor. iOS:
+  `contentInset: "always"` insett de WKWebView al native. Controleer bij de eerste
+  Mac-build dat env() daar 0 is (anders dubbel) en zet het anders op `"never"`.
 - **Vanaf de desktop zie je hier niets van**: env() is daar 0. Testen op een
   toestel, Android 14 én 15+, licht én donker thema.
 

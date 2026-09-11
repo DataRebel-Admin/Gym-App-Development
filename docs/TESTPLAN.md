@@ -174,6 +174,28 @@ events, geen abonnement.
 > kaart en de synchronisatie staan in de webcode (`lib/calendar-device-sync.ts`).
 > Test 5b dus niet tegen een oudere productieversie.
 
+## 5c. Statusbalk en navigatiebalk (alleen Android)
+
+Nieuw in build 7: de app loopt op élke Android-versie door tot achter de status- en
+navigatiebalk (`EdgeToEdge.enable` in `MainActivity`), en het startscherm zet de
+balken bij het wegklikken niet meer terug (`launchFadeOutDuration: 0`). Test op
+Android 14 of lager én op 15+: tot en met build 6 verschilde het gedrag daar.
+
+| # | Stap | Verwacht | OK |
+|---|---|---|---|
+| 5c.1 | App koud starten in het donkere thema | Klok, wifi en batterij wit op de donkere strook, header direct eronder | ☐ |
+| 5c.2 | Idem in het lichte thema, of op het inlogscherm (altijd licht) | Iconen donker op de lichte strook, ook ná het wegklikken van het startscherm | ☐ |
+| 5c.3 | Onderin kijken met gebarennavigatie | Geen witte balk: de onderbalk van de app loopt door tot de rand, het streepje is leesbaar | ☐ |
+| 5c.4 | Idem met 3-knopsnavigatie | Knoppen leesbaar op een doorschijnende achtergrond | ☐ |
+| 5c.5 | Menu openen en scrollen | De menu-inhoud schuift niet achter de klok | ☐ |
+| 5c.6 | Thema wisselen in het menu | Iconen wisselen direct mee | ☐ |
+| 5c.7 | Invoerveld aantikken, bv. een set loggen | Het veld blijft boven het toetsenbord | ☐ |
+
+> Via USB te controleren zonder screenshot (handig achter het app-slot, dat
+> screenshots zwart maakt): `adb shell dumpsys window windows` en dan bij
+> `MainActivity` de regel `apr=`. `LIGHT_STATUS_BARS` betekent donkere iconen in
+> de statusbalk, zonder die vlag zijn ze wit.
+
 ## 6. Netwerk en randgevallen (webview-beperkingen)
 
 Dit is waar een WebView-app zich anders gedraagt dan een echte native app.
