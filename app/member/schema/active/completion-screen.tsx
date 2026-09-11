@@ -130,16 +130,22 @@ export function CompletionScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[70] overflow-y-auto bg-surface-0/95 px-6 pb-[calc(2.5rem_+_env(safe-area-inset-bottom))] pt-[calc(2.5rem_+_env(safe-area-inset-top))] backdrop-blur"
+      className="fixed inset-0 z-[70] overflow-y-auto bg-surface-0/95 px-6 pb-[calc(2.5rem_+_env(safe-area-inset-bottom))] backdrop-blur"
       role="dialog"
       aria-modal="true"
       aria-label={t("completedAria")}
     >
+      {/* Ruimte voor de statusbalk als sticky kind, niet als padding-top: dit
+          scherm ligt boven de statusbalk-scrim en padding scrolt mee weg. */}
+      <div
+        aria-hidden
+        className="sticky top-0 z-10 -mx-6 h-[env(safe-area-inset-top)] bg-surface-0"
+      />
       <m.div
         initial={{ y: 24, opacity: 0, scale: 0.96 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="relative mx-auto w-full max-w-sm text-center"
+        className="relative mx-auto mt-10 w-full max-w-sm text-center"
       >
         <Confetti />
         <div className="relative mx-auto mb-5 flex h-28 w-28 items-center justify-center">

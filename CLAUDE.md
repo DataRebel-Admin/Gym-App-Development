@@ -3153,9 +3153,12 @@ De oplossing zit volledig aan de web-kant en werkt dus zonder nieuwe app-build:
 - **`viewportFit: "cover"`** in `generateViewport` (app/layout.tsx). SystemBars
   leest dat bij `DOMContentLoaded` en geeft de insets dan door aan de WebView
   (vanaf WebView 140), zodat env() op élke Android-versie klopt. Op 15+ loopt de
-  pagina daardoor ook achter de gebarenbalk. Op 14 en lager is de verwachting dat
-  de onder-inset 0 blijft, omdat de DecorView de navigatiebalk daar zelf reserveert
-  (niet op een toestel geverifieerd).
+  pagina daardoor ook achter de gebarenbalk. Op 14 en lager blijft de onder-inset
+  0, want de DecorView reserveert de navigatiebalk daar zelf (gezien op een OnePlus
+  8 Pro, Android 13, WebView 152). Gevolg daar: onderin staat de systeem-
+  navigatiebalk in de systeemkleur, dus wit bij een licht systeem, ook onder een
+  donkere app. Dat oplossen vraagt een native wijziging (edge-to-edge in
+  MainActivity) en dus een nieuwe build.
 - **De body houdt de safe areas vrij** (`padding: env(...)` aan alle vier de
   kanten, globals.css). Een gewone pagina hoeft er dus niets voor te doen. **Zet op
   een pagina nooit nog eens `max(1rem, env(...))`**: dan telt de inset dubbel (de
@@ -3167,6 +3170,12 @@ De oplossing zit volledig aan de web-kant en werkt dus zonder nieuwe app-build:
   `sticky bottom-20`-acties, de bulk-balk). Drawers, bottom sheets, de modal en het
   eindscherm dragen hun eigen inset. **Nieuw `fixed`/`sticky` element aan een rand?
   Tel de inset erbij.**
+- **Een eigen scrollcontainer die bovenaan het scherm begint** (de drawers, het
+  eindscherm na een training) krijgt de inset als **`sticky top-0`-afstandhouder
+  als eerste kind**, niet als `padding-top`. Padding scrolt mee weg, en omdat zo'n
+  overlay boven de scrim ligt schoof de inhoud dan alsnog achter de klok (gezien
+  op de OnePlus 8 Pro in het uitschuifmenu). Zet er in een flex-kolom `shrink-0`
+  bij, anders knijpt de overloop hem naar 0.
 - **Schrijf calc in Tailwind met underscores**:
   `bottom-[calc(1rem_+_env(safe-area-inset-bottom))]`. Zonder spaties rond de `+`
   is de calc ongeldige CSS en valt de hele regel stil weg.

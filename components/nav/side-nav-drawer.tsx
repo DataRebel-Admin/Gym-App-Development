@@ -126,7 +126,7 @@ export function SideNavDrawer({
                     exit={{ x: side === "right" ? "100%" : "-100%" }}
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     className={cn(
-                      "absolute inset-y-0 flex w-[84%] max-w-xs flex-col overflow-y-auto border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl",
+                      "absolute inset-y-0 flex w-[84%] max-w-xs flex-col overflow-y-auto border-border bg-surface-1 pb-[env(safe-area-inset-bottom)] shadow-2xl",
                       side === "right" ? "right-0 border-l" : "left-0 border-r",
                     )}
                     onClick={(e) => e.stopPropagation()}
@@ -134,6 +134,13 @@ export function SideNavDrawer({
                     aria-modal="true"
                     aria-label="Menu"
                   >
+                    {/* Ruimte voor de statusbalk. Bewust een sticky kind en geen
+                        padding-top: padding scrolt mee weg, en omdat de drawer boven
+                        de statusbalk-scrim ligt schoof de inhoud dan achter de klok. */}
+                    <div
+                      aria-hidden
+                      className="sticky top-0 z-10 h-[env(safe-area-inset-top)] shrink-0 bg-surface-1"
+                    />
                     {/* Kop met merk */}
                     <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
                       <Link
