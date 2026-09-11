@@ -195,6 +195,10 @@ Android 14 of lager én op 15+: tot en met build 6 verschilde het gedrag daar.
 > screenshots zwart maakt): `adb shell dumpsys window windows` en dan bij
 > `MainActivity` de regel `apr=`. `LIGHT_STATUS_BARS` betekent donkere iconen in
 > de statusbalk, zonder die vlag zijn ze wit.
+>
+> Wissel je het thema vlak vóór een koude start (5c.2), wacht dan eerst 35
+> seconden: Chromium schrijft de themacookie pas daarna naar schijf, en een app die
+> eerder wordt afgesloten start gewoon weer in het oude thema.
 
 ## 6. Netwerk en randgevallen (webview-beperkingen)
 

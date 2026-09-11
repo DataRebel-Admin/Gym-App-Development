@@ -3198,9 +3198,14 @@ De oplossing zit volledig aan de web-kant en werkt dus zonder nieuwe app-build:
   (`Impl31.applyAppSystemUiTheme`, Android 12+) zet bij het wegklikken van het
   startscherm de kleur én de icoonstand van beide balken terug naar het native
   thema, maar alleen als Capacitor een exit-listener registreert, en dat doet het
-  bij `launchFadeOutDuration > 0` (default 200). Gezien op de OnePlus 8 Pro: na een
-  koude start in het lichte thema witte iconen op een lichte strook, en de
-  navigatiebalk dicht wit. Daarom:
+  bij `launchFadeOutDuration > 0` (default 200). Vastgesteld met `javap` op
+  `Impl31` (core-splashscreen 1.2.0): het zet `statusBarColor`,
+  `navigationBarColor`, de icoonstand en `decorFitsSystemWindows` terug. De
+  oplossing hieronder is geverifieerd op een OnePlus 11 (Android 16, systeem
+  donker, app licht): donkere iconen na een koude start. **Test zo'n koude start
+  pas 35 s na het wisselen van thema**: Chromium schrijft de themacookie pas dan
+  weg, en een eerder afgesloten app start in het oude thema (een eerste test liep
+  daardoor ongemerkt in donker). Daarom:
   - **`launchFadeOutDuration: 0`** in capacitor.config.ts (vanaf build 7): geen
     listener, dus geen reset. Niet terugzetten, anders is de doorzichtige
     navigatiebalk van `EdgeToEdge.enable` (MainActivity) direct weer weg.

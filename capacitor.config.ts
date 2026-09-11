@@ -98,8 +98,9 @@ const config: CapacitorConfig = {
        * kleur én de icoonstand van status- en navigatiebalk terug naar het native
        * thema. Dat maakte twee dingen ongedaan: de doorzichtige navigatiebalk van
        * `EdgeToEdge.enable` in MainActivity (onderin weer een dichte witte balk)
-       * en de icoonkleur die de web-app per thema zet (SystemBarsSync). Gezien op
-       * een OnePlus 8 Pro. Alleen Android; iOS kent deze optie niet.
+       * en de icoonkleur die de web-app per thema zet (SystemBarsSync). Vastgesteld
+       * in de bytecode van core-splashscreen 1.2.0. Alleen Android; iOS kent deze
+       * optie niet.
        */
       launchFadeOutDuration: 0,
       // Gelijk aan het startscherm zelf (Brand Book Black), zodat het overgaan

@@ -13,9 +13,11 @@ import {
  * native startscherm zet core-splashscreen (`Impl31.applyAppSystemUiTheme`) de
  * icoonstand van beide balken terug naar het native thema, en dat gebeurt ná
  * het eerste effect hieronder: SplashGate klikt het startscherm pas weg zodra de
- * UI staat. Gezien op een OnePlus 8 Pro: na een koude start in het lichte thema
- * witte iconen op een lichte strook. 800 ms dekt het wegklikken door SplashGate,
- * 2500 ms het plafond van `launchShowDuration` (2000 ms) in capacitor.config.ts.
+ * UI staat. Zonder deze herhaling kan de app in het lichte thema opstarten met
+ * witte iconen op een lichte strook. Met de herhaling geverifieerd op een OnePlus
+ * 11 (Android 16, systeem donker, app licht, build 6): donkere iconen na een
+ * koude start. 800 ms dekt het wegklikken door SplashGate, 2500 ms het plafond
+ * van `launchShowDuration` (2000 ms) in capacitor.config.ts.
  *
  * Vanaf build 7 staat `launchFadeOutDuration` op 0, dan registreert Capacitor de
  * listener niet en blijft de reset weg. Dit blijft nodig voor iedereen die nog
