@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -47,16 +48,28 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * ## Smartwatch
  *
- * Beide meldingen zijn bewust zo gebouwd dat ze op een gekoppeld horloge
- * (Wear OS, Galaxy Watch) zelfstandig bruikbaar zijn, zónder dat er een
- * watch-app bestaat:
- *  - `setLocalOnly(false)` houdt ze bridgebaar (zie de opmerking daar).
- *  - De rustmelding draagt twee knoppen die WorkoutActionReceiver volledig
- *    native afhandelt, dus zonder de telefoon te ontgrendelen.
- *  - De teksten zijn zelfdragend: de body noemt oefening en set, want op een
+ * Alleen de rustmelding komt op een gekoppeld horloge, en die is bewust zo
+ * gebouwd dat ze daar zónder watch-app bruikbaar is:
+ *  - `setLocalOnly(false)` houdt haar doorstuurbaar (zie de opmerking daar).
+ *  - Ze draagt twee knoppen die WorkoutActionReceiver volledig native
+ *    afhandelt, dus zonder de telefoon te ontgrendelen.
+ *  - De tekst is zelfdragend: de body noemt de oefening, want op een
  *    40mm-scherm is "Rust voorbij" alleen te weinig om op te handelen.
  * De labels komen als parameter uit de web-kant: die kent de UI-taal
  * (next-intl), Java niet.
+ *
+ * De blijvende "training bezig"-melding komt NIET op het horloge: Wear OS
+ * stuurt ongoing-meldingen nooit door (developer.android.com, "Bridging
+ * options for notifications"). Een meelopende klok op de pols vraagt een
+ * eigen watch-app met de Ongoing Activity API, en die bouwen we bewust niet.
+ *
+ * Welk horloge wat toont:
+ *  - Wear OS (Galaxy Watch 4 en nieuwer, Pixel Watch): tekst + knoppen.
+ *  - Tizen (Gear S2/S3, Galaxy Watch t/m Watch 3): alleen de tekst. Samsungs
+ *    Tizen-brug neemt knoppen van een app niet over, op een handvol door
+ *    Samsung zelf ingebouwde apps na. De knoppen staan daarom óók in een
+ *    WearableExtender (zie postRestDone); of Tizen die route leest is niet
+ *    bewezen.
  */
 @CapacitorPlugin(name = "WorkoutNotifications")
 public class WorkoutNotificationsPlugin extends Plugin {
@@ -84,6 +97,14 @@ public class WorkoutNotificationsPlugin extends Plugin {
     static final String EXTRA_URL = "url";
     static final String EXTRA_EXTEND_LABEL = "extendLabel";
     static final String EXTRA_DONE_LABEL = "doneLabel";
+
+    /**
+     * androidx' eigen sleutel voor setShowsUserInterface in de extras van een
+     * actie (NotificationCompat.Action.EXTRA_SHOWS_USER_INTERFACE, die
+     * package-private is). Zie action() voor waarom we hem zelf zetten.
+     */
+    private static final String EXTRA_SHOWS_USER_INTERFACE =
+        "android.support.action.showsUserInterface";
 
     private static final String PREFS = "gymrebel-workout-notifications";
     private static final String KEY_PENDING = "pendingRestActions";
@@ -191,19 +212,13 @@ public class WorkoutNotificationsPlugin extends Plugin {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             // Chronometer: het systeem laat de verstreken tijd zelf meelopen —
-            // geen wakker houden van de WebView nodig. Op een gekoppeld horloge
-            // loopt diezelfde teller mee, dus je ziet je trainingsduur op je pols.
+            // geen wakker houden van de WebView nodig. Alleen op de telefoon:
+            // een ongoing-melding gaat nooit naar het horloge (zie de
+            // klassecommentaar), dus setLocalOnly staat hier bewust niet.
             .setWhen(startedAtMs)
             .setShowWhen(true)
             .setUsesChronometer(true)
-            // Wear OS gebruikt deze categorie om een lopende training als
-            // activiteit te herkennen in plaats van als losse melding.
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
-            // Expliciet, want dit is precies de eigenschap die de melding naar
-            // een gekoppeld horloge laat doorstromen. Het is de standaardwaarde,
-            // maar hem hier laten staan voorkomt dat een latere wijziging de
-            // smartwatch-ondersteuning stil uitzet.
-            .setLocalOnly(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build();
 
@@ -241,21 +256,38 @@ public class WorkoutNotificationsPlugin extends Plugin {
                 // ALARM mag door Niet storen en Bedtime heen. Een rusttimer die
                 // je in de sportschool niet hoort is geen rusttimer.
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
-                // Zie de opmerking bij showOngoing: bewust expliciet.
+                // Expliciet, want dit is precies de eigenschap die de melding
+                // naar een gekoppeld horloge laat doorstromen. Het is de
+                // standaardwaarde, maar hem hier laten staan voorkomt dat een
+                // latere wijziging de smartwatch-ondersteuning stil uitzet.
                 .setLocalOnly(false);
 
         // De knoppen. Alleen toevoegen als de web-kant een label meestuurde —
         // een knop zonder tekst is op een horloge een blinde tik.
+        //
+        // Elke knop gaat twee keer mee: gewoon (telefoon) en in een
+        // WearableExtender (horloge). Tizen-horloges tonen de gewone knoppen
+        // niet; de WearableExtender is de route die voor horlogeknoppen
+        // bedoeld is, dus die proberen we ook. Voor Wear OS verandert er niets:
+        // zodra er horlogeknoppen zijn toont het horloge alléén die, en dat is
+        // dezelfde set. De telefoon negeert de WearableExtender, dus daar
+        // staan ze nooit dubbel.
+        NotificationCompat.WearableExtender wear = new NotificationCompat.WearableExtender();
         if (extendLabel != null && !extendLabel.isEmpty()) {
-            builder.addAction(action(
+            NotificationCompat.Action extend = action(
                 context, ACTION_REST_EXTEND, RC_EXTEND, extendLabel,
-                title, body, url, extendLabel, doneLabel));
+                title, body, url, extendLabel, doneLabel);
+            builder.addAction(extend);
+            wear.addAction(extend);
         }
         if (doneLabel != null && !doneLabel.isEmpty()) {
-            builder.addAction(action(
+            NotificationCompat.Action done = action(
                 context, ACTION_REST_DONE, RC_DONE, doneLabel,
-                title, body, url, extendLabel, doneLabel));
+                title, body, url, extendLabel, doneLabel);
+            builder.addAction(done);
+            wear.addAction(done);
         }
+        builder.extend(wear);
 
         NotificationManagerCompat.from(context).notify(ID_TIMER, builder.build());
     }
@@ -280,12 +312,23 @@ public class WorkoutNotificationsPlugin extends Plugin {
             context, requestCode, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
+        // Dezelfde vlag óók als extra, anders valt hij op het horloge weg. De
+        // WearableExtender-kopie van deze knop (zie postRestDone) neemt
+        // setShowsUserInterface NIET mee: androidx (core 1.17,
+        // WearableExtender.getActionFromActionCompat) kopieert alleen de
+        // extras, en alleen de gewone addAction-route (NotificationCompatBuilder)
+        // schrijft de vlag erbij. Zonder deze extra leest Wear OS voor de
+        // horlogeknop de standaardwaarde true. Niet weghalen omdat hij dubbel lijkt.
+        Bundle extras = new Bundle();
+        extras.putBoolean(EXTRA_SHOWS_USER_INTERFACE, false);
+
         return new NotificationCompat.Action.Builder(R.drawable.ic_stat_gymrebel, label, pending)
             // Cruciaal voor de smartwatch: zonder deze vlag gaan Wear OS en
             // Android Auto ervan uit dat de knop een scherm opent en bieden ze
             // hem aan als "open op je telefoon". Met false handelen ze hem ter
             // plekke af, wat het hele punt is van een knop op je pols.
             .setShowsUserInterface(false)
+            .addExtras(extras)
             .build();
     }
 

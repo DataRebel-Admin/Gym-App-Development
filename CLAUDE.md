@@ -3258,9 +3258,11 @@ service-worker-push, dus web-push bereikt alleen browsers en geïnstalleerde PWA
 
 Een sporter legt zijn telefoon weg en traint. De koppeling met een smartwatch
 loopt daarom volledig via de **meldingslaag**: Android en iOS spiegelen meldingen
-naar een gekoppeld horloge (Wear OS, Galaxy Watch, Apple Watch) zonder dat er een
-app op het horloge hoeft te staan. Dat gebeurde al; wat ontbrak was dat je er iets
-mee kón. **Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.**
+naar een gekoppeld horloge (Wear OS, Apple Watch) zonder dat er een app op het
+horloge hoeft te staan. Dat gebeurde al; wat ontbrak was dat je er iets mee kón.
+**Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.** Het gaat om
+**één** melding, de rustmelding: de blijvende "training bezig"-melding komt niet
+op de pols (zie hieronder).
 
 - **DE KNOPPEN WORDEN NATIVE AFGEHANDELD, NOOIT DOOR DE WEBVIEW.** Dat is de hele
   feature: een actie die MainActivity start opent de app op je telefoon, wat op
@@ -3270,6 +3272,23 @@ mee kón. **Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.**
   dragen **`setShowsUserInterface(false)`**: zonder die vlag presenteren Wear OS
   en Android Auto ze alsnog als "open op je telefoon". Op iOS is het equivalent
   een `UNNotificationAction` **zonder** `.foreground`.
+- **TIZEN-HORLOGES TONEN DE KNOPPEN NIET** (Gear S2/S3, Galaxy Watch 2018,
+  Watch Active/Active 2, Watch 3; gemeld door de eigenaar vanaf een Gear,
+  2026-09-11). Samsungs Tizen-brug neemt de meldingstekst over, maar knoppen van
+  een app alleen voor een handvol door Samsung zelf ingebouwde apps (berichten,
+  mail). Wear OS (Galaxy Watch 4 en nieuwer) toont ze wél. Poging: de knoppen gaan
+  óók mee in een **`WearableExtender`**, de route die voor horlogeknoppen bedoeld
+  is. Of Tizen die leest is niet bewezen. Werkt het niet, dan is hier niets meer
+  aan te doen: een eigen Tizen-watch-app kan niet meer, Samsung heeft de
+  distributie daarvan stopgezet.
+- **`WearableExtender` NEEMT `setShowsUserInterface(false)` NIET MEE.** androidx
+  (core 1.17, `WearableExtender.getActionFromActionCompat`, nagelezen in de
+  bytecode) kopieert alleen de extras van een actie; de vlag schrijft alleen de
+  gewone `addAction`-route (`NotificationCompatBuilder`) erbij. Zodra er
+  horlogeknoppen zijn toont Wear OS alléén die, dus zonder correctie zou een tik
+  op Wear OS weer als "open op je telefoon" gelden. Daarom zet `action()` de vlag
+  óók als extra (`android.support.action.showsUserInterface`, de package-private
+  sleutel van androidx). Haal die regel niet weg omdat hij dubbel lijkt.
 - **De wachtrij is de bron van waarheid, niet het event.** Wat je op je pols tikt
   moet terugkomen in de timer-UI, maar de WebView staat op dat moment stil. De
   receiver schrijft naar SharedPreferences (iOS: UserDefaults) en
@@ -3311,11 +3330,15 @@ mee kón. **Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.**
   alleen te weinig. Bewust **niet** "set 3 van 4": het zichtbare set-aantal is het
   maximum van groepsrondes, sessie-override en schema-sets, dus een losse telling
   zou op een verlengde oefening "set 5 van 4" opleveren.
-- **`setLocalOnly(false)` staat expliciet in de code** hoewel het de standaard is
-  — het ís de eigenschap die de melding naar het horloge laat doorstromen, en zo
-  kan een latere wijziging de ondersteuning niet stil uitzetten. De blijvende
-  "training bezig"-melding draagt `CATEGORY_WORKOUT` zodat Wear OS haar als
-  trainingsactiviteit herkent; de chronometer loopt op de pols mee.
+- **`setLocalOnly(false)` staat expliciet op de rustmelding** hoewel het de
+  standaard is: het ís de eigenschap die de melding naar het horloge laat
+  doorstromen, en zo kan een latere wijziging de ondersteuning niet stil uitzetten.
+- **DE "TRAINING BEZIG"-KLOK KOMT NIET OP DE POLS.** Dat stond hier eerder wel
+  (`CATEGORY_WORKOUT` zou Wear OS er een trainingsactiviteit van laten maken),
+  maar Wear OS stuurt **ongoing-meldingen nooit door** (developer.android.com,
+  "Bridging options for notifications"). De chronometer loopt dus alleen op de
+  telefoon. Een meelopende klok op het horloge vraagt een eigen watch-app met de
+  Ongoing Activity API, en die valt onder "Bewust niet" hieronder.
 - **Bewust géén knoppen op de web/PWA-melding.** `showNotification` ondersteunt
   `actions` wel, maar de service worker kan de timer-state (localStorage, van de
   pagina) niet aanpassen en de pagina die dat wél kan is juist weg op het moment
@@ -3339,6 +3362,11 @@ mee kón. **Geen DB-migratie, geen nieuwe permissie, geen nieuwe dependency.**
   Dat bestand automatisch patchen is fragieler dan één sleepbeweging, dus het
   script **controleert** de registratie en waarschuwt — een niet-geregistreerde
   plugin geeft namelijk geen fout, de JS-aanroep valt gewoon in zijn catch.
+  Los daarvan moet Capacitor de plugin óók kennen: Capacitor 8 registreert op iOS
+  alleen npm-plugins (uit `packageClassList`), dus zonder eigen registratie laadde
+  deze plugin nooit, ook niet als Xcode hem wél compileerde. Die registratie
+  (eigen `MainViewController`, door `ios:plugins` in `Main.storyboard` gezet)
+  staat onder "Native apps".
 - **Bewust niet**: geen Health Connect / HealthKit (hartslag en calorieën uit de
   watch blijven handmatig via het bestaande `avgHr`-logveld), geen eigen Wear OS-
   of watchOS-app, geen Live Activity. Een watch-app is een losse native app: de
